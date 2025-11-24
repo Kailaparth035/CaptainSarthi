@@ -1,0 +1,4 @@
+/Users/abcom/Documents/Farmer/android/app/.cxx/Debug/6g3q1r64/x86_64/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/foo.dir
+/Users/abcom/Documents/Farmer/android/app/.cxx/Debug/6g3q1r64/x86_64/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/boo.dir
+/Users/abcom/Documents/Farmer/android/app/.cxx/Debug/6g3q1r64/x86_64/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/edit_cache.dir
+/Users/abcom/Documents/Farmer/android/app/.cxx/Debug/6g3q1r64/x86_64/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/rebuild_cache.dir

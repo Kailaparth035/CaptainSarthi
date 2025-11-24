@@ -1,0 +1,68 @@
+# React Native
+node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+package-lock.json
+*.log
+
+# Metro bundler
+.expo/
+.expo-shared/
+.metro/
+metro-cache/
+*.pack
+*.hbc
+
+# iOS
+ios/Pods/
+ios/build/
+ios/DerivedData/
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+xcuserdata/
+*.xccheckout
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Android
+android/.gradle/
+android/app/build/
+android/build/
+android/local.properties
+android/.idea
+android/.cxx
+*.iml
+
+# Keystore / Keys
+*.keystore
+*.jks
+*.pem
+*.p12
+*.key
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+
+# VSCode
+.vscode/
+.history/
+
+# Mac system files
+.DS_Store
+
+# Environment files
+.env
+.env.*
