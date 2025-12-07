@@ -7,15 +7,18 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {useNavigation} from '@react-navigation/native';
+import {useNavigation, CommonActions} from '@react-navigation/native';
 import {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
+import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import colors from '../utils/colors';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import {FontFamily, Typography} from '../utils/typography';
 import {TabParamList} from '../navigation/TabNavigator';
+import {RootStackParamList} from '../navigation/RootNavigator';
 import {SCREEN_NAMES} from '../constants/screenNames';
+import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 
 // Mock data
 const summaryData = {
@@ -158,10 +161,9 @@ SummaryCard = ({
           flex: 1,
           alignItems: 'flex-start',
           justifyContent: 'center',
-             height: moderateScale(48),
         }}
       >
-        <Text style={[dynamicStyles.summaryValue,{marginTop:moderateScale(4)}]}>{value}</Text>
+        <Text style={dynamicStyles.summaryValue}>{value}</Text>
         <Text style={dynamicStyles.summaryLabel}>{label}</Text>
       </View>
     </View>
@@ -171,8 +173,15 @@ SummaryCard = ({
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
-  const navigation =
+  const navigation = useNavigation();
+  const tabNavigation =
     useNavigation<BottomTabNavigationProp<TabParamList>>();
+
+  // Update StatusBar and bottom bar to match screen background color
+  useDynamicStatusBar({
+    backgroundColor: colors.backgroundLight,
+    bottomBarColor: colors.backgroundLight,
+  });
 
   const dynamicStyles = useMemo(
     () =>
@@ -196,7 +205,7 @@ export default function HomeScreen() {
           ...Typography.boldHeading,
           color: colors.textPrimary,
           fontSize: moderateScale(22),
-          fontWeight: '600'
+          fontFamily: FontFamily.SemiBold,
         },
         bellIcon: {
           padding: moderateScale(4),
@@ -212,9 +221,10 @@ export default function HomeScreen() {
           flex: 1,
           backgroundColor: colors.white,
           borderRadius: moderateScale(12),
-          padding: moderateScale(10),
+          padding: moderateScale(12),
           alignItems: 'center',
-          flexDirection:'row',          
+          flexDirection:'row',
+          minHeight: moderateScale(68),
           shadowColor: colors.shadowColor,
           shadowOffset: {width: 0, height: moderateScale(2)},
           shadowOpacity: 0.05,
@@ -237,8 +247,7 @@ export default function HomeScreen() {
         summaryLabel: {
           ...Typography.regularSm,
           color: colors.textSecondary,
-          fontSize: moderateScale(14),          
-          flex:1
+          fontSize: moderateScale(12),
         },
         syncCardWrapper: {
           marginBottom: moderateScale(16),
@@ -331,30 +340,38 @@ export default function HomeScreen() {
           fontSize: moderateScale(12),
         },
       }),
-    [moderateScale, moderateScale],
+    [moderateScale, insets.top],
   );
 
   return (
     <View style={[dynamicStyles.container]}>
       {/* Header Section */}
-          
-        <View style={[dynamicStyles.header,{paddingHorizontal: moderateScale(16),}]}>
-          <Text style={dynamicStyles.greeting}>Hello William</Text>
-          <TouchableOpacity
-            style={dynamicStyles.bellIcon}
-            activeOpacity={0.7}>
-            <Ionicons
-              name="notifications-outline"
-              size={moderateScale(22)}
-              color={colors.textPrimary}
-            />
-          </TouchableOpacity>
-        </View>
+
+      <View
+        style={[
+          dynamicStyles.header,
+          { paddingHorizontal: moderateScale(16), paddingTop: insets.top },
+        ]}
+      >
+        <Text style={dynamicStyles.greeting}>Hello William</Text>
+        <TouchableOpacity
+          style={dynamicStyles.bellIcon}
+          activeOpacity={0.7}
+          onPress={() => {
+            // Navigate within HomeStack
+            (navigation as any).navigate(SCREEN_NAMES.Notifications);
+          }}>
+          <Ionicons
+            name="notifications-outline"
+            size={moderateScale(22)}
+            color={colors.textPrimary}
+          />
+        </TouchableOpacity>
+      </View>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={dynamicStyles.scrollContent}>
-        
-
+        contentContainerStyle={dynamicStyles.scrollContent}
+      >
         {/* Summary Cards */}
         <View style={dynamicStyles.summaryContainer}>
           <SummaryCard
@@ -384,8 +401,9 @@ export default function HomeScreen() {
             <View
               style={[
                 dynamicStyles.summaryIconContainer,
-                {backgroundColor: colors.light_orange},
-              ]}>
+                { backgroundColor: colors.light_orange },
+              ]}
+            >
               <Ionicons
                 name="sync"
                 size={moderateScale(22)}
@@ -393,14 +411,20 @@ export default function HomeScreen() {
               />
             </View>
             <View style={dynamicStyles.syncCardContent}>
-              <Text style={[dynamicStyles.summaryValue,{marginTop:moderateScale(5)}]}>
+              <Text
+                style={[
+                  dynamicStyles.summaryValue,
+                  { marginTop: moderateScale(5) },
+                ]}
+              >
                 {summaryData.syncsPending}
               </Text>
               <Text style={dynamicStyles.summaryLabel}>Syncs pending</Text>
             </View>
             <TouchableOpacity
               style={dynamicStyles.syncButton}
-              activeOpacity={0.7}>
+              activeOpacity={0.7}
+            >
               <Text style={dynamicStyles.syncButtonText}>Sync now</Text>
             </TouchableOpacity>
           </View>
@@ -412,7 +436,19 @@ export default function HomeScreen() {
             <Text style={dynamicStyles.sectionTitle}>Clients</Text>
             <TouchableOpacity
               activeOpacity={0.7}
-              onPress={() => navigation.navigate(SCREEN_NAMES.Farmer)}>
+              onPress={() => {
+                // Navigate to Farmer tab and ensure we're on the Farmer list screen
+                // Use CommonActions to reset the Farmer stack to the base screen
+                tabNavigation.dispatch(
+                  CommonActions.navigate({
+                    name: SCREEN_NAMES.Farmer,
+                    params: {
+                      screen: SCREEN_NAMES.Farmer,
+                    },
+                  }),
+                );
+              }}
+            >
               <Text style={dynamicStyles.seeAllText}>See all</Text>
             </TouchableOpacity>
           </View>
@@ -422,10 +458,23 @@ export default function HomeScreen() {
                 key={client.id}
                 style={[
                   dynamicStyles.listItem,
-                  index !== clients.length - 1 &&
-                    dynamicStyles.listItemBorder,
+                  index !== clients.length - 1 && dynamicStyles.listItemBorder,
                 ]}
-                activeOpacity={0.7}>
+                activeOpacity={0.7}
+                onPress={() => {
+                  // Navigate to Farmer tab and then to FarmerDetails
+                  tabNavigation.navigate(SCREEN_NAMES.Farmer, {
+                    screen: SCREEN_NAMES.FarmerDetails,
+                    params: {
+                      farmerId: client.id,
+                      farmerName: client.name,
+                      farmerPhone: client.phone,
+                      farmerInitials: client.initials,
+                      fromScreen: 'Home',
+                    },
+                  } as any);
+                }}
+              >
                 <Avatar
                   initials={client.initials}
                   moderateScale={moderateScale}
@@ -453,7 +502,18 @@ export default function HomeScreen() {
             <Text style={dynamicStyles.sectionTitle}>Tractors</Text>
             <TouchableOpacity
               activeOpacity={0.7}
-              onPress={() => navigation.navigate(SCREEN_NAMES.Tractors)}>
+              onPress={() => {
+                 tabNavigation.dispatch(
+                  CommonActions.navigate({
+                    name: SCREEN_NAMES.Tractors,
+                    params: {
+                      screen: SCREEN_NAMES.Tractors,
+                    },
+                  }),
+                );
+              }
+              }
+            >
               <Text style={dynamicStyles.seeAllText}>See all</Text>
             </TouchableOpacity>
           </View>
@@ -463,10 +523,23 @@ export default function HomeScreen() {
                 key={tractor.id}
                 style={[
                   dynamicStyles.listItem,
-                  index !== tractors.length - 1 &&
-                    dynamicStyles.listItemBorder,
+                  index !== tractors.length - 1 && dynamicStyles.listItemBorder,
                 ]}
-                activeOpacity={0.7}>
+                activeOpacity={0.7}
+                onPress={() => {
+                  // Navigate to Tractors tab and then to TractorDetails
+                  tabNavigation.navigate(SCREEN_NAMES.Tractors, {
+                    screen: SCREEN_NAMES.TractorDetails,
+                    params: {
+                      tractorId: tractor.id,
+                      tractorModel: tractor.model,
+                      tractorOwner: tractor.owner,
+                      tractorColor: tractor.color,
+                      fromScreen: 'Home',
+                    },
+                  } as any);
+                }}
+              >
                 <TractorThumbnail
                   color={tractor.color}
                   moderateScale={moderateScale}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useMemo} from 'react';
 import {
   TouchableOpacity,
   Text,
@@ -7,9 +7,9 @@ import {
   ViewStyle,
   TextStyle,
 } from 'react-native';
-import {Spacing, BorderRadius, FontSize} from '../utils/responsive';
 import {Typography} from '../utils/typography';
 import {Colors} from '../constants/colors';
+import useDeviceMetrics from '../utils/responsiveCustom';
 
 interface ButtonProps {
   title: string;
@@ -30,7 +30,51 @@ export default function Button({
   style,
   textStyle,
 }: ButtonProps) {
+  const {moderateScale} = useDeviceMetrics();
   const isDisabled = disabled || loading;
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        button: {
+          // height: moderateScale(48),
+          padding:moderateScale(14),
+          borderRadius: moderateScale(30),
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingHorizontal: moderateScale(24),
+          // minHeight: moderateScale(50),
+        },
+        primaryButton: {
+          backgroundColor: Colors.primary,
+        },
+        secondaryButton: {
+          backgroundColor: Colors.button.secondary,
+        },
+        outlineButton: {
+          backgroundColor: Colors.button.outline,
+          borderWidth: 1,
+          borderColor: Colors.button.outlineBorder,
+        },
+        disabledButton: {
+          opacity: 0.6,
+        },
+        buttonText: {
+          ...Typography.semiBoldMd,
+          fontSize: moderateScale(14),
+        },
+        primaryText: {
+          color: Colors.text.white,
+        },
+        secondaryText: {
+          color: Colors.text.white,
+        },
+        outlineText: {
+          color: Colors.button.outlineText,
+        },
+      }),
+    [moderateScale],
+  );
 
   const getButtonStyle = () => {
     switch (variant) {
@@ -76,42 +120,4 @@ export default function Button({
     </TouchableOpacity>
   );
 }
-
-const styles = StyleSheet.create({
-  button: {
-    height: Spacing.xl + Spacing.md,
-    borderRadius: BorderRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.lg,
-    minHeight: 50,
-  },
-  primaryButton: {
-    backgroundColor: Colors.primary,
-  },
-  secondaryButton: {
-    backgroundColor: Colors.button.secondary,
-  },
-  outlineButton: {
-    backgroundColor: Colors.button.outline,
-    borderWidth: 1,
-    borderColor: Colors.button.outlineBorder,
-  },
-  disabledButton: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    ...Typography.semiBoldMd,
-    fontSize: FontSize.md,
-  },
-  primaryText: {
-    color: Colors.text.white,
-  },
-  secondaryText: {
-    color: Colors.text.white,
-  },
-  outlineText: {
-    color: Colors.button.outlineText,
-  },
-});
 

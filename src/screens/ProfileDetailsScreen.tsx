@@ -12,6 +12,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import colors from '../utils/colors';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import {Typography} from '../utils/typography';
+import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 
 // Mock data for profile details - matching the image
 const getProfileDetails = () => {
@@ -62,7 +63,7 @@ const InfoRow = ({
           {
             fontSize: moderateScale(14),
             color: colors.textTertiary,
-            flex: 1,
+            flex: 0.45,
           },
         ]}>
         {label}:
@@ -73,7 +74,7 @@ const InfoRow = ({
           {
             fontSize: moderateScale(14),
             color: colors.textPrimary,
-            flex: 1,
+            flex: 0.55,
             textAlign: 'right',
           },
         ]}>
@@ -90,6 +91,12 @@ export default function ProfileDetailsScreen() {
 
   const profileDetails = useMemo(() => getProfileDetails(), []);
 
+  // Update StatusBar and bottom bar to match screen background color
+  useDynamicStatusBar({
+    backgroundColor: colors.backgroundLight,
+    bottomBarColor: colors.backgroundLight,
+  });
+
   const dynamicStyles = useMemo(
     () =>
       StyleSheet.create({
@@ -101,6 +108,7 @@ export default function ProfileDetailsScreen() {
           flexDirection: 'row',
           alignItems: 'center',
           paddingHorizontal: moderateScale(16),
+          paddingTop: insets.top + moderateScale(16),
           paddingBottom: moderateScale(12),
           backgroundColor: colors.backgroundLight,
         },
@@ -121,7 +129,6 @@ export default function ProfileDetailsScreen() {
         scrollContent: {
           paddingHorizontal: moderateScale(16),
           paddingTop: moderateScale(16),
-          paddingBottom: moderateScale(100),
         },
         card: {
           backgroundColor: colors.backgroundWhite,
@@ -286,9 +293,9 @@ export default function ProfileDetailsScreen() {
 
         {/* Address Card */}
         <View style={dynamicStyles.card}>
-          <Text style={dynamicStyles.cardTitle}>Address</Text>
+          <Text style={dynamicStyles.cardTitle}>DealerShip Address</Text>
           <InfoRow
-            label="House number / name"
+            label="Apartment/Building"
             value={profileDetails.address.houseNumber}
             moderateScale={moderateScale}
           />

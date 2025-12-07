@@ -63,6 +63,7 @@ export default function ImagePreviewModal({
           borderTopLeftRadius: moderateScale(20),
           borderTopRightRadius: moderateScale(20),
           overflow: 'hidden',
+          marginBottom: Platform.OS === 'android' ? insets.bottom : 0,
         },
         header: {
           flexDirection: 'row',
@@ -133,7 +134,7 @@ export default function ImagePreviewModal({
           textAlign: 'center',
         },
         footer: {
-          paddingBottom: Platform.OS === 'ios' ? insets.bottom : moderateScale(16),
+          paddingBottom: Platform.OS === 'ios' ? insets.bottom : insets.bottom + moderateScale(16),
           paddingHorizontal: moderateScale(16),
           paddingTop: moderateScale(12),
           borderTopWidth: 1,

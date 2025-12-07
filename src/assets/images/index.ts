@@ -10,7 +10,15 @@ export const ImagePath = {
   showPassword: require('../images/showPassword.png'),
   tractor: require('../images/tractor.png'),
   rcBook : require('../images/rcBook.png'),
-  
+  farmerTractor : require('../images/farmerTractor.png'),
+  support : require('../images/support.png'),
+  offer : require('../images/offer.png'),
+  prioritySupport : require('../images/prioritySupport.png'),
+  events : require('../images/events.png'),
+  call : require('../images/call.png'),  
+  eventImage : require('../images/eventImage.png'),  
+  eventImage2 : require('../images/eventImage2.png'),  
+  whatsapp : require('../images/whatsapp.png'),    
 };
 
 

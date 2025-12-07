@@ -16,6 +16,8 @@ import {Typography} from '../utils/typography';
 import LogoutModal from '../components/LogoutModal';
 import {SCREEN_NAMES} from '../constants/screenNames';
 import {RootStackParamList} from '../navigation/RootNavigator';
+import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
+import {clearSession} from '../utils/session';
 
 type ProfileScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -50,6 +52,7 @@ export default function ProfileScreen() {
           color: colors.textPrimary,
           marginBottom: moderateScale(16),
           paddingHorizontal: moderateScale(16),
+          paddingTop: insets.top,
         },
         card: {
           backgroundColor: colors.backgroundWhite,
@@ -110,8 +113,7 @@ export default function ProfileScreen() {
         viewProfileRow: {
           flexDirection: 'row',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          paddingVertical: moderateScale(12),
+          justifyContent: 'space-between',          
         },
         viewProfileLeft: {
           flexDirection: 'row',
@@ -120,6 +122,12 @@ export default function ProfileScreen() {
         },
         viewProfileIcon: {
           marginRight: moderateScale(12),
+            width: moderateScale(40),
+          height: moderateScale(40),
+          borderRadius: moderateScale(30),
+          backgroundColor: colors.light_dark_yellow,
+          alignItems: 'center',
+          justifyContent: 'center',
         },
         viewProfileContent: {
           flex: 1,
@@ -154,19 +162,32 @@ export default function ProfileScreen() {
           color: colors.statusError,
         },
       }),
-    [moderateScale],
+    [moderateScale, insets.top],
   );
 
   const handleLogout = () => {
     setLogoutModalVisible(true);
   };
 
-  const handleConfirmLogout = () => {
-    setLogoutModalVisible(false);
-    // Handle logout logic here
-    console.log('User logged out');
-    // Navigate to login screen or clear authentication
-    // navigation.navigate('Login');
+  const handleConfirmLogout = async () => {
+    try {
+      // Clear session from AsyncStorage
+      await clearSession();
+      setLogoutModalVisible(false);
+      // Navigate to login screen
+      navigation.reset({
+        index: 0,
+        routes: [{name: SCREEN_NAMES.Login}],
+      });
+    } catch (error) {
+      console.error('Error during logout:', error);
+      setLogoutModalVisible(false);
+      // Still navigate to login even if clearing session fails
+      navigation.reset({
+        index: 0,
+        routes: [{name: SCREEN_NAMES.Login}],
+      });
+    }
   };
 
   const handleViewProfile = () => {
@@ -176,6 +197,12 @@ export default function ProfileScreen() {
   const handleProfileIconPress = () => {
     navigation.navigate(SCREEN_NAMES.ProfileDetails);
   };
+
+  // Update StatusBar and bottom bar to match screen background color
+  useDynamicStatusBar({
+    backgroundColor: colors.backgroundLight,
+    bottomBarColor: colors.backgroundLight,
+  });
 
   return (
     <View style={dynamicStyles.container}>
@@ -207,7 +234,7 @@ export default function ProfileScreen() {
                   color={colors.textWhite}
                 />
               </View>
-            </TouchableOpacity>
+              </TouchableOpacity>
             <View style={dynamicStyles.profileInfo}>
               <Text style={dynamicStyles.profileName}>{userData.name}</Text>
               <Text style={dynamicStyles.profilePhone}>{userData.phone}</Text>
@@ -223,7 +250,7 @@ export default function ProfileScreen() {
               <View style={dynamicStyles.viewProfileIcon}>
                 <Ionicons
                   name="person-outline"
-                  size={moderateScale(24)}
+                  size={moderateScale(20)}
                   color={colors.textPrimary}
                 />
               </View>

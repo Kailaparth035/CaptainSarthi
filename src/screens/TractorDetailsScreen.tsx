@@ -6,23 +6,28 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  StatusBar,
   Platform,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {useRoute, useNavigation, useFocusEffect} from '@react-navigation/native';
+import {useRoute, useNavigation} from '@react-navigation/native';
+import {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
+import {TabParamList} from '../navigation/TabNavigator';
+import {SCREEN_NAMES} from '../constants/screenNames';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import colors from '../utils/colors';
 import useDeviceMetrics from '../utils/responsiveCustom';
-import {Typography} from '../utils/typography';
+import {Typography, FontFamily} from '../utils/typography';
 import VideoPlayer from '../components/VideoPlayer';
 import ImagePreviewModal, {ImageItem} from '../components/ImagePreviewModal';
+import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
+import {useStatusBar} from '../contexts/StatusBarContext';
 
 type TractorDetailsRouteParams = {
   tractorId: string;
   tractorModel: string;
   tractorOwner: string;
   tractorColor: string;
+  fromScreen?: 'Home' | 'List';
 };
 
 type SpecificationTab = 'engine' | 'tyre' | 'dimension' | 'transmission';
@@ -37,6 +42,8 @@ const getTractorDetails = (tractorId: string) => {
       'The Captain Little Master 12 HP is a lightweight tractor specially designed for monsoon use, offering superior performance in wet and muddy fields.',
     fullDescription:
       'The Captain Little Master 12 HP is a lightweight tractor specially designed for monsoon use, offering superior performance in wet and muddy fields. It features advanced water-resistant components and enhanced traction capabilities that make it ideal for agricultural work during the rainy season. The compact design ensures easy maneuverability in tight spaces while maintaining robust performance.',
+    videoUri: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', // Sample video URL - replace with actual video URL
+    thumbnailUri: undefined, // Optional: Add thumbnail image URL
     specifications: {
       engine: [
         {label: 'Engine power (HP)', value: '12 HP'},
@@ -105,13 +112,12 @@ const SpecRow = ({
       </Text>
       <Text
         style={[
-          Typography.regularMd,
+          Typography.mediumMd,
           {
             fontSize: moderateScale(14),
             color: colors.textPrimary,
             flex: 1,
             textAlign: 'right',
-            fontWeight: '500',
           },
         ]}>
         {value}
@@ -125,6 +131,7 @@ export default function TractorDetailsScreen() {
   const {moderateScale} = useDeviceMetrics();
   const route = useRoute();
   const navigation = useNavigation();
+  const tabNavigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
   const params = route.params as TractorDetailsRouteParams;
   const [selectedTab, setSelectedTab] = useState<SpecificationTab>('engine');
   const [showFullDescription, setShowFullDescription] = useState(false);
@@ -155,7 +162,7 @@ export default function TractorDetailsScreen() {
           flexDirection: 'row',
           alignItems: 'center',
           paddingHorizontal: moderateScale(16),
-          paddingBottom: moderateScale(12),
+          paddingTop: insets.top ,          
           backgroundColor: colors.backgroundLight,
         },
         backButton: {
@@ -165,7 +172,6 @@ export default function TractorDetailsScreen() {
           backgroundColor: colors.backgroundWhite,
           alignItems: 'center',
           justifyContent: 'center',
-          marginRight: moderateScale(12),
         },
         headerTitle: {
           ...Typography.boldXxl,
@@ -174,7 +180,12 @@ export default function TractorDetailsScreen() {
         },
         scrollContent: {
           padding: moderateScale(16),
-          paddingBottom: moderateScale(100),
+        },
+        bottomTabBarContainer: {
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
         },
         card: {
           backgroundColor: colors.backgroundWhite,
@@ -183,6 +194,8 @@ export default function TractorDetailsScreen() {
           marginBottom: moderateScale(16),
         },
         videoContainer: {
+          width: '100%',
+          aspectRatio: 16 / 9,
           marginBottom: moderateScale(12),
         },
         thumbnailRow: {
@@ -236,7 +249,7 @@ export default function TractorDetailsScreen() {
         readMoreLink: {
           ...Typography.regularMd,
           fontSize: moderateScale(14),
-          color: colors.blue,
+          color: colors.primary,
         },
         specificationsTitle: {
           ...Typography.boldXxl,
@@ -265,9 +278,11 @@ export default function TractorDetailsScreen() {
         },
         tabSelected: {
           backgroundColor: colors.primary,
+          borderColor: colors.primary,
+          borderWidth: 1.5,
         },
         tabText: {
-          ...Typography.regularMd,
+          ...Typography.semiBoldMd,
           fontSize: moderateScale(12),
           color: colors.primary,
         },
@@ -312,36 +327,40 @@ export default function TractorDetailsScreen() {
     // You can add your replace image logic here
   };
 
-  // Update StatusBar when screen is focused
-  useFocusEffect(
-    React.useCallback(() => {
-      if (Platform.OS === 'android') {
-        StatusBar.setBackgroundColor(colors.backgroundLight, false);
-        StatusBar.setTranslucent(false);
-      }
-      StatusBar.setBarStyle('dark-content', true);
-    }, []),
-  );
+  // Update StatusBar and bottom bar to match screen background color
+  useDynamicStatusBar({
+    backgroundColor: colors.backgroundLight,
+    bottomBarColor: colors.backgroundLight,
+  });
+
+  const {currentConfig} = useStatusBar();
 
   return (
       <View style={[dynamicStyles.container]}>
         {Platform.OS === 'ios' && (
-          <View style={dynamicStyles.statusBarBackground} />
+          <View style={[dynamicStyles.statusBarBackground, {backgroundColor: currentConfig.backgroundColor}]} />
         )}
         {/* Header */}
         <View style={dynamicStyles.header}>
-        <TouchableOpacity
-          style={dynamicStyles.backButton}
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.7}>
-          <Ionicons
-            name="arrow-back"
-            size={moderateScale(20)}
-            color={colors.textPrimary}
-          />
-        </TouchableOpacity>
-        <Text style={dynamicStyles.headerTitle}>Tractor Details</Text>
-      </View>
+          <TouchableOpacity
+            style={dynamicStyles.backButton}
+            onPress={() => {
+              // If coming from Home, navigate back to Home tab
+              // If coming from List, use goBack() to return to list
+              if (params?.fromScreen === 'Home') {
+                tabNavigation.navigate(SCREEN_NAMES.Home);
+              } else {
+                navigation.goBack();
+              }
+            }}
+            activeOpacity={0.7}>
+            <Ionicons
+              name="arrow-back"
+              size={moderateScale(20)}
+              color={colors.textPrimary}
+            />
+          </TouchableOpacity>
+        </View>
 
       {/* Scrollable Content */}
       <ScrollView
@@ -352,8 +371,8 @@ export default function TractorDetailsScreen() {
         <View style={dynamicStyles.card}>
           <View style={dynamicStyles.videoContainer}>
             <VideoPlayer
-              thumbnailUri={undefined}
-              videoUri={undefined}
+              thumbnailUri={tractorDetails.thumbnailUri}
+              videoUri={tractorDetails.videoUri}
               title={tractorDetails.model}
             />
           </View>
@@ -503,6 +522,7 @@ export default function TractorDetailsScreen() {
         onClose={handleCloseModal}
         onReplaceImage={handleReplaceImage}
       />
+
       </View>
   );
 }

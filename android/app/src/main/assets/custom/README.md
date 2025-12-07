@@ -9,6 +9,12 @@ Place the following font files in this directory (`src/assets/fonts/`):
 - `Gilroy-SemiBold.ttf`
 - `Gilroy-Bold.ttf`
 
+**Important**: Font file names must match exactly (case-sensitive):
+- `Gilroy-Regular.ttf` (not `gilroy-regular.ttf` or `Gilroy-Regular.TTF`)
+- `Gilroy-Medium.ttf`
+- `Gilroy-SemiBold.ttf`
+- `Gilroy-Bold.ttf`
+
 ## Download Fonts
 
 You can download Gilroy fonts from:
@@ -16,21 +22,55 @@ You can download Gilroy fonts from:
 - [Font Squirrel](https://www.fontsquirrel.com/fonts/gilroy)
 - Or purchase from the official source
 
-## After Adding Font Files
+## Font Linking Steps
 
-1. **Link the fonts** (already configured in `react-native.config.js`):
-   ```bash
-   npx react-native-asset
-   ```
+### Step 1: Add Font Files
+Place the font files (`.ttf`) in `src/assets/fonts/` directory.
 
-2. **Clear Metro cache and restart**:
-   ```bash
-   yarn start --reset-cache
-   ```
+### Step 2: Link Fonts
+Run the font linking command:
+```bash
+npm run link-assets
+# or
+npx react-native-asset
+```
 
-3. **Rebuild the app**:
-   - iOS: Clean build folder in Xcode and rebuild
-   - Android: `cd android && ./gradlew clean && cd ..` then rebuild
+This will:
+- Copy fonts to `android/app/src/main/assets/fonts/`
+- Copy fonts to `ios/Farmer/` directory
+- Update `ios/Farmer/Info.plist` with font entries (already configured)
+
+### Step 3: Clear Metro Cache
+```bash
+npm start -- --reset-cache
+# or
+yarn start --reset-cache
+```
+
+### Step 4: Rebuild the App
+
+**For Android:**
+```bash
+cd android && ./gradlew clean && cd ..
+npm run android
+# or
+yarn android
+```
+
+**For iOS:**
+1. Open Xcode: `open ios/Farmer.xcworkspace`
+2. Clean build folder: `Product` → `Clean Build Folder` (Shift + Cmd + K)
+3. Rebuild: `Product` → `Build` (Cmd + B)
+4. Or run from terminal: `npm run ios` or `yarn ios`
+
+## Verification
+
+After rebuilding, fonts should work on both platforms. If fonts don't appear:
+
+1. **Android**: Check that fonts are in `android/app/src/main/assets/fonts/`
+2. **iOS**: Check that fonts are in `ios/Farmer/` and listed in `Info.plist` under `UIAppFonts`
+3. Verify font file names match exactly (case-sensitive)
+4. Clear cache and rebuild again
 
 ## Usage
 

@@ -5,31 +5,44 @@
  * @format
  */
 
-import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
+import { StyleSheet, View, Platform } from 'react-native';
 import {
   SafeAreaProvider,
-  useSafeAreaInsets,
 } from 'react-native-safe-area-context';
 import RootNavigator from './src/navigation/RootNavigator';
+import {StatusBarProvider, useStatusBar} from './src/contexts/StatusBarContext';
+import {TTSProvider} from './src/contexts/TTSContext';
+import TTSPlayer from './src/components/TTSPlayer';
+import {StatusBar} from 'react-native';
 
 function App() {
-  const isDarkMode = useColorScheme() === 'dark';
-
   return (
     <SafeAreaProvider>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <AppContent />
+      <StatusBarProvider>
+        <TTSProvider>
+          <AppContent />
+        </TTSProvider>
+      </StatusBarProvider>
     </SafeAreaProvider>
   );
 }
 
 function AppContent() {
-  const safeAreaInsets = useSafeAreaInsets();
+  const {currentConfig} = useStatusBar();
 
   return (
-    <View style={[styles.container, {paddingTop: safeAreaInsets.top}]}>
-      <RootNavigator />
-    </View>
+    <>
+      <StatusBar 
+        barStyle={currentConfig.barStyle}
+        backgroundColor={Platform.OS === 'android' ? currentConfig.backgroundColor : undefined}
+        translucent={Platform.OS === 'android' ? false : undefined}
+        hidden={false}
+      />
+      <View style={styles.container}>
+        <RootNavigator />
+        <TTSPlayer />
+      </View>
+    </>
   );
 }
 

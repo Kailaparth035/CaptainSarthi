@@ -18,6 +18,7 @@ import {Typography} from '../utils/typography';
 import FilterModal from '../components/FilterModal';
 import {SCREEN_NAMES} from '../constants/screenNames';
 import {RootStackParamList} from '../navigation/RootNavigator';
+import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -111,6 +112,12 @@ export default function TractorsScreen() {
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('model');
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
+
+  // Update StatusBar and bottom bar to match screen background color
+  useDynamicStatusBar({
+    backgroundColor: colors.backgroundLight,
+    bottomBarColor: colors.backgroundLight,
+  });
 
   // Filter categories for the modal
   const filterCategories = [
@@ -211,7 +218,7 @@ export default function TractorsScreen() {
           justifyContent: 'space-between',
           alignItems: 'center',
           paddingHorizontal: moderateScale(16),
-          paddingTop: moderateScale(16),
+          paddingTop: insets.top,
           paddingBottom: moderateScale(12),
           backgroundColor: colors.backgroundLight,
         },
@@ -302,7 +309,7 @@ export default function TractorsScreen() {
           fontSize: moderateScale(12),
         },
       }),
-    [moderateScale],
+    [moderateScale, insets.top],
   );
 
   return (
@@ -372,6 +379,7 @@ export default function TractorsScreen() {
                 tractorModel: tractor.model,
                 tractorOwner: tractor.owner,
                 tractorColor: tractor.color,
+                fromScreen: 'List',
               });
             }}>
             <TractorThumbnail

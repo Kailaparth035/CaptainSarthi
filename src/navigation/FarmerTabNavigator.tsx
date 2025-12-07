@@ -1,0 +1,45 @@
+import React from 'react';
+import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
+import {SCREEN_NAMES} from '../constants/screenNames';
+import FarmerBottomTabBar from './components/FarmerBottomTabBar';
+import FarmerHomeStack from './stacks/FarmerHomeStack';
+import EventsStack from './stacks/EventsStack';
+import HistoryStack from './stacks/HistoryStack';
+import StoriesStack from './stacks/StoriesStack';
+import FarmerTractorsStack from './stacks/FarmerTractorsStack';
+import FarmerProfileStack from './stacks/FarmerProfileStack';
+import {FarmerHomeStackParamList} from './stacks/FarmerHomeStack';
+import {EventsStackParamList} from './stacks/EventsStack';
+import {HistoryStackParamList} from './stacks/HistoryStack';
+import {StoriesStackParamList} from './stacks/StoriesStack';
+import {FarmerTractorsStackParamList} from './stacks/FarmerTractorsStack';
+import {FarmerProfileStackParamList} from './stacks/FarmerProfileStack';
+
+export type FarmerTabParamList = {
+  [SCREEN_NAMES.Home]: {screen: keyof FarmerHomeStackParamList; params?: any} | undefined;
+  [SCREEN_NAMES.Events]: {screen: keyof EventsStackParamList; params?: any} | undefined;
+  [SCREEN_NAMES.History]: {screen: keyof HistoryStackParamList; params?: any} | undefined;
+  [SCREEN_NAMES.Stories]: {screen: keyof StoriesStackParamList; params?: any} | undefined;
+  [SCREEN_NAMES.Tractors]: {screen: keyof FarmerTractorsStackParamList; params?: any} | undefined;
+  [SCREEN_NAMES.Profile]: {screen: keyof FarmerProfileStackParamList; params?: any} | undefined;
+};
+
+const Tab = createBottomTabNavigator<FarmerTabParamList>();
+
+export default function FarmerTabNavigator() {
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        headerShown: false,
+        tabBarShowLabel: false,
+      }}
+      tabBar={props => <FarmerBottomTabBar {...props} />}>
+      <Tab.Screen name={SCREEN_NAMES.Home} component={FarmerHomeStack} />
+      <Tab.Screen name={SCREEN_NAMES.Events} component={EventsStack} />
+      <Tab.Screen name={SCREEN_NAMES.Stories} component={StoriesStack} />
+      <Tab.Screen name={SCREEN_NAMES.Tractors} component={FarmerTractorsStack} />
+      <Tab.Screen name={SCREEN_NAMES.Profile} component={FarmerProfileStack} />
+    </Tab.Navigator>
+  );
+}
+

@@ -11,9 +11,10 @@ const colors = {
   themeColor: '#64B2B0',
   expressDeliveryBg: '#FFE1A3',
   bottomBarTextColor: '#C9C9C9',
-  text_light: '#757575',
+  text_light: '#888888',
   light_text: '#555555',
   light_orenge: '#FFD7A3',
+  borderColor : '#ECECEC',
 
   // Primary Colors
   primary: '#F59E0B', // Orange - Main brand color
@@ -23,13 +24,13 @@ const colors = {
   // Text Colors
   textPrimary: '#1e293b',
   textSecondary: '#334155',
-  textTertiary: '#64748b',
+  textTertiary: '#555555',
   textLight: '#94a3b8',
   textWhite: '#ffffff',
 
   // Background Colors
   backgroundWhite: '#ffffff',
-  backgroundLight: '#f1f5f9',
+  backgroundLight: '#F5F5F5',
   backgroundGray: '#f8fafc',
 
   // Border Colors

@@ -32,15 +32,20 @@ export default function LogoutModal({
         modal: {
           flex: 1,
           backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          justifyContent: 'center',
-          alignItems: 'center',
+          justifyContent: 'flex-end',
         },
         modalContent: {
-          width: '85%',
-          maxWidth: moderateScale(400),
+          width: '100%',
           backgroundColor: colors.backgroundWhite,
-          borderRadius: moderateScale(16),
+          borderTopLeftRadius: moderateScale(20),
+          borderTopRightRadius: moderateScale(20),
           padding: moderateScale(20),
+          paddingBottom: insets.bottom + moderateScale(20),
+          shadowColor: colors.shadowColor,
+          shadowOpacity: 0.25,
+          shadowOffset: {width: 0, height: moderateScale(-4)},
+          shadowRadius: moderateScale(10),
+          elevation: 8,
         },
         header: {
           flexDirection: 'row',
@@ -81,11 +86,13 @@ export default function LogoutModal({
         },
         cancelButton: {
           backgroundColor: colors.backgroundWhite,
-          borderColor: colors.primary,
+          borderColor: colors.borderColor,
+          borderRadius:moderateScale(30)
         },
         confirmButton: {
           backgroundColor: colors.primary,
           borderColor: colors.primary,
+          borderRadius:moderateScale(30)
         },
         cancelButtonText: {
           ...Typography.semiBoldMd,
@@ -98,14 +105,14 @@ export default function LogoutModal({
           color: colors.textWhite,
         },
       }),
-    [moderateScale],
+    [moderateScale, insets.bottom],
   );
 
   return (
     <Modal
       visible={visible}
       transparent={true}
-      animationType="fade"
+      animationType="slide"
       onRequestClose={onClose}
       statusBarTranslucent={true}>
       <View style={styles.modal}>

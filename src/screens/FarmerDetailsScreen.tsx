@@ -9,18 +9,23 @@ import {
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useRoute, useNavigation} from '@react-navigation/native';
+import {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
+import {TabParamList} from '../navigation/TabNavigator';
+import {SCREEN_NAMES} from '../constants/screenNames';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import colors from '../utils/colors';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import {Typography} from '../utils/typography';
 import { ImagePath } from '../assets/images';
 import ImagePreviewModal, {ImageItem} from '../components/ImagePreviewModal';
+import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 
 type FarmerDetailsRouteParams = {
   farmerId: string;
   farmerName: string;
   farmerPhone: string;
   farmerInitials: string;
+  fromScreen?: 'Home' | 'List';
 };
 
 // Mock data for farmer details
@@ -83,7 +88,7 @@ const InfoRow = ({
           {
             fontSize: moderateScale(14),
             color: colors.textTertiary,
-            flex: 1,
+            flex: 0.35,
           },
         ]}>
         {label}:
@@ -94,7 +99,7 @@ const InfoRow = ({
           {
             fontSize: moderateScale(14),
             color: colors.textPrimary,
-            flex: 1,
+            flex: 0.65,
             textAlign: 'right',
             textDecorationLine: valueUnderlined ? 'underline' : 'none',
           },
@@ -110,6 +115,7 @@ export default function FarmerDetailsScreen() {
   const {moderateScale} = useDeviceMetrics();
   const route = useRoute();
   const navigation = useNavigation();
+  const tabNavigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
   const params = route.params as FarmerDetailsRouteParams;
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
@@ -119,11 +125,17 @@ export default function FarmerDetailsScreen() {
     [params?.farmerId],
   );
 
-  // Prepare images for preview modal - only include RC book document images
+  // Prepare images for preview modal - include tractor image and RC book document images
   const previewImages: ImageItem[] = useMemo(() => {
     const images: ImageItem[] = [];
     
-    // Document images (RC Book) only
+    // Tractor main image (first image)
+    images.push({
+      id: 'tractor-main',
+      source: ImagePath.tractor,
+    });
+    
+    // Document images (RC Book)
     images.push({
       id: 'doc-1',
       source: ImagePath.rcBook,
@@ -151,6 +163,12 @@ export default function FarmerDetailsScreen() {
     // You can add your replace image logic here
   };
 
+  // Update StatusBar and bottom bar to match screen background color
+  useDynamicStatusBar({
+    backgroundColor: colors.backgroundLight,
+    bottomBarColor: colors.backgroundLight,
+  });
+
   const dynamicStyles = useMemo(
     () =>
       StyleSheet.create({
@@ -161,11 +179,17 @@ export default function FarmerDetailsScreen() {
         header: {
           flexDirection: 'row',
           alignItems: 'center',
+          justifyContent: 'space-between',
           paddingHorizontal: moderateScale(16),
-          // paddingTop: moderateScale(16),
+          paddingTop: insets.top,
           marginBottom:moderateScale(7),
           paddingBottom: moderateScale(12),
           backgroundColor: colors.backgroundLight,
+        },
+        headerLeft: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          flex: 1,
         },
         backButton: {
           width: moderateScale(40),
@@ -181,9 +205,19 @@ export default function FarmerDetailsScreen() {
           color: colors.textPrimary,
           fontSize: moderateScale(22),
         },
+        editButton: {
+          paddingHorizontal: moderateScale(16),
+          paddingVertical: moderateScale(8),
+          borderRadius: moderateScale(20),
+          backgroundColor: colors.primary,
+        },
+        editButtonText: {
+          ...Typography.semiBoldMd,
+          color: colors.textWhite,
+          fontSize: moderateScale(14),
+        },
         scrollContent: {
           paddingHorizontal: moderateScale(16),
-          paddingBottom: moderateScale(100),
         },
         card: {
           backgroundColor: colors.backgroundWhite,
@@ -296,24 +330,43 @@ export default function FarmerDetailsScreen() {
           textAlign: 'center',
         },
       }),
-    [moderateScale],
+    [moderateScale, insets.top],
   );
 
   return (
     <View style={[dynamicStyles.container]}>
       {/* Header */}
       <View style={dynamicStyles.header}>
+        <View style={dynamicStyles.headerLeft}>
+          <TouchableOpacity
+            style={dynamicStyles.backButton}
+            onPress={() => {
+              // If coming from Home, navigate back to Home tab
+              // If coming from List, use goBack() to return to list
+              if (params?.fromScreen === 'Home') {
+                tabNavigation.navigate(SCREEN_NAMES.Home);
+              } else {
+                navigation.goBack();
+              }
+            }}
+            activeOpacity={0.7}>
+            <Ionicons
+              name="arrow-back"
+              size={moderateScale(20)}
+              color={colors.textPrimary}
+            />
+          </TouchableOpacity>
+          <Text style={dynamicStyles.headerTitle}>Farmer details</Text>
+        </View>
         <TouchableOpacity
-          style={dynamicStyles.backButton}
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.7}>
-          <Ionicons
-            name="arrow-back"
-            size={moderateScale(20)}
-            color={colors.textPrimary}
-          />
+          style={dynamicStyles.editButton}
+          activeOpacity={0.7}
+          onPress={() => {
+            // Handle edit action
+            console.log('Edit button pressed');
+          }}>
+          <Text style={dynamicStyles.editButtonText}>Edit</Text>
         </TouchableOpacity>
-        <Text style={dynamicStyles.headerTitle}>Farmers Details</Text>
       </View>
 
       {/* Scrollable Content */}
@@ -401,17 +454,20 @@ export default function FarmerDetailsScreen() {
             <View key={tractor.id}>
               {/* Tractor Main Image */}
               <View style={dynamicStyles.tractorImageContainer}>
-                <View style={dynamicStyles.tractorMainImage}>
+                <TouchableOpacity
+                  style={dynamicStyles.tractorMainImage}
+                  onPress={() => handleImagePress(0)}
+                  activeOpacity={0.7}>
                   <View style={dynamicStyles.placeholderImage}>
                    <Image source={ImagePath.tractor} style={{width:moderateScale(340),height:moderateScale(150)}}/>
                   </View>
-                </View>
+                </TouchableOpacity>
 
                 {/* Document Images */}
                 <View style={dynamicStyles.documentImagesContainer}>
                   <TouchableOpacity
                     style={dynamicStyles.documentImage}
-                    onPress={() => handleImagePress(0)}
+                    onPress={() => handleImagePress(1)}
                     activeOpacity={0.7}>
                     <View style={dynamicStyles.placeholderImage}>
                       <Image source={ImagePath.rcBook} style={{width:moderateScale(140),height:moderateScale(70),borderRadius: moderateScale(8),}}/>                   
@@ -419,7 +475,7 @@ export default function FarmerDetailsScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={dynamicStyles.documentImage}
-                    onPress={() => handleImagePress(1)}
+                    onPress={() => handleImagePress(2)}
                     activeOpacity={0.7}>
                     <View style={dynamicStyles.placeholderImage}>
                       <Image source={ImagePath.rcBook} style={{width:moderateScale(140),height:moderateScale(70),borderRadius: moderateScale(8),}}/>

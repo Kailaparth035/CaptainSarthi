@@ -17,8 +17,15 @@ import { Typography } from '../utils/typography';
 import FilterModal from '../components/FilterModal';
 import { SCREEN_NAMES } from '../constants/screenNames';
 import { RootStackParamList } from '../navigation/RootNavigator';
+import { FarmerStackParamList } from '../navigation/stacks/FarmerStack';
+import { CompositeNavigationProp } from '@react-navigation/native';
+import { NativeStackNavigationProp as StackNavProp } from '@react-navigation/native-stack';
+import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type NavigationProp = CompositeNavigationProp<
+  StackNavProp<FarmerStackParamList>,
+  NativeStackNavigationProp<RootStackParamList>
+>;
 
 // Mock data - extended list of farmers
 const allFarmers = [
@@ -79,6 +86,12 @@ export default function FarmerScreen() {
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('name');
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
+
+  // Update StatusBar and bottom bar to match screen background color
+  useDynamicStatusBar({
+    backgroundColor: colors.backgroundLight,
+    bottomBarColor: colors.backgroundLight,
+  });
 
   // Filter categories for the modal
   const filterCategories = [
@@ -168,7 +181,7 @@ export default function FarmerScreen() {
           justifyContent: 'space-between',
           alignItems: 'center',
           paddingHorizontal: moderateScale(16),
-          paddingTop: moderateScale(16),
+          paddingTop: insets.top,
           paddingBottom: moderateScale(12),
           backgroundColor: colors.backgroundLight,
         },
@@ -259,7 +272,7 @@ export default function FarmerScreen() {
           fontSize: moderateScale(12),
         },
       }),
-    [moderateScale],
+    [moderateScale, insets.top],
   );
 
   return (
@@ -267,7 +280,10 @@ export default function FarmerScreen() {
       {/* Header */}
       <View style={dynamicStyles.header}>
         <Text style={dynamicStyles.headerTitle}>Farmers</Text>
-        <TouchableOpacity style={dynamicStyles.addButton} activeOpacity={0.7}>
+        <TouchableOpacity
+          style={dynamicStyles.addButton}
+          onPress={() => navigation.navigate(SCREEN_NAMES.AddFarmer)}
+          activeOpacity={0.7}>
           <Text style={dynamicStyles.addButtonText}>Add new</Text>
         </TouchableOpacity>
       </View>
@@ -328,6 +344,7 @@ export default function FarmerScreen() {
                   farmerName: farmer.name,
                   farmerPhone: farmer.phone,
                   farmerInitials: farmer.initials,
+                  fromScreen: 'List',
                 });
               }}
             >
