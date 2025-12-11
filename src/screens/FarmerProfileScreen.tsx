@@ -17,10 +17,12 @@ import UpdateNumberModal from '../components/UpdateNumberModal';
 import {SCREEN_NAMES} from '../constants/screenNames';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import {clearSession, getSession} from '../utils/session';
+import {useLanguage} from '../contexts/LanguageContext';
 
 export default function FarmerProfileScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
+  const {t} = useLanguage();
   const navigation = useNavigation();
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
   const [updateNumberModalVisible, setUpdateNumberModalVisible] = useState(false);
@@ -273,8 +275,8 @@ export default function FarmerProfileScreen() {
                 />
               </View>
               <View style={dynamicStyles.optionContent}>
-                <Text style={dynamicStyles.optionLabel}>Profile</Text>
-                <Text style={dynamicStyles.optionText}>View profile</Text>
+                <Text style={dynamicStyles.optionLabel}>{t('profile.title')}</Text>
+                <Text style={dynamicStyles.optionText}>{t('profile.viewProfile')}</Text>
               </View>
             </View>
             <Ionicons
@@ -329,7 +331,7 @@ export default function FarmerProfileScreen() {
                   color={colors.statusError}
                 />
               </View>
-              <Text style={dynamicStyles.logoutText}>Log out</Text>
+              <Text style={dynamicStyles.logoutText}>{t('profile.logOut')}</Text>
             </View>
             <Ionicons
               name="chevron-forward"

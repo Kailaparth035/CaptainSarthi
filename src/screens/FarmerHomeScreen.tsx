@@ -23,6 +23,7 @@ import VideoPlayer from '../components/VideoPlayer';
 import {SCREEN_NAMES} from '../constants/screenNames';
 import {ImagePath} from '../assets/images';
 import {Platform} from 'react-native';
+import {useLanguage} from '../contexts/LanguageContext';
 
 const screenWidth = Dimensions.get('window').width;
 const screenHeight = Dimensions.get('window').height;
@@ -126,6 +127,7 @@ const membershipServices = [
 export default function FarmerHomeScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
+  const {t} = useLanguage();
   const navigation = useNavigation();
   const tabNavigation = useNavigation<BottomTabNavigationProp<FarmerTabParamList>>();
   const [currentCarouselIndex, setCurrentCarouselIndex] = useState(0);
@@ -509,7 +511,7 @@ export default function FarmerHomeScreen() {
     <View style={dynamicStyles.container}>
       {/* Header */}
       <View style={dynamicStyles.header}>
-        <Text style={dynamicStyles.greeting}>Hello Harrison</Text>
+        <Text style={dynamicStyles.greeting}>{t('farmerHome.greeting')} Harrison</Text>
         <TouchableOpacity
           style={dynamicStyles.bellIcon}
           activeOpacity={0.7}
@@ -587,7 +589,7 @@ export default function FarmerHomeScreen() {
                 }),
               );
             }}>
-            <Text style={dynamicStyles.seeAllText}>See all</Text>
+            <Text style={dynamicStyles.seeAllText}>{t('home.seeAll')}</Text>
           </TouchableOpacity>
         </View>
           <FlatList
@@ -624,7 +626,7 @@ export default function FarmerHomeScreen() {
                 }),
               );
             }}>
-            <Text style={dynamicStyles.seeAllText}>See all</Text>
+            <Text style={dynamicStyles.seeAllText}>{t('home.seeAll')}</Text>
           </TouchableOpacity>
         </View>
           <FlatList

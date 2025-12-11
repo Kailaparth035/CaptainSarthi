@@ -25,12 +25,14 @@ import Button from '../components/Button';
 import {SCREEN_NAMES} from '../constants/screenNames';
 import {saveProfileReviewed} from '../utils/session';
 import { ImagePath } from '../assets/images';
+import {useLanguage} from '../contexts/LanguageContext';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function ReviewProfileScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
+  const {t} = useLanguage();
   const navigation = useNavigation<NavigationProp>();
   const {pickImage} = useImagePicker();
   const [imagePickerVisible, setImagePickerVisible] = useState(false);
@@ -263,7 +265,7 @@ export default function ReviewProfileScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={dynamicStyles.scrollContent}>
-        <Text style={dynamicStyles.title}>Review profile</Text>
+        <Text style={dynamicStyles.title}>{t('profile.reviewProfile')}</Text>
 
         {/* Personal Details Section */}
         <View style={dynamicStyles.card}>

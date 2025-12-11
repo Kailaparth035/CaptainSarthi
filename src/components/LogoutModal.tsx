@@ -11,6 +11,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import colors from '../utils/colors';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import {Typography} from '../utils/typography';
+import {useLanguage} from '../contexts/LanguageContext';
 
 type LogoutModalProps = {
   visible: boolean;
@@ -25,6 +26,7 @@ export default function LogoutModal({
 }: LogoutModalProps) {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
+  const {t} = useLanguage();
 
   const styles = useMemo(
     () =>
@@ -119,7 +121,7 @@ export default function LogoutModal({
         <View style={styles.modalContent}>
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.title}>Log out</Text>
+            <Text style={styles.title}>{t('profile.logOut')}</Text>
             <TouchableOpacity
               style={styles.closeButton}
               onPress={onClose}
@@ -134,7 +136,7 @@ export default function LogoutModal({
 
           {/* Message */}
           <Text style={styles.message}>
-            Are you sure you want to log out ?
+            {t('profile.logOutConfirm')}
           </Text>
 
           {/* Buttons */}
@@ -143,13 +145,13 @@ export default function LogoutModal({
               style={[styles.button, styles.cancelButton]}
               onPress={onClose}
               activeOpacity={0.7}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.button, styles.confirmButton]}
               onPress={onConfirm}
               activeOpacity={0.7}>
-              <Text style={styles.confirmButtonText}>Yes</Text>
+              <Text style={styles.confirmButtonText}>{t('profile.yes')}</Text>
             </TouchableOpacity>
           </View>
         </View>

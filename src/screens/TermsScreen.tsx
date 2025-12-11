@@ -14,7 +14,7 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {RootStackParamList} from '../navigation/RootNavigator';
 import {SCREEN_NAMES} from '../constants/screenNames';
 import {saveTermsAccepted} from '../utils/session';
-import {STRINGS} from '../constants/strings';
+import {useLanguage} from '../contexts/LanguageContext';
 import {Colors} from '../constants/colors';
 import {Typography} from '../utils/typography';
 import Button from '../components/Button';
@@ -28,6 +28,7 @@ type TermsScreenProps = NativeStackScreenProps<RootStackParamList, 'Terms'>;
 const TermsScreen: React.FC<TermsScreenProps> = ({navigation}) => {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
+  const {t} = useLanguage();
   const [accepted, setAccepted] = useState(false);
 
   // Match status bar with light grey background
@@ -182,10 +183,10 @@ const TermsScreen: React.FC<TermsScreenProps> = ({navigation}) => {
       edges={Platform.OS === 'ios' ? ['top', 'bottom'] : []}>
       <View style={styles.container}>
         {/* Title */}
-        <Text style={styles.title}>{STRINGS.terms.title}</Text>
+        <Text style={styles.title}>{t('terms.title')}</Text>
 
         {/* Subtitle */}
-        <Text style={styles.subtitle}>{STRINGS.terms.subtitle}</Text>
+        <Text style={styles.subtitle}>{t('terms.subtitle')}</Text>
 
         {/* Static white card; only inner content scrolls */}
         <View style={styles.cardContainer}>
@@ -195,27 +196,33 @@ const TermsScreen: React.FC<TermsScreenProps> = ({navigation}) => {
               showsVerticalScrollIndicator={false}
             >
               <Text style={styles.cardTitle}>
-                {STRINGS.terms.sectionInterpretation}
+                {t('terms.sectionInterpretation')}
               </Text>
               <Text style={styles.cardBody}>
-                {STRINGS.terms.interpretationText}
+                {t('terms.interpretationText')}
               </Text>
 
               <Text style={[styles.cardTitle, styles.sectionSpacing]}>
-                {STRINGS.terms.sectionDefinitions}
+                {t('terms.sectionDefinitions')}
               </Text>
-              {STRINGS.terms.definitionPoints.map(point => (
-                <View key={point} style={styles.bulletRow}>
+              {Object.values({
+                affiliate: t('terms.definitionPoints.affiliate'),
+                company: t('terms.definitionPoints.company'),
+                service: t('terms.definitionPoints.service'),
+                you: t('terms.definitionPoints.you'),
+                website: t('terms.definitionPoints.website'),
+              }).map((point, index) => (
+                <View key={index} style={styles.bulletRow}>
                   <Text style={styles.bulletDot}>{'\u2022'}</Text>
                   <Text style={styles.bulletText}>{point}</Text>
                 </View>
               ))}
 
               <Text style={[styles.cardTitle, styles.sectionSpacing]}>
-                {STRINGS.terms.sectionAcknowledgement}
+                {t('terms.sectionAcknowledgement')}
               </Text>
               <Text style={styles.cardBody}>
-                {STRINGS.terms.acknowledgementText}
+                {t('terms.acknowledgementText')}
               </Text>
             </ScrollView>
           </View>
@@ -240,15 +247,15 @@ const TermsScreen: React.FC<TermsScreenProps> = ({navigation}) => {
               }}
             />
             <Text style={styles.checkboxText}>
-              {STRINGS.terms.checkboxLabel}{' '}
+              {t('terms.checkboxLabel')}{' '}
               <Text style={styles.checkboxHighlight}>
-                {STRINGS.terms.checkboxHighlight}
+                {t('terms.checkboxHighlight')}
               </Text>
             </Text>
           </Pressable>
 
           <Button
-            title={STRINGS.terms.continueButton}
+            title={t('terms.continueButton')}
             onPress={handleContinue}
             disabled={!accepted}
             style={styles.continueButton}

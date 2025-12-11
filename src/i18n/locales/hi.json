@@ -1,0 +1,131 @@
+{
+  "appName": "किसान",
+  "tabs": {
+    "Home": "होम",
+    "Farmer": "किसान",
+    "Tractors": "ट्रैक्टर",
+    "More": "अधिक",
+    "Profile": "प्रोफ़ाइल"
+  },
+  "home": {
+    "title": "होम",
+    "welcome": "किसान ऐप में आपका स्वागत है।",
+    "greeting": "नमस्ते",
+    "activeClients": "सक्रिय ग्राहक",
+    "tractorModels": "ट्रैक्टर मॉडल",
+    "syncsPending": "सिंक लंबित",
+    "syncNow": "अभी सिंक करें",
+    "clients": "ग्राहक",
+    "tractors": "ट्रैक्टर",
+    "seeAll": "सभी देखें"
+  },
+  "farmer": {
+    "title": "किसान"
+  },
+  "tractors": {
+    "title": "ट्रैक्टर",
+    "model": "मॉडल",
+    "owner": "मालिक",
+    "date": "तारीख",
+    "aToZ": "A से Z",
+    "zToA": "Z से A",
+    "newestFirst": "नवीनतम पहले",
+    "oldestFirst": "पुराना पहले"
+  },
+  "profile": {
+    "title": "प्रोफ़ाइल",
+    "description": "ऐप प्रोफ़ाइल यहाँ दिखाई देगी।",
+    "viewProfile": "प्रोफ़ाइल देखें",
+    "reviewProfile": "प्रोफ़ाइल समीक्षा करें",
+    "logOut": "लॉग आउट",
+    "logOutConfirm": "क्या आप वाकई लॉग आउट करना चाहते हैं?",
+    "yes": "हाँ",
+    "dealerName": "डीलर का नाम",
+    "dealerId": "डीलर आईडी",
+    "nameOfFirm": "फर्म का नाम",
+    "email": "ईमेल",
+    "mobileNo": "मोबाइल नंबर",
+    "dateOfMarriage": "विवाह की तारीख",
+    "dealershipAddress": "डीलरशिप पता",
+    "apartmentBuilding": "अपार्टमेंट/भवन",
+    "streetName": "सड़क का नाम",
+    "landmark": "लैंडमार्क",
+    "village": "गाँव",
+    "district": "जिला",
+    "state": "राज्य",
+    "pinCode": "पिन कोड"
+  },
+  "terms": {
+    "title": "नियम और शर्तें",
+    "subtitle": "कृपया आगे बढ़ने से पहले हमारे नियम और शर्तें पढ़ें और स्वीकार करें।",
+    "sectionInterpretation": "व्याख्या",
+    "interpretationText": "जिन शब्दों का प्रारंभिक अक्षर बड़ा है, उनके अर्थ निम्नलिखित शर्तों के तहत परिभाषित किए गए हैं। निम्नलिखित परिभाषाएं समान रहेंगी चाहे वे एकवचन में हों या बहुवचन में।",
+    "sectionDefinitions": "परिभाषाएं",
+    "definitionPoints": {
+      "affiliate": "सहयोगी का अर्थ है एक इकाई जो किसी पक्ष द्वारा नियंत्रित, नियंत्रित या सामान्य नियंत्रण में है।",
+      "company": "कंपनी का तात्पर्य कैप्टन ट्रैक्टर्स प्राइवेट लिमिटेड से है।",
+      "service": "सेवा का तात्पर्य मोबाइल एप्लिकेशन और कंपनी द्वारा प्रदान की जाने वाली संबंधित सेवाओं से है।",
+      "you": "आप का अर्थ है वह व्यक्ति जो सेवा तक पहुंच रहा है या उपयोग कर रहा है, या कंपनी, या अन्य कानूनी इकाई जिसकी ओर से ऐसा व्यक्ति सेवा तक पहुंच रहा है या उपयोग कर रहा है।",
+      "website": "वेबसाइट का तात्पर्य कैप्टन ट्रैक्टर्स से है, जो https://www.captaintractors.com से एक्सेस किया जा सकता है।"
+    },
+    "sectionAcknowledgement": "स्वीकृति",
+    "acknowledgementText": "ये इस सेवा के उपयोग को नियंत्रित करने वाले नियम और शर्तें हैं और आप और कंपनी के बीच संचालित करार है। सेवा तक आपकी पहुंच और उपयोग इन नियमों और शर्तों की आपकी स्वीकृति और अनुपालन पर सशर्त है।",
+    "checkboxLabel": "हमारे नियम पढ़ें और स्वीकार करें",
+    "checkboxHighlight": "आप आगे बढ़ें इससे पहले।",
+    "continueButton": "जारी रखें"
+  },
+  "login": {
+    "title": "लॉगिन",
+    "description": "लॉगिन करने के लिए अपना मोबाइल नंबर दर्ज करें।",
+    "dealerIdLabel": "डीलर आईडी या मोबाइल नंबर",
+    "dealerIdPlaceholder": "उपयोगकर्ता आईडी या मोबाइल नंबर दर्ज करें",
+    "mobileNumber": "मोबाइल नंबर",
+    "enterMobileNumber": "मोबाइल नंबर दर्ज करें",
+    "otpLabel": "OTP दर्ज करें",
+    "otpPlaceholder": "OTP दर्ज करें",
+    "getOtpButton": "OTP प्राप्त करें",
+    "loginButton": "लॉगिन",
+    "didReciev": "प्राप्त नहीं हुआ?",
+    "resend": "पुनः भेजें",
+    "resendAfter": "के बाद पुनः भेजें",
+    "pleaseEnterMobileNumber": "कृपया मोबाइल नंबर दर्ज करें",
+    "pleaseEnterValidMobileNumber": "कृपया मान्य मोबाइल नंबर दर्ज करें",
+    "pleaseEnterOtp": "कृपया OTP दर्ज करें",
+    "pleaseEnterValidOtp": "कृपया मान्य OTP दर्ज करें",
+    "invalidOtp": "अमान्य OTP. कृपया सही OTP दर्ज करें।"
+  },
+  "notifications": {
+    "title": "सूचनाएं",
+    "verificationFailed": "सत्यापन विफल",
+    "firstName": "पहला नाम",
+    "lastName": "अंतिम नाम",
+    "rejectionReason": "अस्वीकृति का कारण",
+    "viewForm": "फॉर्म देखें",
+    "enterFirstName": "पहला नाम दर्ज करें",
+    "enterLastName": "अंतिम नाम दर्ज करें",
+    "enterRejectionReason": "अस्वीकृति का कारण दर्ज करें"
+  },
+  "language": {
+    "title": "भाषा",
+    "english": "अंग्रेजी",
+    "gujarati": "गुजराती",
+    "hindi": "हिंदी",
+    "selectLanguage": "भाषा चुनें"
+  },
+  "common": {
+    "continue": "जारी रखें",
+    "cancel": "रद्द करें",
+    "save": "सहेजें",
+    "delete": "हटाएं",
+    "edit": "संपादित करें",
+    "submit": "सबमिट करें",
+    "loading": "लोड हो रहा है..."
+  },
+  "events": {
+    "textToSpeech": "टेक्स्ट टू स्पीच"
+  },
+  "farmerHome": {
+    "greeting": "नमस्ते"
+  }
+}
+

@@ -14,18 +14,22 @@ import colors from '../utils/colors';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import {Typography} from '../utils/typography';
 import LogoutModal from '../components/LogoutModal';
+import LanguageSwitcher from '../components/LanguageSwitcher';
 import {SCREEN_NAMES} from '../constants/screenNames';
 import {RootStackParamList} from '../navigation/RootNavigator';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import {clearSession} from '../utils/session';
+import {useLanguage} from '../contexts/LanguageContext';
 
 type ProfileScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
+  const {t, currentLanguage} = useLanguage();
   const navigation = useNavigation<ProfileScreenNavigationProp>();
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+  const [languageModalVisible, setLanguageModalVisible] = useState(false);
 
   // Mock user data
   const userData = {
@@ -161,6 +165,39 @@ export default function ProfileScreen() {
           fontSize: moderateScale(14),
           color: colors.statusError,
         },
+        languageRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        },
+        languageLeft: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          flex: 1,
+        },
+        languageIcon: {
+          marginRight: moderateScale(12),
+          width: moderateScale(40),
+          height: moderateScale(40),
+          borderRadius: moderateScale(30),
+          backgroundColor: colors.light_dark_yellow,
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        languageContent: {
+          flex: 1,
+        },
+        languageLabel: {
+          ...Typography.regularMd,
+          fontSize: moderateScale(14),
+          color: colors.textPrimary,
+          marginBottom: moderateScale(2),
+        },
+        languageText: {
+          ...Typography.regularSm,
+          fontSize: moderateScale(12),
+          color: colors.textTertiary,
+        },
       }),
     [moderateScale, insets.top],
   );
@@ -207,7 +244,7 @@ export default function ProfileScreen() {
   return (
     <View style={dynamicStyles.container}>
       {/* Title */}
-      <Text style={dynamicStyles.title}>Profile</Text>
+      <Text style={dynamicStyles.title}>{t('profile.title')}</Text>
 
       {/* Scrollable Content */}
       <ScrollView
@@ -255,8 +292,39 @@ export default function ProfileScreen() {
                 />
               </View>
               <View style={dynamicStyles.viewProfileContent}>
-                <Text style={dynamicStyles.viewProfileLabel}>Profile</Text>
-                <Text style={dynamicStyles.viewProfileText}>View profile</Text>
+                <Text style={dynamicStyles.viewProfileLabel}>{t('profile.title')}</Text>
+                <Text style={dynamicStyles.viewProfileText}>{t('profile.viewProfile')}</Text>
+              </View>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={moderateScale(20)}
+              color={colors.textTertiary}
+            />
+          </TouchableOpacity>
+        </View>
+
+        {/* Language Card */}
+        <View style={dynamicStyles.card}>
+          <TouchableOpacity
+            style={dynamicStyles.languageRow}
+            onPress={() => setLanguageModalVisible(true)}
+            activeOpacity={0.7}>
+            <View style={dynamicStyles.languageLeft}>
+              <View style={dynamicStyles.languageIcon}>
+                <Ionicons
+                  name="language-outline"
+                  size={moderateScale(20)}
+                  color={colors.textPrimary}
+                />
+              </View>
+              <View style={dynamicStyles.languageContent}>
+                <Text style={dynamicStyles.languageLabel}>{t('language.title')}</Text>
+                <Text style={dynamicStyles.languageText}>
+                  {currentLanguage === 'en' ? t('language.english') : 
+                   currentLanguage === 'gu' ? t('language.gujarati') : 
+                   t('language.hindi')}
+                </Text>
               </View>
             </View>
             <Ionicons
@@ -281,7 +349,7 @@ export default function ProfileScreen() {
                   color={colors.statusError}
                 />
               </View>
-              <Text style={dynamicStyles.logoutText}>Log out</Text>
+              <Text style={dynamicStyles.logoutText}>{t('profile.logOut')}</Text>
             </View>
             <Ionicons
               name="chevron-forward"
@@ -297,6 +365,12 @@ export default function ProfileScreen() {
         visible={logoutModalVisible}
         onClose={() => setLogoutModalVisible(false)}
         onConfirm={handleConfirmLogout}
+      />
+
+      {/* Language Switcher Modal */}
+      <LanguageSwitcher
+        visible={languageModalVisible}
+        onClose={() => setLanguageModalVisible(false)}
       />
     </View>
   );

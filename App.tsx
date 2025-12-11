@@ -12,17 +12,21 @@ import {
 import RootNavigator from './src/navigation/RootNavigator';
 import {StatusBarProvider, useStatusBar} from './src/contexts/StatusBarContext';
 import {TTSProvider} from './src/contexts/TTSContext';
+import {LanguageProvider} from './src/contexts/LanguageContext';
 import TTSPlayer from './src/components/TTSPlayer';
 import {StatusBar} from 'react-native';
+import './src/i18n'; // Initialize i18n
 
 function App() {
   return (
     <SafeAreaProvider>
-      <StatusBarProvider>
-        <TTSProvider>
-          <AppContent />
-        </TTSProvider>
-      </StatusBarProvider>
+      <LanguageProvider>
+        <StatusBarProvider>
+          <TTSProvider>
+            <AppContent />
+          </TTSProvider>
+        </StatusBarProvider>
+      </LanguageProvider>
     </SafeAreaProvider>
   );
 }

@@ -10,7 +10,7 @@ import {
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import { SCREEN_NAMES } from '../../constants/screenNames';
-import { STRINGS } from '../../constants/strings';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   spacing,
@@ -83,6 +83,7 @@ export default function BottomTabBar({
   const insets = useSafeAreaInsets();
   const {currentConfig} = useStatusBar();
   const {moderateScale} = useDeviceMetrics();
+  const {t} = useLanguage();
   const rootNavigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const lastTapRef = useRef<{route: string; timestamp: number} | null>(null);
   const accent = '#F59E0B'; // orange accent like mock
@@ -215,8 +216,7 @@ const styles = StyleSheet.create({
           {tabs.map(routeName => {
             const isFocused = focusedTab === routeName;
             const label =
-              STRINGS.tabs[routeName as keyof (typeof STRINGS)['tabs']] ??
-              routeName;
+              t(`tabs.${routeName}`) ?? routeName;
 
             const color = isFocused ? activeColor : inactiveColor;
             const icon = getIconForRoute(routeName, {
@@ -327,8 +327,7 @@ const styles = StyleSheet.create({
           };
 
           const label =
-            STRINGS.tabs[route.name as keyof (typeof STRINGS)['tabs']] ??
-            route.name;
+            t(`tabs.${route.name}`) ?? route.name;
 
           const color = isFocused ? activeColor : inactiveColor;
           const icon = getIconForRoute(route.name, {
@@ -348,7 +347,7 @@ const styles = StyleSheet.create({
               accessibilityLabel={
                 descriptors[route.key].options.tabBarAccessibilityLabel
               }
-              testID={descriptors[route.key].options.tabBarTestID}
+              testID={(descriptors[route.key].options as any).tabBarTestID}
               onPress={onPress}
               onLongPress={onLongPress}
               style={[styles.item]}

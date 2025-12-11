@@ -19,6 +19,7 @@ import {TabParamList} from '../navigation/TabNavigator';
 import {RootStackParamList} from '../navigation/RootNavigator';
 import {SCREEN_NAMES} from '../constants/screenNames';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
+import {useLanguage} from '../contexts/LanguageContext';
 
 // Mock data
 const summaryData = {
@@ -173,6 +174,7 @@ SummaryCard = ({
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
+  const {t} = useLanguage();
   const navigation = useNavigation();
   const tabNavigation =
     useNavigation<BottomTabNavigationProp<TabParamList>>();
@@ -353,7 +355,7 @@ export default function HomeScreen() {
           { paddingHorizontal: moderateScale(16), paddingTop: insets.top },
         ]}
       >
-        <Text style={dynamicStyles.greeting}>Hello William</Text>
+        <Text style={dynamicStyles.greeting}>{t('home.greeting')} William</Text>
         <TouchableOpacity
           style={dynamicStyles.bellIcon}
           activeOpacity={0.7}
@@ -377,7 +379,7 @@ export default function HomeScreen() {
           <SummaryCard
             icon="people"
             value={summaryData.activeClients}
-            label="Active clients"
+            label={t('home.activeClients')}
             iconColor={colors.iconBlue}
             iconBgColor={colors.light_blue}
             moderateScale={moderateScale}
@@ -386,7 +388,7 @@ export default function HomeScreen() {
           <SummaryCard
             icon="tractor"
             value={summaryData.tractorModels}
-            label="Tractor models"
+            label={t('home.tractorModels')}
             iconColor={colors.iconGreen}
             iconBgColor={colors.light_green}
             iconType="material"
@@ -419,13 +421,13 @@ export default function HomeScreen() {
               >
                 {summaryData.syncsPending}
               </Text>
-              <Text style={dynamicStyles.summaryLabel}>Syncs pending</Text>
+              <Text style={dynamicStyles.summaryLabel}>{t('home.syncsPending')}</Text>
             </View>
             <TouchableOpacity
               style={dynamicStyles.syncButton}
               activeOpacity={0.7}
             >
-              <Text style={dynamicStyles.syncButtonText}>Sync now</Text>
+              <Text style={dynamicStyles.syncButtonText}>{t('home.syncNow')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -433,7 +435,7 @@ export default function HomeScreen() {
         {/* Clients Section */}
         <View style={dynamicStyles.sectionCard}>
           <View style={dynamicStyles.sectionHeader}>
-            <Text style={dynamicStyles.sectionTitle}>Clients</Text>
+            <Text style={dynamicStyles.sectionTitle}>{t('home.clients')}</Text>
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={() => {
@@ -449,7 +451,7 @@ export default function HomeScreen() {
                 );
               }}
             >
-              <Text style={dynamicStyles.seeAllText}>See all</Text>
+              <Text style={dynamicStyles.seeAllText}>{t('home.seeAll')}</Text>
             </TouchableOpacity>
           </View>
           <View style={dynamicStyles.listContainer}>
@@ -499,7 +501,7 @@ export default function HomeScreen() {
         {/* Tractors Section */}
         <View style={[dynamicStyles.sectionCard]}>
           <View style={dynamicStyles.sectionHeader}>
-            <Text style={dynamicStyles.sectionTitle}>Tractors</Text>
+            <Text style={dynamicStyles.sectionTitle}>{t('home.tractors')}</Text>
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={() => {
@@ -514,7 +516,7 @@ export default function HomeScreen() {
               }
               }
             >
-              <Text style={dynamicStyles.seeAllText}>See all</Text>
+              <Text style={dynamicStyles.seeAllText}>{t('home.seeAll')}</Text>
             </TouchableOpacity>
           </View>
           <View style={dynamicStyles.listContainer}>

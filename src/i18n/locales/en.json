@@ -1,0 +1,131 @@
+{
+  "appName": "Farmer",
+  "tabs": {
+    "Home": "Home",
+    "Farmer": "Farmer",
+    "Tractors": "Tractors",
+    "More": "More",
+    "Profile": "Profile"
+  },
+  "home": {
+    "title": "Home",
+    "welcome": "Welcome to Farmer app.",
+    "greeting": "Hello",
+    "activeClients": "Active clients",
+    "tractorModels": "Tractor models",
+    "syncsPending": "Syncs pending",
+    "syncNow": "Sync now",
+    "clients": "Clients",
+    "tractors": "Tractors",
+    "seeAll": "See all"
+  },
+  "farmer": {
+    "title": "Farmer"
+  },
+  "tractors": {
+    "title": "Tractors",
+    "model": "Model",
+    "owner": "Owner",
+    "date": "Date",
+    "aToZ": "A to Z",
+    "zToA": "Z to A",
+    "newestFirst": "Newest First",
+    "oldestFirst": "Oldest First"
+  },
+  "profile": {
+    "title": "Profile",
+    "description": "App Profile will appear here.",
+    "viewProfile": "View profile",
+    "reviewProfile": "Review profile",
+    "logOut": "Log out",
+    "logOutConfirm": "Are you sure you want to log out ?",
+    "yes": "Yes",
+    "dealerName": "Dealer name",
+    "dealerId": "Dealer ID",
+    "nameOfFirm": "Name of firm",
+    "email": "Email",
+    "mobileNo": "Mobile no.",
+    "dateOfMarriage": "Date of marriage",
+    "dealershipAddress": "DealerShip Address",
+    "apartmentBuilding": "Apartment/Building",
+    "streetName": "Street name",
+    "landmark": "Landmark",
+    "village": "Village",
+    "district": "District",
+    "state": "State",
+    "pinCode": "Pin code"
+  },
+  "terms": {
+    "title": "Terms and conditions",
+    "subtitle": "Please read and accept our terms and conditions before you continue.",
+    "sectionInterpretation": "Interpretation",
+    "interpretationText": "The words of which the initial letter is capitalized have meanings defined under the following conditions. The following definitions shall have the same meaning regardless of whether they appear in singular or in plural.",
+    "sectionDefinitions": "Definitions",
+    "definitionPoints": {
+      "affiliate": "Affiliate means an entity that controls, is controlled by or is under common control with a party.",
+      "company": "Company refers to Captain Tractors Private Limited.",
+      "service": "Service refers to the mobile application and related services provided by the Company.",
+      "you": "You means the individual accessing or using the Service, or the company, or other legal entity on behalf of which such individual is accessing or using the Service.",
+      "website": "Website refers to Captain Tractors, accessible from https://www.captaintractors.com."
+    },
+    "sectionAcknowledgement": "Acknowledgement",
+    "acknowledgementText": "These are the Terms and Conditions governing the use of this Service and the agreement that operates between You and the Company. Your access to and use of the Service is conditioned on Your acceptance of and compliance with these Terms and Conditions.",
+    "checkboxLabel": "Read and accept our terms",
+    "checkboxHighlight": "before you continue.",
+    "continueButton": "Continue"
+  },
+  "login": {
+    "title": "Login",
+    "description": "Enter your mobile number to login.",
+    "dealerIdLabel": "Dealer id or mobile number",
+    "dealerIdPlaceholder": "Enter user id or mobile number",
+    "mobileNumber": "Mobile Number",
+    "enterMobileNumber": "Enter mobile number",
+    "otpLabel": "Enter OTP",
+    "otpPlaceholder": "Enter OTP",
+    "getOtpButton": "Get OTP",
+    "loginButton": "Login",
+    "didReciev": "Didn't received?",
+    "resend": "Resend",
+    "resendAfter": "Resend after",
+    "pleaseEnterMobileNumber": "Please enter mobile number",
+    "pleaseEnterValidMobileNumber": "Please enter a valid mobile number",
+    "pleaseEnterOtp": "Please enter OTP",
+    "pleaseEnterValidOtp": "Please enter a valid OTP",
+    "invalidOtp": "Invalid OTP. Please enter the correct OTP."
+  },
+  "notifications": {
+    "title": "Notifications",
+    "verificationFailed": "Verification failed",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "rejectionReason": "Rejection reason",
+    "viewForm": "View form",
+    "enterFirstName": "Enter first name",
+    "enterLastName": "Enter last name",
+    "enterRejectionReason": "Enter rejection reason"
+  },
+  "language": {
+    "title": "Language",
+    "english": "English",
+    "gujarati": "Gujarati",
+    "hindi": "Hindi",
+    "selectLanguage": "Select Language"
+  },
+  "common": {
+    "continue": "Continue",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "submit": "Submit",
+    "loading": "Loading..."
+  },
+  "events": {
+    "textToSpeech": "Text to speech"
+  },
+  "farmerHome": {
+    "greeting": "Hello"
+  }
+}
+

@@ -21,7 +21,7 @@ import Button from '../components/Button';
 import { Spacing, FontSize, spacing } from '../utils/responsive';
 import { Typography, FontFamily } from '../utils/typography';
 import { Colors } from '../constants/colors';
-import { STRINGS } from '../constants/strings';
+import { useLanguage } from '../contexts/LanguageContext';
 import { SCREEN_NAMES } from '../constants/screenNames';
 import { RootStackParamList } from '../navigation/RootNavigator';
 import { ImagePath } from '../assets/images';
@@ -41,6 +41,7 @@ type LoginScreenProps = NativeStackScreenProps<RootStackParamList, 'Login'>;
 export default function LoginScreen({ navigation }: LoginScreenProps) {
   const insets = useSafeAreaInsets();
   const { moderateScale } = useDeviceMetrics();
+  const { t } = useLanguage();
   const [dealerId, setDealerId] = useState('');
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
@@ -198,16 +199,16 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
     const newErrors: { dealerId?: string; otp?: string } = {};
 
     if (!dealerId.trim()) {
-      newErrors.dealerId = 'Please enter mobile number';
+      newErrors.dealerId = t('login.pleaseEnterMobileNumber');
     } else if (dealerId.trim().length != 10) {
-      newErrors.dealerId = 'Please enter a valid mobile number';
+      newErrors.dealerId = t('login.pleaseEnterValidMobileNumber');
     }
 
     if (otpRequested) {
       if (!otp.trim()) {
-        newErrors.otp = 'Please enter OTP';
+        newErrors.otp = t('login.pleaseEnterOtp');
       } else if (otp.trim().length != 6) {
-        newErrors.otp = 'Please enter a valid OTP';
+        newErrors.otp = t('login.pleaseEnterValidOtp');
       }
     }
 
@@ -293,8 +294,9 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
 
     // Verify OTP
     if (otp.trim() !== generatedOtp) {
-      setErrors({ ...errors, otp: 'Invalid OTP. Please enter the correct OTP.' });
-      showToastMessage('Invalid OTP. Please enter the correct OTP.', 'error');
+      const errorMsg = t('login.invalidOtp');
+      setErrors({ ...errors, otp: errorMsg });
+      showToastMessage(errorMsg, 'error');
       return;
     }
 
@@ -364,12 +366,12 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
 
           {/* Login Form */}
           <View style={styles.formContainer}>
-            <Text style={styles.title}>{STRINGS.login.title}</Text>
-            <Text style={styles.description}>{STRINGS.login.description}</Text>
+            <Text style={styles.title}>{t('login.title')}</Text>
+            <Text style={styles.description}>{t('login.description')}</Text>
             <SimpleBoxInput
               ref={dealerIdInputRef}
-              label="Mobile Number"
-              placeholder="Enter mobile number"
+              label={t('login.mobileNumber')}
+              placeholder={t('login.enterMobileNumber')}
               value={dealerId}
               onChangeText={text => {
                 // Only allow numeric characters
@@ -385,9 +387,9 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
               maxLength={10}
             />
             <SimpleBoxInput
-              label={STRINGS.login.otpPlaceholder}
+              label={t('login.otpPlaceholder')}
               ref={otpInputRef}
-              placeholder={STRINGS.login.otpPlaceholder}
+              placeholder={t('login.otpPlaceholder')}
               value={otp}
               onChangeText={text => {
                 // Only allow numeric characters
@@ -413,7 +415,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
                       { marginBottom: 0, marginTop: 0 },
                     ]}
                   >
-                    {STRINGS.login.didReciev}
+                    {t('login.didReciev')}
                   </Text>
                   {canResend ? (
                     <TouchableOpacity
@@ -422,28 +424,28 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
                       activeOpacity={0.7}
                       style={{ opacity: getOtpLoading ? 0.5 : 1 }}
                     >
-                      <Text style={styles.resendTextActive}> Resend </Text>
+                      <Text style={styles.resendTextActive}> {t('login.resend')} </Text>
                     </TouchableOpacity>
                   ) : (
                     <TouchableOpacity disabled={true} activeOpacity={1}>
                       <Text style={styles.resendTextDisabled}>
                         {' '}
-                        Resend after {formatTimer(timer)}
+                        {t('login.resendAfter')} {formatTimer(timer)}
                       </Text>
                     </TouchableOpacity>
                   )}
                 </>
               ) : (
                 <Text style={styles.resendTextDisabled}>
-                  {STRINGS.login.didReciev} Resend
+                  {t('login.didReciev')} {t('login.resend')}
                 </Text>
               )}
             </View>
             <Button
               title={
                 otpRequested
-                  ? STRINGS.login.loginButton
-                  : STRINGS.login.getOtpButton
+                  ? t('login.loginButton')
+                  : t('login.getOtpButton')
               }
               onPress={otpRequested ? handleLogin : handleGetOtp}
               loading={otpRequested ? loading : getOtpLoading}

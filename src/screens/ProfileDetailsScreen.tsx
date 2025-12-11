@@ -13,6 +13,7 @@ import colors from '../utils/colors';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import {Typography} from '../utils/typography';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
+import {useLanguage} from '../contexts/LanguageContext';
 
 // Mock data for profile details - matching the image
 const getProfileDetails = () => {
@@ -87,6 +88,7 @@ const InfoRow = ({
 export default function ProfileDetailsScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
+  const {t} = useLanguage();
   const navigation = useNavigation();
 
   const profileDetails = useMemo(() => getProfileDetails(), []);
@@ -219,7 +221,7 @@ export default function ProfileDetailsScreen() {
             color={colors.textPrimary}
           />
         </TouchableOpacity>
-        <Text style={dynamicStyles.headerTitle}>Profile</Text>
+        <Text style={dynamicStyles.headerTitle}>{t('profile.title')}</Text>
       </View>
 
       {/* Scrollable Content */}
@@ -259,32 +261,32 @@ export default function ProfileDetailsScreen() {
 
           {/* Personal Information */}
           <InfoRow
-            label="Dealer name"
+            label={t('profile.dealerName')}
             value={profileDetails.dealerName}
             moderateScale={moderateScale}
           />
           <InfoRow
-            label="Dealer ID"
+            label={t('profile.dealerId')}
             value={profileDetails.dealerId}
             moderateScale={moderateScale}
           />
           <InfoRow
-            label="Name of firm"
+            label={t('profile.nameOfFirm')}
             value={profileDetails.firmName}
             moderateScale={moderateScale}
           />
           <InfoRow
-            label="Email"
+            label={t('profile.email')}
             value={profileDetails.email}
             moderateScale={moderateScale}
           />
           <InfoRow
-            label="Mobile no."
+            label={t('profile.mobileNo')}
             value={profileDetails.mobile}
             moderateScale={moderateScale}
           />
           <InfoRow
-            label="Date of marriage"
+            label={t('profile.dateOfMarriage')}
             value={profileDetails.dateOfMarriage}
             moderateScale={moderateScale}
             isShowBorderBottom={false}
@@ -293,39 +295,39 @@ export default function ProfileDetailsScreen() {
 
         {/* Address Card */}
         <View style={dynamicStyles.card}>
-          <Text style={dynamicStyles.cardTitle}>DealerShip Address</Text>
+          <Text style={dynamicStyles.cardTitle}>{t('profile.dealershipAddress')}</Text>
           <InfoRow
-            label="Apartment/Building"
+            label={t('profile.apartmentBuilding')}
             value={profileDetails.address.houseNumber}
             moderateScale={moderateScale}
           />
           <InfoRow
-            label="Street name"
+            label={t('profile.streetName')}
             value={profileDetails.address.streetName}
             moderateScale={moderateScale}
           />
           <InfoRow
-            label="Landmark"
+            label={t('profile.landmark')}
             value={profileDetails.address.landmark}
             moderateScale={moderateScale}
           />
           <InfoRow
-            label="Village"
+            label={t('profile.village')}
             value={profileDetails.address.village}
             moderateScale={moderateScale}
           />
           <InfoRow
-            label="District"
+            label={t('profile.district')}
             value={profileDetails.address.district}
             moderateScale={moderateScale}
           />
           <InfoRow
-            label="State"
+            label={t('profile.state')}
             value={profileDetails.address.state}
             moderateScale={moderateScale}
           />
           <InfoRow
-            label="Pin code"
+            label={t('profile.pinCode')}
             value={profileDetails.address.pinCode}
             moderateScale={moderateScale}
             isShowBorderBottom={false}

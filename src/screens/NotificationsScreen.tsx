@@ -14,7 +14,7 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import {RootStackParamList} from '../navigation/RootNavigator';
 import {SCREEN_NAMES} from '../constants/screenNames';
-import {STRINGS} from '../constants/strings';
+import {useLanguage} from '../contexts/LanguageContext';
 import colors from '../utils/colors';
 import {Typography} from '../utils/typography';
 import useDeviceMetrics from '../utils/responsiveCustom';
@@ -45,6 +45,7 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
 }) => {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
+  const {t} = useLanguage();
   const [showFailedModal, setShowFailedModal] = useState(false);
   const [selectedNotification, setSelectedNotification] =
     useState<NotificationItem | null>(null);
@@ -300,7 +301,7 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
             color={colors.textPrimary}
           />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{STRINGS.notifications.title}</Text>
+        <Text style={styles.headerTitle}>{t('notifications.title')}</Text>
       </View>
 
       {/* Scrollable Content */}
@@ -388,7 +389,7 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
               {/* Modal Header */}
               <View style={styles.modalHeader}>
                 <Text style={styles.modalTitle}>
-                  {STRINGS.notifications.verificationFailed}
+                  {t('notifications.verificationFailed')}
                 </Text>
                 <TouchableOpacity
                   style={styles.closeButton}
@@ -404,28 +405,28 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
 
               {/* First Name Input */}
               <SimpleBoxInput
-                label={STRINGS.notifications.firstName}
+                label={t('notifications.firstName')}
                 value={firstName}
                 onChangeText={setFirstName}
-                placeholder="Enter first name"
+                placeholder={t('notifications.enterFirstName')}
                 containerStyle={styles.modalInputContainer}
               />
 
               {/* Last Name Input */}
               <SimpleBoxInput
-                label={STRINGS.notifications.lastName}
+                label={t('notifications.lastName')}
                 value={lastName}
                 onChangeText={setLastName}
-                placeholder="Enter last name"
+                placeholder={t('notifications.enterLastName')}
                 containerStyle={styles.modalInputContainer}
               />
 
               {/* Rejection Reason Text Area */}
               <SimpleBoxInput
-                label={STRINGS.notifications.rejectionReason}
+                label={t('notifications.rejectionReason')}
                 value={rejectionReason}
                 onChangeText={setRejectionReason}
-                placeholder="Enter rejection reason"
+                placeholder={t('notifications.enterRejectionReason')}
                 multiline={true}
                 textAlignVertical="top"
                 containerStyle={styles.modalInputContainer}
@@ -433,7 +434,7 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
 
               {/* View Form Button */}
               <Button
-                title={STRINGS.notifications.viewForm}
+                title={t('notifications.viewForm')}
                 onPress={handleViewForm}
                 style={styles.modalButton}
               />

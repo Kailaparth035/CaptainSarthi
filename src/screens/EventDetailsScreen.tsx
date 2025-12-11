@@ -27,6 +27,7 @@ import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import {useStatusBar} from '../contexts/StatusBarContext';
 import {useTTS} from '../contexts/TTSContext';
 import {ImagePath} from '../assets/images';
+import {useLanguage} from '../contexts/LanguageContext';
 
 type EventDetailsRouteParams = {
   eventId: string;
@@ -66,6 +67,7 @@ const getEventDetails = (eventId: string) => {
 export default function EventDetailsScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
+  const {t} = useLanguage();
   const route = useRoute();
   const navigation = useNavigation();
   const tabNavigation = useNavigation<BottomTabNavigationProp<FarmerTabParamList>>();
@@ -470,7 +472,7 @@ export default function EventDetailsScreen() {
                 color={colors.primary}
               />
               <Text style={dynamicStyles.textToSpeechButtonText}>
-                Text to speech
+                {t('events.textToSpeech')}
               </Text>
             </TouchableOpacity>
           )}

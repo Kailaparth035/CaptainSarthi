@@ -1,0 +1,131 @@
+{
+  "appName": "ફાર્મર",
+  "tabs": {
+    "Home": "હોમ",
+    "Farmer": "ફાર્મર",
+    "Tractors": "ટ્રેક્ટર",
+    "More": "વધુ",
+    "Profile": "પ્રોફાઇલ"
+  },
+  "home": {
+    "title": "હોમ",
+    "welcome": "ફાર્મર એપ્લિકેશનમાં આપનું સ્વાગત છે.",
+    "greeting": "નમસ્તે",
+    "activeClients": "સક્રિય ક્લાયન્ટ્સ",
+    "tractorModels": "ટ્રેક્ટર મોડલ્સ",
+    "syncsPending": "સમન્વય બાકી",
+    "syncNow": "હવે સમન્વય કરો",
+    "clients": "ક્લાયન્ટ્સ",
+    "tractors": "ટ્રેક્ટર",
+    "seeAll": "બધું જુઓ"
+  },
+  "farmer": {
+    "title": "ફાર્મર"
+  },
+  "tractors": {
+    "title": "ટ્રેક્ટર",
+    "model": "મોડલ",
+    "owner": "માલિક",
+    "date": "તારીખ",
+    "aToZ": "A થી Z",
+    "zToA": "Z થી A",
+    "newestFirst": "નવીનતમ પહેલા",
+    "oldestFirst": "જૂની પહેલા"
+  },
+  "profile": {
+    "title": "પ્રોફાઇલ",
+    "description": "એપ્લિકેશન પ્રોફાઇલ અહીં દેખાશે.",
+    "viewProfile": "પ્રોફાઇલ જુઓ",
+    "reviewProfile": "પ્રોફાઇલ સમીક્ષા કરો",
+    "logOut": "લૉગ આઉટ",
+    "logOutConfirm": "શું તમે ખરેખર લૉગ આઉટ કરવા માંગો છો?",
+    "yes": "હા",
+    "dealerName": "ડીલરનું નામ",
+    "dealerId": "ડીલર આઈડી",
+    "nameOfFirm": "ફર્મનું નામ",
+    "email": "ઇમેઇલ",
+    "mobileNo": "મોબાઇલ નંબર",
+    "dateOfMarriage": "લગ્નની તારીખ",
+    "dealershipAddress": "ડીલરશિપ સરનામું",
+    "apartmentBuilding": "એપાર્ટમેન્ટ/બિલ્ડિંગ",
+    "streetName": "માર્ગનું નામ",
+    "landmark": "લેન્ડમાર્ક",
+    "village": "ગામ",
+    "district": "જિલ્લો",
+    "state": "રાજ્ય",
+    "pinCode": "પિન કોડ"
+  },
+  "terms": {
+    "title": "નિયમો અને શરતો",
+    "subtitle": "કૃપા કરીને આગળ વધતા પહેલા અમારા નિયમો અને શરતો વાંચો અને સ્વીકારો.",
+    "sectionInterpretation": "વ્યાખ્યા",
+    "interpretationText": "જે શબ્દોનો પ્રારંભિક અક્ષર મોટા અક્ષરમાં છે તેના અર્થ નીચેની શરતો હેઠળ વ્યાખ્યાયિત કરવામાં આવ્યા છે. નીચેની વ્યાખ્યાઓ એકસરખી રહેશે ભલે તે એકવચનમાં હોય કે બહુવચનમાં.",
+    "sectionDefinitions": "વ્યાખ્યાઓ",
+    "definitionPoints": {
+      "affiliate": "સંલગ્ન એટલે એક એન્ટિટી જે પક્ષ દ્વારા નિયંત્રિત, નિયંત્રિત અથવા સામાન્ય નિયંત્રણ હેઠળ છે.",
+      "company": "કંપની એટલે કેપ્ટન ટ્રેક્ટર્સ પ્રાઇવેટ લિમિટેડ.",
+      "service": "સેવા એટલે મોબાઇલ એપ્લિકેશન અને કંપની દ્વારા પ્રદાન કરવામાં આવતી સંબંધિત સેવાઓ.",
+      "you": "તમે એટલે વ્યક્તિગત રીતે સેવા ઍક્સેસ કરતા અથવા ઉપયોગ કરતા વ્યક્તિ, અથવા કંપની, અથવા અન્ય કાનૂની એન્ટિટી જેની વતી આવા વ્યક્તિ સેવા ઍક્સેસ કરે છે અથવા ઉપયોગ કરે છે.",
+      "website": "વેબસાઇટ એટલે કેપ્ટન ટ્રેક્ટર્સ, https://www.captaintractors.com પરથી ઍક્સેસ કરી શકાય છે."
+    },
+    "sectionAcknowledgement": "સ્વીકૃતિ",
+    "acknowledgementText": "આ આ સેવાના ઉપયોગને નિયંત્રિત કરતા નિયમો અને શરતો છે અને તમારી અને કંપની વચ્ચે કાર્યરત કરાર છે. સેવાની તમારી ઍક્સેસ અને ઉપયોગ આ નિયમો અને શરતોની તમારી સ્વીકૃતિ અને પાલન પર શરતી છે.",
+    "checkboxLabel": "અમારા નિયમો વાંચો અને સ્વીકારો",
+    "checkboxHighlight": "તમે આગળ વધો તે પહેલા.",
+    "continueButton": "આગળ વધો"
+  },
+  "login": {
+    "title": "લૉગિન",
+    "description": "લૉગિન કરવા માટે તમારો મોબાઇલ નંબર દાખલ કરો.",
+    "dealerIdLabel": "ડીલર આઈડી અથવા મોબાઇલ નંબર",
+    "dealerIdPlaceholder": "વપરાશકર્તા આઈડી અથવા મોબાઇલ નંબર દાખલ કરો",
+    "mobileNumber": "મોબાઇલ નંબર",
+    "enterMobileNumber": "મોબાઇલ નંબર દાખલ કરો",
+    "otpLabel": "OTP દાખલ કરો",
+    "otpPlaceholder": "OTP દાખલ કરો",
+    "getOtpButton": "OTP મેળવો",
+    "loginButton": "લૉગિન",
+    "didReciev": "મળ્યું નથી?",
+    "resend": "ફરીથી મોકલો",
+    "resendAfter": "પછી ફરીથી મોકલો",
+    "pleaseEnterMobileNumber": "કૃપા કરીને મોબાઇલ નંબર દાખલ કરો",
+    "pleaseEnterValidMobileNumber": "કૃપા કરીને માન્ય મોબાઇલ નંબર દાખલ કરો",
+    "pleaseEnterOtp": "કૃપા કરીને OTP દાખલ કરો",
+    "pleaseEnterValidOtp": "કૃપા કરીને માન્ય OTP દાખલ કરો",
+    "invalidOtp": "અમાન્ય OTP. કૃપા કરીને સાચો OTP દાખલ કરો."
+  },
+  "notifications": {
+    "title": "સૂચનાઓ",
+    "verificationFailed": "ચકાસણી નિષ્ફળ",
+    "firstName": "પ્રથમ નામ",
+    "lastName": "છેલ્લું નામ",
+    "rejectionReason": "નકારવાનું કારણ",
+    "viewForm": "ફોર્મ જુઓ",
+    "enterFirstName": "પ્રથમ નામ દાખલ કરો",
+    "enterLastName": "છેલ્લું નામ દાખલ કરો",
+    "enterRejectionReason": "નકારવાનું કારણ દાખલ કરો"
+  },
+  "language": {
+    "title": "ભાષા",
+    "english": "અંગ્રેજી",
+    "gujarati": "ગુજરાતી",
+    "hindi": "હિંદી",
+    "selectLanguage": "ભાષા પસંદ કરો"
+  },
+  "common": {
+    "continue": "આગળ વધો",
+    "cancel": "રદ કરો",
+    "save": "સાચવો",
+    "delete": "કાઢી નાખો",
+    "edit": "સંપાદિત કરો",
+    "submit": "સબમિટ કરો",
+    "loading": "લોડ થઈ રહ્યું છે..."
+  },
+  "events": {
+    "textToSpeech": "ટેક્સ્ટ ટુ સ્પીચ"
+  },
+  "farmerHome": {
+    "greeting": "નમસ્તે"
+  }
+}
+
