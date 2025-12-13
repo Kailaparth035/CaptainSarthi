@@ -246,12 +246,12 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
 
     try {
       // Get device token
-      const getdeviceToken = await DeviceInfo.getUniqueId();
+      // const getdeviceToken = await DeviceInfo.getUniqueId();
 
       // Prepare FormData for send-otp API
       const bodyData = new FormData();
       bodyData.append('mobile_number', mobileNumber);
-      bodyData.append('device_token', getdeviceToken ?? '');
+      // bodyData.append('device_token', getdeviceToken ?? '');
 
       // Determine which API to use based on user role
       const sendOtpUrl = isFarmerRole(mobileNumber) 
