@@ -35,6 +35,10 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import Toast, { ToastType } from '../components/Toast';
 import { saveSession, isProfileReviewed, isTermsAccepted } from '../utils/session';
 import { isFarmerRole } from '../utils/userRole';
+import { postData } from '../Service/Apimethod';
+import Apis from '../Service/constant';
+import DeviceInfo from 'react-native-device-info';
+import { saveAuthToken } from '../Service/Apicom';
 
 type LoginScreenProps = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
@@ -54,6 +58,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
   const [timer, setTimer] = useState(30);
   const [canResend, setCanResend] = useState(false);
   const [errors, setErrors] = useState<{ dealerId?: string; otp?: string }>({});
+  const [memberId, setMemberId] = useState<string>('');
   const dealerIdInputRef = useRef<TextInput>(null);
   const otpInputRef = useRef<TextInput>(null);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -231,51 +236,111 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
     setShowToast(false);
   };
 
-  const handleGetOtp = () => {
-    if (isValidMobileNumber()) {
-      setGetOtpLoading(true);
-      
-      // Generate OTP
-      const newOtp = generateOtp();
-      setGeneratedOtp(newOtp);
-      
-      // Simulate API call delay
-      setTimeout(() => {
+  const handleGetOtp = async () => {
+    if (!isValidMobileNumber()) {
+      return;
+    }
+
+    setGetOtpLoading(true);
+    const mobileNumber = dealerId.trim();
+
+    try {
+      // Get device token
+      const getdeviceToken = await DeviceInfo.getUniqueId();
+
+      // Prepare FormData for send-otp API
+      const bodyData = new FormData();
+      bodyData.append('mobile_number', mobileNumber);
+      bodyData.append('device_token', getdeviceToken ?? '');
+
+      // Determine which API to use based on user role
+      const sendOtpUrl = isFarmerRole(mobileNumber) 
+        ? Apis.FARMER_SEND_OTP 
+        : Apis.DEALER_SEND_OTP;
+
+      const response = await postData(sendOtpUrl, bodyData);
+
+      if (response?.status === true && response?.data !== '') {
         setGetOtpLoading(false);
         setOtpRequested(true);
         setTimer(30);
         setCanResend(false);
         
-        // Show toast with OTP
-        showToastMessage(`Sent for verification. Your OTP is: ${newOtp}. Check notifications for update.`);
+        // Store member_id if provided
+        if (response?.data?.member_id) {
+          setMemberId(response.data.member_id);
+        }
+
+        // Show success message
+        const message = response?.message || 'OTP sent successfully. Please check your mobile.';
+        showToastMessage(message, 'success');
         
         // Focus on OTP input
         setTimeout(() => {
           otpInputRef.current?.focus();
         }, 100);
-      }, 500);
+      } else {
+        setGetOtpLoading(false);
+        const errorMsg = response?.message || 'Failed to send OTP. Please try again.';
+        showToastMessage(errorMsg, 'error');
+        setErrors({ ...errors, dealerId: errorMsg });
+      }
+    } catch (error) {
+      console.error('Send OTP error:', error);
+      setGetOtpLoading(false);
+      const errorMsg = 'Failed to send OTP. Please try again.';
+      showToastMessage(errorMsg, 'error');
+      setErrors({ ...errors, dealerId: errorMsg });
     }
   };
 
-  const handleResendOtp = () => {
-    if (canResend && isValidMobileNumber()) {
-      setGetOtpLoading(true);
-      
-      // Generate new OTP
-      const newOtp = generateOtp();
-      setGeneratedOtp(newOtp);
-      
-      // Reset timer
-      setTimer(30);
-      setCanResend(false);
-      
-      // Simulate API call delay
-      setTimeout(() => {
+  const handleResendOtp = async () => {
+    if (!canResend || !isValidMobileNumber()) {
+      return;
+    }
+
+    setGetOtpLoading(true);
+    const mobileNumber = dealerId.trim();
+
+    try {
+      // Get device token
+      const getdeviceToken = await DeviceInfo.getUniqueId();
+
+      // Prepare FormData for send-otp API
+      const bodyData = new FormData();
+      bodyData.append('mobile_number', mobileNumber);
+      bodyData.append('device_token', getdeviceToken ?? '');
+
+      // Determine which API to use based on user role
+      const sendOtpUrl = isFarmerRole(mobileNumber) 
+        ? Apis.FARMER_SEND_OTP 
+        : Apis.DEALER_SEND_OTP;
+
+      const response = await postData(sendOtpUrl, bodyData);
+
+      if (response?.status === true && response?.data !== '') {
         setGetOtpLoading(false);
+        setTimer(30);
+        setCanResend(false);
         
-        // Show toast with new OTP
-        showToastMessage(`Sent for verification. Your OTP is: ${newOtp}. Check notifications for update.`);
-      }, 500);
+        // Store member_id if provided
+        if (response?.data?.member_id) {
+          setMemberId(response.data.member_id);
+        }
+
+        // Show success message
+        const message = response?.message || 'OTP resent successfully.';
+        showToastMessage(message, 'success');
+      } else {
+        setGetOtpLoading(false);
+        const errorMsg = response?.message || 'Failed to resend OTP. Please try again.';
+        showToastMessage(errorMsg, 'error');
+      }
+    } catch (error) {
+      console.error('Resend OTP error:', error);
+      setGetOtpLoading(false);
+      const errorMsg = 'Failed to resend OTP. Please try again.';
+      showToastMessage(errorMsg, 'error');
     }
   };
 
@@ -292,20 +357,34 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
       return;
     }
 
-    // Verify OTP
-    if (otp.trim() !== generatedOtp) {
-      const errorMsg = t('login.invalidOtp');
-      setErrors({ ...errors, otp: errorMsg });
-      showToastMessage(errorMsg, 'error');
-      return;
-    }
-
     setLoading(true);
     const mobileNumber = dealerId.trim();
-    
-    // TODO: Implement login API call
-    setTimeout(async () => {
-      try {
+
+    try {
+      // Get device token
+      const getdeviceToken = await DeviceInfo.getUniqueId();
+
+      // Prepare FormData for login API
+      const bodyData = new FormData();
+      bodyData.append('mobile_number', mobileNumber);
+      bodyData.append('otp', otp.trim());
+      bodyData.append('device_token', getdeviceToken ?? '');
+
+      // Determine which API to use based on user role
+      const loginUrl = isFarmerRole(mobileNumber) 
+        ? Apis.FARMER_LOGIN 
+        : Apis.DEALER_LOGIN;
+
+      const response = await postData(loginUrl, bodyData);
+
+      if (response?.status === true && response?.data !== '') {
+        console.log('Login response:', response?.data);
+        
+        // Save auth token if provided
+        if (response?.data?.token) {
+          await saveAuthToken(response.data.token);
+        }
+
         // Save session to AsyncStorage
         await saveSession(mobileNumber);
         setLoading(false);
@@ -329,12 +408,19 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           // Dealer role - navigate to MainTabs
           navigation.replace(SCREEN_NAMES.MainTabs);
         }
-      } catch (error) {
-        console.error('Error saving session:', error);
+      } else {
         setLoading(false);
-        showToastMessage('Login successful but failed to save session', 'error');
+        const errorMsg = response?.message || t('login.invalidOtp');
+        setErrors({ ...errors, otp: errorMsg });
+        showToastMessage(errorMsg, 'error');
       }
-    }, 1500);
+    } catch (error: any) {
+      console.error('Login error:', error);
+      setLoading(false);
+      const errorMsg = error?.response?.data?.message || t('login.invalidOtp');
+      setErrors({ ...errors, otp: errorMsg });
+      showToastMessage(errorMsg, 'error');
+    }
   };
 
   return (
@@ -385,6 +471,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
               returnKeyType="next"
               error={errors.dealerId}
               maxLength={10}
+              numberOfLinesLabel={1}
             />
             <SimpleBoxInput
               label={t('login.otpPlaceholder')}
@@ -405,6 +492,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
               error={errors.otp}
               maxLength={6}
               editable={otpRequested}
+              numberOfLinesLabel={1}
             />
             <View style={styles.resendContainer}>
               {otpRequested ? (

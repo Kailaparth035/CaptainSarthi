@@ -10,14 +10,14 @@ export const useStrings = () => {
   
   return {
     appName: t('appName'),
-    tabs: {
+  tabs: {
       Home: t('tabs.Home'),
       Farmer: t('tabs.Farmer'),
       Tractors: t('tabs.Tractors'),
       More: t('tabs.More'),
       Profile: t('tabs.Profile'),
-    },
-    home: {
+  },
+  home: {
       title: t('home.title'),
       welcome: t('home.welcome'),
       greeting: t('home.greeting'),
@@ -28,11 +28,11 @@ export const useStrings = () => {
       clients: t('home.clients'),
       tractors: t('home.tractors'),
       seeAll: t('home.seeAll'),
-    },
+  },
     farmer: {
       title: t('farmer.title'),
-    },
-    tractors: {
+  },
+  tractors: {
       title: t('tractors.title'),
       model: t('tractors.model'),
       owner: t('tractors.owner'),
@@ -41,12 +41,12 @@ export const useStrings = () => {
       zToA: t('tractors.zToA'),
       newestFirst: t('tractors.newestFirst'),
       oldestFirst: t('tractors.oldestFirst'),
-    },
+  },
     profile: {
       title: t('profile.title'),
       description: t('profile.description'),
-    },
-    terms: {
+  },
+  terms: {
       title: t('terms.title'),
       subtitle: t('terms.subtitle'),
       sectionInterpretation: t('terms.sectionInterpretation'),
@@ -64,8 +64,8 @@ export const useStrings = () => {
       checkboxLabel: t('terms.checkboxLabel'),
       checkboxHighlight: t('terms.checkboxHighlight'),
       continueButton: t('terms.continueButton'),
-    },
-    login: {
+  },
+  login: {
       title: t('login.title'),
       description: t('login.description'),
       dealerIdLabel: t('login.dealerIdLabel'),
@@ -84,15 +84,15 @@ export const useStrings = () => {
       pleaseEnterOtp: t('login.pleaseEnterOtp'),
       pleaseEnterValidOtp: t('login.pleaseEnterValidOtp'),
       invalidOtp: t('login.invalidOtp'),
-    },
-    notifications: {
+  },
+  notifications: {
       title: t('notifications.title'),
       verificationFailed: t('notifications.verificationFailed'),
       firstName: t('notifications.firstName'),
       lastName: t('notifications.lastName'),
       rejectionReason: t('notifications.rejectionReason'),
       viewForm: t('notifications.viewForm'),
-    },
+  },
   };
 };
 

@@ -21,11 +21,11 @@ function App() {
   return (
     <SafeAreaProvider>
       <LanguageProvider>
-        <StatusBarProvider>
-          <TTSProvider>
-            <AppContent />
-          </TTSProvider>
-        </StatusBarProvider>
+      <StatusBarProvider>
+        <TTSProvider>
+          <AppContent />
+        </TTSProvider>
+      </StatusBarProvider>
       </LanguageProvider>
     </SafeAreaProvider>
   );
