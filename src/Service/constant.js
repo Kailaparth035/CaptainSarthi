@@ -1,6 +1,6 @@
 /* eslint-disable quotes */
 // Base URLs
-const BASE_URL = 'https://blend-met-knit-demanding.trycloudflare.com';
+const BASE_URL = 'https://employees-falling-ordinance-functional.trycloudflare.com';
 const LIVE_URL = 'https://api.captainsathi.com'; // Update when production URL is available
 
 // Toggle
