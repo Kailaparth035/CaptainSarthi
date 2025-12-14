@@ -21,6 +21,7 @@ const Apis = {
   // Farmer Endpoints
   FARMER_DASHBOARD: `${API_BASE_URL}/api/farmers/dashboard`,
   FARMER_EVENTS: `${API_BASE_URL}/api/farmers/events`,
+  FARMER_STORIES: `${API_BASE_URL}/api/farmers/stories`,
 };
 
 export default Apis;

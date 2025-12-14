@@ -1,4 +1,4 @@
-import React, {useMemo, useState} from 'react';
+import React, {useMemo, useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Image,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useRoute, useNavigation} from '@react-navigation/native';
@@ -22,7 +23,8 @@ import ImagePreviewModal, {ImageItem} from '../components/ImagePreviewModal';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import {useStatusBar} from '../contexts/StatusBarContext';
 import {useTTS} from '../contexts/TTSContext';
-import {ImagePath} from '../assets/images';
+import {getData} from '../Service/Apimethod';
+import Apis, {API_BASE_URL} from '../Service/constant';
 
 type StoryDetailsRouteParams = {
   storyId: string;
@@ -31,30 +33,33 @@ type StoryDetailsRouteParams = {
   description?: string;
   videoUri?: string;
   images?: string[];
+  image?: string;
+  video_url?: string;
   fromScreen?: 'Home' | 'List';
 };
 
-// Mock story data
-const getStoryDetails = (storyId: string) => {
-  const defaultData = {
-    id: storyId,
-    title: 'Tractor Horsepower Guide: Find the Best Fit for Your Farm Work',
-    date: '10 November 2025',
-    description:
-      'Choosing the right tractor horsepower is crucial for efficient farming operations. The horsepower of a tractor determines its ability to handle various farming tasks, from plowing and tilling to harvesting and transportation.',
-    fullDescription:
-      'Choosing the right tractor horsepower is crucial for efficient farming operations. The horsepower of a tractor determines its ability to handle various farming tasks, from plowing and tilling to harvesting and transportation.\n\nCaptain Tractors proudly organized its National Dealer Meet 2025 on the 9th and 10th of September in the royal city of Udaipur, Rajasthan. This grand assembly brought together over 175+ of our valued dealer partners from every corner of India, celebrating the strength, trust, and growth of the Captain Tractors family.\n\nThe first day was a vibrant celebration. Dealers were welcomed with traditional Rajasthani hospitality, creating a festive atmosphere. An unforgettable evening of folk dance, music, and cultural performances perfectly embodied the event\'s theme, \'Chhalaang\', binding the Captain family in a shared spirit of unity and enthusiasm.\n\nWhen selecting a tractor, consider factors such as field size, soil type, and the specific tasks you need to perform. Smaller farms may benefit from 12-20 HP tractors, while larger operations might require 25-35 HP or more for heavy-duty work.',
-    videoUri: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-    thumbnailUri: ImagePath.eventImage,
-    images: [
-      ImagePath.eventImage,
-      ImagePath.eventImage2,
-      ImagePath.eventImage,
-      ImagePath.eventImage2,
-    ],
-  };
+// Helper function to format date
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return '';
+  try {
+    const date = new Date(dateString);
+    const day = date.getDate();
+    const month = date.toLocaleString('default', {month: 'long'});
+    const year = date.getFullYear();
+    return `${day} ${month} ${year}`;
+  } catch (error) {
+    return dateString;
+  }
+};
 
-  return defaultData;
+// Helper function to get full image URL
+const getImageUrl = (imagePath: string | null | undefined): string | null => {
+  if (!imagePath) return null;
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    return imagePath;
+  }
+  // If relative path, prepend base URL
+  return `${API_BASE_URL}${imagePath}`;
 };
 
 export default function StoryDetailsScreen() {
@@ -67,11 +72,55 @@ export default function StoryDetailsScreen() {
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const {playTTS, state: ttsState} = useTTS();
+  const [storyDetails, setStoryDetails] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  const storyDetails = useMemo(
-    () => getStoryDetails(params?.storyId || '1'),
-    [params?.storyId],
-  );
+  // Fetch story details from API using storyId
+  useEffect(() => {
+    const fetchStoryDetails = async () => {
+      try {
+        setLoading(true);
+        const storyId = params?.storyId;
+        
+        if (!storyId) {
+          console.error('No storyId provided');
+          setLoading(false);
+          return;
+        }
+
+        // Call API with storyId as query parameter (api/farmers/stories/{id}?id={id})
+        const response = await getData(Apis.FARMER_STORIES, { id: storyId });
+        
+        // Handle API response structure: { status: true, data: {...} }
+        if (response?.status === true && response?.data) {
+          const storyData = response.data;
+          
+          // Transform API response to match expected format
+          setStoryDetails({
+            id: storyData.id?.toString() || '',
+            title: storyData.title || '',
+            date: formatDate(storyData.createdAt),
+            description: storyData.description || '',
+            fullDescription: storyData.description || '',
+            videoUri: storyData.video_url || null,
+            thumbnailUri: getImageUrl(storyData.image) ? {uri: getImageUrl(storyData.image)} : null,
+            image: getImageUrl(storyData.image),
+            images: storyData.image ? [getImageUrl(storyData.image)].filter(Boolean) : [],
+          });
+        } else {
+          console.warn('Unexpected API response format:', response);
+          setStoryDetails(null);
+        }
+      } catch (error) {
+        console.error('Error fetching story details:', error);
+        setStoryDetails(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStoryDetails();
+  }, [params?.storyId]);
 
   const dynamicStyles = useMemo(
     () =>
@@ -218,26 +267,34 @@ export default function StoryDetailsScreen() {
     [moderateScale, insets],
   );
 
-  // Prepare images for preview modal
+  // Prepare images for preview modal from API data
   const previewImages: ImageItem[] = useMemo(() => {
     const images: ImageItem[] = [];
-    storyDetails.images?.forEach((img, index) => {
-      if (typeof img === 'number') {
-        images.push({
-          id: `img-${index}`,
-          source: img,
-          placeholder: `Image ${index + 1}`,
-        });
-      } else {
-        images.push({
-          id: `img-${index}`,
-          uri: img,
-          placeholder: `Image ${index + 1}`,
-        });
-      }
-    });
+    
+    if (!storyDetails) return images;
+    
+    // Main story image
+    if (storyDetails.image) {
+      images.push({
+        id: 'main',
+        uri: storyDetails.image,
+      });
+    }
+    
+    // Additional images if available
+    if (storyDetails.images && storyDetails.images.length > 0) {
+      storyDetails.images.forEach((img: string, index: number) => {
+        if (img) {
+          images.push({
+            id: `img-${index}`,
+            uri: img,
+          });
+        }
+      });
+    }
+    
     return images;
-  }, [storyDetails.images]);
+  }, [storyDetails]);
 
   const handleImagePress = (imageIndex: number) => {
     setSelectedImageIndex(imageIndex);
@@ -253,8 +310,10 @@ export default function StoryDetailsScreen() {
   };
 
   const handleTextToSpeech = async () => {
-    const descriptionText = params?.description || storyDetails.fullDescription;
-    await playTTS(descriptionText);
+    const descriptionText = params?.description || storyDetails?.fullDescription || storyDetails?.description || '';
+    if (descriptionText) {
+      await playTTS(descriptionText);
+    }
   };
 
   useDynamicStatusBar({
@@ -299,105 +358,117 @@ export default function StoryDetailsScreen() {
       </View>
 
       {/* Scrollable Content */}
-      <ScrollView
-        style={{flex: 1}}
-        contentContainerStyle={dynamicStyles.scrollContent}
-        showsVerticalScrollIndicator={false}>
-        {/* Video Player Section */}
-        <View style={dynamicStyles.card}>
-          <View style={dynamicStyles.videoContainer}>
-            <VideoPlayer
-              thumbnailUri={undefined}
-              thumbnailSource={storyDetails.thumbnailUri}
-              videoUri={storyDetails.videoUri}
-              title={storyDetails.title}
-            />
+      {loading ? (
+        <View style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : storyDetails ? (
+        <ScrollView
+          style={{flex: 1}}
+          contentContainerStyle={dynamicStyles.scrollContent}
+          showsVerticalScrollIndicator={false}>
+          {/* Video Player Section */}
+          <View style={dynamicStyles.card}>
+            <View style={dynamicStyles.videoContainer}>
+              <VideoPlayer
+                thumbnailUri={storyDetails.image ? storyDetails.image : undefined}
+                thumbnailSource={storyDetails.thumbnailUri}
+                videoUri={storyDetails.videoUri}
+                title={storyDetails.title}
+              />
+            </View>
+
+            {/* Thumbnails Grid - Left: Full height, Right: 2 stacked */}
+            {storyDetails.images && storyDetails.images.length > 0 && (
+              <View style={dynamicStyles.thumbnailContainer}>
+                {/* Left: Full height image */}
+                <TouchableOpacity
+                  style={dynamicStyles.thumbnailLeft}
+                  onPress={() => handleImagePress(0)}
+                  activeOpacity={0.7}>
+                  <Image
+                    source={{uri: storyDetails.images[0]}}
+                    style={[dynamicStyles.thumbnailImage, {height: moderateScale(170)}]}
+                    resizeMode="contain"
+                  />
+                </TouchableOpacity>
+
+                {/* Right: 2 stacked images */}
+                <View style={dynamicStyles.thumbnailRight}>
+                  {storyDetails.images.slice(1, 3).map((image: string, index: number) => (
+                    <TouchableOpacity
+                      key={index + 1}
+                      style={[dynamicStyles.thumbnail]}
+                      onPress={() => handleImagePress(index + 1)}
+                      activeOpacity={0.7}>
+                      <Image
+                        source={{uri: image}}
+                        style={dynamicStyles.thumbnailImage}
+                        resizeMode="cover"
+                      />
+                      {index === 1 && storyDetails.images && storyDetails.images.length > 3 && (
+                        <View style={dynamicStyles.thumbnailMore}>
+                          <Text style={dynamicStyles.thumbnailMoreText}>
+                            + {storyDetails.images.length - 3} more
+                          </Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            )}
           </View>
 
-          {/* Thumbnails Grid - Left: Full height, Right: 2 stacked */}
-          <View style={dynamicStyles.thumbnailContainer}>
-            {/* Left: Full height image */}
-            {storyDetails.images && storyDetails.images.length > 0 && (
+          {/* Story Title and Date Card */}
+          <View style={dynamicStyles.card}>
+            <Text style={dynamicStyles.storyTitle}>
+              {params?.title || storyDetails.title}
+            </Text>
+
+            {/* Date */}
+            <View style={dynamicStyles.dateContainer}>
+              <Ionicons
+                name="calendar-outline"
+                size={moderateScale(18)}
+                color={colors.textSecondary}
+              />
+              <Text style={dynamicStyles.dateText}>
+                {params?.date || storyDetails.date}
+              </Text>
+            </View>
+          </View>
+
+          {/* Description Card */}
+          <View style={dynamicStyles.descriptionCard}>
+            {!ttsState.isPlaying && (
               <TouchableOpacity
-                style={dynamicStyles.thumbnailLeft}
-                onPress={() => handleImagePress(0)}
+                style={dynamicStyles.textToSpeechButton}
+                onPress={handleTextToSpeech}
                 activeOpacity={0.7}>
-                <Image
-                  source={storyDetails.images[0] || ImagePath.eventImage}
-                  style={[dynamicStyles.thumbnailImage, {height: moderateScale(170)}]}
-                  resizeMode="contain"
+                <Ionicons
+                  name="headset-outline"
+                  size={moderateScale(18)}
+                  color={colors.primary}
                 />
+                <Text style={dynamicStyles.textToSpeechButtonText}>
+                  Text to speech
+                </Text>
               </TouchableOpacity>
             )}
 
-            {/* Right: 2 stacked images */}
-            <View style={dynamicStyles.thumbnailRight}>
-              {storyDetails.images?.slice(1, 3).map((image, index) => (
-                <TouchableOpacity
-                  key={index + 1}
-                  style={[dynamicStyles.thumbnail]}
-                  onPress={() => handleImagePress(index + 1)}
-                  activeOpacity={0.7}>
-                  <Image
-                    source={image || ImagePath.eventImage}
-                    style={dynamicStyles.thumbnailImage}
-                    resizeMode="cover"
-                  />
-                  {index === 1 && storyDetails.images && storyDetails.images.length > 3 && (
-                    <View style={dynamicStyles.thumbnailMore}>
-                      <Text style={dynamicStyles.thumbnailMoreText}>
-                        + {storyDetails.images.length - 3} more
-                      </Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        </View>
-
-        {/* Story Title and Date Card */}
-        <View style={dynamicStyles.card}>
-          <Text style={dynamicStyles.storyTitle}>
-            {params?.title || storyDetails.title}
-          </Text>
-
-          {/* Date */}
-          <View style={dynamicStyles.dateContainer}>
-            <Ionicons
-              name="calendar-outline"
-              size={moderateScale(18)}
-              color={colors.textSecondary}
-            />
-            <Text style={dynamicStyles.dateText}>
-              {params?.date || storyDetails.date}
+            <Text style={dynamicStyles.descriptionText}>
+              {params?.description || storyDetails.description || storyDetails.fullDescription || ''}
             </Text>
           </View>
-        </View>
-
-        {/* Description Card */}
-        <View style={dynamicStyles.descriptionCard}>
-          {!ttsState.isPlaying && (
-            <TouchableOpacity
-              style={dynamicStyles.textToSpeechButton}
-              onPress={handleTextToSpeech}
-              activeOpacity={0.7}>
-              <Ionicons
-                name="headset-outline"
-                size={moderateScale(18)}
-                color={colors.primary}
-              />
-              <Text style={dynamicStyles.textToSpeechButtonText}>
-                Text to speech
-              </Text>
-            </TouchableOpacity>
-          )}
-
-          <Text style={dynamicStyles.descriptionText}>
-            {params?.description || storyDetails.fullDescription}
+        </ScrollView>
+      ) : (
+        <View style={{flex: 1, alignItems: 'center', justifyContent: 'center', padding: moderateScale(20)}}>
+          <Text style={[Typography.regularMd, {color: colors.textSecondary}]}>
+            No story details found
           </Text>
         </View>
-      </ScrollView>
+      )}
 
       {/* Image Preview Modal */}
       <ImagePreviewModal
