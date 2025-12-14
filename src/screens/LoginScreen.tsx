@@ -33,7 +33,7 @@ import SimpleBoxInput from '../components/FloatingInput';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Toast, { ToastType } from '../components/Toast';
-import { saveSession, isProfileReviewed, isTermsAccepted } from '../utils/session';
+import { saveSession, saveLoginResponse, isProfileReviewed, isTermsAccepted } from '../utils/session';
 import { isFarmerRole } from '../utils/userRole';
 import { postData } from '../Service/Apimethod';
 import Apis from '../Service/constant';
@@ -250,15 +250,11 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
         phone: mobileNumber,
       };
 
-      // Determine which API to use based on user role
-      const sendOtpUrl = isFarmerRole(mobileNumber) 
-        ? Apis.FARMER_SEND_OTP 
-        : Apis.DEALER_SEND_OTP;
-
-      const response = await postData(sendOtpUrl, bodyData);
+      // Use common send-otp API for both dealer and farmer
+      const response = await postData(Apis.SEND_OTP, bodyData);
 
       // Check if response exists and is successful (status 200 means success)
-      if (response && (response?.status === true || response?.status === 200 || response?.message)) {
+      if (response && (response?.success === true || response?.status === true || response?.status === 200 || response?.message)) {
         setGetOtpLoading(false);
         setOtpRequested(true);
         setTimer(30);
@@ -269,8 +265,11 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           setMemberId(response.data.member_id);
         }
 
-        // Show success message with green background
-        const message = response?.message || 'OTP sent successfully. Please check your mobile.';
+        // Show success message with OTP included
+        let message = response?.message || 'OTP sent successfully. Please check your mobile.';
+        if (response?.otp) {
+          message = `${message} Your OTP is: ${response.otp}`;
+        }
         showToastMessage(message, 'success');
         
         // Focus on OTP input
@@ -306,15 +305,11 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
         phone: mobileNumber,
       };
 
-      // Determine which API to use based on user role
-      const sendOtpUrl = isFarmerRole(mobileNumber) 
-        ? Apis.FARMER_SEND_OTP 
-        : Apis.DEALER_SEND_OTP;
-
-      const response = await postData(sendOtpUrl, bodyData);
+      // Use common send-otp API for both dealer and farmer
+      const response = await postData(Apis.SEND_OTP, bodyData);
 
       // Check if response exists and is successful (status 200 means success)
-      if (response && (response?.status === true || response?.status === 200 || response?.message)) {
+      if (response && (response?.success === true || response?.status === true || response?.status === 200 || response?.message)) {
         setGetOtpLoading(false);
         setTimer(30);
         setCanResend(false);
@@ -324,8 +319,11 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           setMemberId(response.data.member_id);
         }
 
-        // Show success message with green background
-        const message = response?.message || 'OTP resent successfully.';
+        // Show success message with OTP included
+        let message = response?.message || 'OTP resent successfully.';
+        if (response?.otp) {
+          message = `${message} Your OTP is: ${response.otp}`;
+        }
         showToastMessage(message, 'success');
       } else {
         setGetOtpLoading(false);
@@ -363,21 +361,35 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
         otp: otp.trim(),
       };
 
-      // Determine which API to use based on user role
-      const loginUrl = isFarmerRole(mobileNumber) 
-        ? Apis.FARMER_LOGIN 
-        : Apis.DEALER_LOGIN;
+      // Use common login API for both dealer and farmer
+      const response = await postData(Apis.LOGIN, bodyData);
 
-      const response = await postData(loginUrl, bodyData);
-
-      // Check if response exists and is successful (status 200 means success)
-      if (response && (response?.status === true || response?.status === 200 || response?.data || response?.message)) {
-        console.log('Login response:', response?.data);
+      // Check if response exists and is successful
+      // The handleApiResponse returns data directly, so response is the data object
+      if (response && (response?.success === true || response?.token || response?.role || response?.user)) {
+        console.log('Login response:', response);
+        
+        // Extract token, role, user, dealer, and farmer data from response
+        const token = response?.token;
+        const role = response?.role; // "farmer" or "dealer"
+        const user = response?.user; // { id, name, phone }
+        const dealer = response?.dealer;
+        const farmer = response?.farmer;
         
         // Save auth token if provided
-        if (response?.data?.token || response?.token) {
-          await saveAuthToken(response?.data?.token || response?.token);
+        if (token) {
+          await saveAuthToken(token);
         }
+
+        // Save complete login response (token + role + user details) to AsyncStorage
+        await saveLoginResponse({
+          token: token,
+          role: role,
+          user: user,
+          dealer: dealer,
+          farmer: farmer,
+          mobileNumber: mobileNumber,
+        });
 
         // Save session to AsyncStorage
         await saveSession(mobileNumber);
@@ -392,8 +404,8 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
         
         // Navigate to dashboard after a short delay to show the success message
         setTimeout(async () => {
-          // Navigate based on user role
-          if (isFarmerRole(mobileNumber)) {
+          // Navigate based on role from response
+          if (role === 'farmer') {
             // Farmer role - check if terms have been accepted
             const termsAccepted = await isTermsAccepted();
             if (!termsAccepted) {
@@ -407,9 +419,26 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
                 navigation.replace(SCREEN_NAMES.ReviewProfile);
               }
             }
-          } else {
+          } else if (role === 'dealer') {
             // Dealer role - navigate to MainTabs (dashboard)
             navigation.replace(SCREEN_NAMES.MainTabs);
+          } else {
+            // Fallback: if role is not provided, use mobile number check
+            if (isFarmerRole(mobileNumber)) {
+              const termsAccepted = await isTermsAccepted();
+              if (!termsAccepted) {
+                navigation.replace(SCREEN_NAMES.Terms);
+              } else {
+                const profileReviewed = await isProfileReviewed();
+                if (profileReviewed) {
+                  navigation.replace(SCREEN_NAMES.FarmerTabs);
+                } else {
+                  navigation.replace(SCREEN_NAMES.ReviewProfile);
+                }
+              }
+            } else {
+              navigation.replace(SCREEN_NAMES.MainTabs);
+            }
           }
         }, 1000); // Wait 1 second to show the success message
       } else {

@@ -1,7 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { clearAuthToken } from '../Service/Apicom';
 
 const SESSION_KEY = '@user_session';
 const USER_DATA_KEY = '@user_data';
+const USER_ROLE_KEY = '@user_role';
 const PROFILE_REVIEWED_KEY = '@profile_reviewed';
 const TERMS_ACCEPTED_KEY = '@terms_accepted';
 
@@ -11,8 +13,37 @@ export interface UserSession {
   mobileNumber?: string;
 }
 
+export interface DealerData {
+  id: number;
+  dealer_id: string;
+  name: string;
+  email: string;
+  phone: string;
+}
+
+export interface FarmerData {
+  id: number;
+  farmer_id?: string;
+  name: string;
+  email?: string;
+  phone: string;
+  // Add other farmer fields as needed
+}
+
+export interface UserDetails {
+  id: number;
+  name: string;
+  phone: string;
+  // Add other user fields as needed
+}
+
 export interface UserData {
-  mobileNumber: string;
+  mobileNumber?: string;
+  token?: string;
+  role?: string;
+  user?: UserDetails;
+  dealer?: DealerData;
+  farmer?: FarmerData;
   // Add other user data fields as needed
 }
 
@@ -63,8 +94,11 @@ export const clearSession = async (): Promise<void> => {
   try {
     await AsyncStorage.removeItem(SESSION_KEY);
     await AsyncStorage.removeItem(USER_DATA_KEY);
+    await AsyncStorage.removeItem(USER_ROLE_KEY);
     await clearProfileReviewed();
     await clearTermsAccepted();
+    // Also clear auth token
+    await clearAuthToken();
   } catch (error) {
     console.error('Error clearing session:', error);
     throw error;
@@ -81,6 +115,71 @@ export const isLoggedIn = async (): Promise<boolean> => {
   } catch (error) {
     console.error('Error checking login status:', error);
     return false;
+  }
+};
+
+/**
+ * Save user role separately to AsyncStorage
+ */
+export const saveUserRole = async (role: string): Promise<void> => {
+  try {
+    await AsyncStorage.setItem(USER_ROLE_KEY, role);
+    console.log('User role saved to AsyncStorage:', role);
+  } catch (error) {
+    console.error('Error saving user role:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get user role from AsyncStorage
+ */
+export const getUserRole = async (): Promise<string | null> => {
+  try {
+    const role = await AsyncStorage.getItem(USER_ROLE_KEY);
+    return role;
+  } catch (error) {
+    console.error('Error getting user role:', error);
+    return null;
+  }
+};
+
+/**
+ * Save complete login response (token + role + user details) to AsyncStorage
+ */
+export const saveLoginResponse = async (loginResponse: {
+  token?: string;
+  role?: string;
+  user?: UserDetails;
+  dealer?: DealerData;
+  farmer?: FarmerData;
+  mobileNumber?: string;
+}): Promise<void> => {
+  try {
+    const userData: UserData = {
+      mobileNumber: loginResponse.mobileNumber,
+      token: loginResponse.token,
+      role: loginResponse.role,
+      user: loginResponse.user,
+      dealer: loginResponse.dealer,
+      farmer: loginResponse.farmer,
+    };
+    await AsyncStorage.setItem(USER_DATA_KEY, JSON.stringify(userData));
+    
+    // Save role separately
+    if (loginResponse.role) {
+      await saveUserRole(loginResponse.role);
+    }
+    
+    console.log('Login response saved to AsyncStorage:', {
+      role: loginResponse.role,
+      hasUser: !!loginResponse.user,
+      hasDealer: !!loginResponse.dealer,
+      hasFarmer: !!loginResponse.farmer,
+    });
+  } catch (error) {
+    console.error('Error saving login response:', error);
+    throw error;
   }
 };
 
