@@ -17,6 +17,9 @@ const Apis = {
   
   // Dealer Endpoints
   DEALER_FARMERS: `${API_BASE_URL}/api/dealers/farmers`,
+  
+  // Farmer Endpoints
+  FARMER_DASHBOARD: `${API_BASE_URL}/api/farmers/dashboard`,
 };
 
 export default Apis;
