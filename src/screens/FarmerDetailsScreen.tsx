@@ -1,4 +1,4 @@
-import React, {useMemo, useState} from 'react';
+import React, {useMemo, useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useRoute, useNavigation} from '@react-navigation/native';
@@ -19,9 +20,12 @@ import {Typography} from '../utils/typography';
 import { ImagePath } from '../assets/images';
 import ImagePreviewModal, {ImageItem} from '../components/ImagePreviewModal';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
+import {getData} from '../Service/Apimethod';
+import Apis from '../Service/constant';
 
 type FarmerDetailsRouteParams = {
   farmerId: string;
+  farmer_id?: string;
   farmerName: string;
   farmerPhone: string;
   farmerInitials: string;
@@ -119,11 +123,98 @@ export default function FarmerDetailsScreen() {
   const params = route.params as FarmerDetailsRouteParams;
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [farmerDetails, setFarmerDetails] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  const farmerDetails = useMemo(
-    () => getFarmerDetails(params?.farmerId || '1'),
-    [params?.farmerId],
-  );
+  // Fetch farmer details from API using clientId
+  useEffect(() => {
+    const fetchFarmerDetails = async () => {
+      try {
+        setLoading(true);
+        const clientId = params?.farmer_id || params?.farmerId;
+        
+        if (!clientId) {
+          console.error('No farmer_id provided');
+          setLoading(false);
+          return;
+        }
+
+        // Call API with clientId as query parameter
+        const response = await getData(Apis.DEALER_FARMERS, { clientId });
+        
+        // Handle API response
+        if (response?.status === true && Array.isArray(response?.data) && response.data.length > 0) {
+          const farmer = response.data[0]; // Get first farmer from response
+          
+          // Combine first_name, middle_name, last_name
+          const nameParts = [
+            farmer.first_name,
+            farmer.middle_name,
+            farmer.last_name,
+          ].filter(Boolean);
+          const fullName = nameParts.join(' ').trim();
+          
+          // Transform API response to match expected format
+          setFarmerDetails({
+            id: farmer.id?.toString() || farmer.farmer_id?.toString() || '',
+            farmer_id: farmer.farmer_id || '',
+            firstName: farmer.first_name || '',
+            middleName: farmer.middle_name || '',
+            lastName: farmer.last_name || '',
+            fullName: fullName,
+            mobile: farmer.mobile || '',
+            dateOfBirth: farmer.date_of_birth || '',
+            dateOfMarriage: farmer.date_of_marriage || '',
+            dealershipName: farmer.dealership_name || '',
+            profileImage: farmer.profile_image,
+            state: farmer.state,
+            district: farmer.district,
+            village: farmer.village,
+            category: farmer.category,
+            tractors: [], // Tractors data would come from a separate API if needed
+          });
+        } else if (Array.isArray(response) && response.length > 0) {
+          const farmer = response[0];
+          const nameParts = [
+            farmer.first_name,
+            farmer.middle_name,
+            farmer.last_name,
+          ].filter(Boolean);
+          const fullName = nameParts.join(' ').trim();
+          
+          setFarmerDetails({
+            id: farmer.id?.toString() || farmer.farmer_id?.toString() || '',
+            farmer_id: farmer.farmer_id || '',
+            firstName: farmer.first_name || '',
+            middleName: farmer.middle_name || '',
+            lastName: farmer.last_name || '',
+            fullName: fullName,
+            mobile: farmer.mobile || '',
+            dateOfBirth: farmer.date_of_birth || '',
+            dateOfMarriage: farmer.date_of_marriage || '',
+            dealershipName: farmer.dealership_name || '',
+            profileImage: farmer.profile_image,
+            state: farmer.state,
+            district: farmer.district,
+            village: farmer.village,
+            category: farmer.category,
+            tractors: [],
+          });
+        } else {
+          // Fallback to mock data if API doesn't return data
+          setFarmerDetails(getFarmerDetails(params?.farmerId || '1'));
+        }
+      } catch (error) {
+        console.error('Error fetching farmer details:', error);
+        // Fallback to mock data on error
+        setFarmerDetails(getFarmerDetails(params?.farmerId || '1'));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFarmerDetails();
+  }, [params?.farmer_id, params?.farmerId]);
 
   // Prepare images for preview modal - include tractor image and RC book document images
   const previewImages: ImageItem[] = useMemo(() => {
@@ -370,6 +461,11 @@ export default function FarmerDetailsScreen() {
       </View>
 
       {/* Scrollable Content */}
+      {loading ? (
+        <View style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : farmerDetails ? (
       <ScrollView
         style={{flex: 1}}
         contentContainerStyle={dynamicStyles.scrollContent}
@@ -526,6 +622,13 @@ export default function FarmerDetailsScreen() {
           ))}
         </View>
       </ScrollView>
+      ) : (
+        <View style={{flex: 1, alignItems: 'center', justifyContent: 'center', padding: moderateScale(20)}}>
+          <Text style={[Typography.regularMd, {color: colors.textSecondary}]}>
+            No farmer details found
+          </Text>
+        </View>
+      )}
 
       {/* Image Preview Modal */}
       <ImagePreviewModal

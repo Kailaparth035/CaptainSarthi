@@ -1,10 +1,11 @@
-import React, {useMemo} from 'react';
+import React, {useMemo, useState, useEffect} from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation, CommonActions} from '@react-navigation/native';
@@ -20,6 +21,8 @@ import {RootStackParamList} from '../navigation/RootNavigator';
 import {SCREEN_NAMES} from '../constants/screenNames';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import {useLanguage} from '../contexts/LanguageContext';
+import {getData} from '../Service/Apimethod';
+import Apis from '../Service/constant';
 
 // Mock data
 const summaryData = {
@@ -28,12 +31,14 @@ const summaryData = {
   syncsPending: 16,
 };
 
-const clients = [
-  {id: '1', name: 'David Wills', phone: '5214-9710-3671', initials: 'DW'},
-  {id: '2', name: 'Adam Kepler', phone: '5214-9710-3671', initials: 'AK'},
-  {id: '3', name: 'Natasha Davies', phone: '5214-9710-3671', initials: 'ND'},
-  {id: '4', name: 'Peter Jane', phone: '5214-9710-3671', initials: 'PJ'},
-];
+// Helper function to get initials from name
+const getInitials = (name: string): string => {
+  const names = name.trim().split(' ');
+  if (names.length >= 2) {
+    return (names[0][0] + names[names.length - 1][0]).toUpperCase();
+  }
+  return name.substring(0, 2).toUpperCase();
+};
 
 const tractors = [
   {id: '1', model: '280 DX 2 WD', owner: 'Adam smith', color: colors.tractorGreen},
@@ -178,12 +183,78 @@ export default function HomeScreen() {
   const navigation = useNavigation();
   const tabNavigation =
     useNavigation<BottomTabNavigationProp<TabParamList>>();
+  const [farmers, setFarmers] = useState<any[]>([]);
+  const [loadingFarmers, setLoadingFarmers] = useState(true);
 
   // Update StatusBar and bottom bar to match screen background color
   useDynamicStatusBar({
     backgroundColor: colors.backgroundLight,
     bottomBarColor: colors.backgroundLight,
   });
+
+  // Fetch farmers from API
+  useEffect(() => {
+    const fetchFarmers = async () => {
+      try {
+        setLoadingFarmers(true);
+        // GET API - only requires token (automatically added via interceptor)
+        const response = await getData(Apis.DEALER_FARMERS, {});
+        
+        // Handle API response structure: { status: true, data: [...] }
+        if (response?.status === true && Array.isArray(response?.data)) {
+          // Transform API response to match expected format
+          const transformedFarmers = response.data.map((farmer: any) => {
+            // Combine first_name, middle_name, last_name to create full name
+            const nameParts = [
+              farmer.first_name,
+              farmer.middle_name,
+              farmer.last_name,
+            ].filter(Boolean);
+            const fullName = nameParts.join(' ').trim();
+            
+            return {
+              id: farmer.id?.toString() || farmer.farmer_id?.toString() || '',
+              farmer_id: farmer.farmer_id || farmer.id?.toString() || '',
+              name: fullName || '',
+              phone: farmer.mobile || '',
+              initials: getInitials(fullName),
+            };
+          });
+          setFarmers(transformedFarmers);
+        } else if (Array.isArray(response)) {
+          // Fallback: if response is directly an array
+          const transformedFarmers = response.map((farmer: any) => {
+            const nameParts = [
+              farmer.first_name,
+              farmer.middle_name,
+              farmer.last_name,
+            ].filter(Boolean);
+            const fullName = nameParts.join(' ').trim();
+            
+            return {
+              id: farmer.id?.toString() || farmer.farmer_id?.toString() || '',
+              farmer_id: farmer.farmer_id || farmer.id?.toString() || '',
+              name: fullName || '',
+              phone: farmer.mobile || '',
+              initials: getInitials(fullName),
+            };
+          });
+          setFarmers(transformedFarmers);
+        }
+      } catch (error) {
+        console.error('Error fetching farmers:', error);
+      } finally {
+        setLoadingFarmers(false);
+      }
+    };
+
+    fetchFarmers();
+  }, []);
+
+  // Get first 4 farmers for home screen
+  const displayedFarmers = useMemo(() => {
+    return farmers.slice(0, 4);
+  }, [farmers]);
 
   const dynamicStyles = useMemo(
     () =>
@@ -455,46 +526,59 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
           <View style={dynamicStyles.listContainer}>
-            {clients.map((client, index) => (
-              <TouchableOpacity
-                key={client.id}
-                style={[
-                  dynamicStyles.listItem,
-                  index !== clients.length - 1 && dynamicStyles.listItemBorder,
-                ]}
-                activeOpacity={0.7}
-                onPress={() => {
-                  // Navigate to Farmer tab and then to FarmerDetails
-                  tabNavigation.navigate(SCREEN_NAMES.Farmer, {
-                    screen: SCREEN_NAMES.FarmerDetails,
-                    params: {
-                      farmerId: client.id,
-                      farmerName: client.name,
-                      farmerPhone: client.phone,
-                      farmerInitials: client.initials,
-                      fromScreen: 'Home',
-                    },
-                  } as any);
-                }}
-              >
-                <Avatar
-                  initials={client.initials}
-                  moderateScale={moderateScale}
-                  size={moderateScale(40)}
-                />
-                <View style={dynamicStyles.listItemContent}>
-                  <Text style={dynamicStyles.listItemName}>{client.name}</Text>
-                  <Text style={dynamicStyles.listItemSubtext}>
-                    {client.phone}
-                  </Text>
-                </View>
-                <Ionicons
-                  name="chevron-forward"
-                  size={moderateScale(18)}
-                  color={colors.textTertiary}
-                />
-              </TouchableOpacity>
-            ))}
+            {loadingFarmers ? (
+              <View style={{padding: moderateScale(20), alignItems: 'center'}}>
+                <ActivityIndicator size="small" color={colors.primary} />
+              </View>
+            ) : displayedFarmers.length > 0 ? (
+              displayedFarmers.map((client, index) => (
+                <TouchableOpacity
+                  key={client.id}
+                  style={[
+                    dynamicStyles.listItem,
+                    index !== displayedFarmers.length - 1 && dynamicStyles.listItemBorder,
+                  ]}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    // Navigate to Farmer tab and then to FarmerDetails
+                    tabNavigation.navigate(SCREEN_NAMES.Farmer, {
+                      screen: SCREEN_NAMES.FarmerDetails,
+                      params: {
+                        farmerId: client.id,
+                        farmer_id: client.farmer_id || client.id,
+                        farmerName: client.name,
+                        farmerPhone: client.phone,
+                        farmerInitials: client.initials,
+                        fromScreen: 'Home',
+                      },
+                    } as any);
+                  }}
+                >
+                  <Avatar
+                    initials={client.initials}
+                    moderateScale={moderateScale}
+                    size={moderateScale(40)}
+                  />
+                  <View style={dynamicStyles.listItemContent}>
+                    <Text style={dynamicStyles.listItemName}>{client.name}</Text>
+                    <Text style={dynamicStyles.listItemSubtext}>
+                      {client.phone}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={moderateScale(18)}
+                    color={colors.textTertiary}
+                  />
+                </TouchableOpacity>
+              ))
+            ) : (
+              <View style={{padding: moderateScale(20), alignItems: 'center'}}>
+                <Text style={[Typography.regularMd, {color: colors.textSecondary}]}>
+                  {t('home.noFarmers') || 'No farmers found'}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
 
