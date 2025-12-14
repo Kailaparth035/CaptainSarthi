@@ -37,7 +37,6 @@ import { saveSession, isProfileReviewed, isTermsAccepted } from '../utils/sessio
 import { isFarmerRole } from '../utils/userRole';
 import { postData } from '../Service/Apimethod';
 import Apis from '../Service/constant';
-import DeviceInfo from 'react-native-device-info';
 import { saveAuthToken } from '../Service/Apicom';
 
 type LoginScreenProps = NativeStackScreenProps<RootStackParamList, 'Login'>;
@@ -197,7 +196,8 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
 
   const isValidOtp = () => {
     const trimmed = otp.trim();
-    return trimmed.length === 6 && /^\d+$/.test(trimmed);
+    // Accept OTP with 4 or 6 digits
+    return (trimmed.length === 4 || trimmed.length === 6) && /^\d+$/.test(trimmed);
   };
 
   const validateForm = () => {
@@ -212,7 +212,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
     if (otpRequested) {
       if (!otp.trim()) {
         newErrors.otp = t('login.pleaseEnterOtp');
-      } else if (otp.trim().length != 6) {
+      } else if (otp.trim().length !== 4 && otp.trim().length !== 6) {
         newErrors.otp = t('login.pleaseEnterValidOtp');
       }
     }
@@ -245,13 +245,10 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
     const mobileNumber = dealerId.trim();
 
     try {
-      // Get device token
-      // const getdeviceToken = await DeviceInfo.getUniqueId();
-
-      // Prepare FormData for send-otp API
-      const bodyData = new FormData();
-      bodyData.append('mobile_number', mobileNumber);
-      // bodyData.append('device_token', getdeviceToken ?? '');
+      // Prepare JSON body for send-otp API
+      const bodyData = {
+        phone: mobileNumber,
+      };
 
       // Determine which API to use based on user role
       const sendOtpUrl = isFarmerRole(mobileNumber) 
@@ -260,7 +257,8 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
 
       const response = await postData(sendOtpUrl, bodyData);
 
-      if (response?.status === true && response?.data !== '') {
+      // Check if response exists and is successful (status 200 means success)
+      if (response && (response?.status === true || response?.status === 200 || response?.message)) {
         setGetOtpLoading(false);
         setOtpRequested(true);
         setTimer(30);
@@ -271,7 +269,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           setMemberId(response.data.member_id);
         }
 
-        // Show success message
+        // Show success message with green background
         const message = response?.message || 'OTP sent successfully. Please check your mobile.';
         showToastMessage(message, 'success');
         
@@ -303,13 +301,10 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
     const mobileNumber = dealerId.trim();
 
     try {
-      // Get device token
-      const getdeviceToken = await DeviceInfo.getUniqueId();
-
-      // Prepare FormData for send-otp API
-      const bodyData = new FormData();
-      bodyData.append('mobile_number', mobileNumber);
-      bodyData.append('device_token', getdeviceToken ?? '');
+      // Prepare JSON body for send-otp API
+      const bodyData = {
+        phone: mobileNumber,
+      };
 
       // Determine which API to use based on user role
       const sendOtpUrl = isFarmerRole(mobileNumber) 
@@ -318,7 +313,8 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
 
       const response = await postData(sendOtpUrl, bodyData);
 
-      if (response?.status === true && response?.data !== '') {
+      // Check if response exists and is successful (status 200 means success)
+      if (response && (response?.status === true || response?.status === 200 || response?.message)) {
         setGetOtpLoading(false);
         setTimer(30);
         setCanResend(false);
@@ -328,7 +324,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           setMemberId(response.data.member_id);
         }
 
-        // Show success message
+        // Show success message with green background
         const message = response?.message || 'OTP resent successfully.';
         showToastMessage(message, 'success');
       } else {
@@ -361,14 +357,11 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
     const mobileNumber = dealerId.trim();
 
     try {
-      // Get device token
-      const getdeviceToken = await DeviceInfo.getUniqueId();
-
-      // Prepare FormData for login API
-      const bodyData = new FormData();
-      bodyData.append('mobile_number', mobileNumber);
-      bodyData.append('otp', otp.trim());
-      bodyData.append('device_token', getdeviceToken ?? '');
+      // Prepare JSON body for login API
+      const bodyData = {
+        phone: mobileNumber,
+        otp: otp.trim(),
+      };
 
       // Determine which API to use based on user role
       const loginUrl = isFarmerRole(mobileNumber) 
@@ -377,37 +370,48 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
 
       const response = await postData(loginUrl, bodyData);
 
-      if (response?.status === true && response?.data !== '') {
+      // Check if response exists and is successful (status 200 means success)
+      if (response && (response?.status === true || response?.status === 200 || response?.data || response?.message)) {
         console.log('Login response:', response?.data);
         
         // Save auth token if provided
-        if (response?.data?.token) {
-          await saveAuthToken(response.data.token);
+        if (response?.data?.token || response?.token) {
+          await saveAuthToken(response?.data?.token || response?.token);
         }
 
         // Save session to AsyncStorage
         await saveSession(mobileNumber);
         setLoading(false);
         
-        // Navigate based on user role
-        if (isFarmerRole(mobileNumber)) {
-          // Farmer role - check if terms have been accepted
-          const termsAccepted = await isTermsAccepted();
-          if (!termsAccepted) {
-            navigation.replace(SCREEN_NAMES.Terms);
-          } else {
-            // Check if profile has been reviewed
-            const profileReviewed = await isProfileReviewed();
-            if (profileReviewed) {
-              navigation.replace(SCREEN_NAMES.FarmerTabs);
+        // Show success message with green background
+        const successMsg = response?.message || 'Login successful';
+        showToastMessage(successMsg, 'success');
+        
+        // Clear any errors
+        setErrors({});
+        
+        // Navigate to dashboard after a short delay to show the success message
+        setTimeout(async () => {
+          // Navigate based on user role
+          if (isFarmerRole(mobileNumber)) {
+            // Farmer role - check if terms have been accepted
+            const termsAccepted = await isTermsAccepted();
+            if (!termsAccepted) {
+              navigation.replace(SCREEN_NAMES.Terms);
             } else {
-              navigation.replace(SCREEN_NAMES.ReviewProfile);
+              // Check if profile has been reviewed
+              const profileReviewed = await isProfileReviewed();
+              if (profileReviewed) {
+                navigation.replace(SCREEN_NAMES.FarmerTabs);
+              } else {
+                navigation.replace(SCREEN_NAMES.ReviewProfile);
+              }
             }
+          } else {
+            // Dealer role - navigate to MainTabs (dashboard)
+            navigation.replace(SCREEN_NAMES.MainTabs);
           }
-        } else {
-          // Dealer role - navigate to MainTabs
-          navigation.replace(SCREEN_NAMES.MainTabs);
-        }
+        }, 1000); // Wait 1 second to show the success message
       } else {
         setLoading(false);
         const errorMsg = response?.message || t('login.invalidOtp');
