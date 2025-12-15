@@ -1,4 +1,4 @@
-import React, {useMemo, useState, useEffect} from 'react';
+import React, {useMemo, useState} from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,6 @@ import {
   Modal,
   Pressable,
   Linking,
-  ActivityIndicator,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useRoute, useNavigation} from '@react-navigation/native';
@@ -27,9 +26,8 @@ import ContactUsModal from '../components/ContactUsModal';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import {useStatusBar} from '../contexts/StatusBarContext';
 import {useTTS} from '../contexts/TTSContext';
+import {ImagePath} from '../assets/images';
 import {useLanguage} from '../contexts/LanguageContext';
-import {getData} from '../Service/Apimethod';
-import Apis, {API_BASE_URL} from '../Service/constant';
 
 type EventDetailsRouteParams = {
   eventId: string;
@@ -42,52 +40,28 @@ type EventDetailsRouteParams = {
   fromScreen?: 'Home' | 'List';
 };
 
-// Helper function to format date
-const formatEventDate = (eventDate: string, endDate?: string, startTime?: string, endTime?: string): string => {
-  if (!eventDate) return '';
-  
-  try {
-    const startDate = new Date(eventDate);
-    const day = startDate.getDate();
-    const month = startDate.toLocaleString('default', {month: 'short'});
-    const year = startDate.getFullYear();
-    
-    // Format time if available
-    let timeStr = '';
-    if (startTime) {
-      const [hours, minutes] = startTime.split(':');
-      const hour12 = parseInt(hours) % 12 || 12;
-      const ampm = parseInt(hours) >= 12 ? 'pm' : 'am';
-      timeStr = `${hour12}:${minutes} ${ampm}`;
-    }
-    
-    // If end date exists and is different, show date range
-    if (endDate && endDate !== eventDate.split('T')[0]) {
-      const end = new Date(endDate);
-      const endDay = end.getDate();
-      const endMonth = end.toLocaleString('default', {month: 'short'});
-      return `${day} ${month}, ${year} to ${endDay} ${endMonth}, ${year}`;
-    }
-    
-    // Single date with time
-    if (timeStr) {
-      return `${timeStr}, ${day} ${month} ${year}`;
-    }
-    
-    return `${day} ${month}, ${year}`;
-  } catch (error) {
-    return eventDate;
-  }
-};
+// Mock event data
+const getEventDetails = (eventId: string) => {
+  const defaultData = {
+    id: eventId,
+    title: 'Captain Tractor National Dealer Meet 2025',
+    location: 'Dy patil stadium, Mumbai',
+    date: '10:30 am, 15 Sept 2025',
+    description:
+      'Captain Tractors proudly organized its National Dealer Meet 2025 on the 9th and 10th of September in the royal city of Udaipur, Rajasthan. This grand assembly brought together over 175+ of our valued dealer partners from every corner of India, celebrating the strength, trust, and growth of the Captain Tractors family.',
+    fullDescription:
+      'Captain Tractors proudly organized its National Dealer Meet 2025 on the 9th and 10th of September in the royal city of Udaipur, Rajasthan. This grand assembly brought together over 175+ of our valued dealer partners from every corner of India, celebrating the strength, trust, and growth of the Captain Tractors family.\n\nThe first day was a vibrant celebration. Dealers were welcomed with traditional Rajasthani hospitality, creating a festive atmosphere. An unforgettable evening of folk dance, music, and cultural performances perfectly embodied the event\'s theme, \'Chhalaang\', binding the Captain family in a shared spirit of unity and enthusiasm.',
+    videoUri: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+    thumbnailUri: ImagePath.eventImage,
+    images: [
+      ImagePath.eventImage,
+      ImagePath.eventImage2,
+      ImagePath.eventImage,
+      ImagePath.eventImage2,
+    ],
+  };
 
-// Helper function to get full image URL
-const getImageUrl = (imagePath: string | null | undefined): string | null => {
-  if (!imagePath) return null;
-  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-    return imagePath;
-  }
-  // If relative path, prepend base URL
-  return `${API_BASE_URL}${imagePath}`;
+  return defaultData;
 };
 
 export default function EventDetailsScreen() {
@@ -102,68 +76,11 @@ export default function EventDetailsScreen() {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [contactModalVisible, setContactModalVisible] = useState(false);
   const {playTTS, state: ttsState} = useTTS();
-  const [eventDetails, setEventDetails] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
 
-  // Fetch event details from API using eventId
-  useEffect(() => {
-    const fetchEventDetails = async () => {
-      try {
-        setLoading(true);
-        const eventId = params?.eventId;
-        
-        if (!eventId) {
-          console.error('No eventId provided');
-          setLoading(false);
-          return;
-        }
-
-        // Call API with eventId as query parameter
-        const response = await getData(Apis.FARMER_EVENTS, { id: eventId });
-        
-        // Handle API response structure: { status: true, data: {...} }
-        if (response?.status === true && response?.data) {
-          const eventData = response.data;
-          
-          // Transform API response to match expected format
-          setEventDetails({
-            id: eventData.id?.toString() || '',
-            title: eventData.title || '',
-            location: eventData.location || eventData.event_venue || '',
-            date: formatEventDate(
-              eventData.event_date,
-              eventData.end_date,
-              eventData.start_time,
-              eventData.end_time
-            ),
-            description: eventData.description || '',
-            fullDescription: eventData.description || '',
-            videoUri: eventData.video_url || null,
-            thumbnailUri: getImageUrl(eventData.image) ? {uri: getImageUrl(eventData.image)} : null,
-            image: getImageUrl(eventData.image),
-            images: eventData.image ? [getImageUrl(eventData.image)].filter(Boolean) : [],
-            event_date: eventData.event_date,
-            end_date: eventData.end_date,
-            start_time: eventData.start_time,
-            end_time: eventData.end_time,
-            event_venue: eventData.event_venue,
-            whatsapp_message: eventData.whatsapp_message,
-            contact_numbers: eventData.contact_numbers || [],
-          });
-        } else {
-          console.warn('Unexpected API response format:', response);
-          setEventDetails(null);
-        }
-      } catch (error) {
-        console.error('Error fetching event details:', error);
-        setEventDetails(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchEventDetails();
-  }, [params?.eventId]);
+  const eventDetails = useMemo(
+    () => getEventDetails(params?.eventId || '1'),
+    [params?.eventId],
+  );
 
   const dynamicStyles = useMemo(
     () =>
@@ -321,34 +238,27 @@ export default function EventDetailsScreen() {
     [moderateScale, insets],
   );
 
-  // Prepare images for preview modal from API data
+  // Prepare images for preview modal
   const previewImages: ImageItem[] = useMemo(() => {
     const images: ImageItem[] = [];
-    
-    if (!eventDetails) return images;
-    
-    // Main event image
-    if (eventDetails.image) {
-      images.push({
-        id: 'main',
-        uri: eventDetails.image,
-      });
-    }
-    
-    // Additional images if available
-    if (eventDetails.images && eventDetails.images.length > 0) {
-      eventDetails.images.forEach((img: string, index: number) => {
-        if (img) {
-          images.push({
-            id: `img-${index}`,
-            uri: img,
-          });
-        }
-      });
-    }
-    
+    eventDetails.images?.forEach((img, index) => {
+      // Check if img is a require() result (number) or a string URI
+      if (typeof img === 'number') {
+        images.push({
+          id: `img-${index}`,
+          source: img,
+          placeholder: `Image ${index + 1}`,
+        });
+      } else {
+        images.push({
+          id: `img-${index}`,
+          uri: img,
+          placeholder: `Image ${index + 1}`,
+        });
+      }
+    });
     return images;
-  }, [eventDetails]);
+  }, [eventDetails.images]);
 
   const handleImagePress = (imageIndex: number) => {
     setSelectedImageIndex(imageIndex);
@@ -388,9 +298,7 @@ export default function EventDetailsScreen() {
   };
 
   const handleWhatsApp = async () => {
-    // Use contact number from API or default
-    const contactNumber = eventDetails?.contact_numbers?.[0] || '919099433133';
-    const phoneNumber = contactNumber.replace(/[^0-9]/g, ''); // Remove + and spaces
+    const phoneNumber = '919099433133'; // Remove + and spaces
     const whatsappUrl = `https://wa.me/${phoneNumber}`;
     
     try {
@@ -410,10 +318,8 @@ export default function EventDetailsScreen() {
   };
 
   const handleTextToSpeech = async () => {
-    const descriptionText = params?.description || eventDetails?.fullDescription || eventDetails?.description || '';
-    if (descriptionText) {
-      await playTTS(descriptionText);
-    }
+    const descriptionText = params?.description || eventDetails.fullDescription;
+    await playTTS(descriptionText);
   };
 
   useDynamicStatusBar({
@@ -465,98 +371,93 @@ export default function EventDetailsScreen() {
       </View>
 
       {/* Scrollable Content */}
-      {loading ? (
-        <View style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      ) : eventDetails ? (
-        <ScrollView
-          style={{flex: 1}}
-          contentContainerStyle={dynamicStyles.scrollContent}
-          showsVerticalScrollIndicator={false}>
-          {/* Video Player Section */}
-          <View style={dynamicStyles.card}>
-            <View style={dynamicStyles.videoContainer}>
-              <VideoPlayer
-                thumbnailUri={eventDetails.image ? eventDetails.image : undefined}
-                thumbnailSource={eventDetails.thumbnailUri}
-                videoUri={eventDetails.videoUri}
-                title={eventDetails.title}
-              />
-            </View>
+      <ScrollView
+        style={{flex: 1}}
+        contentContainerStyle={dynamicStyles.scrollContent}
+        showsVerticalScrollIndicator={false}>
+        {/* Video Player Section */}
+        <View style={dynamicStyles.card}>
+          <View style={dynamicStyles.videoContainer}>
+            <VideoPlayer
+              thumbnailUri={undefined}
+              thumbnailSource={eventDetails.thumbnailUri}
+              videoUri={eventDetails.videoUri}
+              title={eventDetails.title}
+            />
+          </View>
 
-            {/* Thumbnails Grid - Left: Full height, Right: 2 stacked */}
+          {/* Thumbnails Grid - Left: Full height, Right: 2 stacked */}
+          <View style={dynamicStyles.thumbnailContainer}>
+            {/* Left: Full height image */}
             {eventDetails.images && eventDetails.images.length > 0 && (
-              <View style={dynamicStyles.thumbnailContainer}>
-                {/* Left: Full height image */}
+              <TouchableOpacity
+                style={dynamicStyles.thumbnailLeft}
+                onPress={() => handleImagePress(0)}
+                activeOpacity={0.7}>
+                <Image
+                  source={eventDetails.images[0] || ImagePath.eventImage}
+                  style={[dynamicStyles.thumbnailImage, {height: moderateScale(170)}]}
+                  resizeMode="cover"
+                />
+              </TouchableOpacity>
+            )}
+
+            {/* Right: 2 stacked images */}
+            <View style={dynamicStyles.thumbnailRight}>
+              {eventDetails.images?.slice(1, 3).map((image, index) => (
                 <TouchableOpacity
-                  style={dynamicStyles.thumbnailLeft}
-                  onPress={() => handleImagePress(0)}
+                  key={index + 1}
+                  style={[dynamicStyles.thumbnail]}
+                  onPress={() => handleImagePress(index + 1)}
                   activeOpacity={0.7}>
                   <Image
-                    source={{uri: eventDetails.images[0]}}
-                    style={[dynamicStyles.thumbnailImage, {height: moderateScale(170)}]}
+                    source={image || ImagePath.eventImage}
+                    style={dynamicStyles.thumbnailImage}
                     resizeMode="cover"
                   />
+                  {index === 1 && eventDetails.images && eventDetails.images.length > 3 && (
+                    <View style={dynamicStyles.thumbnailMore}>
+                      <Text style={dynamicStyles.thumbnailMoreText}>
+                        + {eventDetails.images.length - 3} more
+                      </Text>
+                    </View>
+                  )}
                 </TouchableOpacity>
-
-                {/* Right: 2 stacked images */}
-                <View style={dynamicStyles.thumbnailRight}>
-                  {eventDetails.images.slice(1, 3).map((image: string, index: number) => (
-                    <TouchableOpacity
-                      key={index + 1}
-                      style={[dynamicStyles.thumbnail]}
-                      onPress={() => handleImagePress(index + 1)}
-                      activeOpacity={0.7}>
-                      <Image
-                        source={{uri: image}}
-                        style={dynamicStyles.thumbnailImage}
-                        resizeMode="cover"
-                      />
-                      {index === 1 && eventDetails.images && eventDetails.images.length > 3 && (
-                        <View style={dynamicStyles.thumbnailMore}>
-                          <Text style={dynamicStyles.thumbnailMoreText}>
-                            + {eventDetails.images.length - 3} more
-                          </Text>
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            )}
+              ))}
+            </View>
           </View>
+        </View>
 
-          {/* Event Details Card */}
-          <View style={dynamicStyles.card}>
-            <Text style={dynamicStyles.eventTitle}>
-              {params?.title || eventDetails.title}
+        {/* Event Details Card */}
+        <View style={dynamicStyles.card}>
+          <Text style={dynamicStyles.eventTitle}>
+            {params?.title || eventDetails.title}
+          </Text>
+
+          {/* Date/Time */}
+          <View style={dynamicStyles.eventInfoRow}>
+            <Ionicons
+              name="calendar-outline"
+              size={moderateScale(18)}
+              color={colors.textSecondary}
+            />
+            <Text style={dynamicStyles.eventInfoText}>
+              {params?.date || eventDetails.date}
             </Text>
-
-            {/* Date/Time */}
-            <View style={dynamicStyles.eventInfoRow}>
-              <Ionicons
-                name="calendar-outline"
-                size={moderateScale(18)}
-                color={colors.textSecondary}
-              />
-              <Text style={dynamicStyles.eventInfoText}>
-                {params?.date || eventDetails.date}
-              </Text>
-            </View>
-
-            {/* Location */}
-            <View style={dynamicStyles.eventInfoRow}>
-              <Ionicons
-                name="location-outline"
-                size={moderateScale(18)}
-                color={colors.textSecondary}
-              />
-              <Text style={dynamicStyles.eventInfoText}>
-                {params?.location || eventDetails.location}
-              </Text>
-            </View>
           </View>
+
+          {/* Location */}
+          <View style={dynamicStyles.eventInfoRow}>
+            <Ionicons
+              name="location-outline"
+              size={moderateScale(18)}
+              color={colors.textSecondary}
+            />
+            <Text style={dynamicStyles.eventInfoText}>
+              {params?.location || eventDetails.location}
+            </Text>
+          </View>
+        </View>
 
         {/* Description Card */}
         <View style={dynamicStyles.descriptionCard}>
@@ -577,17 +478,10 @@ export default function EventDetailsScreen() {
           )}
 
           <Text style={dynamicStyles.descriptionText}>
-            {params?.description || eventDetails.description || eventDetails.fullDescription || ''}
+            {params?.description || eventDetails.fullDescription}
           </Text>
         </View>
-        </ScrollView>
-      ) : (
-        <View style={{flex: 1, alignItems: 'center', justifyContent: 'center', padding: moderateScale(20)}}>
-          <Text style={[Typography.regularMd, {color: colors.textSecondary}]}>
-            No event details found
-          </Text>
-        </View>
-      )}
+      </ScrollView>
 
       {/* Image Preview Modal */}
       <ImagePreviewModal
@@ -602,8 +496,8 @@ export default function EventDetailsScreen() {
       <ContactUsModal
         visible={contactModalVisible}
         onClose={() => setContactModalVisible(false)}
-        tollFreeNumber={eventDetails?.contact_numbers?.[0] || "1800 212 2129"}
-        whatsappNumber={eventDetails?.whatsapp_message ? eventDetails.contact_numbers?.[0]?.replace(/[^0-9]/g, '') : "919099433133"}
+        tollFreeNumber="1800 212 2129"
+        whatsappNumber="919099433133"
       />
     </View>
   );

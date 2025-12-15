@@ -8,7 +8,6 @@ import {
   Image,
   FlatList,
   Dimensions,
-  ActivityIndicator,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation, CommonActions} from '@react-navigation/native';
@@ -25,35 +24,72 @@ import {SCREEN_NAMES} from '../constants/screenNames';
 import {ImagePath} from '../assets/images';
 import {Platform} from 'react-native';
 import {useLanguage} from '../contexts/LanguageContext';
-import {getData} from '../Service/Apimethod';
-import Apis, {API_BASE_URL} from '../Service/constant';
 
 const screenWidth = Dimensions.get('window').width;
 const screenHeight = Dimensions.get('window').height;
 
-// Helper function to format date
-const formatDate = (dateString: string): string => {
-  if (!dateString) return '';
-  try {
-    const date = new Date(dateString);
-    const day = date.getDate();
-    const month = date.toLocaleString('default', {month: 'short'});
-    const year = date.getFullYear();
-    return `${day} ${month} ${year}`;
-  } catch (error) {
-    return dateString;
-  }
-};
+// Mock data
+const carouselItems = [
+  {
+    id: '1',
+    type: 'video',
+    thumbnailSource: ImagePath.farmerTractor,
+    videoUri: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+    title: 'Tractor Video 1',
+  },
+  {
+    id: '2',
+    type: 'image',
+    imageUri: ImagePath.farmerTractor,
+  },
+  {
+    id: '3',
+    type: 'image',
+    imageUri: ImagePath.farmerTractor,
+  },
+];
 
-// Helper function to get full image URL
-const getImageUrl = (imagePath: string | null | undefined): any => {
-  if (!imagePath) return ImagePath.farmerTractor;
-  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-    return {uri: imagePath};
-  }
-  // If relative path, prepend base URL
-  return {uri: `${API_BASE_URL}${imagePath}`};
-};
+const recentEvents = [
+  {
+    id: '1',
+    thumbnail: ImagePath.farmerTractor,
+    title: 'Little master workshop',
+    date: '16 Nov 2025',
+  },
+  {
+    id: '2',
+    thumbnail: ImagePath.farmerTractor,
+    title: 'Little master training',
+    date: '18 Nov 2025',
+  },
+  {
+    id: '3',
+    thumbnail: ImagePath.farmerTractor,
+    title: 'Agricultural seminar',
+    date: '20 Nov 2025',
+  },
+];
+
+const recentStories = [
+  {
+    id: '1',
+    thumbnail: ImagePath.farmerTractor,
+    title: 'Little master story',
+    date: '16 Nov 2025',
+  },
+  {
+    id: '2',
+    thumbnail: ImagePath.farmerTractor,
+    title: 'Little master journey',
+    date: '18 Nov 2025',
+  },
+  {
+    id: '3',
+    thumbnail: ImagePath.farmerTractor,
+    title: 'Success story',
+    date: '20 Nov 2025',
+  },
+];
 
 const membershipServices = [
   {
@@ -97,108 +133,11 @@ export default function FarmerHomeScreen() {
   const [currentCarouselIndex, setCurrentCarouselIndex] = useState(0);
   const carouselRef = useRef<FlatList>(null);
   const autoSlideTimerRef = useRef<NodeJS.Timeout | null>(null);
-  
-  // Dashboard data from API
-  const [recentStories, setRecentStories] = useState<any[]>([]);
-  const [topVideos, setTopVideos] = useState<any[]>([]);
-  const [upcomingEvents, setUpcomingEvents] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
 
   useDynamicStatusBar({
     backgroundColor: colors.backgroundLight,
     bottomBarColor: colors.backgroundLight,
   });
-
-  // Fetch dashboard data from API
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setLoading(true);
-        const response = await getData(Apis.FARMER_DASHBOARD, {});
-        
-        if (response?.status === true) {
-          // Transform recentStories
-          if (Array.isArray(response.recentStories)) {
-            const transformedStories = response.recentStories.map((story: any) => ({
-              id: story.id?.toString() || '',
-              title: story.title || '',
-              date: formatDate(story.created_at),
-              thumbnail: getImageUrl(story.image),
-              image: story.image,
-            }));
-            setRecentStories(transformedStories);
-          }
-          
-          // Transform topVideos
-          if (Array.isArray(response.topVideos)) {
-            const transformedVideos = response.topVideos.map((video: any) => ({
-              id: video.id?.toString() || '',
-              type: 'video',
-              title: video.title || '',
-              videoUri: video.video_url || '',
-              thumbnailSource: ImagePath.farmerTractor,
-              thumbnail: getImageUrl(video.image),
-            }));
-            setTopVideos(transformedVideos);
-          }
-          
-          // Transform upcomingEvents
-          if (Array.isArray(response.upcomingEvents)) {
-            const transformedEvents = response.upcomingEvents.map((event: any) => ({
-              id: event.id?.toString() || '',
-              title: event.title || '',
-              date: formatDate(event.event_date),
-              location: event.location || '',
-              thumbnail: getImageUrl(event.image),
-            }));
-            setUpcomingEvents(transformedEvents);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching farmer dashboard:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDashboardData();
-  }, []);
-
-  // Create carousel items from topVideos (combine videos and stories for carousel)
-  const carouselItems = useMemo(() => {
-    const items: any[] = [];
-    
-    // Add videos first
-    topVideos.forEach(video => {
-      items.push({
-        id: `video_${video.id}`,
-        type: 'video',
-        thumbnailSource: video.thumbnail,
-        videoUri: video.videoUri,
-        title: video.title,
-      });
-    });
-    
-    // Add stories as images
-    recentStories.slice(0, 3).forEach(story => {
-      items.push({
-        id: `story_${story.id}`,
-        type: 'image',
-        imageUri: story.thumbnail,
-      });
-    });
-    
-    // If no items, add default
-    if (items.length === 0) {
-      items.push({
-        id: 'default',
-        type: 'image',
-        imageUri: ImagePath.farmerTractor,
-      });
-    }
-    
-    return items;
-  }, [topVideos, recentStories]);
 
   // Auto slide functionality
   const startAutoSlide = () => {
@@ -218,16 +157,14 @@ export default function FarmerHomeScreen() {
   };
 
   useEffect(() => {
-    if (carouselItems.length > 0) {
-      startAutoSlide();
-    }
+    startAutoSlide();
 
     return () => {
       if (autoSlideTimerRef.current) {
         clearInterval(autoSlideTimerRef.current);
       }
     };
-  }, [carouselItems]);
+  }, []);
 
   // Reset auto slide timer when user manually scrolls
   const handleScroll = (event: any) => {
@@ -459,13 +396,12 @@ export default function FarmerHomeScreen() {
             eventId: item.id,
             title: item.title,
             date: item.date,
-            location: item.location,
             fromScreen: 'Home',
           },
         } as any);
       }}>
       <Image
-        source={item.thumbnail || ImagePath.farmerTractor}
+        source={item.thumbnail}
         style={dynamicStyles.eventThumbnail}
         resizeMode="cover"
       />
@@ -500,13 +436,12 @@ export default function FarmerHomeScreen() {
             storyId: item.id,
             title: item.title,
             date: item.date,
-            image: item.image,
             fromScreen: 'Home',
           },
         } as any);
       }}>
       <Image
-        source={item.thumbnail || ImagePath.farmerTractor}
+        source={item.thumbnail}
         style={dynamicStyles.eventThumbnail}
         resizeMode="cover"
       />
@@ -637,94 +572,75 @@ export default function FarmerHomeScreen() {
         </View>
 
         {/* Recent Events Section */}
-        {loading ? (
-          <View style={{padding: moderateScale(20), alignItems: 'center'}}>
-            <ActivityIndicator size="small" color={colors.primary} />
-          </View>
-        ) : (
-          <View style={dynamicStyles.eventSliderContainer}>
-            <View style={dynamicStyles.sectionHeader}>
-              <Text style={dynamicStyles.sectionTitle}>Recent events</Text>
-              <TouchableOpacity 
-                activeOpacity={0.7} 
-                onPress={() => {
-                  // Navigate to Events tab and ensure we're on the Events list screen
-                  tabNavigation.dispatch(
-                    CommonActions.navigate({
-                      name: SCREEN_NAMES.Events,
-                      params: {
-                        screen: SCREEN_NAMES.Events,
-                      },
-                    }),
-                  );
-                }}>
-                <Text style={dynamicStyles.seeAllText}>{t('home.seeAll')}</Text>
-              </TouchableOpacity>
-            </View>
-            {upcomingEvents.length > 0 ? (
-              <FlatList
-                data={upcomingEvents}
-                renderItem={renderEventCard}
-                keyExtractor={item => item.id}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{
-                  paddingLeft: moderateScale(16),
-                  paddingRight: moderateScale(16),
-                }}
-              />
-            ) : (
-              <View style={{padding: moderateScale(20), alignItems: 'center'}}>
-                <Text style={[Typography.regularMd, {color: colors.textSecondary}]}>
-                  No events found
-                </Text>
-              </View>
-            )}
-          </View>
-        )}
+       
+        <View style={dynamicStyles.eventSliderContainer}>
+           <View style={dynamicStyles.sectionHeader}>
+          <Text style={dynamicStyles.sectionTitle}>Recent events</Text>
+          <TouchableOpacity 
+            activeOpacity={0.7} 
+            onPress={() => {
+              // Navigate to Events tab and ensure we're on the Events list screen
+              tabNavigation.dispatch(
+                CommonActions.navigate({
+                  name: SCREEN_NAMES.Events,
+                  params: {
+                    screen: SCREEN_NAMES.Events,
+                  },
+                }),
+              );
+            }}>
+            <Text style={dynamicStyles.seeAllText}>{t('home.seeAll')}</Text>
+          </TouchableOpacity>
+        </View>
+          <FlatList
+            data={recentEvents}
+            renderItem={renderEventCard}
+            keyExtractor={item => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{
+              paddingLeft: moderateScale(16),
+              paddingRight: moderateScale(16),
+            }}
+          />
+        </View>
 
         {/* Recent Stories Section */}
-        {!loading && (
-          <View style={dynamicStyles.eventSliderContainer}>
-            <View style={dynamicStyles.sectionHeader}>
-              <Text style={dynamicStyles.sectionTitle}>Recent stories</Text>
-              <TouchableOpacity 
-                activeOpacity={0.7}
-                onPress={() => {
-                  // Navigate to Stories tab and ensure we're on the Stories list screen
-                  tabNavigation.dispatch(
-                    CommonActions.navigate({
-                      name: SCREEN_NAMES.Stories,
-                      params: {
-                        screen: SCREEN_NAMES.Stories,
-                      },
-                    }),
-                  );
-                }}>
-                <Text style={dynamicStyles.seeAllText}>{t('home.seeAll')}</Text>
-              </TouchableOpacity>
-            </View>
-            {recentStories.length > 0 ? (
-              <FlatList
-                data={recentStories}
-                renderItem={renderStoryCard}
-                keyExtractor={item => item.id}
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{
-                  paddingLeft: moderateScale(16),
-                  paddingRight: moderateScale(16),
-                }}
-              />
-            ) : (
-              <View style={{padding: moderateScale(20), alignItems: 'center'}}>
-                <Text style={[Typography.regularMd, {color: colors.textSecondary}]}>
-                  No stories found
-                </Text>
-              </View>
-            )}
-          </View>
-        )}
+        
+        <View style={dynamicStyles.eventSliderContainer}>
+          <View
+          style={[
+            dynamicStyles.sectionHeader
+          ]}>
+          <Text style={dynamicStyles.sectionTitle}>Recent stories</Text>
+          <TouchableOpacity 
+            activeOpacity={0.7}
+            onPress={() => {
+              // Navigate to Stories tab and ensure we're on the Stories list screen
+              tabNavigation.dispatch(
+                CommonActions.navigate({
+                  name: SCREEN_NAMES.Stories,
+                  params: {
+                    screen: SCREEN_NAMES.Stories,
+                  },
+                }),
+              );
+            }}>
+            <Text style={dynamicStyles.seeAllText}>{t('home.seeAll')}</Text>
+          </TouchableOpacity>
+        </View>
+          <FlatList
+            data={recentStories}
+            renderItem={renderStoryCard}
+            keyExtractor={item => item.id}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{
+              paddingLeft: moderateScale(16),
+              paddingRight: moderateScale(16),
+            }}
+          />
+        </View>
 
         {/* Membership Services Section */}
         <View style={{backgroundColor:colors.white,marginHorizontal:moderateScale(16),borderRadius:moderateScale(10),paddingTop:moderateScale(15)}}>

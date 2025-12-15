@@ -14,14 +14,7 @@ const Apis = {
   // Common Auth Endpoints (used by both dealer and farmer)
   LOGIN: `${API_BASE_URL}/api/common-auth/login`,
   SEND_OTP: `${API_BASE_URL}/api/common-auth/send-otp`,
-  
-  // Dealer Endpoints
-  DEALER_FARMERS: `${API_BASE_URL}/api/dealers/farmers`,
-  
-  // Farmer Endpoints
-  FARMER_DASHBOARD: `${API_BASE_URL}/api/farmers/dashboard`,
-  FARMER_EVENTS: `${API_BASE_URL}/api/farmers/events`,
-  FARMER_STORIES: `${API_BASE_URL}/api/farmers/stories`,
+
 };
 
 export default Apis;

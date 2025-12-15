@@ -1,12 +1,11 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+  ScrollView,
   TouchableOpacity,
   TextInput,
-  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -22,22 +21,25 @@ import { FarmerStackParamList } from '../navigation/stacks/FarmerStack';
 import { CompositeNavigationProp } from '@react-navigation/native';
 import { NativeStackNavigationProp as StackNavProp } from '@react-navigation/native-stack';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
-import {getData} from '../Service/Apimethod';
-import Apis from '../Service/constant';
 
 type NavigationProp = CompositeNavigationProp<
   StackNavProp<FarmerStackParamList>,
   NativeStackNavigationProp<RootStackParamList>
 >;
 
-// Helper function to get initials from name
-const getInitials = (name: string): string => {
-  const names = name.trim().split(' ');
-  if (names.length >= 2) {
-    return (names[0][0] + names[names.length - 1][0]).toUpperCase();
-  }
-  return name.substring(0, 2).toUpperCase();
-};
+// Mock data - extended list of farmers
+const allFarmers = [
+  { id: '1', name: 'David Wills', phone: '5214-9710-3671', initials: 'DW' },
+  { id: '2', name: 'Adam Kepler', phone: '5214-9710-3671', initials: 'AK' },
+  { id: '3', name: 'Natasha Davies', phone: '5214-9710-3671', initials: 'ND' },
+  { id: '4', name: 'Peter Jane', phone: '5214-9710-3671', initials: 'PJ' },
+  { id: '5', name: 'Peter Jane', phone: '5214-9710-3671', initials: 'PJ' },
+  { id: '6', name: 'Peter Jane', phone: '5214-9710-3671', initials: 'PJ' },
+  { id: '7', name: 'Sarah Johnson', phone: '5214-9710-3672', initials: 'SJ' },
+  { id: '8', name: 'Michael Brown', phone: '5214-9710-3673', initials: 'MB' },
+  { id: '9', name: 'Emily Davis', phone: '5214-9710-3674', initials: 'ED' },
+  { id: '10', name: 'James Wilson', phone: '5214-9710-3675', initials: 'JW' },
+];
 
 // Avatar Component
 const Avatar = ({
@@ -84,81 +86,12 @@ export default function FarmerScreen() {
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('name');
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
-  const [allFarmers, setAllFarmers] = useState<any[]>([]);
-  const [loadingFarmers, setLoadingFarmers] = useState(true);
 
   // Update StatusBar and bottom bar to match screen background color
   useDynamicStatusBar({
     backgroundColor: colors.backgroundLight,
     bottomBarColor: colors.backgroundLight,
   });
-
-  // Fetch farmers from API
-  useEffect(() => {
-    const fetchFarmers = async () => {
-      try {
-        setLoadingFarmers(true);
-        console.log('FarmerScreen: Fetching farmers from API...');
-        // GET API - only requires token (automatically added via interceptor)
-        const response = await getData(Apis.DEALER_FARMERS, {});
-        console.log('FarmerScreen: API Response:', response);
-        
-        // Handle API response structure: { status: true, data: [...] }
-        if (response?.status === true && Array.isArray(response?.data)) {
-          console.log('FarmerScreen: Processing response.data array, count:', response.data.length);
-          // Transform API response to match expected format
-          const transformedFarmers = response.data.map((farmer: any) => {
-            // Combine first_name, middle_name, last_name to create full name
-            const nameParts = [
-              farmer.first_name,
-              farmer.middle_name,
-              farmer.last_name,
-            ].filter(Boolean);
-            const fullName = nameParts.join(' ').trim();
-            
-            return {
-              id: farmer.id?.toString() || farmer.farmer_id?.toString() || '',
-              farmer_id: farmer.farmer_id || farmer.id?.toString() || '',
-              name: fullName || '',
-              phone: farmer.mobile || '',
-              initials: getInitials(fullName),
-            };
-          });
-          console.log('FarmerScreen: Transformed farmers:', transformedFarmers.length);
-          setAllFarmers(transformedFarmers);
-        } else if (Array.isArray(response)) {
-          console.log('FarmerScreen: Processing direct array response, count:', response.length);
-          // Fallback: if response is directly an array
-          const transformedFarmers = response.map((farmer: any) => {
-            const nameParts = [
-              farmer.first_name,
-              farmer.middle_name,
-              farmer.last_name,
-            ].filter(Boolean);
-            const fullName = nameParts.join(' ').trim();
-            
-            return {
-              id: farmer.id?.toString() || farmer.farmer_id?.toString() || '',
-              farmer_id: farmer.farmer_id || farmer.id?.toString() || '',
-              name: fullName || '',
-              phone: farmer.mobile || '',
-              initials: getInitials(fullName),
-            };
-          });
-          console.log('FarmerScreen: Transformed farmers (array):', transformedFarmers.length);
-          setAllFarmers(transformedFarmers);
-        } else {
-          console.warn('FarmerScreen: Unexpected response format:', response);
-        }
-      } catch (error) {
-        console.error('FarmerScreen: Error fetching farmers:', error);
-      } finally {
-        setLoadingFarmers(false);
-      }
-    };
-
-    fetchFarmers();
-  }, []);
 
   // Filter categories for the modal
   const filterCategories = [
@@ -234,7 +167,7 @@ export default function FarmerScreen() {
     }
 
     return filtered;
-  }, [searchQuery, selectedOptions, allFarmers]);
+  }, [searchQuery, selectedOptions]);
 
   const dynamicStyles = useMemo(
     () =>
@@ -291,9 +224,9 @@ export default function FarmerScreen() {
         },
         searchInput: {
           flex: 1,
+          fontSize: moderateScale(14),
           color: colors.textPrimary,
           ...Typography.regularMd,
-          fontSize: moderateScale(14),
         },
         filterButton: {
           width: moderateScale(40),
@@ -392,65 +325,48 @@ export default function FarmerScreen() {
           backgroundColor: colors.backgroundLight,
         }}
       >
-        {loadingFarmers ? (
-          <View style={[dynamicStyles.listContainer, {padding: moderateScale(20), alignItems: 'center', justifyContent: 'center'}]}>
-            <ActivityIndicator size="small" color={colors.primary} />
-          </View>
-        ) : (
-          <FlatList
-            data={filteredFarmers}
-            keyExtractor={(item) => item.id.toString()}
-            renderItem={({item, index}) => (
-              <TouchableOpacity
-                style={[
-                  dynamicStyles.listItem,
-                  index !== filteredFarmers.length - 1 &&
-                    dynamicStyles.listItemBorder,
-                ]}
-                activeOpacity={0.7}
-                onPress={() => {
-                  navigation.navigate(SCREEN_NAMES.FarmerDetails, {
-                    farmerId: item.id,
-                    farmer_id: item.farmer_id || item.id,
-                    farmerName: item.name,
-                    farmerPhone: item.phone,
-                    farmerInitials: item.initials,
-                    fromScreen: 'List',
-                  });
-                }}
-              >
-                <Avatar
-                  initials={item.initials}
-                  moderateScale={moderateScale}
-                  size={moderateScale(40)}
-                />
-                <View style={dynamicStyles.listItemContent}>
-                  <Text style={dynamicStyles.listItemName}>{item.name}</Text>
-                  <Text style={dynamicStyles.listItemSubtext}>
-                    {item.phone}
-                  </Text>
-                </View>
-                <Ionicons
-                  name="chevron-forward"
-                  size={moderateScale(18)}
-                  color={colors.textTertiary}
-                />
-              </TouchableOpacity>
-            )}
-            ListEmptyComponent={
-              <View style={{padding: moderateScale(20), alignItems: 'center'}}>
-                <Text style={[Typography.regularMd, {color: colors.textSecondary}]}>
-                  No farmers found
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          style={dynamicStyles.listContainer}
+        >
+          {filteredFarmers.map((farmer, index) => (
+            <TouchableOpacity
+              key={farmer.id}
+              style={[
+                dynamicStyles.listItem,
+                index !== filteredFarmers.length - 1 &&
+                  dynamicStyles.listItemBorder,
+              ]}
+              activeOpacity={0.7}
+              onPress={() => {
+                navigation.navigate(SCREEN_NAMES.FarmerDetails, {
+                  farmerId: farmer.id,
+                  farmerName: farmer.name,
+                  farmerPhone: farmer.phone,
+                  farmerInitials: farmer.initials,
+                  fromScreen: 'List',
+                });
+              }}
+            >
+              <Avatar
+                initials={farmer.initials}
+                moderateScale={moderateScale}
+                size={moderateScale(40)}
+              />
+              <View style={dynamicStyles.listItemContent}>
+                <Text style={dynamicStyles.listItemName}>{farmer.name}</Text>
+                <Text style={dynamicStyles.listItemSubtext}>
+                  {farmer.phone}
                 </Text>
               </View>
-            }
-            contentContainerStyle={[
-              dynamicStyles.listContainer,
-              filteredFarmers.length === 0 && {flex: 1, justifyContent: 'center'}
-            ]}
-            showsVerticalScrollIndicator={false}
-          />
-        )}
+              <Ionicons
+                name="chevron-forward"
+                size={moderateScale(18)}
+                color={colors.textTertiary}
+              />
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
 
       {/* Filter Modal */}

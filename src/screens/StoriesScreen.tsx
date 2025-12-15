@@ -1,4 +1,4 @@
-import React, {useMemo, useState, useEffect} from 'react';
+import React, {useMemo} from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  ActivityIndicator,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -14,95 +13,50 @@ import colors from '../utils/colors';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import {Typography} from '../utils/typography';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
+import {ImagePath} from '../assets/images';
 import {useNavigation} from '@react-navigation/native';
 import {SCREEN_NAMES} from '../constants/screenNames';
-import {getData} from '../Service/Apimethod';
-import Apis, {API_BASE_URL} from '../Service/constant';
-import {ImagePath} from '../assets/images';
 
-// Helper function to format date
-const formatDate = (dateString: string | null | undefined): string => {
-  if (!dateString) return '';
-  try {
-    const date = new Date(dateString);
-    const day = date.getDate();
-    const month = date.toLocaleString('default', {month: 'long'});
-    const year = date.getFullYear();
-    return `${day} ${month} ${year}`;
-  } catch (error) {
-    return dateString;
-  }
-};
-
-// Helper function to get full image URL
-const getImageUrl = (imagePath: string | null | undefined): any => {
-  if (!imagePath) return ImagePath.farmerTractor;
-  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-    return {uri: imagePath};
-  }
-  // If relative path, prepend base URL
-  return {uri: `${API_BASE_URL}${imagePath}`};
-};
+// Mock stories data
+const storiesData = [
+  {
+    id: '1',
+    title: 'Tractor Horsepower Guide: Find the Best Fit for Your Farm Work',
+    shortTitle: 'Tractor Horsepower Guide: Find the be...',
+    date: '10 November 2025',
+    bannerImage: ImagePath.farmerTractor,
+    logo: ImagePath.captainEnglishLogo,
+    overlayText: '12 HP Tractor TO 28 HP Tractor',
+  },
+  {
+    id: '2',
+    title: 'Tractor Horsepower Guide: Find the Best Fit for Your Farm Work',
+    shortTitle: 'Tractor Horsepower Guide: Find the be...',
+    date: '10 November 2025',
+    bannerImage: ImagePath.farmerTractor,
+    logo: ImagePath.captainEnglishLogo,
+    overlayText: '12 HP Tractor TO 28 HP Tractor',
+  },
+  {
+    id: '3',
+    title: 'Tractor Horsepower Guide: Find the Best Fit for Your Farm Work',
+    shortTitle: 'Tractor Horsepower Guide: Find the be...',
+    date: '10 November 2025',
+    bannerImage: ImagePath.farmerTractor,
+    logo: ImagePath.captainEnglishLogo,
+    overlayText: '12 HP Tractor TO 28 HP Tractor',
+  },
+];
 
 export default function StoriesScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
   const navigation = useNavigation();
-  const [storiesData, setStoriesData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
 
   useDynamicStatusBar({
     backgroundColor: colors.backgroundLight,
     bottomBarColor: colors.backgroundLight,
   });
-
-  // Fetch stories from API
-  useEffect(() => {
-    const fetchStories = async () => {
-      try {
-        setLoading(true);
-        const response = await getData(Apis.FARMER_STORIES, {});
-        
-        if (response?.status === true && Array.isArray(response?.data)) {
-          // Transform API response to match expected format
-          const transformedStories = response.data.map((story: any) => ({
-            id: story.id?.toString() || '',
-            title: story.title || '',
-            shortTitle: story.title?.length > 40 ? `${story.title.substring(0, 40)}...` : story.title || '',
-            date: formatDate(story.createdAt),
-            bannerImage: getImageUrl(story.image),
-            logo: ImagePath.captainEnglishLogo, // Keep logo as static for now
-            overlayText: story.title || '', // Use title as overlay text
-            description: story.description || '',
-            image: story.image,
-            video_url: story.video_url,
-          }));
-          setStoriesData(transformedStories);
-        } else if (Array.isArray(response)) {
-          // Fallback: if response is directly an array
-          const transformedStories = response.map((story: any) => ({
-            id: story.id?.toString() || '',
-            title: story.title || '',
-            shortTitle: story.title?.length > 40 ? `${story.title.substring(0, 40)}...` : story.title || '',
-            date: formatDate(story.createdAt),
-            bannerImage: getImageUrl(story.image),
-            logo: ImagePath.captainEnglishLogo,
-            overlayText: story.title || '',
-            description: story.description || '',
-            image: story.image,
-            video_url: story.video_url,
-          }));
-          setStoriesData(transformedStories);
-        }
-      } catch (error) {
-        console.error('Error fetching stories:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStories();
-  }, []);
 
   const dynamicStyles = useMemo(
     () =>
@@ -222,33 +176,26 @@ export default function StoriesScreen() {
 
   return (
     <View style={dynamicStyles.container}>
-      {loading ? (
-        <View style={{flex: 1, alignItems: 'center', justifyContent: 'center', padding: moderateScale(20)}}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
-      ) : (
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={dynamicStyles.scrollContent}>
-          <Text style={dynamicStyles.title}>Stories</Text>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={dynamicStyles.scrollContent}>
+        <Text style={dynamicStyles.title}>Stories</Text>
 
-          {storiesData.length > 0 ? (
-            storiesData.map((story) => (
-              <TouchableOpacity
-                key={story.id}
-                style={dynamicStyles.storyCard}
-                activeOpacity={0.7}
-                onPress={() => {
-                  (navigation as any).navigate(SCREEN_NAMES.StoryDetails, {
-                    storyId: story.id,
-                    title: story.title,
-                    date: story.date,
-                    description: story.description,
-                    image: story.image,
-                    video_url: story.video_url,
-                    fromScreen: 'List',
-                  });
-                }}>
+        {storiesData.map((story) => (
+          <TouchableOpacity
+            key={story.id}
+            style={dynamicStyles.storyCard}
+            activeOpacity={0.7}
+            onPress={() => {
+              (navigation as any).navigate(SCREEN_NAMES.StoryDetails, {
+                storyId: story.id,
+                title: story.title,
+                date: story.date,
+                bannerImage: story.bannerImage,
+                images: [story.bannerImage, ImagePath.eventImage, ImagePath.eventImage2],
+                fromScreen: 'List',
+              });
+            }}>
             {/* Banner Section */}
             <View style={dynamicStyles.bannerContainer}>
               {/* Left Section - Logo and Text */}
@@ -259,8 +206,11 @@ export default function StoriesScreen() {
                   resizeMode="contain"
                 />
                 <View style={{flex: 1,marginBottom:moderateScale(10)}}>
-                  <Text style={dynamicStyles.mainTitle} numberOfLines={3}>
-                    {story.title || 'Story Title'}
+                  <Text style={dynamicStyles.mainTitle}>
+                    Tractor{'\n'}Horsepower{'\n'}Guide:
+                  </Text>
+                  <Text style={dynamicStyles.subtitle}>
+                    Find the Best Fit for{'\n'}Your Farm Work
                   </Text>
                 </View>
                 <View style={dynamicStyles.arrowButton}>
@@ -275,15 +225,13 @@ export default function StoriesScreen() {
               {/* Right Section - Image with Overlay */}
               <View style={dynamicStyles.bannerRight}>
                 <Image
-                  source={story.bannerImage || ImagePath.farmerTractor}
+                  source={story.bannerImage}
                   style={dynamicStyles.bannerImage}
                   resizeMode="cover"
                 />
-                {story.title && (
-                  <Text style={dynamicStyles.overlayText} numberOfLines={3}>
-                    {story.title}
-                  </Text>
-                )}
+                <Text style={dynamicStyles.overlayText}>
+                  12 HP Tractor{'\n'}TO{'\n'}28 HP Tractor
+                </Text>
               </View>
             </View>
 
@@ -300,18 +248,10 @@ export default function StoriesScreen() {
                 />
                 <Text style={dynamicStyles.dateText}>{story.date}</Text>
               </View>
-              </View>
-            </TouchableOpacity>
-            ))
-          ) : (
-            <View style={{padding: moderateScale(20), alignItems: 'center'}}>
-              <Text style={[Typography.regularMd, {color: colors.textSecondary}]}>
-                No stories found
-              </Text>
             </View>
-          )}
-        </ScrollView>
-      )}
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
     </View>
   );
 }

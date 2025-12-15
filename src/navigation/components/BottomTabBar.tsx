@@ -314,16 +314,6 @@ const styles = StyleSheet.create({
               target: route.key,
               canPreventDefault: true,
             });
-            
-            // If Farmer tab is pressed, always reset to Farmer list screen (root)
-            if (route.name === SCREEN_NAMES.Farmer) {
-              // Always navigate to the root Farmer screen, which resets the stack
-              navigation.navigate(route.name, {
-                screen: SCREEN_NAMES.Farmer,
-              } as any);
-              return;
-            }
-            
             if (!isFocused && !event.defaultPrevented) {
               navigation.navigate(route.name);
             }
