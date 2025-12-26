@@ -6,6 +6,7 @@ const USER_DATA_KEY = '@user_data';
 const USER_ROLE_KEY = '@user_role';
 const PROFILE_REVIEWED_KEY = '@profile_reviewed';
 const TERMS_ACCEPTED_KEY = '@terms_accepted';
+const LANGUAGE_SELECTED_KEY = '@language_selected';
 
 export interface UserSession {
   isLoggedIn: boolean;
@@ -97,6 +98,7 @@ export const clearSession = async (): Promise<void> => {
     await AsyncStorage.removeItem(USER_ROLE_KEY);
     await clearProfileReviewed();
     await clearTermsAccepted();
+    await clearLanguageSelected();
     // Also clear auth token
     await clearAuthToken();
   } catch (error) {
@@ -269,6 +271,43 @@ export const clearTermsAccepted = async (): Promise<void> => {
     await AsyncStorage.removeItem(TERMS_ACCEPTED_KEY);
   } catch (error) {
     console.error('Error clearing terms acceptance status:', error);
+    throw error;
+  }
+};
+
+/**
+ * Check if language has been selected
+ */
+export const isLanguageSelected = async (): Promise<boolean> => {
+  try {
+    const selected = await AsyncStorage.getItem(LANGUAGE_SELECTED_KEY);
+    return selected === 'true';
+  } catch (error) {
+    console.error('Error checking language selection status:', error);
+    return false;
+  }
+};
+
+/**
+ * Save language selected status
+ */
+export const saveLanguageSelected = async (): Promise<void> => {
+  try {
+    await AsyncStorage.setItem(LANGUAGE_SELECTED_KEY, 'true');
+  } catch (error) {
+    console.error('Error saving language selection status:', error);
+    throw error;
+  }
+};
+
+/**
+ * Clear language selected status (on logout)
+ */
+export const clearLanguageSelected = async (): Promise<void> => {
+  try {
+    await AsyncStorage.removeItem(LANGUAGE_SELECTED_KEY);
+  } catch (error) {
+    console.error('Error clearing language selection status:', error);
     throw error;
   }
 };

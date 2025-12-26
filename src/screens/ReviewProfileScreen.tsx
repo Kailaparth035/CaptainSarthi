@@ -1,4 +1,4 @@
-import React, {useState, useMemo, useRef} from 'react';
+import React, {useState, useMemo, useRef, useEffect} from 'react';
 import {
   View,
   Text,
@@ -23,7 +23,7 @@ import SimpleBoxInput from '../components/FloatingInput';
 import ImagePickerModal from '../components/ImagePickerModal';
 import Button from '../components/Button';
 import {SCREEN_NAMES} from '../constants/screenNames';
-import {saveProfileReviewed} from '../utils/session';
+import {saveProfileReviewed, getUserRole} from '../utils/session';
 import { ImagePath } from '../assets/images';
 import {useLanguage} from '../contexts/LanguageContext';
 
@@ -36,6 +36,7 @@ export default function ReviewProfileScreen() {
   const navigation = useNavigation<NavigationProp>();
   const {pickImage} = useImagePicker();
   const [imagePickerVisible, setImagePickerVisible] = useState(false);
+  const [isFarmer, setIsFarmer] = useState(true); // Default to true since ReviewProfile is for farmers
 
   // Profile photo
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
@@ -71,6 +72,21 @@ export default function ReviewProfileScreen() {
     backgroundColor: colors.backgroundWhite,
     bottomBarColor: colors.backgroundWhite,
   });
+
+  // Check if user is a farmer
+  useEffect(() => {
+    const checkUserRole = async () => {
+      try {
+        const role = await getUserRole();
+        setIsFarmer(role === 'farmer');
+      } catch (error) {
+        console.error('Error checking user role:', error);
+        // Default to farmer since ReviewProfile is typically for farmers
+        setIsFarmer(true);
+      }
+    };
+    checkUserRole();
+  }, []);
 
   const [currentImageType, setCurrentImageType] = useState<'profile' | 'tractor'>('profile');
 
@@ -269,10 +285,9 @@ export default function ReviewProfileScreen() {
 
         {/* Personal Details Section */}
         <View style={dynamicStyles.card}>
-          <Text style={dynamicStyles.sectionTitle}>Personal details</Text>
+          <Text style={dynamicStyles.sectionTitle}>{t('reviewProfile.personalDetails')}</Text>
           <Text style={dynamicStyles.sectionDescription}>
-            After the details are reviewed and updated, no further changes will
-            be allowed.
+            {t('reviewProfile.personalDetailsDescription')}
           </Text>
 
           {/* Profile Photo */}
@@ -301,40 +316,40 @@ export default function ReviewProfileScreen() {
                 onPress={() => handleImagePicker('profile')}
                 activeOpacity={0.7}>
                 <Text style={dynamicStyles.changePhotoText}>
-                  Change profile photo
+                  {t('reviewProfile.changeProfilePhoto')}
                 </Text>
               </TouchableOpacity>
               <Text style={dynamicStyles.uploadHint}>
-                Upload png or jpg. 5 mb max size.
+                {t('reviewProfile.uploadHint')}
               </Text>
             </View>
           </View>
 
           {/* Dealership Name */}
           <SimpleBoxInput
-            label="Dealership name"
+            label={t('farmerProfile.dealershipName')}
             value={dealershipName}
             onChangeText={setDealershipName}
-            editable={false}
+            editable={!isFarmer}
           />
 
           {/* First Name */}
           <SimpleBoxInput
-            label="First name"
+            label={t('farmerProfile.firstName')}
             value={firstName}
             onChangeText={setFirstName}
           />
 
           {/* Middle Name */}
           <SimpleBoxInput
-            label="Middle name"
+            label={t('farmerProfile.middleName')}
             value={middleName}
             onChangeText={setMiddleName}
           />
 
           {/* Last Name */}
           <SimpleBoxInput
-            label="Last name"
+            label={t('farmerProfile.lastName')}
             value={lastName}
             onChangeText={setLastName}
           />
@@ -343,36 +358,38 @@ export default function ReviewProfileScreen() {
           <View style={dynamicStyles.row}>
             <View style={[dynamicStyles.dateInputContainer, {flex: 0.3}]}>
               <SimpleBoxInput
-                label="Code"
+                label={t('reviewProfile.code')}
                 value={countryCode}
                 onChangeText={setCountryCode}
+                editable={!isFarmer}
               />
             </View>
             <View style={[dynamicStyles.dateInputContainer, {flex: 0.7}]}>
               <SimpleBoxInput
-                label="Number"
+                label={t('reviewProfile.number')}
                 value={phoneNumber}
                 onChangeText={setPhoneNumber}
+                editable={!isFarmer}
               />
             </View>
           </View>
 
           {/* Date of Birth */}
-          <Text style={dynamicStyles.dateLabel}>Date of birth</Text>
+          <Text style={dynamicStyles.dateLabel}>{t('farmerProfile.dateOfBirth')}</Text>
           <View style={dynamicStyles.row}>
             <View style={dynamicStyles.dateInputContainer}>
               <SimpleBoxInput
-                label="Date"
+                label={t('reviewProfile.date')}
                 value={dobDD}
                 onChangeText={setDobDD}
               />
             </View>
             <View style={dynamicStyles.dateInputContainer}>
-              <SimpleBoxInput label="of" value={dobMM} onChangeText={setDobMM} />
+              <SimpleBoxInput label={t('reviewProfile.of')} value={dobMM} onChangeText={setDobMM} />
             </View>
             <View style={dynamicStyles.dateInputContainer}>
               <SimpleBoxInput
-                label="birth"
+                label={t('reviewProfile.birth')}
                 value={dobYYYY}
                 onChangeText={setDobYYYY}
               />
@@ -381,22 +398,22 @@ export default function ReviewProfileScreen() {
 
           {/* Date of Marriage */}
           <Text style={[dynamicStyles.dateLabel, {marginTop: moderateScale(12)}]}>
-            Date of marriage
+            {t('farmerProfile.dateOfMarriage')}
           </Text>
           <View style={dynamicStyles.row}>
             <View style={dynamicStyles.dateInputContainer}>
               <SimpleBoxInput
-                label="Date"
+                label={t('reviewProfile.date')}
                 value={domDD}
                 onChangeText={setDomDD}
               />
             </View>
             <View style={dynamicStyles.dateInputContainer}>
-              <SimpleBoxInput label="of" value={domMM} onChangeText={setDomMM} />
+              <SimpleBoxInput label={t('reviewProfile.of')} value={domMM} onChangeText={setDomMM} />
             </View>
             <View style={dynamicStyles.dateInputContainer}>
               <SimpleBoxInput
-                label="marriage"
+                label={t('reviewProfile.marriage')}
                 value={domYYYY}
                 onChangeText={setDomYYYY}
               />
@@ -407,9 +424,9 @@ export default function ReviewProfileScreen() {
         {/* Tractor Details Section */}
         <View style={dynamicStyles.card}>
           <View style={dynamicStyles.tractorHeader}>
-            <Text style={dynamicStyles.sectionTitle}>Tractor details</Text>
+            <Text style={dynamicStyles.sectionTitle}>{t('farmerProfile.tractorDetails')}</Text>
             <Text style={dynamicStyles.tractorCount}>
-              Tractor count: {tractorCount} of 1
+              {t('farmerProfile.tractorCount')}: {tractorCount} of 1
             </Text>
           </View>
 
@@ -443,46 +460,46 @@ export default function ReviewProfileScreen() {
 
           {/* Tractor Details */}
           <View style={dynamicStyles.detailRow}>
-            <Text style={dynamicStyles.detailLabel}>Model name:</Text>
+            <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.modelName')}:</Text>
             <Text style={dynamicStyles.detailValue}>{modelName}</Text>
           </View>
           <View style={dynamicStyles.detailRow}>
-            <Text style={dynamicStyles.detailLabel}>Vehicle no.:</Text>
+            <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.vehicleNo')}:</Text>
             <Text style={dynamicStyles.detailValue}>{vehicleNo}</Text>
           </View>
           <View style={dynamicStyles.detailRow}>
-            <Text style={dynamicStyles.detailLabel}>Owner name:</Text>
+            <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.ownerName')}:</Text>
             <Text style={dynamicStyles.detailValue}>{ownerName}</Text>
           </View>
           <View style={dynamicStyles.detailRow}>
-            <Text style={dynamicStyles.detailLabel}>Chassis no.:</Text>
+            <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.chassisNo')}:</Text>
             <Text style={dynamicStyles.detailValue}>{chassisNo}</Text>
           </View>
           <View style={dynamicStyles.detailRow}>
-            <Text style={dynamicStyles.detailLabel}>Engine no.:</Text>
+            <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.engineNo')}:</Text>
             <Text style={dynamicStyles.detailValue}>{engineNo}</Text>
           </View>
           <View style={dynamicStyles.detailRow}>
-            <Text style={dynamicStyles.detailLabel}>Mobile no.:</Text>
+            <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.mobileNo')}:</Text>
             <Text style={dynamicStyles.detailValue}>{tractorMobileNo}</Text>
           </View>
           <View style={dynamicStyles.detailRow}>
-            <Text style={dynamicStyles.detailLabel}>Date of invoice:</Text>
+            <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.dateOfInvoice')}:</Text>
             <Text style={dynamicStyles.detailValue}>{dateOfInvoice}</Text>
           </View>
           <View style={dynamicStyles.detailRow}>
-            <Text style={dynamicStyles.detailLabel}>Date of registration:</Text>
+            <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.dateOfRegistration')}:</Text>
             <Text style={dynamicStyles.detailValue}>{dateOfRegistration}</Text>
           </View>
           <View style={[dynamicStyles.detailRow, {borderBottomWidth: 0}]}>
-            <Text style={dynamicStyles.detailLabel}>Who drives:</Text>
+            <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.whoDrives')}:</Text>
             <Text style={dynamicStyles.detailValue}>{whoDrives}</Text>
           </View>
         </View>
 
         {/* Continue Button */}
         <Button
-          title="Continue"
+          title={t('reviewProfile.continue')}
           onPress={handleContinue}
           style={dynamicStyles.continueButton}
         />

@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  Platform,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useRoute, useNavigation} from '@react-navigation/native';
@@ -21,6 +20,7 @@ import VideoPlayer from '../components/VideoPlayer';
 import ImagePreviewModal, {ImageItem} from '../components/ImagePreviewModal';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import {useStatusBar} from '../contexts/StatusBarContext';
+import {useLanguage} from '../contexts/LanguageContext';
 
 type TractorDetailsRouteParams = {
   tractorId: string;
@@ -129,6 +129,7 @@ const SpecRow = ({
 export default function FarmerTractorDetails() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
+  const {t} = useLanguage();
   const route = useRoute();
   const navigation = useNavigation();
   const tabNavigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
@@ -150,19 +151,12 @@ export default function FarmerTractorDetails() {
           flex: 1,
           backgroundColor: colors.backgroundLight,
         },
-        statusBarBackground: {
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: Platform.OS === 'ios' ? insets.top : 0,
-          backgroundColor: colors.backgroundLight,
-        },
         header: {
           flexDirection: 'row',
           alignItems: 'center',
           paddingHorizontal: moderateScale(16),
-          paddingTop: insets.top ,          
+          paddingTop: insets.top + moderateScale(12),
+          paddingBottom: moderateScale(12),
           backgroundColor: colors.backgroundLight,
         },
         backButton: {
@@ -177,6 +171,7 @@ export default function FarmerTractorDetails() {
           ...Typography.boldXxl,
           color: colors.textPrimary,
           fontSize: moderateScale(22),
+          marginLeft: moderateScale(10),
         },
         scrollContent: {
           padding: moderateScale(16),
@@ -337,9 +332,6 @@ export default function FarmerTractorDetails() {
 
   return (
       <View style={[dynamicStyles.container]}>
-        {Platform.OS === 'ios' && (
-          <View style={[dynamicStyles.statusBarBackground, {backgroundColor: currentConfig.backgroundColor}]} />
-        )}
         {/* Header */}
         <View style={dynamicStyles.header}>
           <TouchableOpacity
@@ -458,7 +450,7 @@ export default function FarmerTractorDetails() {
 
         {/* Specifications Card */}
         <View style={dynamicStyles.card}>
-          <Text style={dynamicStyles.specificationsTitle}>Specifications</Text>
+          <Text style={dynamicStyles.specificationsTitle}>{t('tractors.specifications')}</Text>
 
           {/* Tabs */}
           <ScrollView

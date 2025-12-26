@@ -1,5 +1,5 @@
 import React, {useEffect, useState} from 'react';
-import {Dimensions, Platform, StatusBar} from 'react-native';
+import {Dimensions, Platform} from 'react-native';
 
 const useDeviceDimensions = () => {
   const {width, height} = Dimensions.get('window');
@@ -49,7 +49,7 @@ const useDeviceMetrics = () => {
 
   const StatusBarHeightSecond = Platform.select({
     ios: isIPhoneX() ? 44 : 20,
-    android: StatusBar.currentHeight,
+    android: 0, // Use safe area insets instead
     default: 0,
   });
 
@@ -64,8 +64,6 @@ const useDeviceMetrics = () => {
     const ratio = deviceHeight / deviceWidth;
     const deviceHeightValue = 375
       ? screenHeight * (ratio > 1.8 ? 0.14 : 0.15)
-      : Platform.OS === 'android'
-      ? screenHeight - StatusBar.currentHeight
       : screenHeight;
 
     const heightPercent = (percent * deviceHeightValue) / 100;

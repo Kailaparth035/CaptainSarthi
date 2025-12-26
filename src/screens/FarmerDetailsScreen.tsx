@@ -7,9 +7,10 @@ import {
   TouchableOpacity,
   Image,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {useRoute, useNavigation} from '@react-navigation/native';
+import {useRoute, useNavigation, useFocusEffect} from '@react-navigation/native';
 import {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
 import {TabParamList} from '../navigation/TabNavigator';
 import {SCREEN_NAMES} from '../constants/screenNames';
@@ -21,6 +22,7 @@ import ImagePreviewModal, {ImageItem} from '../components/ImagePreviewModal';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import {getData} from '../Service/Apimethod';
 import Apis, {API_BASE_URL} from '../Service/constant';
+import {getImageUrl} from '../utils/imageUtils';
 
 type FarmerDetailsRouteParams = {
   farmerId: string;
@@ -61,7 +63,8 @@ const InfoRow = ({
           {
             fontSize: moderateScale(14),
             color: colors.textTertiary,
-            flex: 0.35,
+            flex: 0.4,
+            marginRight: moderateScale(8),
           },
         ]}>
         {label}:
@@ -72,11 +75,14 @@ const InfoRow = ({
           {
             fontSize: moderateScale(14),
             color: colors.textPrimary,
-            flex: 0.65,
+            flex: 0.6,
             textAlign: 'right',
             textDecorationLine: valueUnderlined ? 'underline' : 'none',
+            flexShrink: 1,
           },
-        ]}>
+        ]}
+        numberOfLines={1}
+        ellipsizeMode="tail">
         {value}
       </Text>
     </View>
@@ -95,6 +101,8 @@ export default function FarmerDetailsScreen() {
   const [selectedTractorIndex, setSelectedTractorIndex] = useState(0);
   const [farmerDetails, setFarmerDetails] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [dealershipName, setDealershipName] = useState<string>('');
+  const [refreshing, setRefreshing] = useState(false);
 
   // Helper function to format date
   const formatDate = (dateString: string | null | undefined): string => {
@@ -110,89 +118,122 @@ export default function FarmerDetailsScreen() {
     }
   };
 
-  // Helper function to get full image URL
-  const getImageUrl = (imagePath: string | null | undefined): string | null => {
-    if (!imagePath) return null;
-    if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-      return imagePath;
+
+  // Fetch dealer profile to get username for dealership name
+  const fetchDealerProfile = async () => {
+    try {
+      const profileResponse = await getData(Apis.DEALER_PROFILE, {});
+      if (profileResponse?.status === true && profileResponse?.data) {
+        const profileData = profileResponse.data;
+        // Use name field as dealership name (username)
+        const dealerName = profileData.name || '';
+        setDealershipName(dealerName);
+        console.log('[FarmerDetailsScreen] Dealer profile fetched, name:', dealerName);
+      }
+    } catch (error) {
+      console.error('[FarmerDetailsScreen] Error fetching dealer profile:', error);
+      // Keep empty string if fetch fails
+      setDealershipName('');
     }
-    // If relative path, prepend base URL
-    return `${API_BASE_URL}${imagePath}`;
   };
 
   // Fetch farmer details from API using clientId
-  useEffect(() => {
-    const fetchFarmerDetails = async () => {
-      try {
+  const fetchFarmerDetails = async (showRefreshing = false) => {
+    try {
+      if (showRefreshing) {
+        setRefreshing(true);
+      } else {
         setLoading(true);
-        const clientId = params?.farmer_id || params?.farmerId;
-        
-        if (!clientId) {
-          console.error('No farmer_id provided');
-          setLoading(false);
-          return;
-        }
-
-        // Call API with clientId as query parameter
-        const response = await getData(Apis.DEALER_FARMERS, { clientId });
-        
-        // Handle API response structure: { status: true, data: {...} }
-        if (response?.status === true && response?.data) {
-          const farmerData = response.data;
-          
-          // Combine firstName, middleName, lastName
-          const nameParts = [
-            farmerData.firstName,
-            farmerData.middleName,
-            farmerData.lastName,
-          ].filter(Boolean);
-          const fullName = nameParts.join(' ').trim();
-          
-          // Transform tractors array
-          const transformedTractors = (farmerData.tractors || []).map((tractor: any) => ({
-            id: tractor.tractorId?.toString() || '',
-            tractorId: tractor.tractorId,
-            model: '', // Not provided in API response
-            chassisNo: tractor.chassisNo || '',
-            vehicleNo: tractor.vehicleNo || '',
-            engineNo: tractor.engineNo || '',
-            mobile: tractor.ownerMobile || '',
-            dateOfInvoice: formatDate(tractor.dateOfInvoice) || '',
-            whoDrives: tractor.whoDrives || '',
-            tractorImage: getImageUrl(tractor.tractorImage),
-            rcImages: (tractor.rcImages || []).map((img: string) => getImageUrl(img)).filter(Boolean),
-          }));
-          
-          // Transform API response to match expected format
-          setFarmerDetails({
-            id: farmerData.farmerId || params?.farmerId || '',
-            farmer_id: farmerData.farmerId || '',
-            firstName: farmerData.firstName || '',
-            middleName: farmerData.middleName || '',
-            lastName: farmerData.lastName || '',
-            fullName: fullName,
-            mobile: farmerData.mobile || '',
-            dateOfBirth: formatDate(farmerData.dateOfBirth) || '',
-            dateOfMarriage: formatDate(farmerData.dateOfMarriage) || '',
-            dealershipName: farmerData.dealershipName || '',
-            profileImage: getImageUrl(farmerData.profileImage),
-            tractors: transformedTractors,
-          });
-        } else {
-          // API didn't return expected structure
-          console.warn('Unexpected API response format:', response);
-          setFarmerDetails(null);
-        }
-      } catch (error) {
-        console.error('Error fetching farmer details:', error);
-        setFarmerDetails(null);
-      } finally {
-        setLoading(false);
       }
-    };
+      const clientId = params?.farmer_id || params?.farmerId;
+      
+      if (!clientId) {
+        console.error('No farmer_id provided');
+        setLoading(false);
+        return;
+      }
 
-    fetchFarmerDetails();
-  }, [params?.farmer_id, params?.farmerId]);
+      console.log('[FarmerDetailsScreen] Screen focused - fetching latest farmer details for:', clientId);
+      
+      // Fetch dealer profile and farmer details in parallel
+      const [, response] = await Promise.all([
+        fetchDealerProfile(),
+        getData(Apis.DEALER_FARMERS, { clientId })
+      ]);
+      
+      // Handle API response structure: { status: true, data: {...} }
+      if (response?.status === true && response?.data) {
+        const farmerData = response.data;
+        
+        // Combine firstName, middleName, lastName
+        const nameParts = [
+          farmerData.firstName,
+          farmerData.middleName,
+          farmerData.lastName,
+        ].filter(Boolean);
+        const fullName = nameParts.join(' ').trim();
+        
+        // Transform tractors array
+        const transformedTractors = (farmerData.tractors || []).map((tractor: any) => ({
+          id: tractor.tractorId?.toString() || '',
+          tractorId: tractor.tractorId,
+          model: tractor.model || '',
+          chassisNo: tractor.chassisNo || '',
+          vehicleNo: tractor.vehicleNo || '',
+          engineNo: tractor.engineNo || '',
+          mobile: tractor.ownerMobile || '',
+          dateOfInvoice: formatDate(tractor.dateOfInvoice) || '',
+          whoDrives: tractor.whoDrives || '',
+          tractorImage: getImageUrl(tractor.tractorImage),
+          rcImagesFront: getImageUrl(tractor.rcImagesFront),
+          rcImagesBack: getImageUrl(tractor.rcImagesBack),
+          // Keep rcImages for backward compatibility if needed
+          rcImages: [
+            tractor.rcImagesFront ? getImageUrl(tractor.rcImagesFront) : null,
+            tractor.rcImagesBack ? getImageUrl(tractor.rcImagesBack) : null,
+          ].filter(Boolean) as string[],
+        }));
+        
+        // Transform API response to match expected format
+        setFarmerDetails({
+          id: farmerData.farmerId || params?.farmerId || '',
+          farmer_id: farmerData.farmerId || '',
+          firstName: farmerData.firstName || '',
+          middleName: farmerData.middleName || '',
+          lastName: farmerData.lastName || '',
+          fullName: fullName,
+          mobile: farmerData.mobile || '',
+          dateOfBirth: formatDate(farmerData.dateOfBirth) || '',
+          dateOfMarriage: formatDate(farmerData.dateOfMarriage) || '',
+          dealershipName: farmerData.dealershipName || '',
+          profileImage: getImageUrl(farmerData.profileImage),
+          tractors: transformedTractors,
+        });
+      } else {
+        // API didn't return expected structure
+        console.warn('Unexpected API response format:', response);
+        setFarmerDetails(null);
+      }
+    } catch (error) {
+      console.error('Error fetching farmer details:', error);
+      setFarmerDetails(null);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  // Handle pull to refresh
+  const onRefresh = React.useCallback(() => {
+    fetchFarmerDetails(true);
+  }, []);
+
+  // Fetch data on mount and whenever screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchFarmerDetails();
+    }, [params?.farmer_id, params?.farmerId])
+  );
 
   // Prepare images for preview modal from API data based on selected tractor
   const previewImages: ImageItem[] = useMemo(() => {
@@ -214,13 +255,19 @@ export default function FarmerDetailsScreen() {
       });
     }
     
-    // Add RC images if available
-    if (tractor.rcImages && tractor.rcImages.length > 0) {
-      tractor.rcImages.forEach((rcImage: string, index: number) => {
-        images.push({
-          id: `rc-${index}`,
-          uri: rcImage,
-        });
+    // Add RC front image if available
+    if (tractor.rcImagesFront) {
+      images.push({
+        id: 'rc-front',
+        uri: tractor.rcImagesFront,
+      });
+    }
+    
+    // Add RC back image if available
+    if (tractor.rcImagesBack) {
+      images.push({
+        id: 'rc-back',
+        uri: tractor.rcImagesBack,
       });
     }
     
@@ -236,11 +283,6 @@ export default function FarmerDetailsScreen() {
     setPreviewModalVisible(false);
   };
 
-  const handleReplaceImage = (imageId: string) => {
-    // Handle replace image action
-    console.log('Replace image:', imageId);
-    // You can add your replace image logic here
-  };
 
   // Update StatusBar and bottom bar to match screen background color
   useDynamicStatusBar({
@@ -260,7 +302,7 @@ export default function FarmerDetailsScreen() {
           alignItems: 'center',
           justifyContent: 'space-between',
           paddingHorizontal: moderateScale(16),
-          paddingTop: insets.top,
+          paddingTop: insets.top + moderateScale(12),
           marginBottom:moderateScale(7),
           paddingBottom: moderateScale(12),
           backgroundColor: colors.backgroundLight,
@@ -283,6 +325,7 @@ export default function FarmerDetailsScreen() {
           ...Typography.boldXxl,
           color: colors.textPrimary,
           fontSize: moderateScale(22),
+          marginLeft: moderateScale(10),
         },
         editButton: {
           paddingHorizontal: moderateScale(16),
@@ -393,6 +436,8 @@ export default function FarmerDetailsScreen() {
           marginHorizontal:moderateScale(5),
           paddingHorizontal:moderateScale(10),
           backgroundColor: colors.backgroundGray,
+          alignItems: 'center',
+          justifyContent: 'center',
         },
         placeholderImage: {
           width: '100%',
@@ -457,7 +502,15 @@ export default function FarmerDetailsScreen() {
       <ScrollView
         style={{flex: 1}}
         contentContainerStyle={dynamicStyles.scrollContent}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }>
         {/* User Details Card */}
         <View style={dynamicStyles.card}>
           <View style={dynamicStyles.profileHeader}>
@@ -475,15 +528,6 @@ export default function FarmerDetailsScreen() {
                   </Text>
                 </View>
               )}
-              <TouchableOpacity
-                style={dynamicStyles.cameraIconContainer}
-                activeOpacity={0.7}>
-                <Ionicons
-                  name="camera"
-                  size={moderateScale(14)}
-                  color={colors.textWhite}
-                />
-              </TouchableOpacity>
             </View>
             <View style={dynamicStyles.profileInfo}>
               <Text style={dynamicStyles.profileName}>
@@ -527,7 +571,7 @@ export default function FarmerDetailsScreen() {
           />
           <InfoRow
             label="Dealership name"
-            value={farmerDetails.dealershipName}            
+            value={dealershipName || farmerDetails.dealershipName || 'N/A'}            
             moderateScale={moderateScale}
             isShowBorderBottom={false}
           />
@@ -543,19 +587,19 @@ export default function FarmerDetailsScreen() {
           </View>
 
           {farmerDetails.tractors.map((tractor: any, index: number) => {
-            // Get RC images (can be multiple)
-            const rcImage1 = tractor.rcImages?.[0] || null;
-            const rcImage2 = tractor.rcImages?.[1] || null;
+            // Get RC images using rcImagesFront and rcImagesBack
+            const rcImageFront = tractor.rcImagesFront || null;
+            const rcImageBack = tractor.rcImagesBack || null;
             
             // Calculate image index for preview modal
-            const getImageIndex = (imageType: 'tractor' | 'rc1' | 'rc2') => {
+            const getImageIndex = (imageType: 'tractor' | 'rcFront' | 'rcBack') => {
               let imgIndex = 0;
               if (imageType === 'tractor' && tractor.tractorImage) {
                 imgIndex = 0;
-              } else if (imageType === 'rc1' && rcImage1) {
+              } else if (imageType === 'rcFront' && rcImageFront) {
                 imgIndex = tractor.tractorImage ? 1 : 0;
-              } else if (imageType === 'rc2' && rcImage2) {
-                imgIndex = (tractor.tractorImage ? 1 : 0) + (rcImage1 ? 1 : 0);
+              } else if (imageType === 'rcBack' && rcImageBack) {
+                imgIndex = (tractor.tractorImage ? 1 : 0) + (rcImageFront ? 1 : 0);
               }
               return imgIndex;
             };
@@ -567,7 +611,7 @@ export default function FarmerDetailsScreen() {
                   <TouchableOpacity
                     style={dynamicStyles.tractorMainImage}
                     onPress={() => {
-                      if (tractor.tractorImage || rcImage1 || rcImage2) {
+                      if (tractor.tractorImage || rcImageFront || rcImageBack) {
                         setSelectedTractorIndex(index);
                         setSelectedImageIndex(getImageIndex('tractor'));
                         setPreviewModalVisible(true);
@@ -587,49 +631,59 @@ export default function FarmerDetailsScreen() {
                     )}
                   </TouchableOpacity>
 
-                  {/* Document Images */}
+                  {/* RC Book Images */}
                   <View style={dynamicStyles.documentImagesContainer}>
                     <TouchableOpacity
                       style={dynamicStyles.documentImage}
                       onPress={() => {
-                        if (rcImage1) {
+                        if (rcImageFront) {
                           setSelectedTractorIndex(index);
-                          setSelectedImageIndex(getImageIndex('rc1'));
+                          setSelectedImageIndex(getImageIndex('rcFront'));
                           setPreviewModalVisible(true);
                         }
                       }}
-                      activeOpacity={rcImage1 ? 0.7 : 1}>
-                      {rcImage1 ? (
+                      activeOpacity={rcImageFront ? 0.7 : 1}>
+                      {rcImageFront ? (
                         <Image 
-                          source={{uri: rcImage1}} 
-                          style={{width:moderateScale(140),height:moderateScale(70),borderRadius: moderateScale(8)}}
+                          source={{uri: rcImageFront}} 
+                          style={{
+                            width: moderateScale(140),
+                            height: moderateScale(70),
+                            borderRadius: moderateScale(8),
+                            alignSelf: 'center',
+                          }}
                           resizeMode="cover"
                         />
                       ) : (
                         <View style={dynamicStyles.placeholderImage}>
-                          <Text style={[dynamicStyles.placeholderText, {fontSize: moderateScale(10)}]}>No RC image</Text>
+                          <Text style={[dynamicStyles.placeholderText, {fontSize: moderateScale(10)}]}>No RC Front</Text>
                         </View>
                       )}
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={dynamicStyles.documentImage}
                       onPress={() => {
-                        if (rcImage2) {
+                        if (rcImageBack) {
                           setSelectedTractorIndex(index);
-                          setSelectedImageIndex(getImageIndex('rc2'));
+                          setSelectedImageIndex(getImageIndex('rcBack'));
                           setPreviewModalVisible(true);
                         }
                       }}
-                      activeOpacity={rcImage2 ? 0.7 : 1}>
-                      {rcImage2 ? (
+                      activeOpacity={rcImageBack ? 0.7 : 1}>
+                      {rcImageBack ? (
                         <Image 
-                          source={{uri: rcImage2}} 
-                          style={{width:moderateScale(140),height:moderateScale(70),borderRadius: moderateScale(8)}}
+                          source={{uri: rcImageBack}} 
+                          style={{
+                            width: moderateScale(140),
+                            height: moderateScale(70),
+                            borderRadius: moderateScale(8),
+                            alignSelf: 'center',
+                          }}
                           resizeMode="cover"
                         />
                       ) : (
                         <View style={dynamicStyles.placeholderImage}>
-                          <Text style={[dynamicStyles.placeholderText, {fontSize: moderateScale(10)}]}>No RC image</Text>
+                          <Text style={[dynamicStyles.placeholderText, {fontSize: moderateScale(10)}]}>No RC Back</Text>
                         </View>
                       )}
                     </TouchableOpacity>
@@ -693,7 +747,6 @@ export default function FarmerDetailsScreen() {
         images={previewImages}
         initialIndex={selectedImageIndex}
         onClose={handleCloseModal}
-        onReplaceImage={handleReplaceImage}
       />
     </View>
   );

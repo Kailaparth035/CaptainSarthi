@@ -1,4 +1,4 @@
-import React, {useMemo} from 'react';
+import React, {useMemo, useState} from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  RefreshControl,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
@@ -15,6 +16,7 @@ import useDeviceMetrics from '../utils/responsiveCustom';
 import {Typography} from '../utils/typography';
 import {ImagePath} from '../assets/images';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
+import {useLanguage} from '../contexts/LanguageContext';
 
 // Mock data for farmer profile details
 const getFarmerProfileDetails = () => {
@@ -51,12 +53,48 @@ const InfoRow = ({
   value,
   moderateScale,
   isShowBorderBottom = true,
+  isColumn = false,
 }: {
   label: string;
   value: string;
   moderateScale: (size: number, factor?: number) => number;
   isShowBorderBottom?: boolean;
+  isColumn?: boolean;
 }) => {
+  if (isColumn) {
+    return (
+      <View
+        style={{
+          paddingVertical: moderateScale(12),
+          borderBottomWidth: isShowBorderBottom ? 1 : 0,
+          borderBottomColor: colors.borderLight,
+        }}>
+        <Text
+          style={[
+            Typography.regularMd,
+            {
+              fontSize: moderateScale(14),
+              color: colors.textTertiary,
+              marginBottom: moderateScale(8),
+            },
+          ]}>
+          {label}:
+        </Text>
+        <Text
+          style={[
+            Typography.regularMd,
+            {
+              fontSize: moderateScale(14),
+              color: colors.textPrimary,
+              textAlign: 'left',
+            },
+          ]}>
+          {value}
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View
       style={{
@@ -96,9 +134,20 @@ const InfoRow = ({
 export default function FarmerProfileDetailsScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
+  const {t} = useLanguage();
   const navigation = useNavigation();
+  const [refreshing, setRefreshing] = useState(false);
 
   const profileDetails = useMemo(() => getFarmerProfileDetails(), []);
+
+  // Handle pull to refresh
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    // Simulate API call - replace with actual API call when available
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1000);
+  }, []);
 
   // Update StatusBar and bottom bar to match screen background color
   useDynamicStatusBar({
@@ -117,7 +166,7 @@ export default function FarmerProfileDetailsScreen() {
           flexDirection: 'row',
           alignItems: 'center',
           paddingHorizontal: moderateScale(16),
-          paddingTop: insets.top,
+          paddingTop: insets.top + moderateScale(12),
           marginBottom: moderateScale(7),
           paddingBottom: moderateScale(12),
           backgroundColor: colors.backgroundLight,
@@ -135,6 +184,7 @@ export default function FarmerProfileDetailsScreen() {
           ...Typography.boldXxl,
           color: colors.textPrimary,
           fontSize: moderateScale(22),
+          marginLeft: moderateScale(10),
         },
         scrollContent: {
           paddingHorizontal: moderateScale(16),
@@ -249,14 +299,22 @@ export default function FarmerProfileDetailsScreen() {
             color={colors.textPrimary}
           />
         </TouchableOpacity>
-        <Text style={dynamicStyles.headerTitle}>Profile</Text>
+        <Text style={dynamicStyles.headerTitle}>{t('profile.title')}</Text>
       </View>
 
       {/* Scrollable Content */}
       <ScrollView
         style={{flex: 1}}
         contentContainerStyle={dynamicStyles.scrollContent}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }>
         {/* User Profile Section */}
         <View style={dynamicStyles.card}>
           {/* Profile Header */}
@@ -289,45 +347,46 @@ export default function FarmerProfileDetailsScreen() {
 
           {/* Personal Details */}
           <InfoRow
-            label="First name"
+            label={t('farmerProfile.firstName')}
             value={profileDetails.firstName}
             moderateScale={moderateScale}
           />
           <InfoRow
-            label="Middle name"
+            label={t('farmerProfile.middleName')}
             value={profileDetails.middleName}
             moderateScale={moderateScale}
           />
           <InfoRow
-            label="Last name"
+            label={t('farmerProfile.lastName')}
             value={profileDetails.lastName}
             moderateScale={moderateScale}
           />
           <InfoRow
-            label="Mobile no."
+            label={t('farmerProfile.mobileNo')}
             value={profileDetails.mobile}
             moderateScale={moderateScale}
           />
           <InfoRow
-            label="Date of birth"
+            label={t('farmerProfile.dateOfBirth')}
             value={profileDetails.dateOfBirth}
             moderateScale={moderateScale}
           />
           <InfoRow
-            label="Date of marriage"
+            label={t('farmerProfile.dateOfMarriage')}
             value={profileDetails.dateOfMarriage}
             moderateScale={moderateScale}
           />
           <InfoRow
-            label="Dealership name"
+            label={t('farmerProfile.dealershipName')}
             value={profileDetails.dealershipName}
             moderateScale={moderateScale}
           />
           <InfoRow
-            label="Dealership address"
+            label={t('farmerProfile.dealershipAddress')}
             value={profileDetails.dealershipAddress}
             moderateScale={moderateScale}
             isShowBorderBottom={false}
+            isColumn={true}
           />
         </View>
 
@@ -335,9 +394,9 @@ export default function FarmerProfileDetailsScreen() {
         {profileDetails.tractors.map((tractor, index) => (
           <View key={tractor.id} style={dynamicStyles.card}>
             <View style={dynamicStyles.tractorHeader}>
-              <Text style={dynamicStyles.tractorTitle}>Tractor details</Text>
+              <Text style={dynamicStyles.tractorTitle}>{t('farmerProfile.tractorDetails')}</Text>
               <Text style={dynamicStyles.tractorCount}>
-                Tractor count: {index + 1} of {profileDetails.tractors.length}
+                {t('farmerProfile.tractorCount')}: {index + 1} of {profileDetails.tractors.length}
               </Text>
             </View>
 
@@ -358,47 +417,47 @@ export default function FarmerProfileDetailsScreen() {
 
             {/* Tractor Specifications */}
             <InfoRow
-              label="Model name"
+              label={t('farmerProfile.modelName')}
               value={tractor.model}
               moderateScale={moderateScale}
             />
             <InfoRow
-              label="Vehicle no."
+              label={t('farmerProfile.vehicleNo')}
               value={tractor.vehicleNo}
               moderateScale={moderateScale}
             />
             <InfoRow
-              label="Owner name"
+              label={t('farmerProfile.ownerName')}
               value={tractor.ownerName}
               moderateScale={moderateScale}
             />
             <InfoRow
-              label="Chassis no."
+              label={t('farmerProfile.chassisNo')}
               value={tractor.chassisNo}
               moderateScale={moderateScale}
             />
             <InfoRow
-              label="Engine no."
+              label={t('farmerProfile.engineNo')}
               value={tractor.engineNo}
               moderateScale={moderateScale}
             />
             <InfoRow
-              label="Mobile no."
+              label={t('farmerProfile.mobileNo')}
               value={tractor.mobile}
               moderateScale={moderateScale}
             />
             <InfoRow
-              label="Date of invoice"
+              label={t('farmerProfile.dateOfInvoice')}
               value={tractor.dateOfInvoice}
               moderateScale={moderateScale}
             />
             <InfoRow
-              label="Date of registration"
+              label={t('farmerProfile.dateOfRegistration')}
               value={tractor.dateOfRegistration}
               moderateScale={moderateScale}
             />
             <InfoRow
-              label="Who drives"
+              label={t('farmerProfile.whoDrives')}
               value={tractor.whoDrives}
               moderateScale={moderateScale}
               isShowBorderBottom={false}

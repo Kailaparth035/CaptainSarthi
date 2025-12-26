@@ -10,7 +10,7 @@ import {
   Dimensions,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {useNavigation, CommonActions} from '@react-navigation/native';
+import {useNavigation, CommonActions, useFocusEffect} from '@react-navigation/native';
 import {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
 import {FarmerTabParamList} from '../navigation/FarmerTabNavigator';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -22,107 +22,31 @@ import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import VideoPlayer from '../components/VideoPlayer';
 import {SCREEN_NAMES} from '../constants/screenNames';
 import {ImagePath} from '../assets/images';
-import {Platform} from 'react-native';
+import {Platform, ActivityIndicator} from 'react-native';
 import {useLanguage} from '../contexts/LanguageContext';
+import {getData} from '../Service/Apimethod';
+import Apis, {API_BASE_URL} from '../Service/constant';
+import {getImageUrl} from '../utils/imageUtils';
 
 const screenWidth = Dimensions.get('window').width;
 const screenHeight = Dimensions.get('window').height;
 
-// Mock data
-const carouselItems = [
-  {
-    id: '1',
-    type: 'video',
-    thumbnailSource: ImagePath.farmerTractor,
-    videoUri: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-    title: 'Tractor Video 1',
-  },
-  {
-    id: '2',
-    type: 'image',
-    imageUri: ImagePath.farmerTractor,
-  },
-  {
-    id: '3',
-    type: 'image',
-    imageUri: ImagePath.farmerTractor,
-  },
-];
 
-const recentEvents = [
-  {
-    id: '1',
-    thumbnail: ImagePath.farmerTractor,
-    title: 'Little master workshop',
-    date: '16 Nov 2025',
-  },
-  {
-    id: '2',
-    thumbnail: ImagePath.farmerTractor,
-    title: 'Little master training',
-    date: '18 Nov 2025',
-  },
-  {
-    id: '3',
-    thumbnail: ImagePath.farmerTractor,
-    title: 'Agricultural seminar',
-    date: '20 Nov 2025',
-  },
-];
+// Helper function to format date
+const formatDate = (dateString: string): string => {
+  if (!dateString) return '';
+  try {
+    const date = new Date(dateString);
+    const day = date.getDate();
+    const month = date.toLocaleString('default', {month: 'short'});
+    const year = date.getFullYear();
+    return `${day} ${month} ${year}`;
+  } catch (error) {
+    return dateString;
+  }
+};
 
-const recentStories = [
-  {
-    id: '1',
-    thumbnail: ImagePath.farmerTractor,
-    title: 'Little master story',
-    date: '16 Nov 2025',
-  },
-  {
-    id: '2',
-    thumbnail: ImagePath.farmerTractor,
-    title: 'Little master journey',
-    date: '18 Nov 2025',
-  },
-  {
-    id: '3',
-    thumbnail: ImagePath.farmerTractor,
-    title: 'Success story',
-    date: '20 Nov 2025',
-  },
-];
-
-const membershipServices = [
-  {
-    id: '1',
-    imageName:ImagePath.support ,
-    title: 'Quick problem solution',
-    description: '24/7 active support',
-  },
-  {
-    id: '2',    
-    imageName:ImagePath.prioritySupport ,
-    title: 'Priority customer support',
-    description: 'Priority support from our team',
-  },
-  {
-    id: '3',
-    imageName:ImagePath.call ,
-    title: 'Direct contact to company',
-    description: 'Contact our core team',
-  },
-  {
-    id: '4',
-    imageName:ImagePath.events ,
-    title: 'Special invite in events',
-    description: 'Special invitations to our events',
-  },
-  {
-    id: '5',
-    imageName:ImagePath.offer ,
-    title: 'Special discount',
-    description: 'On tractor services, charges, spares',
-  },
-];
+// Membership services will be created with translations in the component
 
 export default function FarmerHomeScreen() {
   const insets = useSafeAreaInsets();
@@ -133,46 +57,225 @@ export default function FarmerHomeScreen() {
   const [currentCarouselIndex, setCurrentCarouselIndex] = useState(0);
   const carouselRef = useRef<FlatList>(null);
   const autoSlideTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // API data states
+  const [carouselItems, setCarouselItems] = useState<any[]>([]);
+  const [recentEvents, setRecentEvents] = useState<any[]>([]);
+  const [recentStories, setRecentStories] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Membership services with translations
+  const membershipServices = useMemo(() => [
+    {
+      id: '1',
+      imageName: ImagePath.support,
+      title: t('farmerHome.services.quickProblemSolution.title'),
+      description: t('farmerHome.services.quickProblemSolution.description'),
+    },
+    {
+      id: '2',
+      imageName: ImagePath.prioritySupport,
+      title: t('farmerHome.services.prioritySupport.title'),
+      description: t('farmerHome.services.prioritySupport.description'),
+    },
+    {
+      id: '3',
+      imageName: ImagePath.call,
+      title: t('farmerHome.services.directContact.title'),
+      description: t('farmerHome.services.directContact.description'),
+    },
+    {
+      id: '4',
+      imageName: ImagePath.events,
+      title: t('farmerHome.services.specialInvite.title'),
+      description: t('farmerHome.services.specialInvite.description'),
+    },
+    {
+      id: '5',
+      imageName: ImagePath.offer,
+      title: t('farmerHome.services.specialDiscount.title'),
+      description: t('farmerHome.services.specialDiscount.description'),
+    },
+  ], [t]);
 
   useDynamicStatusBar({
     backgroundColor: colors.backgroundLight,
     bottomBarColor: colors.backgroundLight,
   });
 
+  // Fetch dashboard data from API
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      console.log('[FarmerHomeScreen] Fetching dashboard data...');
+      const response = await getData(Apis.FARMER_DASHBOARD, {});
+      
+      console.log('[FarmerHomeScreen] Dashboard API response:', JSON.stringify(response, null, 2));
+      
+      if (response?.status === true && response?.data) {
+        const dashboardData = response.data;
+        
+        // Transform top videos for carousel
+        if (dashboardData.top_videos && Array.isArray(dashboardData.top_videos.list)) {
+          const videos = dashboardData.top_videos.list.map((video: any, index: number) => ({
+            id: video.video_id || `video_${index}`,
+            type: 'video',
+            thumbnailSource: ImagePath.farmerTractor, // Fallback
+            thumbnailUri: video.image_url ? getImageUrl(video.image_url) : null,
+            videoUri: video.video_url || '',
+            title: video.title || '',
+          }));
+          setCarouselItems(videos.length > 0 ? videos : []);
+        } else {
+          // Fallback to default carousel if no videos
+          setCarouselItems([
+            {
+              id: '1',
+              type: 'video',
+              thumbnailSource: ImagePath.farmerTractor,
+              videoUri: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+              title: 'Tractor Video 1',
+            },
+          ]);
+        }
+        
+        // Transform recent events
+        if (dashboardData.recent_events && Array.isArray(dashboardData.recent_events.list)) {
+          const events = dashboardData.recent_events.list.map((event: any) => ({
+            id: event.event_id || event.id,
+            thumbnail: event.image_url ? {uri: getImageUrl(event.image_url)} : ImagePath.farmerTractor,
+            title: event.title || '',
+            date: formatDate(event.publish_date || event.event_date || ''),
+          }));
+          setRecentEvents(events);
+        } else {
+          setRecentEvents([]);
+        }
+        
+        // Transform recent stories
+        if (dashboardData.recent_stories && Array.isArray(dashboardData.recent_stories.list)) {
+          const stories = dashboardData.recent_stories.list.map((story: any) => ({
+            id: story.story_id || story.id,
+            thumbnail: story.image_url ? {uri: getImageUrl(story.image_url)} : ImagePath.farmerTractor,
+            title: story.title || '',
+            date: formatDate(story.publish_date || ''),
+          }));
+          setRecentStories(stories);
+        } else {
+          setRecentStories([]);
+        }
+      } else {
+        console.warn('[FarmerHomeScreen] Unexpected API response format:', response);
+        // Set empty arrays on error
+        setCarouselItems([]);
+        setRecentEvents([]);
+        setRecentStories([]);
+      }
+    } catch (error) {
+      console.error('[FarmerHomeScreen] Error fetching dashboard data:', error);
+      // Set empty arrays on error
+      setCarouselItems([]);
+      setRecentEvents([]);
+      setRecentStories([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch data on mount and when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('[FarmerHomeScreen] Screen focused - fetching dashboard data');
+      fetchDashboardData();
+    }, [])
+  );
+
   // Auto slide functionality
   const startAutoSlide = () => {
+    // Don't start auto slide if there are no items or only one item
+    if (!carouselItems || carouselItems.length <= 1) {
+      if (autoSlideTimerRef.current) {
+        clearInterval(autoSlideTimerRef.current);
+        autoSlideTimerRef.current = null;
+      }
+      return;
+    }
+    
     if (autoSlideTimerRef.current) {
       clearInterval(autoSlideTimerRef.current);
     }
+    
     autoSlideTimerRef.current = setInterval(() => {
       setCurrentCarouselIndex(prevIndex => {
-        const nextIndex = (prevIndex + 1) % carouselItems.length;
-        carouselRef.current?.scrollToIndex({
-          index: nextIndex,
-          animated: true,
-        });
+        // Ensure prevIndex is a valid number
+        const currentIndex = isNaN(prevIndex) || prevIndex < 0 ? 0 : prevIndex;
+        const nextIndex = (currentIndex + 1) % carouselItems.length;
+        
+        // Validate nextIndex before scrolling
+        if (nextIndex >= 0 && nextIndex < carouselItems.length && carouselRef.current) {
+          try {
+            carouselRef.current.scrollToIndex({
+              index: nextIndex,
+              animated: true,
+            });
+          } catch (error) {
+            console.error('[FarmerHomeScreen] Error scrolling to index:', error);
+            // Fallback to scrollToOffset if scrollToIndex fails
+            const itemWidth = screenWidth - moderateScale(32) - moderateScale(20);
+            carouselRef.current.scrollToOffset({
+              offset: nextIndex * itemWidth,
+              animated: true,
+            });
+          }
+        }
         return nextIndex;
       });
     }, 3000); // Auto slide every 3 seconds
   };
 
   useEffect(() => {
-    startAutoSlide();
+    // Only start auto slide if we have carousel items
+    if (carouselItems && carouselItems.length > 1) {
+      startAutoSlide();
+    }
 
     return () => {
       if (autoSlideTimerRef.current) {
         clearInterval(autoSlideTimerRef.current);
+        autoSlideTimerRef.current = null;
       }
     };
-  }, []);
+  }, [carouselItems]);
+  
+  // Reset carousel index when items change or become empty
+  useEffect(() => {
+    if (carouselItems.length === 0) {
+      setCurrentCarouselIndex(0);
+    } else if (currentCarouselIndex >= carouselItems.length) {
+      setCurrentCarouselIndex(0);
+    } else if (isNaN(currentCarouselIndex) || currentCarouselIndex < 0) {
+      setCurrentCarouselIndex(0);
+    }
+  }, [carouselItems.length, currentCarouselIndex]);
 
   // Reset auto slide timer when user manually scrolls
   const handleScroll = (event: any) => {
+    if (!carouselItems || carouselItems.length === 0) {
+      return;
+    }
+    
     const scrollPosition = event.nativeEvent.contentOffset.x;
     const itemWidth = screenWidth - moderateScale(32) - moderateScale(20); // Account for margins and padding
+    
+    // Prevent division by zero
+    if (itemWidth <= 0) {
+      return;
+    }
+    
     const index = Math.round(scrollPosition / itemWidth);
     
-    if (index !== currentCarouselIndex && index >= 0 && index < carouselItems.length) {
+    // Validate index before updating
+    if (!isNaN(index) && index >= 0 && index < carouselItems.length && index !== currentCarouselIndex) {
       setCurrentCarouselIndex(index);
       // Reset auto slide timer after manual scroll
       startAutoSlide();
@@ -194,7 +297,7 @@ export default function FarmerHomeScreen() {
           justifyContent: 'space-between',
           alignItems: 'center',
           paddingHorizontal: moderateScale(16),
-          paddingTop: insets.top,
+          paddingTop: insets.top + moderateScale(12),
           paddingBottom: moderateScale(16),
         },
         greeting: {
@@ -512,135 +615,181 @@ export default function FarmerHomeScreen() {
       {/* Header */}
       <View style={dynamicStyles.header}>
         <Text style={dynamicStyles.greeting}>{t('farmerHome.greeting')} Harrison</Text>
-        <TouchableOpacity
-          style={dynamicStyles.bellIcon}
-          activeOpacity={0.7}
-          onPress={() => {
-            // Navigate to notifications
-            (navigation as any).navigate(SCREEN_NAMES.Notifications);
-          }}>
-          <Ionicons
-            name="notifications-outline"
-            size={moderateScale(22)}
-            color={colors.textPrimary}
-          />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={dynamicStyles.scrollContent}>
-        {/* Full Screen Video/Image Carousel */}
-        <View style={dynamicStyles.carouselContainer}>
-          <View style={dynamicStyles.carouselWrapper}>
-            <FlatList
-              ref={carouselRef}
-              data={carouselItems}
-              renderItem={renderCarouselItem}
-              keyExtractor={item => item.id}
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              snapToInterval={screenWidth - moderateScale(32) - moderateScale(20)}
-              snapToAlignment="center"
-              decelerationRate="fast"
-              onScroll={handleScroll}
-              scrollEventThrottle={16}
-              contentContainerStyle={{
-                paddingHorizontal: 0,
-              }}
-              onScrollToIndexFailed={(info) => {
-                const wait = new Promise(resolve => setTimeout(resolve, 500));
-                wait.then(() => {
-                  carouselRef.current?.scrollToIndex({ index: info.index, animated: true });
-                });
-              }}
-            />
-          </View>
-          {/* Pagination Dots */}
-          <View style={dynamicStyles.paginationContainer}>
-            {carouselItems.map((_, index) => (
-              <View
-                key={index}
-                style={[
-                  dynamicStyles.paginationDot,
-                  index === currentCarouselIndex && dynamicStyles.paginationDotActive,
-                ]}
-              />
-            ))}
-          </View>
-        </View>
-
-        {/* Recent Events Section */}
-       
-        <View style={dynamicStyles.eventSliderContainer}>
-           <View style={dynamicStyles.sectionHeader}>
-          <Text style={dynamicStyles.sectionTitle}>Recent events</Text>
-          <TouchableOpacity 
-            activeOpacity={0.7} 
-            onPress={() => {
-              // Navigate to Events tab and ensure we're on the Events list screen
-              tabNavigation.dispatch(
-                CommonActions.navigate({
-                  name: SCREEN_NAMES.Events,
-                  params: {
-                    screen: SCREEN_NAMES.Events,
-                  },
-                }),
-              );
-            }}>
-            <Text style={dynamicStyles.seeAllText}>{t('home.seeAll')}</Text>
-          </TouchableOpacity>
-        </View>
-          <FlatList
-            data={recentEvents}
-            renderItem={renderEventCard}
-            keyExtractor={item => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{
-              paddingLeft: moderateScale(16),
-              paddingRight: moderateScale(16),
-            }}
-          />
-        </View>
-
-        {/* Recent Stories Section */}
-        
-        <View style={dynamicStyles.eventSliderContainer}>
-          <View
-          style={[
-            dynamicStyles.sectionHeader
-          ]}>
-          <Text style={dynamicStyles.sectionTitle}>Recent stories</Text>
-          <TouchableOpacity 
+        <View style={{flexDirection: 'row', alignItems: 'center', gap: moderateScale(12)}}>
+          <TouchableOpacity
+            style={dynamicStyles.bellIcon}
             activeOpacity={0.7}
             onPress={() => {
-              // Navigate to Stories tab and ensure we're on the Stories list screen
-              tabNavigation.dispatch(
-                CommonActions.navigate({
-                  name: SCREEN_NAMES.Stories,
-                  params: {
-                    screen: SCREEN_NAMES.Stories,
-                  },
-                }),
-              );
+              // Navigate to Language screen
+              (navigation as any).navigate(SCREEN_NAMES.Language);
             }}>
-            <Text style={dynamicStyles.seeAllText}>{t('home.seeAll')}</Text>
+            <Ionicons
+              name="language-outline"
+              size={moderateScale(22)}
+              color={colors.textPrimary}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={dynamicStyles.bellIcon}
+            activeOpacity={0.7}
+            onPress={() => {
+              // Navigate to notifications
+              (navigation as any).navigate(SCREEN_NAMES.Notifications);
+            }}>
+            <Ionicons
+              name="notifications-outline"
+              size={moderateScale(22)}
+              color={colors.textPrimary}
+            />
           </TouchableOpacity>
         </View>
-          <FlatList
-            data={recentStories}
-            renderItem={renderStoryCard}
-            keyExtractor={item => item.id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{
-              paddingLeft: moderateScale(16),
-              paddingRight: moderateScale(16),
-            }}
-          />
+      </View>
+
+      {loading ? (
+        <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
+      ) : (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={dynamicStyles.scrollContent}>
+          {/* Full Screen Video/Image Carousel */}
+          {carouselItems.length > 0 && (
+            <View style={dynamicStyles.carouselContainer}>
+              <View style={dynamicStyles.carouselWrapper}>
+                <FlatList
+                  ref={carouselRef}
+                  data={carouselItems}
+                  renderItem={renderCarouselItem}
+                  keyExtractor={item => item.id || `item_${item.video_id || Math.random()}`}
+                  horizontal
+                  pagingEnabled
+                  showsHorizontalScrollIndicator={false}
+                  snapToInterval={screenWidth - moderateScale(32) - moderateScale(20)}
+                  snapToAlignment="center"
+                  decelerationRate="fast"
+                  onScroll={handleScroll}
+                  scrollEventThrottle={16}
+                  getItemLayout={(data, index) => {
+                    const itemWidth = screenWidth - moderateScale(32) - moderateScale(20);
+                    return {
+                      length: itemWidth,
+                      offset: itemWidth * index,
+                      index,
+                    };
+                  }}
+                  contentContainerStyle={{
+                    paddingHorizontal: 0,
+                  }}
+                  onScrollToIndexFailed={(info) => {
+                    console.warn('[FarmerHomeScreen] scrollToIndex failed:', info);
+                    // Validate index before attempting scroll
+                    if (isNaN(info.index) || info.index < 0 || info.index >= carouselItems.length) {
+                      console.error('[FarmerHomeScreen] Invalid index in onScrollToIndexFailed:', info.index);
+                      return;
+                    }
+                    // Fallback to scrollToOffset
+                    const itemWidth = screenWidth - moderateScale(32) - moderateScale(20);
+                    const wait = new Promise(resolve => setTimeout(resolve, 500));
+                    wait.then(() => {
+                      if (carouselRef.current) {
+                        try {
+                          carouselRef.current.scrollToOffset({
+                            offset: info.index * itemWidth,
+                            animated: true,
+                          });
+                        } catch (error) {
+                          console.error('[FarmerHomeScreen] Error in scrollToIndexFailed fallback:', error);
+                        }
+                      }
+                    });
+                  }}
+                />
+              </View>
+              {/* Pagination Dots */}
+              <View style={dynamicStyles.paginationContainer}>
+                {carouselItems.map((_, index) => (
+                  <View
+                    key={index}
+                    style={[
+                      dynamicStyles.paginationDot,
+                      index === currentCarouselIndex && dynamicStyles.paginationDotActive,
+                    ]}
+                  />
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* Recent Events Section */}
+          {recentEvents.length > 0 && (
+            <View style={dynamicStyles.eventSliderContainer}>
+              <View style={dynamicStyles.sectionHeader}>
+                <Text style={dynamicStyles.sectionTitle}>{t('farmerHome.recentEvents')}</Text>
+                <TouchableOpacity 
+                  activeOpacity={0.7} 
+                  onPress={() => {
+                    // Navigate to Events tab and ensure we're on the Events list screen
+                    tabNavigation.dispatch(
+                      CommonActions.navigate({
+                        name: SCREEN_NAMES.Events,
+                        params: {
+                          screen: SCREEN_NAMES.Events,
+                        },
+                      }),
+                    );
+                  }}>
+                  <Text style={dynamicStyles.seeAllText}>{t('home.seeAll')}</Text>
+                </TouchableOpacity>
+              </View>
+              <FlatList
+                data={recentEvents}
+                renderItem={renderEventCard}
+                keyExtractor={item => item.id}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{
+                  paddingLeft: moderateScale(16),
+                  paddingRight: moderateScale(16),
+                }}
+              />
+            </View>
+          )}
+
+          {/* Recent Stories Section */}
+          {recentStories.length > 0 && (
+            <View style={dynamicStyles.eventSliderContainer}>
+              <View style={dynamicStyles.sectionHeader}>
+                <Text style={dynamicStyles.sectionTitle}>{t('farmerHome.recentStories')}</Text>
+                <TouchableOpacity 
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    // Navigate to Stories tab and ensure we're on the Stories list screen
+                    tabNavigation.dispatch(
+                      CommonActions.navigate({
+                        name: SCREEN_NAMES.Stories,
+                        params: {
+                          screen: SCREEN_NAMES.Stories,
+                        },
+                      }),
+                    );
+                  }}>
+                  <Text style={dynamicStyles.seeAllText}>{t('home.seeAll')}</Text>
+                </TouchableOpacity>
+              </View>
+              <FlatList
+                data={recentStories}
+                renderItem={renderStoryCard}
+                keyExtractor={item => item.id}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{
+                  paddingLeft: moderateScale(16),
+                  paddingRight: moderateScale(16),
+                }}
+              />
+            </View>
+          )}
 
         {/* Membership Services Section */}
         <View style={{backgroundColor:colors.white,marginHorizontal:moderateScale(16),borderRadius:moderateScale(10),paddingTop:moderateScale(15)}}>
@@ -649,11 +798,12 @@ export default function FarmerHomeScreen() {
             dynamicStyles.sectionHeader,
             {marginBottom: moderateScale(12)},
           ]}>
-          <Text style={dynamicStyles.sectionTitle}>Membership services</Text>
+          <Text style={dynamicStyles.sectionTitle}>{t('farmerHome.membershipServices')}</Text>
         </View>
-        {membershipServices.map(service => renderServiceCard(service))}
+          {membershipServices.map(service => renderServiceCard(service))}
         </View>
-      </ScrollView>
+        </ScrollView>
+      )}
     </View>
   );
 }

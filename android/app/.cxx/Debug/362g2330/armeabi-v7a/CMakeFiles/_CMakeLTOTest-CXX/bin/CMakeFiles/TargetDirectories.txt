@@ -1,0 +1,4 @@
+/Users/abcom/Documents/CaptainSathi/android/app/.cxx/Debug/362g2330/armeabi-v7a/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/foo.dir
+/Users/abcom/Documents/CaptainSathi/android/app/.cxx/Debug/362g2330/armeabi-v7a/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/boo.dir
+/Users/abcom/Documents/CaptainSathi/android/app/.cxx/Debug/362g2330/armeabi-v7a/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/edit_cache.dir
+/Users/abcom/Documents/CaptainSathi/android/app/.cxx/Debug/362g2330/armeabi-v7a/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/rebuild_cache.dir

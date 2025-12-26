@@ -6,7 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  Platform,
+  RefreshControl,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useRoute, useNavigation} from '@react-navigation/native';
@@ -66,7 +66,17 @@ export default function StoryDetailsScreen() {
   const params = route.params as StoryDetailsRouteParams;
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
   const {playTTS, state: ttsState} = useTTS();
+
+  // Handle pull to refresh
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    // Simulate API call - replace with actual API call when available
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1000);
+  }, []);
 
   const storyDetails = useMemo(
     () => getStoryDetails(params?.storyId || '1'),
@@ -78,14 +88,6 @@ export default function StoryDetailsScreen() {
       StyleSheet.create({
         container: {
           flex: 1,
-          backgroundColor: colors.backgroundLight,
-        },
-        statusBarBackground: {
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: Platform.OS === 'ios' ? insets.top : 0,
           backgroundColor: colors.backgroundLight,
         },
         header: {
@@ -109,6 +111,7 @@ export default function StoryDetailsScreen() {
           ...Typography.boldXxl,
           color: colors.textPrimary,
           fontSize: moderateScale(22),
+          marginLeft: moderateScale(10),
         },
         scrollContent: {
           padding: moderateScale(16),
@@ -118,7 +121,7 @@ export default function StoryDetailsScreen() {
           backgroundColor: colors.backgroundWhite,
           borderRadius: moderateScale(10),
           padding: moderateScale(16),
-          marginBottom: moderateScale(16),
+          marginVertical: moderateScale(16),
         },
         videoContainer: {
           width: '100%',
@@ -126,28 +129,39 @@ export default function StoryDetailsScreen() {
           marginBottom: moderateScale(8),
           borderRadius: moderateScale(10),
           overflow: 'hidden',
+          backgroundColor: 'transparent',
         },
         thumbnailContainer: {
-          aspectRatio: 16 / 8.5,
           flexDirection: 'row',
-          gap: moderateScale(5),
+          gap: moderateScale(8),
           marginTop: moderateScale(8),
+          height: moderateScale(128),
         },
         thumbnailLeft: {
-          flex: 1.4,
+          flex: 1.8,
+          borderRadius: moderateScale(8),
+          overflow: 'hidden',
+          backgroundColor: 'transparent',
         },
         thumbnailRight: {
           flex: 1,
           gap: moderateScale(8),
+          justifyContent: 'space-between',
         },
         thumbnail: {
           borderRadius: moderateScale(8),
-          backgroundColor: colors.backgroundGray,
+          backgroundColor: 'transparent',
           overflow: 'hidden',
         },
         thumbnailImage: {
           width: '100%',
-          height: moderateScale(80),
+          height: moderateScale(60),
+          borderRadius: moderateScale(8),
+        },
+        thumbnailLeftImage: {
+          width: '100%',
+          height: '100%',
+          borderRadius: moderateScale(8),
         },
         thumbnailMore: {
           width: '100%',
@@ -266,15 +280,6 @@ export default function StoryDetailsScreen() {
 
   return (
     <View style={dynamicStyles.container}>
-      {Platform.OS === 'ios' && (
-        <View
-          style={[
-            dynamicStyles.statusBarBackground,
-            {backgroundColor: currentConfig.backgroundColor},
-          ]}
-        />
-      )}
-
       {/* Header */}
       <View style={dynamicStyles.header}>
         <TouchableOpacity
@@ -302,9 +307,17 @@ export default function StoryDetailsScreen() {
       <ScrollView
         style={{flex: 1}}
         contentContainerStyle={dynamicStyles.scrollContent}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }>
         {/* Video Player Section */}
-        <View style={dynamicStyles.card}>
+        {/* <View style={dynamicStyles.card}> */}
           <View style={dynamicStyles.videoContainer}>
             <VideoPlayer
               thumbnailUri={undefined}
@@ -324,8 +337,8 @@ export default function StoryDetailsScreen() {
                 activeOpacity={0.7}>
                 <Image
                   source={storyDetails.images[0] || ImagePath.eventImage}
-                  style={[dynamicStyles.thumbnailImage, {height: moderateScale(170)}]}
-                  resizeMode="contain"
+                  style={dynamicStyles.thumbnailLeftImage}
+                  resizeMode="cover"
                 />
               </TouchableOpacity>
             )}
@@ -354,7 +367,7 @@ export default function StoryDetailsScreen() {
               ))}
             </View>
           </View>
-        </View>
+        {/* </View> */}
 
         {/* Story Title and Date Card */}
         <View style={dynamicStyles.card}>

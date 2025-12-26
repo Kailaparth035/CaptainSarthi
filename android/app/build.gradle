@@ -84,6 +84,8 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+        // Ensure cleartext traffic is enabled for both debug and release builds
+        buildConfigField "boolean", "USES_CLEARTEXT_TRAFFIC", "true"
     }
     signingConfigs {
         debug {
@@ -115,5 +117,30 @@ dependencies {
         implementation("com.facebook.react:hermes-android")
     } else {
         implementation jscFlavor
+    }
+    
+    // SplashScreen API for Android 12+
+    implementation("androidx.core:core-splashscreen:1.0.1")
+}
+
+// Workaround for corrupted Gradle cache during clean
+afterEvaluate {
+    tasks.matching { it.name.contains("externalNativeBuildCleanRelease") }.configureEach {
+        enabled = false
+        doFirst {
+            println "Skipped ${it.name} - use 'npm run clean:android' or './clean-safe.sh' instead"
+        }
+    }
+}
+
+// Make clean task more resilient - remove .cxx before clean
+tasks.named("clean").configure {
+    doFirst {
+        // Remove .cxx directory before clean to avoid CMake errors
+        def cxxDir = file("${projectDir}/app/.cxx")
+        if (cxxDir.exists()) {
+            delete cxxDir
+            println "Removed .cxx directory to avoid CMake cache issues"
+        }
     }
 }

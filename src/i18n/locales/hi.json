@@ -5,7 +5,10 @@
     "Farmer": "किसान",
     "Tractors": "ट्रैक्टर",
     "More": "अधिक",
-    "Profile": "प्रोफ़ाइल"
+    "Profile": "प्रोफ़ाइल",
+    "Events": "घटनाएं",
+    "History": "इतिहास",
+    "Stories": "कहानियां"
   },
   "home": {
     "title": "होम",
@@ -20,7 +23,8 @@
     "seeAll": "सभी देखें"
   },
   "farmer": {
-    "title": "किसान"
+    "title": "किसान",
+    "addNew": "नया जोड़ें"
   },
   "tractors": {
     "title": "ट्रैक्टर",
@@ -30,7 +34,8 @@
     "aToZ": "A से Z",
     "zToA": "Z से A",
     "newestFirst": "नवीनतम पहले",
-    "oldestFirst": "पुराना पहले"
+    "oldestFirst": "पुराना पहले",
+    "specifications": "विनिर्देश"
   },
   "profile": {
     "title": "प्रोफ़ाइल",
@@ -119,13 +124,145 @@
     "delete": "हटाएं",
     "edit": "संपादित करें",
     "submit": "सबमिट करें",
-    "loading": "लोड हो रहा है..."
+    "loading": "लोड हो रहा है...",
+    "search": "खोजें"
+  },
+  "onboarding": {
+    "getStarted": "शुरू करें",
+    "agreeTerms": "हमारी ",
+    "termsConditions": "नियम और शर्तें",
+    "beforeContinue": "से सहमत हों इससे पहले कि आप आगे बढ़ें।"
   },
   "events": {
     "textToSpeech": "टेक्स्ट टू स्पीच"
   },
   "farmerHome": {
-    "greeting": "नमस्ते"
+    "greeting": "नमस्ते",
+    "recentEvents": "हाल की घटनाएं",
+    "recentStories": "हाल की कहानियां",
+    "membershipServices": "सदस्यता सेवाएं",
+    "services": {
+      "quickProblemSolution": {
+        "title": "त्वरित समस्या समाधान",
+        "description": "24/7 सक्रिय सहायता"
+      },
+      "prioritySupport": {
+        "title": "प्राथमिकता ग्राहक सहायता",
+        "description": "हमारी टीम से प्राथमिकता सहायता"
+      },
+      "directContact": {
+        "title": "कंपनी से सीधा संपर्क",
+        "description": "हमारी मुख्य टीम से संपर्क करें"
+      },
+      "specialInvite": {
+        "title": "घटनाओं में विशेष आमंत्रण",
+        "description": "हमारी घटनाओं में विशेष आमंत्रण"
+      },
+      "specialDiscount": {
+        "title": "विशेष छूट",
+        "description": "ट्रैक्टर सेवाओं, शुल्क, स्पेयर पर"
+      }
+    }
+  },
+  "farmerProfile": {
+    "updateNumber": "नंबर अपडेट करें",
+    "updateNumberDescription": "अपना मोबाइल नंबर अपडेट करें।",
+    "firstName": "पहला नाम",
+    "middleName": "मध्य नाम",
+    "lastName": "अंतिम नाम",
+    "mobileNo": "मोबाइल नंबर",
+    "dateOfBirth": "जन्म तिथि",
+    "dateOfMarriage": "विवाह की तारीख",
+    "dealershipName": "डीलरशिप का नाम",
+    "dealershipAddress": "डीलरशिप पता",
+    "tractorDetails": "ट्रैक्टर विवरण",
+    "tractorCount": "ट्रैक्टर संख्या",
+    "modelName": "मॉडल नाम",
+    "vehicleNo": "वाहन नंबर",
+    "ownerName": "मालिक का नाम",
+    "chassisNo": "चेसिस नंबर",
+    "engineNo": "इंजन नंबर",
+    "dateOfInvoice": "चालान की तारीख",
+    "dateOfRegistration": "पंजीकरण की तारीख",
+    "whoDrives": "कौन चलाता है"
+  },
+  "reviewProfile": {
+    "personalDetails": "व्यक्तिगत विवरण",
+    "personalDetailsDescription": "विवरण की समीक्षा और अपडेट के बाद, कोई और बदलाव की अनुमति नहीं होगी।",
+    "changeProfilePhoto": "प्रोफ़ाइल फोटो बदलें",
+    "uploadHint": "png या jpg अपलोड करें। अधिकतम 5 mb आकार।",
+    "code": "कोड",
+    "number": "नंबर",
+    "date": "तारीख",
+    "of": "का",
+    "birth": "जन्म",
+    "marriage": "विवाह",
+    "continue": "जारी रखें"
+  },
+  "addFarmer": {
+    "title": "किसान जोड़ें",
+    "personalDetails": "व्यक्तिगत विवरण",
+    "address": "पता",
+    "tractorDetails": "ट्रैक्टर विवरण",
+    "tractorCount": "ट्रैक्टर संख्या",
+    "uploadProfilePhoto": "प्रोफ़ाइल फोटो अपलोड करें",
+    "dealerName": "डीलर का नाम",
+    "selectCategory": "श्रेणी चुनें",
+    "loadingCategories": "श्रेणियां लोड हो रही हैं...",
+    "firstName": "पहला नाम",
+    "enterFirstName": "पहला नाम दर्ज करें",
+    "middleName": "मध्य नाम",
+    "enterMiddleName": "मध्य नाम दर्ज करें",
+    "lastName": "अंतिम नाम",
+    "enterLastName": "अंतिम नाम दर्ज करें",
+    "phoneCode": "कोड",
+    "phoneNumber": "नंबर",
+    "phonePlaceholder": "01234 56789",
+    "dateOfBirth": "जन्म तिथि",
+    "dateOfMarriage": "विवाह की तारीख",
+    "whoDrives": "कौन चलाता है",
+    "whoDrivesPlaceholder": "उदाहरण के लिए बेटा, पिता",
+    "houseNumber": "मकान नंबर / नाम",
+    "enterHouseNumber": "मकान नंबर / नाम दर्ज करें",
+    "streetName": "सड़क का नाम",
+    "enterStreetName": "सड़क का नाम दर्ज करें",
+    "landmark": "लैंडमार्क",
+    "enterLandmark": "लैंडमार्क दर्ज करें",
+    "state": "राज्य",
+    "selectState": "राज्य चुनें",
+    "district": "जिला",
+    "selectDistrict": "जिला चुनें",
+    "selectStateFirst": "पहले राज्य चुनें",
+    "village": "गाँव",
+    "selectVillage": "गाँव चुनें",
+    "selectDistrictFirst": "पहले जिला चुनें",
+    "pincode": "पिन कोड",
+    "enterPincode": "पिन कोड दर्ज करें",
+    "modelName": "मॉडल नाम दर्ज करें",
+    "enterModelName": "मॉडल नाम दर्ज करें",
+    "chassisNumber": "चेसिस नंबर",
+    "enterChassisNumber": "चेसिस नंबर दर्ज करें",
+    "engineNumber": "इंजन नंबर",
+    "enterEngineNumber": "इंजन नंबर दर्ज करें",
+    "ownerName": "मालिक का नाम",
+    "enterOwnerName": "मालिक का नाम दर्ज करें",
+    "registrationNumber": "पंजीकरण नंबर",
+    "enterRegistrationNumber": "पंजीकरण नंबर दर्ज करें",
+    "purchaseDate": "खरीद",
+    "addNewTractor": "नया ट्रैक्टर जोड़ें",
+    "remove": "हटाएं",
+    "sendForVerification": "सत्यापन के लिए भेजें",
+    "dd": "दिन",
+    "mm": "महीना",
+    "yyyy": "वर्ष",
+    "yourAnswerHere": "यहां अपना उत्तर दर्ज करें",
+    "selectOption": "विकल्प चुनें",
+    "uploadTractorImage": "ट्रैक्टर छवि अपलोड करें",
+    "uploadSecondImage": "दूसरी छवि अपलोड करें"
+  },
+  "language": {
+    "title": "भाषा",
+    "save": "सहेजें"
   }
 }
 

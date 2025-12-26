@@ -134,7 +134,7 @@ export default function ImagePreviewModal({
           textAlign: 'center',
         },
         footer: {
-          paddingBottom: Platform.OS === 'ios' ? insets.bottom : insets.bottom + moderateScale(16),
+          paddingBottom: insets.bottom + moderateScale(12),
           paddingHorizontal: moderateScale(16),
           paddingTop: moderateScale(12),
           borderTopWidth: 1,

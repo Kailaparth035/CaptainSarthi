@@ -1,4 +1,4 @@
-import React, {useMemo} from 'react';
+import React, {useMemo, useState} from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  RefreshControl,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -52,6 +53,16 @@ export default function StoriesScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
   const navigation = useNavigation();
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Handle pull to refresh
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    // Simulate API call - replace with actual API call when available
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1000);
+  }, []);
 
   useDynamicStatusBar({
     backgroundColor: colors.backgroundLight,
@@ -67,7 +78,7 @@ export default function StoriesScreen() {
         },
         scrollContent: {
           paddingHorizontal: moderateScale(16),
-          paddingTop: insets.top ,
+          paddingTop: insets.top + moderateScale(12),
         },
         title: {
           ...Typography.boldXxl,
@@ -178,7 +189,15 @@ export default function StoriesScreen() {
     <View style={dynamicStyles.container}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={dynamicStyles.scrollContent}>
+        contentContainerStyle={dynamicStyles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }>
         <Text style={dynamicStyles.title}>Stories</Text>
 
         {storiesData.map((story) => (
@@ -198,41 +217,9 @@ export default function StoriesScreen() {
             }}>
             {/* Banner Section */}
             <View style={dynamicStyles.bannerContainer}>
-              {/* Left Section - Logo and Text */}
-              <View style={dynamicStyles.bannerLeft}>
-                <Image
-                  source={story.logo}
-                  style={dynamicStyles.logo}
-                  resizeMode="contain"
-                />
-                <View style={{flex: 1,marginBottom:moderateScale(10)}}>
-                  <Text style={dynamicStyles.mainTitle}>
-                    Tractor{'\n'}Horsepower{'\n'}Guide:
-                  </Text>
-                  <Text style={dynamicStyles.subtitle}>
-                    Find the Best Fit for{'\n'}Your Farm Work
-                  </Text>
-                </View>
-                <View style={dynamicStyles.arrowButton}>
-                  <Ionicons
-                    name="arrow-forward"
-                    size={moderateScale(16)}
-                    color={colors.textPrimary}
-                  />
-                </View>
-              </View>
-
-              {/* Right Section - Image with Overlay */}
-              <View style={dynamicStyles.bannerRight}>
-                <Image
-                  source={story.bannerImage}
-                  style={dynamicStyles.bannerImage}
-                  resizeMode="cover"
-                />
-                <Text style={dynamicStyles.overlayText}>
-                  12 HP Tractor{'\n'}TO{'\n'}28 HP Tractor
-                </Text>
-              </View>
+             <Image source={ImagePath.storycard} 
+             style={{height:moderateScale(170),width:'100%',resizeMode:'cover'}}
+             />
             </View>
 
             {/* Story Content */}

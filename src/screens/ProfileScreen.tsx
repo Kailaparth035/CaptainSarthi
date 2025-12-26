@@ -1,27 +1,32 @@
-import React, {useMemo, useState} from 'react';
+import React, {useMemo, useState, useEffect} from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Image,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {useNavigation} from '@react-navigation/native';
+import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import colors from '../utils/colors';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import {Typography} from '../utils/typography';
 import LogoutModal from '../components/LogoutModal';
-import LanguageSwitcher from '../components/LanguageSwitcher';
 import {SCREEN_NAMES} from '../constants/screenNames';
-import {RootStackParamList} from '../navigation/RootNavigator';
+import {ProfileStackParamList} from '../navigation/stacks/ProfileStack';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import {clearSession} from '../utils/session';
 import {useLanguage} from '../contexts/LanguageContext';
+import {getData} from '../Service/Apimethod';
+import Apis, {API_BASE_URL} from '../Service/constant';
+import {getImageUrl} from '../utils/imageUtils';
 
-type ProfileScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type ProfileScreenNavigationProp = NativeStackNavigationProp<ProfileStackParamList>;
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -29,14 +34,69 @@ export default function ProfileScreen() {
   const {t, currentLanguage} = useLanguage();
   const navigation = useNavigation<ProfileScreenNavigationProp>();
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
-  const [languageModalVisible, setLanguageModalVisible] = useState(false);
+  const [userData, setUserData] = useState({
+    name: '',
+    phone: '',
+    initials: '',
+    profileImage: null as string | null,
+  });
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Mock user data
-  const userData = {
-    name: 'Jason statham',
-    phone: '+91 54852 26478',
-    initials: 'JS',
+
+  // Helper function to get initials from name
+  const getInitials = (name: string): string => {
+    if (!name) return 'NA';
+    const parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+    }
+    return name.substring(0, 2).toUpperCase();
   };
+
+  // Fetch profile data from API
+  const fetchProfileData = async (showRefreshing = false) => {
+    try {
+      if (showRefreshing) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      console.log('[ProfileScreen] Fetching latest profile data');
+      const response = await getData(Apis.DEALER_PROFILE, {});
+      
+      // Handle API response structure: { status: true, data: {...} }
+      if (response?.status === true && response?.data) {
+        const profileData = response.data;
+        
+        setUserData({
+          name: profileData.name || '',
+          phone: profileData.phone || '',
+          initials: getInitials(profileData.name || ''),
+          profileImage: profileData.profile_image || null,
+        });
+      } else {
+        console.warn('Unexpected API response format:', response);
+      }
+    } catch (error) {
+      console.error('Error fetching profile data:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  // Handle pull to refresh
+  const onRefresh = React.useCallback(() => {
+    fetchProfileData(true);
+  }, []);
+
+  // Fetch data on mount and whenever screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchProfileData();
+    }, [])
+  );
 
   const dynamicStyles = useMemo(
     () =>
@@ -56,7 +116,7 @@ export default function ProfileScreen() {
           color: colors.textPrimary,
           marginBottom: moderateScale(16),
           paddingHorizontal: moderateScale(16),
-          paddingTop: insets.top,
+          paddingTop: insets.top + moderateScale(12),
         },
         card: {
           backgroundColor: colors.backgroundWhite,
@@ -80,6 +140,7 @@ export default function ProfileScreen() {
           backgroundColor: colors.light_dark_yellow,
           alignItems: 'center',
           justifyContent: 'center',
+          overflow: 'hidden',
         },
         profileImageText: {
           ...Typography.boldXl,
@@ -117,7 +178,11 @@ export default function ProfileScreen() {
         viewProfileRow: {
           flexDirection: 'row',
           alignItems: 'center',
-          justifyContent: 'space-between',          
+          justifyContent: 'space-between',
+          borderBottomWidth: 1,
+          borderBottomColor: colors.borderLight,
+          paddingBottom: moderateScale(12),
+          marginBottom: moderateScale(12),
         },
         viewProfileLeft: {
           flexDirection: 'row',
@@ -244,13 +309,20 @@ export default function ProfileScreen() {
   return (
     <View style={dynamicStyles.container}>
       {/* Title */}
-      <Text style={dynamicStyles.title}>{t('profile.title')}</Text>
 
       {/* Scrollable Content */}
       <ScrollView
-        style={{flex: 1}}
+        style={{flex: 1,   paddingTop: insets.top,}}
         contentContainerStyle={dynamicStyles.scrollContent}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }>
         {/* Profile Information Card */}
         <View style={dynamicStyles.card}>
           {/* Profile Header */}
@@ -259,11 +331,23 @@ export default function ProfileScreen() {
               style={dynamicStyles.profileImageContainer}
               onPress={handleProfileIconPress}
               activeOpacity={0.7}>
-              <View style={dynamicStyles.profileImage}>
-                <Text style={dynamicStyles.profileImageText}>
-                  {userData.initials}
-                </Text>
-              </View>
+              {loading ? (
+                <View style={dynamicStyles.profileImage}>
+                  <ActivityIndicator size="small" color={colors.textSecondary} />
+                </View>
+              ) : userData.profileImage ? (
+                <Image
+                  source={{uri: getImageUrl(userData.profileImage) || ''}}
+                  style={dynamicStyles.profileImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={dynamicStyles.profileImage}>
+                  <Text style={dynamicStyles.profileImageText}>
+                    {userData.initials || 'NA'}
+                  </Text>
+                </View>
+              )}
               <View style={dynamicStyles.cameraIconContainer}>
                 <Ionicons
                   name="camera"
@@ -271,10 +355,14 @@ export default function ProfileScreen() {
                   color={colors.textWhite}
                 />
               </View>
-              </TouchableOpacity>
+            </TouchableOpacity>
             <View style={dynamicStyles.profileInfo}>
-              <Text style={dynamicStyles.profileName}>{userData.name}</Text>
-              <Text style={dynamicStyles.profilePhone}>{userData.phone}</Text>
+              <Text style={dynamicStyles.profileName}>
+                {loading ? 'Loading...' : userData.name || 'N/A'}
+              </Text>
+              <Text style={dynamicStyles.profilePhone}>
+                {loading ? '' : userData.phone || 'N/A'}
+              </Text>
             </View>
           </View>
 
@@ -302,13 +390,11 @@ export default function ProfileScreen() {
               color={colors.textTertiary}
             />
           </TouchableOpacity>
-        </View>
 
-        {/* Language Card */}
-        <View style={dynamicStyles.card}>
+          {/* Language Option */}
           <TouchableOpacity
             style={dynamicStyles.languageRow}
-            onPress={() => setLanguageModalVisible(true)}
+            onPress={() => navigation.navigate(SCREEN_NAMES.Language)}
             activeOpacity={0.7}>
             <View style={dynamicStyles.languageLeft}>
               <View style={dynamicStyles.languageIcon}>
@@ -367,11 +453,6 @@ export default function ProfileScreen() {
         onConfirm={handleConfirmLogout}
       />
 
-      {/* Language Switcher Modal */}
-      <LanguageSwitcher
-        visible={languageModalVisible}
-        onClose={() => setLanguageModalVisible(false)}
-      />
     </View>
   );
 }

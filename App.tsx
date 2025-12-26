@@ -5,9 +5,10 @@
  * @format
  */
 
-import { StyleSheet, View, Platform } from 'react-native';
+import { StyleSheet, Platform } from 'react-native';
 import {
   SafeAreaProvider,
+  SafeAreaView,
 } from 'react-native-safe-area-context';
 import RootNavigator from './src/navigation/RootNavigator';
 import {StatusBarProvider, useStatusBar} from './src/contexts/StatusBarContext';
@@ -39,13 +40,13 @@ function AppContent() {
       <StatusBar 
         barStyle={currentConfig.barStyle}
         backgroundColor={Platform.OS === 'android' ? currentConfig.backgroundColor : undefined}
-        translucent={Platform.OS === 'android' ? false : undefined}
+        translucent={Platform.OS === 'android' ? true : undefined}
         hidden={false}
       />
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container} edges={[]}>
         <RootNavigator />
         <TTSPlayer />
-      </View>
+      </SafeAreaView>
     </>
   );
 }

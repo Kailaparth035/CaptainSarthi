@@ -41,7 +41,7 @@ export default function ImagePickerModal({
       borderTopRightRadius: moderateScale(20),
       width: '100%',
       padding: moderateScale(20),
-      paddingBottom: insets.bottom + moderateScale(20),
+      paddingBottom: insets.bottom + moderateScale(12),
       shadowColor: colors.shadowColor,
       shadowOpacity: 0.25,
       shadowOffset: {width: 0, height: moderateScale(-4)},
@@ -92,18 +92,24 @@ export default function ImagePickerModal({
       transparent={true}
       animationType="slide"
       onRequestClose={onClose}>
-      <Pressable style={styles.modalOverlay} onPress={onClose} activeOpacity={1}>
+      <Pressable style={styles.modalOverlay} onPress={onClose}>
         <Pressable
           style={styles.modalContainer}
-          onPress={e => e.stopPropagation()}
-          activeOpacity={1}>
+          onPress={e => e.stopPropagation()}>
           <Text style={styles.modalTitle}>Select Image Source</Text>
 
           <TouchableOpacity
             style={styles.optionButton}
             onPress={async () => {
               onClose();
-              await onCameraPress();
+              // Wait for modal to close before opening camera (300ms delay)
+              setTimeout(async () => {
+                try {
+                  await onCameraPress();
+                } catch (error) {
+                  console.error('Error opening camera:', error);
+                }
+              }, 300);
             }}
             activeOpacity={0.7}>
             <Ionicons
@@ -119,7 +125,14 @@ export default function ImagePickerModal({
             style={styles.optionButton}
             onPress={async () => {
               onClose();
-              await onGalleryPress();
+              // Wait for modal to close before opening gallery (300ms delay)
+              setTimeout(async () => {
+                try {
+                  await onGalleryPress();
+                } catch (error) {
+                  console.error('Error opening gallery:', error);
+                }
+              }, 300);
             }}
             activeOpacity={0.7}>
             <Ionicons

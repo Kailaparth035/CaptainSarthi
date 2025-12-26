@@ -109,7 +109,7 @@ export default function Dropdown({
           borderTopRightRadius: moderateScale(20),
           width: '100%',
           maxHeight: '70%',
-          paddingBottom: insets.bottom + moderateScale(20),
+          paddingBottom: insets.bottom + moderateScale(12),
         },
         modalHeader: {
           padding: moderateScale(20),

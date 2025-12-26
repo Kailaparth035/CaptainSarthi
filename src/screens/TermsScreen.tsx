@@ -63,8 +63,8 @@ const TermsScreen: React.FC<TermsScreenProps> = ({navigation}) => {
         container: {
           flex: 1,
           paddingHorizontal: moderateScale(24),
-          paddingTop: Platform.OS === 'android' ? insets.top + moderateScale(16) : moderateScale(16),
-          paddingBottom: Platform.OS === 'android' ? insets.bottom + moderateScale(16) : moderateScale(16),
+          paddingTop: insets.top + moderateScale(12),
+          paddingBottom: insets.bottom + moderateScale(12),
           backgroundColor: Colors.background.light,
         },
         title: {

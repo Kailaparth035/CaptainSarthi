@@ -19,6 +19,11 @@ export const ImagePath = {
   eventImage : require('../images/eventImage.png'),  
   eventImage2 : require('../images/eventImage2.png'),  
   whatsapp : require('../images/whatsapp.png'),    
+  storycard : require('../images/storycard.png'),  
+  onboardingScreen : require('../images/onboardingScreen.png'),  
+  captainLogo : require('../images/captainLogo.png'),
+  language : require('../images/Language.png'),
+  
 };
 
 

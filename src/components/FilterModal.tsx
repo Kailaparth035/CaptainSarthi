@@ -27,6 +27,7 @@ type FilterModalProps = {
   visible: boolean;
   onClose: () => void;
   onApply: (filters: any) => void;
+  onReset?: () => void;
   title?: string;
   categories?: FilterCategory[];
   selectedCategory?: string;
@@ -50,21 +51,13 @@ const defaultCategories: FilterCategory[] = [
       {id: 'oldest', label: 'Oldest First', value: 'oldest'},
     ],
   },
-  {
-    id: 'city',
-    label: 'City',
-    options: [
-      {id: 'all', label: 'All Cities', value: 'all'},
-      {id: 'mumbai', label: 'Mumbai', value: 'mumbai'},
-      {id: 'delhi', label: 'Delhi', value: 'delhi'},
-    ],
-  },
 ];
 
 export default function FilterModal({
   visible,
   onClose,
   onApply,
+  onReset,
   title = 'Filters',
   categories = defaultCategories,
   selectedCategory: initialCategory,
@@ -93,10 +86,32 @@ export default function FilterModal({
         headerContainer: {
           flexDirection: 'row',
           alignItems: 'center',
+          justifyContent: 'space-between',
           paddingHorizontal: moderateScale(20),
           paddingTop: moderateScale(16),
           paddingBottom: moderateScale(16),
           backgroundColor: colors.backgroundWhite,
+        },
+        headerLeft: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          flex: 1,
+        },
+        headerRight: {
+          flexDirection: 'row',
+          alignItems: 'center',
+        },
+        resetButton: {
+          paddingHorizontal: moderateScale(12),
+          paddingVertical: moderateScale(8),
+          borderRadius: moderateScale(8),
+          backgroundColor: colors.backgroundLight,
+          marginRight: moderateScale(8),
+        },
+        resetButtonText: {
+          ...Typography.semiBoldMd,
+          fontSize: moderateScale(14),
+          color: colors.primary,
         },
         backButton: {
           width: moderateScale(40),
@@ -233,6 +248,29 @@ export default function FilterModal({
     onClose();
   };
 
+  const handleReset = () => {
+    // Reset all selected options
+    const resetOptions = {};
+    const resetCategory = categories[0]?.id || '';
+    
+    setSelectedOptions(resetOptions);
+    setSelectedCategory(resetCategory);
+    
+    // Apply reset immediately
+    onApply({
+      category: resetCategory,
+      options: resetOptions,
+    });
+    
+    // Call onReset callback if provided
+    if (onReset) {
+      onReset();
+    }
+    
+    // Close modal after reset
+    onClose();
+  };
+
   const currentCategory = categories.find(cat => cat.id === selectedCategory);
   const currentSelectedOption = selectedOptions[selectedCategory];
 
@@ -245,17 +283,27 @@ export default function FilterModal({
       <View style={[dynamicStyles.modalOverlay, {paddingTop: insets.top}]}>
         {/* Header */}
         <View style={dynamicStyles.headerContainer}>
-          <TouchableOpacity
-            style={dynamicStyles.backButton}
-            onPress={onClose}
-            activeOpacity={0.7}>
-            <Ionicons
-              name="arrow-back"
-              size={moderateScale(20)}
-              color={colors.textPrimary}
-            />
-          </TouchableOpacity>
-          <Text style={dynamicStyles.modalTitle}>{title}</Text>
+          <View style={dynamicStyles.headerLeft}>
+            <TouchableOpacity
+              style={dynamicStyles.backButton}
+              onPress={onClose}
+              activeOpacity={0.7}>
+              <Ionicons
+                name="arrow-back"
+                size={moderateScale(20)}
+                color={colors.textPrimary}
+              />
+            </TouchableOpacity>
+            <Text style={dynamicStyles.modalTitle}>{title}</Text>
+          </View>
+          <View style={dynamicStyles.headerRight}>
+            <TouchableOpacity
+              style={dynamicStyles.resetButton}
+              onPress={handleReset}
+              activeOpacity={0.7}>
+              <Text style={dynamicStyles.resetButtonText}>Reset</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Two Panel Content */}
@@ -321,7 +369,7 @@ export default function FilterModal({
         <View
           style={[
             dynamicStyles.applyButtonContainer,
-            {paddingBottom: Math.max(insets.bottom, moderateScale(20))},
+            {paddingBottom: insets.bottom + moderateScale(12)},
           ]}>
           <TouchableOpacity
             style={dynamicStyles.applyButton}

@@ -24,6 +24,9 @@ export const SCREEN_NAMES = {
   FarmerProfile: 'FarmerProfile',
   FarmerProfileDetails: 'FarmerProfileDetails',
   EventDetails: 'EventDetails',
+  Language: 'Language',
+  LanguageSelect: 'LanguageSelect',
+  Onboarding: 'Onboarding',
   // Add more screen names here as you add screens
 } as const;
 

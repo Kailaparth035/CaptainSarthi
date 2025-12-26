@@ -16,6 +16,7 @@ import {Typography} from '../../utils/typography';
 import {useStatusBar} from '../../contexts/StatusBarContext';
 import colors from '../../utils/colors';
 import useDeviceMetrics from '../../utils/responsiveCustom';
+import {useLanguage} from '../../contexts/LanguageContext';
 
 type IconProps = {focused: boolean; color: string; size: number};
 
@@ -73,24 +74,7 @@ function getIconForRoute(
   }
 }
 
-const getLabelForRoute = (routeName: string): string => {
-  switch (routeName) {
-    case SCREEN_NAMES.Home:
-      return 'Home';
-    case SCREEN_NAMES.Events:
-      return 'Events';
-    case SCREEN_NAMES.History:
-      return 'History';
-    case SCREEN_NAMES.Stories:
-      return 'Stories';
-    case SCREEN_NAMES.Tractors:
-      return 'Tractors';
-    case SCREEN_NAMES.Profile:
-      return 'Profile';
-    default:
-      return routeName;
-  }
-};
+// getLabelForRoute will be moved inside component to use translations
 
 export default function FarmerBottomTabBar({
   state,
@@ -99,10 +83,30 @@ export default function FarmerBottomTabBar({
 }: BottomTabBarProps) {
   const {moderateScale} = useDeviceMetrics();
   const {currentConfig} = useStatusBar();
+  const {t} = useLanguage();
   const insets = useSafeAreaInsets();
   const activeColor = colors.primary; // Orange
   const inactiveColor = '#94a3b8'; // Grey
   const containerBg = colors.backgroundWhite;
+
+  const getLabelForRoute = (routeName: string): string => {
+    switch (routeName) {
+      case SCREEN_NAMES.Home:
+        return t('tabs.Home');
+      case SCREEN_NAMES.Events:
+        return t('tabs.Events');
+      case SCREEN_NAMES.History:
+        return t('tabs.History');
+      case SCREEN_NAMES.Stories:
+        return t('tabs.Stories');
+      case SCREEN_NAMES.Tractors:
+        return t('tabs.Tractors');
+      case SCREEN_NAMES.Profile:
+        return t('tabs.Profile');
+      default:
+        return routeName;
+    }
+  };
 
   const styles = StyleSheet.create({
     wrapper: {
@@ -155,7 +159,7 @@ export default function FarmerBottomTabBar({
         {
           backgroundColor: containerBg,
           borderTopColor: '#e2e8f0',
-          paddingBottom: Math.max(insets.bottom, moderateScale(12)),
+          paddingBottom: insets.bottom,
         },
       ]}>
       <View style={styles.container}>

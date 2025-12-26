@@ -88,7 +88,7 @@ export function RadioButtonQuestion({
           marginBottom: moderateScale(16),
         },
         questionText: {
-          ...Typography.regularMd,
+          ...Typography.boldMd,
           fontSize: moderateScale(14),
           color: colors.textPrimary,
           marginBottom: moderateScale(12),
@@ -106,11 +106,12 @@ export function RadioButtonQuestion({
           paddingHorizontal: moderateScale(16),
           borderRadius: moderateScale(10),
           borderWidth: 1,
-          borderColor: colors.primary,
+          borderColor: colors.borderLight,
           backgroundColor: colors.backgroundWhite,
         },
         selectedOptionButton: {
           backgroundColor: colors.light_orange,
+          borderColor: colors.primary,
         },
         optionText: {
           ...Typography.regularMd,
@@ -118,24 +119,33 @@ export function RadioButtonQuestion({
           color: colors.textPrimary,
         },
         radioCircle: {
-          width: moderateScale(20),
-          height: moderateScale(20),
-          borderRadius: moderateScale(10),
+          width: moderateScale(24),
+          height: moderateScale(24),
+          borderRadius: moderateScale(12),
           borderWidth: 2,
-          borderColor: colors.primary,
+          backgroundColor: colors.backgroundWhite,
           alignItems: 'center',
           justifyContent: 'center',
         },
-        radioSelected: {
-          width: moderateScale(12),
-          height: moderateScale(12),
-          borderRadius: moderateScale(6),
+        radioCircleSelected: {
+          borderColor: colors.primary,
+          backgroundColor: colors.backgroundWhite,
+        },
+        radioCircleUnselected: {
+          borderColor: colors.borderDefault,
+          backgroundColor: colors.backgroundWhite,
+        },
+        radioInner: {
+          width: moderateScale(14),
+          height: moderateScale(14),
+          borderRadius: moderateScale(7),
           backgroundColor: colors.primary,
         },
         errorText: {
-          color: 'red',
-          fontSize: moderateScale(10),
-          marginTop: moderateScale(5),
+          color: colors.statusError,
+          fontSize: moderateScale(12),
+          marginTop: moderateScale(8),
+          ...Typography.regularSm,
         },
       }),
     [moderateScale],
@@ -157,8 +167,14 @@ export function RadioButtonQuestion({
               onPress={() => onChange(option)}
               activeOpacity={0.7}>
               <Text style={styles.optionText}>{option}</Text>
-              <View style={styles.radioCircle}>
-                {isSelected && <View style={styles.radioSelected} />}
+              <View
+                style={[
+                  styles.radioCircle,
+                  isSelected
+                    ? styles.radioCircleSelected
+                    : styles.radioCircleUnselected,
+                ]}>
+                {isSelected && <View style={styles.radioInner} />}
               </View>
             </TouchableOpacity>
           );

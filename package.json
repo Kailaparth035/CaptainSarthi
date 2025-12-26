@@ -10,7 +10,9 @@
     "test": "jest",
     "build:android:release": "cd android && ./gradlew assembleRelease",
     "build:android:bundle": "cd android && ./gradlew bundleRelease",
-    "clean:android": "cd android && ./gradlew clean",
+    "clean:android": "cd android && ./clean-safe.sh",
+    "clean:android:gradle": "cd android && rm -rf .gradle app/.cxx app/build build && ./gradlew clean --no-daemon || true",
+    "clean:android:full": "cd android && ./gradlew --stop && rm -rf .gradle app/.cxx app/build build && rm -rf ~/.gradle/caches/8.13/transforms && ./gradlew clean --no-daemon || true",
     "link-assets": "npx react-native-asset"
   },
   "dependencies": {

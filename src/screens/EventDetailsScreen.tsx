@@ -10,6 +10,7 @@ import {
   Modal,
   Pressable,
   Linking,
+  RefreshControl,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useRoute, useNavigation} from '@react-navigation/native';
@@ -75,7 +76,17 @@ export default function EventDetailsScreen() {
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [contactModalVisible, setContactModalVisible] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const {playTTS, state: ttsState} = useTTS();
+
+  // Handle pull to refresh
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    // Simulate API call - replace with actual API call when available
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1000);
+  }, []);
 
   const eventDetails = useMemo(
     () => getEventDetails(params?.eventId || '1'),
@@ -87,14 +98,6 @@ export default function EventDetailsScreen() {
       StyleSheet.create({
         container: {
           flex: 1,
-          backgroundColor: colors.backgroundLight,
-        },
-        statusBarBackground: {
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: Platform.OS === 'ios' ? insets.top : 0,
           backgroundColor: colors.backgroundLight,
         },
         header: {
@@ -138,7 +141,7 @@ export default function EventDetailsScreen() {
           backgroundColor: colors.backgroundWhite,
           borderRadius: moderateScale(10),
           padding: moderateScale(16),
-          marginBottom: moderateScale(16),
+          marginVertical: moderateScale(16),
         },
         videoContainer: {
           width: '100%',
@@ -146,28 +149,39 @@ export default function EventDetailsScreen() {
           marginBottom: moderateScale(8),
           borderRadius: moderateScale(10),
           overflow: 'hidden',
+          backgroundColor: 'transparent',
         },
         thumbnailContainer: {
-          aspectRatio: 16 / 8.5,
           flexDirection: 'row',
-          gap: moderateScale(5),
+          gap: moderateScale(8),
           marginTop: moderateScale(8),
+          height: moderateScale(128),
         },
         thumbnailLeft: {
-          flex: 1.4,
+          flex: 1.8,
+          borderRadius: moderateScale(8),
+          overflow: 'hidden',
+          backgroundColor: 'transparent',
         },
         thumbnailRight: {
           flex: 1,
           gap: moderateScale(8),
+          justifyContent: 'space-between',
         },
         thumbnail: {
           borderRadius: moderateScale(8),
-          backgroundColor: colors.backgroundGray,
+          backgroundColor: 'transparent',
           overflow: 'hidden',
         },
         thumbnailImage: {
-          width: '98%',
-          height: moderateScale(80),
+          width: '100%',
+          height: moderateScale(60),
+          borderRadius: moderateScale(8),
+        },
+        thumbnailLeftImage: {
+          width: '100%',
+          height: '100%',
+          borderRadius: moderateScale(8),
         },
         thumbnailMore: {
           width: '100%',
@@ -331,15 +345,6 @@ export default function EventDetailsScreen() {
 
   return (
     <View style={dynamicStyles.container}>
-      {Platform.OS === 'ios' && (
-        <View
-          style={[
-            dynamicStyles.statusBarBackground,
-            {backgroundColor: currentConfig.backgroundColor},
-          ]}
-        />
-      )}
-
       {/* Header */}
       <View style={dynamicStyles.header}>
         <View style={dynamicStyles.headerLeft}>
@@ -374,9 +379,17 @@ export default function EventDetailsScreen() {
       <ScrollView
         style={{flex: 1}}
         contentContainerStyle={dynamicStyles.scrollContent}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }>
         {/* Video Player Section */}
-        <View style={dynamicStyles.card}>
+        {/* <View style={dynamicStyles.card}> */}
           <View style={dynamicStyles.videoContainer}>
             <VideoPlayer
               thumbnailUri={undefined}
@@ -396,7 +409,7 @@ export default function EventDetailsScreen() {
                 activeOpacity={0.7}>
                 <Image
                   source={eventDetails.images[0] || ImagePath.eventImage}
-                  style={[dynamicStyles.thumbnailImage, {height: moderateScale(170)}]}
+                  style={dynamicStyles.thumbnailLeftImage}
                   resizeMode="cover"
                 />
               </TouchableOpacity>
@@ -426,7 +439,7 @@ export default function EventDetailsScreen() {
               ))}
             </View>
           </View>
-        </View>
+        {/* </View> */}
 
         {/* Event Details Card */}
         <View style={dynamicStyles.card}>

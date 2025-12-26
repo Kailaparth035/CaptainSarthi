@@ -1,5 +1,6 @@
 import React from 'react';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
+import {CommonActions} from '@react-navigation/native';
 import {SCREEN_NAMES} from '../constants/screenNames';
 import BottomTabBar from './components/BottomTabBar';
 import HomeStack from './stacks/HomeStack';
@@ -28,10 +29,106 @@ export default function TabNavigator() {
         tabBarShowLabel: false,
       }}
       tabBar={props => <BottomTabBar {...props} />}>
-      <Tab.Screen name={SCREEN_NAMES.Home} component={HomeStack} />
-      <Tab.Screen name={SCREEN_NAMES.Farmer} component={FarmerStack} />
-      <Tab.Screen name={SCREEN_NAMES.Tractors} component={TractorsStack} />
-      <Tab.Screen name={SCREEN_NAMES.Profile} component={ProfileStack} />
+      <Tab.Screen 
+        name={SCREEN_NAMES.Home} 
+        component={HomeStack}
+        listeners={({navigation, route}) => ({
+          tabPress: (e) => {
+            // Always reset stack to main screen when tab is pressed
+            const state = navigation.getState();
+            const tabState = state.routes.find(r => r.key === route.key)?.state;
+            
+            // If stack exists and has multiple screens, pop to root
+            if (tabState && tabState.index > 0) {
+              e.preventDefault();
+              // Navigate to root screen to reset the stack
+              navigation.dispatch(
+                CommonActions.navigate({
+                  name: SCREEN_NAMES.Home,
+                  params: {
+                    screen: SCREEN_NAMES.Home,
+                  },
+                })
+              );
+            }
+          },
+        })}
+      />
+      <Tab.Screen 
+        name={SCREEN_NAMES.Farmer} 
+        component={FarmerStack}
+        listeners={({navigation, route}) => ({
+          tabPress: (e) => {
+            // Always reset stack to main screen when tab is pressed
+            const state = navigation.getState();
+            const tabState = state.routes.find(r => r.key === route.key)?.state;
+            
+            // If stack exists and has multiple screens, pop to root
+            if (tabState && tabState.index > 0) {
+              e.preventDefault();
+              // Navigate to root screen to reset the stack
+              navigation.dispatch(
+                CommonActions.navigate({
+                  name: SCREEN_NAMES.Farmer,
+                  params: {
+                    screen: SCREEN_NAMES.Farmer,
+                  },
+                })
+              );
+            }
+          },
+        })}
+      />
+      <Tab.Screen 
+        name={SCREEN_NAMES.Tractors} 
+        component={TractorsStack}
+        listeners={({navigation, route}) => ({
+          tabPress: (e) => {
+            // Always reset stack to main screen when tab is pressed
+            const state = navigation.getState();
+            const tabState = state.routes.find(r => r.key === route.key)?.state;
+            
+            // If stack exists and has multiple screens, pop to root
+            if (tabState && tabState.index > 0) {
+              e.preventDefault();
+              // Navigate to root screen to reset the stack
+              navigation.dispatch(
+                CommonActions.navigate({
+                  name: SCREEN_NAMES.Tractors,
+                  params: {
+                    screen: SCREEN_NAMES.Tractors,
+                  },
+                })
+              );
+            }
+          },
+        })}
+      />
+      <Tab.Screen 
+        name={SCREEN_NAMES.Profile} 
+        component={ProfileStack}
+        listeners={({navigation, route}) => ({
+          tabPress: (e) => {
+            // Always reset stack to main screen when tab is pressed
+            const state = navigation.getState();
+            const tabState = state.routes.find(r => r.key === route.key)?.state;
+            
+            // If stack exists and has multiple screens, pop to root
+            if (tabState && tabState.index > 0) {
+              e.preventDefault();
+              // Navigate to root screen to reset the stack
+              navigation.dispatch(
+                CommonActions.navigate({
+                  name: SCREEN_NAMES.Profile,
+                  params: {
+                    screen: SCREEN_NAMES.Profile,
+                  },
+                })
+              );
+            }
+          },
+        })}
+      />
     </Tab.Navigator>
   );
 }

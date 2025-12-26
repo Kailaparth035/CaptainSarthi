@@ -88,7 +88,7 @@ export default function UpdateNumberModal({
           borderTopLeftRadius: moderateScale(20),
           borderTopRightRadius: moderateScale(20),
           padding: moderateScale(20),
-          paddingBottom: insets.bottom + moderateScale(20),
+          paddingBottom: insets.bottom + moderateScale(12),
           shadowColor: colors.shadowColor,
           shadowOpacity: 0.25,
           shadowOffset: {width: 0, height: moderateScale(-4)},

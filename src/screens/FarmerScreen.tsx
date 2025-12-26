@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,9 +6,11 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import colors from '../utils/colors';
@@ -21,25 +23,23 @@ import { FarmerStackParamList } from '../navigation/stacks/FarmerStack';
 import { CompositeNavigationProp } from '@react-navigation/native';
 import { NativeStackNavigationProp as StackNavProp } from '@react-navigation/native-stack';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
+import {useLanguage} from '../contexts/LanguageContext';
+import {getData} from '../Service/Apimethod';
+import Apis from '../Service/constant';
 
 type NavigationProp = CompositeNavigationProp<
   StackNavProp<FarmerStackParamList>,
   NativeStackNavigationProp<RootStackParamList>
 >;
 
-// Mock data - extended list of farmers
-const allFarmers = [
-  { id: '1', name: 'David Wills', phone: '5214-9710-3671', initials: 'DW' },
-  { id: '2', name: 'Adam Kepler', phone: '5214-9710-3671', initials: 'AK' },
-  { id: '3', name: 'Natasha Davies', phone: '5214-9710-3671', initials: 'ND' },
-  { id: '4', name: 'Peter Jane', phone: '5214-9710-3671', initials: 'PJ' },
-  { id: '5', name: 'Peter Jane', phone: '5214-9710-3671', initials: 'PJ' },
-  { id: '6', name: 'Peter Jane', phone: '5214-9710-3671', initials: 'PJ' },
-  { id: '7', name: 'Sarah Johnson', phone: '5214-9710-3672', initials: 'SJ' },
-  { id: '8', name: 'Michael Brown', phone: '5214-9710-3673', initials: 'MB' },
-  { id: '9', name: 'Emily Davis', phone: '5214-9710-3674', initials: 'ED' },
-  { id: '10', name: 'James Wilson', phone: '5214-9710-3675', initials: 'JW' },
-];
+// Helper function to get initials from name
+const getInitials = (name: string): string => {
+  const names = name.trim().split(' ');
+  if (names.length >= 2) {
+    return (names[0][0] + names[names.length - 1][0]).toUpperCase();
+  }
+  return name.substring(0, 2).toUpperCase();
+};
 
 // Avatar Component
 const Avatar = ({
@@ -81,11 +81,18 @@ const Avatar = ({
 export default function FarmerScreen() {
   const insets = useSafeAreaInsets();
   const { moderateScale } = useDeviceMetrics();
+  const {t} = useLanguage();
   const navigation = useNavigation<NavigationProp>();
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('name');
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
+  const [farmers, setFarmers] = useState<any[]>([]);
+  const [allFarmers, setAllFarmers] = useState<any[]>([]); // Store all farmers for filtering
+  const [loadingFarmers, setLoadingFarmers] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
 
   // Update StatusBar and bottom bar to match screen background color
   useDynamicStatusBar({
@@ -93,37 +100,217 @@ export default function FarmerScreen() {
     bottomBarColor: colors.backgroundLight,
   });
 
-  // Filter categories for the modal
-  const filterCategories = [
-    {
-      id: 'name',
-      label: 'Name',
-      options: [
-        {id: 'a-to-z', label: 'A to Z', value: 'a-to-z'},
-        {id: 'z-to-a', label: 'Z to A', value: 'z-to-a'},
-      ],
-    },
-    {
-      id: 'date',
-      label: 'Date',
-      options: [
-        {id: 'newest', label: 'Newest First', value: 'newest'},
-        {id: 'oldest', label: 'Oldest First', value: 'oldest'},
-      ],
-    },
-    {
-      id: 'city',
-      label: 'City',
-      options: [
-        {id: 'all', label: 'All Cities', value: 'all'},
-        {id: 'mumbai', label: 'Mumbai', value: 'mumbai'},
-        {id: 'delhi', label: 'Delhi', value: 'delhi'},
-      ],
-    },
-  ];
+  // Fetch farmers from API
+  const fetchFarmers = async (showRefreshing = false) => {
+    try {
+      if (showRefreshing) {
+        setRefreshing(true);
+      } else {
+        setLoadingFarmers(true);
+      }
+      console.log('[FarmerScreen] Fetching latest farmers data');
+      // GET API - only requires token (automatically added via interceptor)
+      const response = await getData(Apis.DEALER_FARMERS, {});
+      
+      // Handle API response structure: { status: true, data: { farmers: [...], current_page, total_pages, total_farmers } }
+      console.log('[FarmerScreen] Farmers API Response:', JSON.stringify(response, null, 2));
+      
+      if (response?.status === true && response?.data) {
+        // Check if data has farmers array (new structure)
+        const farmersArray = response.data.farmers || 
+                           (Array.isArray(response.data) ? response.data : []);
+        
+        console.log('[FarmerScreen] Farmers array extracted:', farmersArray?.length || 0, 'farmers');
+        
+        if (Array.isArray(farmersArray) && farmersArray.length > 0) {
+          // Transform API response to match expected format
+          const transformedFarmers = farmersArray.map((farmer: any) => {
+            // Combine first_name, middle_name, last_name to create full name
+            const nameParts = [
+              farmer.first_name,
+              farmer.middle_name,
+              farmer.last_name,
+            ].filter(Boolean);
+            const fullName = nameParts.join(' ').trim();
+            
+            // Extract category ID - check multiple possible field names
+            const categoryId = farmer.category_id || 
+                              farmer.categoryId || 
+                              farmer.category?.id || 
+                              farmer.category || 
+                              null;
+            
+            return {
+              id: farmer.id?.toString() || farmer.farmer_id?.toString() || '',
+              farmer_id: farmer.farmer_id || farmer.id?.toString() || '',
+              name: fullName || '',
+              phone: farmer.mobile || '',
+              initials: getInitials(fullName),
+              categoryId: categoryId ? categoryId.toString() : null, // Store category ID as string
+            };
+          });
+          setAllFarmers(transformedFarmers); // Store all farmers first
+          setFarmers(transformedFarmers);
+          
+          // Log category IDs for debugging
+          const categoryIds = transformedFarmers
+            .map(f => f.categoryId)
+            .filter(Boolean)
+            .filter((v, i, a) => a.indexOf(v) === i); // Get unique category IDs
+          console.log('[FarmerScreen] Unique category IDs in farmers:', categoryIds);
+        } else {
+          // No farmers in response
+          setFarmers([]);
+          setAllFarmers([]);
+        }
+      } else if (Array.isArray(response)) {
+        // Fallback: if response is directly an array
+        const transformedFarmers = response.map((farmer: any) => {
+          const nameParts = [
+            farmer.first_name,
+            farmer.middle_name,
+            farmer.last_name,
+          ].filter(Boolean);
+          const fullName = nameParts.join(' ').trim();
+          
+          // Extract category ID - check multiple possible field names
+          const categoryId = farmer.category_id || 
+                            farmer.categoryId || 
+                            farmer.category?.id || 
+                            farmer.category || 
+                            null;
+          
+          return {
+            id: farmer.id?.toString() || farmer.farmer_id?.toString() || '',
+            farmer_id: farmer.farmer_id || farmer.id?.toString() || '',
+            name: fullName || '',
+            phone: farmer.mobile || '',
+            initials: getInitials(fullName),
+            categoryId: categoryId ? categoryId.toString() : null, // Store category ID as string
+          };
+        });
+        setFarmers(transformedFarmers);
+        setAllFarmers(transformedFarmers); // Store all farmers
+      } else {
+        // No data or unexpected response format
+        setFarmers([]);
+        setAllFarmers([]);
+      }
+    } catch (error) {
+      console.error('Error fetching farmers:', error);
+      setFarmers([]);
+    } finally {
+      setLoadingFarmers(false);
+      setRefreshing(false);
+    }
+  };
+
+  // Handle pull to refresh
+  const onRefresh = React.useCallback(() => {
+    fetchFarmers(true);
+    fetchCategories();
+  }, []);
+
+  // Fetch categories from API
+  const fetchCategories = async () => {
+    try {
+      setLoadingCategories(true);
+      console.log('[FarmerScreen] Fetching categories');
+      const response = await getData(Apis.DEALER_CATEGORIES, {});
+      
+      if (response?.status === true && response?.data) {
+        const categoriesData = response.data.map((cat: any) => ({
+          id: cat.id?.toString() || '',
+          name: cat.name || '',
+        }));
+        setCategories(categoriesData);
+        console.log('[FarmerScreen] Categories loaded:', categoriesData);
+        console.log('[FarmerScreen] Category IDs:', categoriesData.map(c => c.id));
+      } else {
+        console.warn('[FarmerScreen] Failed to fetch categories:', response);
+        setCategories([]);
+      }
+    } catch (error) {
+      console.error('[FarmerScreen] Error fetching categories:', error);
+      setCategories([]);
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
+
+  // Fetch data on mount and whenever screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchFarmers();
+      fetchCategories();
+    }, [])
+  );
+
+  // Filter categories for the modal - dynamically generated from API
+  const filterCategories = useMemo(() => {
+    const categoriesList = [
+      {
+        id: 'name',
+        label: 'Name',
+        options: [
+          {id: 'a-to-z', label: 'A to Z', value: 'a-to-z'},
+          {id: 'z-to-a', label: 'Z to A', value: 'z-to-a'},
+        ],
+      },
+      {
+        id: 'date',
+        label: 'Date',
+        options: [
+          {id: 'newest', label: 'Newest First', value: 'newest'},
+          {id: 'oldest', label: 'Oldest First', value: 'oldest'},
+        ],
+      },
+    ];
+
+    // Add category filter if categories are available
+    if (categories.length > 0) {
+      const categoryOptions = [
+        {id: 'all', label: 'All Categories', value: 'all'},
+        ...categories.map(cat => ({
+          id: `cat-${cat.id}`,
+          label: cat.name,
+          value: cat.id,
+        })),
+      ];
+
+      categoriesList.push({
+        id: 'category',
+        label: 'Category',
+        options: categoryOptions,
+      });
+    }
+
+    return categoriesList;
+  }, [categories]);
 
   const filteredFarmers = useMemo(() => {
-    let filtered = [...allFarmers];
+    let filtered = [...allFarmers]; // Start with all farmers
+
+    // Apply category filter first
+    const categoryOption = selectedOptions['category'];
+    if (categoryOption && categoryOption !== 'all') {
+      const selectedCategoryId = categoryOption.toString();
+      console.log('[FarmerScreen] Filtering by category ID:', selectedCategoryId);
+      console.log('[FarmerScreen] Total farmers before filter:', filtered.length);
+      
+      filtered = filtered.filter(farmer => {
+        const farmerCategoryId = farmer.categoryId?.toString();
+        const matches = farmerCategoryId === selectedCategoryId;
+        
+        if (matches) {
+          console.log(`[FarmerScreen] Farmer ${farmer.name} matches category ${selectedCategoryId} (farmer category: ${farmerCategoryId})`);
+        }
+        
+        return matches;
+      });
+      
+      console.log('[FarmerScreen] Total farmers after category filter:', filtered.length);
+    }
 
     // Apply search filter
     if (searchQuery.trim()) {
@@ -167,7 +354,7 @@ export default function FarmerScreen() {
     }
 
     return filtered;
-  }, [searchQuery, selectedOptions]);
+  }, [allFarmers, searchQuery, selectedOptions]);
 
   const dynamicStyles = useMemo(
     () =>
@@ -181,7 +368,7 @@ export default function FarmerScreen() {
           justifyContent: 'space-between',
           alignItems: 'center',
           paddingHorizontal: moderateScale(16),
-          paddingTop: insets.top,
+          paddingTop: insets.top + moderateScale(12),
           paddingBottom: moderateScale(12),
           backgroundColor: colors.backgroundLight,
         },
@@ -189,6 +376,7 @@ export default function FarmerScreen() {
           ...Typography.boldXxl,
           color: colors.textPrimary,
           fontSize: moderateScale(22),
+          marginLeft: moderateScale(10),
         },
         addButton: {
           backgroundColor: colors.primary,
@@ -224,7 +412,6 @@ export default function FarmerScreen() {
         },
         searchInput: {
           flex: 1,
-          fontSize: moderateScale(14),
           color: colors.textPrimary,
           ...Typography.regularMd,
         },
@@ -271,6 +458,25 @@ export default function FarmerScreen() {
           color: colors.textTertiary,
           fontSize: moderateScale(12),
         },
+        emptyContainer: {
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          paddingVertical: moderateScale(60),
+        },
+        emptyText: {
+          ...Typography.regularMd,
+          fontSize: moderateScale(16),
+          color: colors.textTertiary,
+          textAlign: 'center',
+          marginTop: moderateScale(12),
+        },
+        loadingContainer: {
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          paddingVertical: moderateScale(60),
+        },
       }),
     [moderateScale, insets.top],
   );
@@ -279,12 +485,12 @@ export default function FarmerScreen() {
     <View style={[dynamicStyles.container]}>
       {/* Header */}
       <View style={dynamicStyles.header}>
-        <Text style={dynamicStyles.headerTitle}>Farmers</Text>
+        <Text style={dynamicStyles.headerTitle}>{t('farmer.title')}</Text>
         <TouchableOpacity
           style={dynamicStyles.addButton}
           onPress={() => navigation.navigate(SCREEN_NAMES.AddFarmer)}
           activeOpacity={0.7}>
-          <Text style={dynamicStyles.addButtonText}>Add new</Text>
+          <Text style={dynamicStyles.addButtonText}>{t('farmer.addNew')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -299,7 +505,7 @@ export default function FarmerScreen() {
           />
           <TextInput
             style={dynamicStyles.searchInput}
-            placeholder="Search"
+            placeholder={t('common.search')}
             placeholderTextColor={colors.textTertiary}
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -325,48 +531,72 @@ export default function FarmerScreen() {
           backgroundColor: colors.backgroundLight,
         }}
       >
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          style={dynamicStyles.listContainer}
-        >
-          {filteredFarmers.map((farmer, index) => (
-            <TouchableOpacity
-              key={farmer.id}
-              style={[
-                dynamicStyles.listItem,
-                index !== filteredFarmers.length - 1 &&
-                  dynamicStyles.listItemBorder,
-              ]}
-              activeOpacity={0.7}
-              onPress={() => {
-                navigation.navigate(SCREEN_NAMES.FarmerDetails, {
-                  farmerId: farmer.id,
-                  farmerName: farmer.name,
-                  farmerPhone: farmer.phone,
-                  farmerInitials: farmer.initials,
-                  fromScreen: 'List',
-                });
-              }}
-            >
-              <Avatar
-                initials={farmer.initials}
-                moderateScale={moderateScale}
-                size={moderateScale(40)}
+        {loadingFarmers ? (
+          <View style={[dynamicStyles.listContainer, dynamicStyles.loadingContainer]}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        ) : filteredFarmers.length > 0 ? (
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            style={dynamicStyles.listContainer}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={[colors.primary]}
+                tintColor={colors.primary}
               />
-              <View style={dynamicStyles.listItemContent}>
-                <Text style={dynamicStyles.listItemName}>{farmer.name}</Text>
-                <Text style={dynamicStyles.listItemSubtext}>
-                  {farmer.phone}
-                </Text>
-              </View>
-              <Ionicons
-                name="chevron-forward"
-                size={moderateScale(18)}
-                color={colors.textTertiary}
-              />
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+            }
+          >
+            {filteredFarmers.map((farmer, index) => (
+              <TouchableOpacity
+                key={farmer.id}
+                style={[
+                  dynamicStyles.listItem,
+                  index !== filteredFarmers.length - 1 &&
+                    dynamicStyles.listItemBorder,
+                ]}
+                activeOpacity={0.7}
+                onPress={() => {
+                  navigation.navigate(SCREEN_NAMES.FarmerDetails, {
+                    farmerId: farmer.id,
+                    farmer_id: farmer.farmer_id,
+                    farmerName: farmer.name,
+                    farmerPhone: farmer.phone,
+                    farmerInitials: farmer.initials,
+                    fromScreen: 'List',
+                  });
+                }}
+              >
+                <Avatar
+                  initials={farmer.initials}
+                  moderateScale={moderateScale}
+                  size={moderateScale(40)}
+                />
+                <View style={dynamicStyles.listItemContent}>
+                  <Text style={dynamicStyles.listItemName}>{farmer.name}</Text>
+                  <Text style={dynamicStyles.listItemSubtext}>
+                    {farmer.phone}
+                  </Text>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={moderateScale(18)}
+                  color={colors.textTertiary}
+                />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        ) : (
+          <View style={[dynamicStyles.listContainer, dynamicStyles.emptyContainer]}>
+            <Ionicons
+              name="people-outline"
+              size={moderateScale(64)}
+              color={colors.textTertiary}
+            />
+            <Text style={dynamicStyles.emptyText}>No farmers found</Text>
+          </View>
+        )}
       </View>
 
       {/* Filter Modal */}
@@ -376,6 +606,10 @@ export default function FarmerScreen() {
         onApply={filters => {
           setSelectedCategory(filters.category || 'name');
           setSelectedOptions(filters.options || {});
+        }}
+        onReset={() => {
+          setSelectedCategory('name');
+          setSelectedOptions({});
         }}
         title="Filters"
         categories={filterCategories}

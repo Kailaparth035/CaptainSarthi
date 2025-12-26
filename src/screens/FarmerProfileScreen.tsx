@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  RefreshControl,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
@@ -22,15 +23,38 @@ import {useLanguage} from '../contexts/LanguageContext';
 export default function FarmerProfileScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
-  const {t} = useLanguage();
+  const {t, currentLanguage} = useLanguage();
   const navigation = useNavigation();
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
   const [updateNumberModalVisible, setUpdateNumberModalVisible] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [userData, setUserData] = useState({
     name: 'Harrison wills',
     phone: '+91 54852 26478',
     initials: 'HW',
   });
+
+  // Handle pull to refresh
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    // Reload user data from session
+    const loadUserData = async () => {
+      try {
+        const session = await getSession();
+        if (session?.mobileNumber) {
+          setUserData(prev => ({
+            ...prev,
+            phone: session.mobileNumber || prev.phone,
+          }));
+        }
+      } catch (error) {
+        console.error('Error loading user data:', error);
+      } finally {
+        setRefreshing(false);
+      }
+    };
+    loadUserData();
+  }, []);
 
   // Load user data from session
   React.useEffect(() => {
@@ -67,7 +91,7 @@ export default function FarmerProfileScreen() {
         },
         scrollContent: {
           paddingHorizontal: moderateScale(16),
-          paddingTop: insets.top + moderateScale(16),
+          paddingTop: insets.top + moderateScale(12),
         },
         card: {
           backgroundColor: colors.backgroundWhite,
@@ -234,7 +258,15 @@ export default function FarmerProfileScreen() {
       <ScrollView
         style={{flex: 1}}
         contentContainerStyle={dynamicStyles.scrollContent}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }>
         {/* Profile Information Card */}
         <View style={dynamicStyles.card}>
           {/* Profile Header */}
@@ -303,9 +335,41 @@ export default function FarmerProfileScreen() {
                 />
               </View>
               <View style={dynamicStyles.optionContent}>
-                <Text style={dynamicStyles.optionLabel}>Update number</Text>
+                <Text style={dynamicStyles.optionLabel}>{t('farmerProfile.updateNumber')}</Text>
                 <Text style={dynamicStyles.optionText}>
-                  Update your mobile number.
+                  {t('farmerProfile.updateNumberDescription')}
+                </Text>
+              </View>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={moderateScale(20)}
+              color={colors.textTertiary}
+            />
+          </TouchableOpacity>
+
+          {/* Divider */}
+          <View style={dynamicStyles.divider} />
+
+          {/* Language Option */}
+          <TouchableOpacity
+            style={dynamicStyles.optionRow}
+            onPress={() => navigation.navigate(SCREEN_NAMES.Language as never)}
+            activeOpacity={0.7}>
+            <View style={dynamicStyles.optionLeft}>
+              <View style={dynamicStyles.optionIcon}>
+                <Ionicons
+                  name="language-outline"
+                  size={moderateScale(20)}
+                  color={colors.textPrimary}
+                />
+              </View>
+              <View style={dynamicStyles.optionContent}>
+                <Text style={dynamicStyles.optionLabel}>{t('language.title')}</Text>
+                <Text style={dynamicStyles.optionText}>
+                  {currentLanguage === 'en' ? t('language.english') : 
+                   currentLanguage === 'gu' ? t('language.gujarati') : 
+                   t('language.hindi')}
                 </Text>
               </View>
             </View>

@@ -29,7 +29,7 @@ export default function HistoryScreen() {
         },
         scrollContent: {
           paddingHorizontal: moderateScale(16),
-          paddingTop: insets.top + moderateScale(20),
+          paddingTop: insets.top + moderateScale(12),
           paddingBottom: moderateScale(100),
         },
         title: {

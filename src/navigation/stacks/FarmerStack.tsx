@@ -9,6 +9,7 @@ export type FarmerStackParamList = {
   [SCREEN_NAMES.Farmer]: undefined;
   [SCREEN_NAMES.FarmerDetails]: {
     farmerId: string;
+    farmer_id?: string;
     farmerName: string;
     farmerPhone: string;
     farmerInitials: string;

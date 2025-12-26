@@ -277,6 +277,8 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           otpInputRef.current?.focus();
         }, 100);
       } else {
+        console.log('Send OTP failed response:', response);
+        
         setGetOtpLoading(false);
         const errorMsg = response?.message || 'Failed to send OTP. Please try again.';
         showToastMessage(errorMsg, 'error');
@@ -371,10 +373,18 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
         
         // Extract token, role, user, dealer, and farmer data from response
         const token = response?.token;
-        const role = response?.role; // "farmer" or "dealer"
+        let role = response?.role; // "farmer" or "dealer"
         const user = response?.user; // { id, name, phone }
         const dealer = response?.dealer;
         const farmer = response?.farmer;
+        
+        // If role is not in response, determine from mobile number (fallback)
+        if (!role) {
+          role = isFarmerRole(mobileNumber) ? 'farmer' : 'dealer';
+          console.log('[LoginScreen] Role not in response, using mobile number fallback:', role);
+        }
+        
+        console.log('[LoginScreen] Login successful - Role:', role, 'Token:', token ? 'Present' : 'Missing');
         
         // Save auth token if provided
         if (token) {
@@ -404,6 +414,16 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
         
         // Navigate to dashboard after a short delay to show the success message
         setTimeout(async () => {
+          // First check if language has been selected
+          const {isLanguageSelected} = await import('../utils/session');
+          const languageSelected = await isLanguageSelected();
+          
+          if (!languageSelected) {
+            // Navigate to language selection screen first
+            navigation.replace(SCREEN_NAMES.LanguageSelect);
+            return;
+          }
+          
           // Navigate based on role from response
           if (role === 'farmer') {
             // Farmer role - check if terms have been accepted
@@ -467,8 +487,8 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           contentContainerStyle={[
             styles.scrollContent,
             {
-              paddingTop: insets.top + moderateScale(20),
-              paddingBottom: insets.bottom + moderateScale(20),
+              paddingTop: insets.top + moderateScale(12),
+              paddingBottom: insets.bottom + moderateScale(12),
             },
           ]}
           keyboardShouldPersistTaps="handled"

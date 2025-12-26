@@ -1,11 +1,10 @@
-import React, {useMemo, useState} from 'react';
+import React, {useMemo} from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  TextInput,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
@@ -14,9 +13,9 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import colors from '../utils/colors';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import {Typography} from '../utils/typography';
-import FilterModal from '../components/FilterModal';
 import {SCREEN_NAMES} from '../constants/screenNames';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
+import {useLanguage} from '../contexts/LanguageContext';
 
 // Mock data - extended list of tractors
 const allTractors = [
@@ -103,104 +102,14 @@ const TractorThumbnail = ({
 export default function FarmerTractorsScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
+  const {t} = useLanguage();
   const navigation = useNavigation();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string>('model');
-  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
 
   // Update StatusBar and bottom bar to match screen background color
   useDynamicStatusBar({
     backgroundColor: colors.backgroundLight,
     bottomBarColor: colors.backgroundLight,
   });
-
-  // Filter categories for the modal
-  const filterCategories = [
-    {
-      id: 'model',
-      label: 'Model',
-      options: [
-        {id: 'a-to-z', label: 'A to Z', value: 'a-to-z'},
-        {id: 'z-to-a', label: 'Z to A', value: 'z-to-a'},
-      ],
-    },
-    {
-      id: 'owner',
-      label: 'Owner',
-      options: [
-        {id: 'a-to-z', label: 'A to Z', value: 'a-to-z'},
-        {id: 'z-to-a', label: 'Z to A', value: 'z-to-a'},
-      ],
-    },
-    {
-      id: 'date',
-      label: 'Date',
-      options: [
-        {id: 'newest', label: 'Newest First', value: 'newest'},
-        {id: 'oldest', label: 'Oldest First', value: 'oldest'},
-      ],
-    },
-  ];
-
-  const filteredTractors = useMemo(() => {
-    let filtered = [...allTractors];
-
-    // Apply search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        tractor =>
-          tractor.model.toLowerCase().includes(query) ||
-          tractor.owner.toLowerCase().includes(query),
-      );
-    }
-
-    // Apply sort based on selected option
-    const modelOption = selectedOptions['model'];
-    const ownerOption = selectedOptions['owner'];
-    const dateOption = selectedOptions['date'];
-
-    if (modelOption) {
-      filtered.sort((a, b) => {
-        switch (modelOption) {
-          case 'a-to-z':
-            return a.model.localeCompare(b.model);
-          case 'z-to-a':
-            return b.model.localeCompare(a.model);
-          default:
-            return 0;
-        }
-      });
-    } else if (ownerOption) {
-      filtered.sort((a, b) => {
-        switch (ownerOption) {
-          case 'a-to-z':
-            return a.owner.localeCompare(b.owner);
-          case 'z-to-a':
-            return b.owner.localeCompare(a.owner);
-          default:
-            return 0;
-        }
-      });
-    } else if (dateOption) {
-      // For date sorting, you would need actual date data
-      // This is a placeholder - adjust based on your data structure
-      filtered.sort((a, b) => {
-        switch (dateOption) {
-          case 'newest':
-            // Assuming newer items have higher IDs (adjust based on your data)
-            return parseInt(b.id) - parseInt(a.id);
-          case 'oldest':
-            return parseInt(a.id) - parseInt(b.id);
-          default:
-            return 0;
-        }
-      });
-    }
-
-    return filtered;
-  }, [searchQuery, selectedOptions]);
 
  const dynamicStyles = useMemo(
     () =>
@@ -214,7 +123,7 @@ export default function FarmerTractorsScreen() {
           justifyContent: 'space-between',
           alignItems: 'center',
           paddingHorizontal: moderateScale(16),
-          paddingTop: insets.top,
+          paddingTop: insets.top + moderateScale(12),
           paddingBottom: moderateScale(12),
           backgroundColor: colors.backgroundLight,
         },
@@ -222,6 +131,7 @@ export default function FarmerTractorsScreen() {
           ...Typography.boldXxl,
           color: colors.textPrimary,
           fontSize: moderateScale(22),
+          marginLeft: moderateScale(10),
         },
         addButton: {
           backgroundColor: colors.primary,
@@ -233,43 +143,6 @@ export default function FarmerTractorsScreen() {
           ...Typography.semiBoldMd,
           color: colors.textWhite,
           fontSize: moderateScale(14),
-        },
-        searchContainer: {
-          flexDirection: 'row',
-          paddingHorizontal: moderateScale(16),
-          paddingVertical:moderateScale(8),
-          backgroundColor: colors.backgroundLight,
-          gap: moderateScale(12),
-        },
-        searchBar: {
-          flex: 1,
-          flexDirection: 'row',
-          alignItems: 'center',
-          backgroundColor: colors.white,
-          borderColor:colors.placeholderText,
-          borderWidth:1,
-          borderRadius: moderateScale(20),
-          paddingHorizontal: moderateScale(12),
-          height: moderateScale(40),
-        },
-        searchIcon: {
-          marginRight: moderateScale(8),
-        },
-        searchInput: {
-          flex: 1,
-          fontSize: moderateScale(14),
-          color: colors.textPrimary,
-          ...Typography.regularMd,
-        },
-        filterButton: {
-          width: moderateScale(40),
-          height: moderateScale(40),
-          borderRadius: moderateScale(20),
-          backgroundColor: colors.white,
-          borderColor:colors.placeholderText,
-          borderWidth:1,
-          alignItems: 'center',
-          justifyContent: 'center',
         },
         listContainer: {
           flex: 1,
@@ -312,36 +185,7 @@ export default function FarmerTractorsScreen() {
     <View style={[dynamicStyles.container]}>
       {/* Header */}
       <View style={dynamicStyles.header}>
-        <Text style={dynamicStyles.headerTitle}>Tractors</Text>
-      </View>
-
-      {/* Search and Filter */}
-      <View style={dynamicStyles.searchContainer}>
-        <View style={dynamicStyles.searchBar}>
-          <Ionicons
-            name="search-outline"
-            size={moderateScale(20)}
-            color={colors.textTertiary}
-            style={dynamicStyles.searchIcon}
-          />
-          <TextInput
-            style={dynamicStyles.searchInput}
-            placeholder="Search"
-            placeholderTextColor={colors.textTertiary}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
-        <TouchableOpacity
-          style={dynamicStyles.filterButton}
-          activeOpacity={0.7}
-          onPress={() => setIsFilterModalVisible(true)}>
-          <Ionicons
-            name="options-outline"
-            size={moderateScale(20)}
-            color={colors.textSecondary}
-          />
-        </TouchableOpacity>
+        <Text style={dynamicStyles.headerTitle}>{t('tractors.title')}</Text>
       </View>
 
       {/* Tractors List */}
@@ -355,12 +199,12 @@ export default function FarmerTractorsScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         style={dynamicStyles.listContainer}>
-        {filteredTractors.map((tractor, index) => (
+        {allTractors.map((tractor, index) => (
           <TouchableOpacity
             key={tractor.id}
             style={[
               dynamicStyles.listItem,
-              index !== filteredTractors.length - 1 &&
+              index !== allTractors.length - 1 &&
                 dynamicStyles.listItemBorder,
             ]}
             activeOpacity={0.7}
@@ -393,20 +237,6 @@ export default function FarmerTractorsScreen() {
         ))}
       </ScrollView>
       </View>
-
-      {/* Filter Modal */}
-      <FilterModal
-        visible={isFilterModalVisible}
-        onClose={() => setIsFilterModalVisible(false)}
-        onApply={filters => {
-          setSelectedCategory(filters.category || 'model');
-          setSelectedOptions(filters.options || {});
-        }}
-        title="Filters"
-        categories={filterCategories}
-        selectedCategory={selectedCategory}
-        selectedOptions={selectedOptions}
-      />
     </View>
   );
 }

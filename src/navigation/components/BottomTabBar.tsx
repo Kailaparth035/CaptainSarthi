@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
           styles.wrapper,
           styles.standaloneWrapper,
           {
-            paddingBottom: Math.max(insets.bottom, Spacing.sm),
+            paddingBottom: insets.bottom,
             backgroundColor: containerBg,
             borderTopColor: border,
           },

@@ -6,9 +6,11 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  RefreshControl,
+  Image,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {useNavigation, CommonActions} from '@react-navigation/native';
+import {useNavigation, CommonActions, useFocusEffect} from '@react-navigation/native';
 import {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -23,12 +25,13 @@ import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import {useLanguage} from '../contexts/LanguageContext';
 import {getData} from '../Service/Apimethod';
 import Apis from '../Service/constant';
+import {getImageUrl} from '../utils/imageUtils';
 
-// Mock data
-const summaryData = {
-  activeClients: 156,
-  tractorModels: 14,
-  syncsPending: 16,
+// Initial summary data (will be updated from API)
+const initialSummaryData = {
+  activeClients: 0,
+  tractorModels: 0,
+  syncsPending: 0,
 };
 
 // Helper function to get initials from name
@@ -40,11 +43,8 @@ const getInitials = (name: string): string => {
   return name.substring(0, 2).toUpperCase();
 };
 
-const tractors = [
-  {id: '1', model: '280 DX 2 WD', owner: 'Adam smith', color: colors.tractorGreen},
-  {id: '2', model: '280 4WD', owner: 'Nathan ellis', color: colors.tractorOrange},
-  {id: '3', model: '120 Little master', owner: 'William regal', color: colors.tractorGreen},
-];
+// Initial tractors data (will be updated from API)
+const initialTractors: any[] = [];
 
 // Avatar Component
 const Avatar = ({
@@ -88,10 +88,12 @@ const TractorThumbnail = ({
   color,
   size,
   moderateScale,
+  imageUrl,
 }: {
   color: string;
   size?: number;
   moderateScale: (percent: number) => number;
+  imageUrl?: string | null;
 }) => {
   const thumbnailSize = size || moderateScale(48);
   return (
@@ -103,12 +105,25 @@ const TractorThumbnail = ({
         backgroundColor: color,
         alignItems: 'center',
         justifyContent: 'center',
+        overflow: 'hidden',
       }}>
-      <MaterialCommunityIcons
-        name="tractor"
-        size={moderateScale(24)}
-        color={colors.textWhite}
-      />
+      {imageUrl ? (
+        <Image
+          source={{uri: imageUrl}}
+          style={{
+            width: thumbnailSize,
+            height: thumbnailSize,
+            borderRadius: thumbnailSize / 2,
+          }}
+          resizeMode="cover"
+        />
+      ) : (
+        <MaterialCommunityIcons
+          name="tractor"
+          size={moderateScale(24)}
+          color={colors.textWhite}
+        />
+      )}
     </View>
   );
 };
@@ -185,6 +200,11 @@ export default function HomeScreen() {
     useNavigation<BottomTabNavigationProp<TabParamList>>();
   const [farmers, setFarmers] = useState<any[]>([]);
   const [loadingFarmers, setLoadingFarmers] = useState(true);
+  const [loadingTractors, setLoadingTractors] = useState(true);
+  const [summaryData, setSummaryData] = useState(initialSummaryData);
+  const [tractors, setTractors] = useState<any[]>(initialTractors);
+  const [refreshing, setRefreshing] = useState(false);
+  const [profileName, setProfileName] = useState<string>('');
 
   // Update StatusBar and bottom bar to match screen background color
   useDynamicStatusBar({
@@ -192,64 +212,189 @@ export default function HomeScreen() {
     bottomBarColor: colors.backgroundLight,
   });
 
-  // Fetch farmers from API
-  useEffect(() => {
-    const fetchFarmers = async () => {
-      try {
+  // Fetch all dashboard data
+  const fetchAllData = async (isRefresh = false) => {
+    try {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
         setLoadingFarmers(true);
-        // GET API - only requires token (automatically added via interceptor)
-        const response = await getData(Apis.DEALER_FARMERS, {});
-        
-        // Handle API response structure: { status: true, data: [...] }
-        if (response?.status === true && Array.isArray(response?.data)) {
-          // Transform API response to match expected format
-          const transformedFarmers = response.data.map((farmer: any) => {
-            // Combine first_name, middle_name, last_name to create full name
-            const nameParts = [
-              farmer.first_name,
-              farmer.middle_name,
-              farmer.last_name,
-            ].filter(Boolean);
-            const fullName = nameParts.join(' ').trim();
-            
-            return {
-              id: farmer.id?.toString() || farmer.farmer_id?.toString() || '',
-              farmer_id: farmer.farmer_id || farmer.id?.toString() || '',
-              name: fullName || '',
-              phone: farmer.mobile || '',
-              initials: getInitials(fullName),
-            };
-          });
-          setFarmers(transformedFarmers);
-        } else if (Array.isArray(response)) {
-          // Fallback: if response is directly an array
-          const transformedFarmers = response.map((farmer: any) => {
-            const nameParts = [
-              farmer.first_name,
-              farmer.middle_name,
-              farmer.last_name,
-            ].filter(Boolean);
-            const fullName = nameParts.join(' ').trim();
-            
-            return {
-              id: farmer.id?.toString() || farmer.farmer_id?.toString() || '',
-              farmer_id: farmer.farmer_id || farmer.id?.toString() || '',
-              name: fullName || '',
-              phone: farmer.mobile || '',
-              initials: getInitials(fullName),
-            };
-          });
-          setFarmers(transformedFarmers);
-        }
-      } catch (error) {
-        console.error('Error fetching farmers:', error);
-      } finally {
-        setLoadingFarmers(false);
+        setLoadingTractors(true);
       }
-    };
 
-    fetchFarmers();
-  }, []);
+      // Fetch dashboard data, farmers data, tractors data, and profile data in parallel
+      const [dashboardResponse, farmersResponse, tractorsResponse, profileResponse] = await Promise.all([
+        getData(Apis.DEALER_DASHBOARD, {}),
+        getData(Apis.DEALER_FARMERS, {}),
+        getData(Apis.DEALER_TRACTORS, {}),
+        getData(Apis.DEALER_PROFILE, {}),
+      ]);
+
+      // Process profile data to get name
+      if (profileResponse?.status === true && profileResponse?.data) {
+        const profileData = profileResponse.data;
+        setProfileName(profileData.name || '');
+      }
+
+      // Process dashboard data
+      if (dashboardResponse?.status === true && dashboardResponse?.dashboardSummaryData) {
+        const summary = dashboardResponse.dashboardSummaryData;
+        setSummaryData({
+          activeClients: summary.activeClients || 0,
+          tractorModels: summary.tractorModels || 0,
+          syncsPending: summary.syncPending || summary.syncsPending || 0,
+        });
+      }
+
+      // Process tractors data from API
+      // API response structure: { status: true, data: { tractors: [...], current_page, total_pages, total_tractors } }
+      console.log('Tractors API Response:', tractorsResponse);
+      
+      if (tractorsResponse?.status === true && tractorsResponse?.data) {
+        // Check if data has tractors array (new structure)
+        const tractorsArray = tractorsResponse.data.tractors || 
+                            (Array.isArray(tractorsResponse.data) ? tractorsResponse.data : []);
+        
+        console.log('[HomeScreen] Tractors array extracted:', tractorsArray?.length || 0, 'tractors');
+        
+        if (Array.isArray(tractorsArray) && tractorsArray.length > 0) {
+          const transformedTractors = tractorsArray.map((tractor: any, index: number) => {
+            // Get color based on index
+            const colorsArray = [colors.tractorGreen, colors.tractorOrange, colors.tractorGreen];
+            const color = colorsArray[index % colorsArray.length];
+            
+            // Use title as model name, fallback to series or description
+            const modelName = tractor.title || tractor.series || tractor.description || 'Unknown Model';
+            
+            // Use series name instead of owner
+            const seriesName = tractor.series || 'N/A';
+            
+            return {
+              id: tractor.id?.toString() || index.toString(),
+              model: modelName,
+              owner: seriesName, // Using series instead of owner
+              color: color,
+              title: tractor.title,
+              series: tractor.series,
+              description: tractor.description,
+              main_image: getImageUrl(tractor.main_image),
+              gallery_images: (tractor.gallery_images || []).map((img: string) => getImageUrl(img)).filter(Boolean),
+            };
+          });
+          setTractors(transformedTractors);
+        } else {
+          setTractors([]);
+        }
+      } else if (Array.isArray(tractorsResponse)) {
+        // Fallback: if response is directly an array
+        const transformedTractors = tractorsResponse.map((tractor: any, index: number) => {
+          const colorsArray = [colors.tractorGreen, colors.tractorOrange, colors.tractorGreen];
+          const color = colorsArray[index % colorsArray.length];
+          const modelName = tractor.title || tractor.series || tractor.description || 'Unknown Model';
+          const seriesName = tractor.series || 'N/A';
+          
+          return {
+            id: tractor.id?.toString() || index.toString(),
+            model: modelName,
+            owner: seriesName, // Using series instead of owner
+            color: color,
+            title: tractor.title,
+            series: tractor.series,
+            description: tractor.description,
+            main_image: getImageUrl(tractor.main_image),
+            gallery_images: (tractor.gallery_images || []).map((img: string) => getImageUrl(img)).filter(Boolean),
+          };
+        });
+        setTractors(transformedTractors);
+        console.log('Transformed tractors:', transformedTractors.length);
+      } else {
+        // No data or unexpected response format
+        console.warn('Tractors API - Unexpected response format:', tractorsResponse);
+        setTractors([]);
+      }
+
+      // Process farmers data
+      // API response structure: { status: true, data: { farmers: [...], current_page, total_pages, total_farmers } }
+      console.log('[HomeScreen] Farmers API Response:', JSON.stringify(farmersResponse, null, 2));
+      
+      if (farmersResponse?.status === true && farmersResponse?.data) {
+        // Check if data has farmers array (new structure)
+        const farmersArray = farmersResponse.data.farmers || 
+                           (Array.isArray(farmersResponse.data) ? farmersResponse.data : []);
+        
+        console.log('[HomeScreen] Farmers array extracted:', farmersArray?.length || 0, 'farmers');
+        
+        if (Array.isArray(farmersArray) && farmersArray.length > 0) {
+          const transformedFarmers = farmersArray.map((farmer: any) => {
+            const nameParts = [
+              farmer.first_name,
+              farmer.middle_name,
+              farmer.last_name,
+            ].filter(Boolean);
+            const fullName = nameParts.join(' ').trim();
+            
+            return {
+              id: farmer.id?.toString() || farmer.farmer_id?.toString() || '',
+              farmer_id: farmer.farmer_id || farmer.id?.toString() || '',
+              name: fullName || '',
+              phone: farmer.mobile || '',
+              initials: getInitials(fullName),
+            };
+          });
+          setFarmers(transformedFarmers);
+        } else {
+          setFarmers([]);
+        }
+      } else if (Array.isArray(farmersResponse)) {
+        // Fallback: if response is directly an array
+        const transformedFarmers = farmersResponse.map((farmer: any) => {
+          const nameParts = [
+            farmer.first_name,
+            farmer.middle_name,
+            farmer.last_name,
+          ].filter(Boolean);
+          const fullName = nameParts.join(' ').trim();
+          
+          return {
+            id: farmer.id?.toString() || farmer.farmer_id?.toString() || '',
+            farmer_id: farmer.farmer_id || farmer.id?.toString() || '',
+            name: fullName || '',
+            phone: farmer.mobile || '',
+            initials: getInitials(fullName),
+          };
+        });
+        setFarmers(transformedFarmers);
+      } else {
+        setFarmers([]);
+      }
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+      // Set empty arrays on error to prevent infinite loading
+      setTractors([]);
+      setFarmers([]);
+    } finally {
+      if (isRefresh) {
+        setRefreshing(false);
+        setLoadingTractors(false);
+      } else {
+        setLoadingFarmers(false);
+        setLoadingTractors(false);
+      }
+    }
+  };
+
+  // Fetch data on mount and whenever screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('[HomeScreen] Screen focused - fetching latest data');
+      fetchAllData();
+    }, [])
+  );
+
+  // Pull to refresh handler
+  const onRefresh = () => {
+    fetchAllData(true);
+  };
 
   // Get first 4 farmers for home screen
   const displayedFarmers = useMemo(() => {
@@ -297,7 +442,7 @@ export default function HomeScreen() {
           padding: moderateScale(12),
           alignItems: 'center',
           flexDirection:'row',
-          minHeight: moderateScale(68),
+          height: moderateScale(80),
           shadowColor: colors.shadowColor,
           shadowOffset: {width: 0, height: moderateScale(2)},
           shadowOpacity: 0.05,
@@ -423,34 +568,61 @@ export default function HomeScreen() {
       <View
         style={[
           dynamicStyles.header,
-          { paddingHorizontal: moderateScale(16), paddingTop: insets.top },
+          { paddingHorizontal: moderateScale(16), paddingTop: insets.top + moderateScale(12) },
         ]}
       >
-        <Text style={dynamicStyles.greeting}>{t('home.greeting')} William</Text>
-        <TouchableOpacity
-          style={dynamicStyles.bellIcon}
-          activeOpacity={0.7}
-          onPress={() => {
-            // Navigate within HomeStack
-            (navigation as any).navigate(SCREEN_NAMES.Notifications);
-          }}>
-          <Ionicons
-            name="notifications-outline"
-            size={moderateScale(22)}
-            color={colors.textPrimary}
-          />
-        </TouchableOpacity>
+        <Text style={dynamicStyles.greeting}>
+          {t("home.greeting")} {profileName || 'User'}
+        </Text>
+        <View style={{flexDirection: 'row', alignItems: 'center', gap: moderateScale(12)}}>
+          <TouchableOpacity
+            style={dynamicStyles.bellIcon}
+            activeOpacity={0.7}
+            onPress={() => {
+              // Navigate to Language screen
+              (navigation as any).navigate(SCREEN_NAMES.Language);
+            }}
+          >
+            <Ionicons
+              name="language-outline"
+              size={moderateScale(22)}
+              color={colors.textPrimary}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={dynamicStyles.bellIcon}
+            activeOpacity={0.7}
+            onPress={() => {
+              // Navigate within HomeStack
+              (navigation as any).navigate(SCREEN_NAMES.Notifications);
+            }}
+          >
+            <Ionicons
+              name="notifications-outline"
+              size={moderateScale(22)}
+              color={colors.textPrimary}
+            />
+          </TouchableOpacity>
+        </View>
       </View>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={dynamicStyles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }
       >
         {/* Summary Cards */}
         <View style={dynamicStyles.summaryContainer}>
           <SummaryCard
             icon="people"
             value={summaryData.activeClients}
-            label={t('home.activeClients')}
+            label={t("home.activeClients")}
             iconColor={colors.iconBlue}
             iconBgColor={colors.light_blue}
             moderateScale={moderateScale}
@@ -459,7 +631,7 @@ export default function HomeScreen() {
           <SummaryCard
             icon="tractor"
             value={summaryData.tractorModels}
-            label={t('home.tractorModels')}
+            label={t("home.tractorModels")}
             iconColor={colors.iconGreen}
             iconBgColor={colors.light_green}
             iconType="material"
@@ -469,44 +641,50 @@ export default function HomeScreen() {
         </View>
 
         {/* Sync Card */}
-        <View style={dynamicStyles.syncCardWrapper}>
-          <View style={dynamicStyles.syncCard}>
-            <View
-              style={[
-                dynamicStyles.summaryIconContainer,
-                { backgroundColor: colors.light_orange },
-              ]}
-            >
-              <Ionicons
-                name="sync"
-                size={moderateScale(22)}
-                color={colors.iconOrange}
-              />
-            </View>
-            <View style={dynamicStyles.syncCardContent}>
-              <Text
+        {summaryData.syncsPending > 0 && (
+          <View style={dynamicStyles.syncCardWrapper}>
+            <View style={dynamicStyles.syncCard}>
+              <View
                 style={[
-                  dynamicStyles.summaryValue,
-                  { marginTop: moderateScale(5) },
+                  dynamicStyles.summaryIconContainer,
+                  { backgroundColor: colors.light_orange },
                 ]}
               >
-                {summaryData.syncsPending}
-              </Text>
-              <Text style={dynamicStyles.summaryLabel}>{t('home.syncsPending')}</Text>
+                <Ionicons
+                  name="sync"
+                  size={moderateScale(22)}
+                  color={colors.iconOrange}
+                />
+              </View>
+              <View style={dynamicStyles.syncCardContent}>
+                <Text
+                  style={[
+                    dynamicStyles.summaryValue,
+                    { marginTop: moderateScale(5) },
+                  ]}
+                >
+                  {summaryData.syncsPending}
+                </Text>
+                <Text style={dynamicStyles.summaryLabel}>
+                  {t("home.syncsPending")}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={dynamicStyles.syncButton}
+                activeOpacity={0.7}
+              >
+                <Text style={dynamicStyles.syncButtonText}>
+                  {t("home.syncNow")}
+                </Text>
+              </TouchableOpacity>
             </View>
-            <TouchableOpacity
-              style={dynamicStyles.syncButton}
-              activeOpacity={0.7}
-            >
-              <Text style={dynamicStyles.syncButtonText}>{t('home.syncNow')}</Text>
-            </TouchableOpacity>
           </View>
-        </View>
+        )}
 
         {/* Clients Section */}
         <View style={dynamicStyles.sectionCard}>
           <View style={dynamicStyles.sectionHeader}>
-            <Text style={dynamicStyles.sectionTitle}>{t('home.clients')}</Text>
+            <Text style={dynamicStyles.sectionTitle}>Farmers</Text>
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={() => {
@@ -518,16 +696,18 @@ export default function HomeScreen() {
                     params: {
                       screen: SCREEN_NAMES.Farmer,
                     },
-                  }),
+                  })
                 );
               }}
             >
-              <Text style={dynamicStyles.seeAllText}>{t('home.seeAll')}</Text>
+              <Text style={dynamicStyles.seeAllText}>{t("home.seeAll")}</Text>
             </TouchableOpacity>
           </View>
           <View style={dynamicStyles.listContainer}>
             {loadingFarmers ? (
-              <View style={{padding: moderateScale(20), alignItems: 'center'}}>
+              <View
+                style={{ padding: moderateScale(20), alignItems: "center" }}
+              >
                 <ActivityIndicator size="small" color={colors.primary} />
               </View>
             ) : displayedFarmers.length > 0 ? (
@@ -536,7 +716,8 @@ export default function HomeScreen() {
                   key={client.id}
                   style={[
                     dynamicStyles.listItem,
-                    index !== displayedFarmers.length - 1 && dynamicStyles.listItemBorder,
+                    index !== displayedFarmers.length - 1 &&
+                      dynamicStyles.listItemBorder,
                   ]}
                   activeOpacity={0.7}
                   onPress={() => {
@@ -549,7 +730,7 @@ export default function HomeScreen() {
                         farmerName: client.name,
                         farmerPhone: client.phone,
                         farmerInitials: client.initials,
-                        fromScreen: 'Home',
+                        fromScreen: "Home",
                       },
                     } as any);
                   }}
@@ -560,7 +741,9 @@ export default function HomeScreen() {
                     size={moderateScale(40)}
                   />
                   <View style={dynamicStyles.listItemContent}>
-                    <Text style={dynamicStyles.listItemName}>{client.name}</Text>
+                    <Text style={dynamicStyles.listItemName}>
+                      {client.name}
+                    </Text>
                     <Text style={dynamicStyles.listItemSubtext}>
                       {client.phone}
                     </Text>
@@ -573,9 +756,16 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               ))
             ) : (
-              <View style={{padding: moderateScale(20), alignItems: 'center'}}>
-                <Text style={[Typography.regularMd, {color: colors.textSecondary}]}>
-                  {t('home.noFarmers') || 'No farmers found'}
+              <View
+                style={{ padding: moderateScale(20), alignItems: "center" }}
+              >
+                <Text
+                  style={[
+                    Typography.regularMd,
+                    { color: colors.textSecondary },
+                  ]}
+                >
+                  {t("home.noFarmers") || "No farmers found"}
                 </Text>
               </View>
             )}
@@ -585,67 +775,89 @@ export default function HomeScreen() {
         {/* Tractors Section */}
         <View style={[dynamicStyles.sectionCard]}>
           <View style={dynamicStyles.sectionHeader}>
-            <Text style={dynamicStyles.sectionTitle}>{t('home.tractors')}</Text>
+            <Text style={dynamicStyles.sectionTitle}>{t("home.tractors")}</Text>
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={() => {
-                 tabNavigation.dispatch(
+                tabNavigation.dispatch(
                   CommonActions.navigate({
                     name: SCREEN_NAMES.Tractors,
                     params: {
                       screen: SCREEN_NAMES.Tractors,
                     },
-                  }),
+                  })
                 );
-              }
-              }
+              }}
             >
-              <Text style={dynamicStyles.seeAllText}>{t('home.seeAll')}</Text>
+              <Text style={dynamicStyles.seeAllText}>{t("home.seeAll")}</Text>
             </TouchableOpacity>
           </View>
           <View style={dynamicStyles.listContainer}>
-            {tractors.map((tractor, index) => (
-              <TouchableOpacity
-                key={tractor.id}
-                style={[
-                  dynamicStyles.listItem,
-                  index !== tractors.length - 1 && dynamicStyles.listItemBorder,
-                ]}
-                activeOpacity={0.7}
-                onPress={() => {
-                  // Navigate to Tractors tab and then to TractorDetails
-                  tabNavigation.navigate(SCREEN_NAMES.Tractors, {
-                    screen: SCREEN_NAMES.TractorDetails,
-                    params: {
-                      tractorId: tractor.id,
-                      tractorModel: tractor.model,
-                      tractorOwner: tractor.owner,
-                      tractorColor: tractor.color,
-                      fromScreen: 'Home',
-                    },
-                  } as any);
-                }}
+            {loadingTractors ? (
+              <View
+                style={{ padding: moderateScale(20), alignItems: "center" }}
               >
-                <TractorThumbnail
-                  color={tractor.color}
-                  moderateScale={moderateScale}
-                  size={moderateScale(40)}
-                />
-                <View style={dynamicStyles.listItemContent}>
-                  <Text style={dynamicStyles.listItemName}>
-                    {tractor.model}
-                  </Text>
-                  <Text style={dynamicStyles.listItemSubtext}>
-                    {tractor.owner}
-                  </Text>
-                </View>
-                <Ionicons
-                  name="chevron-forward"
-                  size={moderateScale(20)}
-                  color={colors.textTertiary}
-                />
-              </TouchableOpacity>
-            ))}
+                <ActivityIndicator size="small" color={colors.primary} />
+              </View>
+            ) : tractors.length > 0 ? (
+              tractors.map((tractor, index) => (
+                <TouchableOpacity
+                  key={tractor.id}
+                  style={[
+                    dynamicStyles.listItem,
+                    index !== tractors.length - 1 &&
+                      dynamicStyles.listItemBorder,
+                  ]}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    // Navigate to Tractors tab and then to TractorDetails
+                    tabNavigation.navigate(SCREEN_NAMES.Tractors, {
+                      screen: SCREEN_NAMES.TractorDetails,
+                      params: {
+                        tractorId: tractor.id,
+                        tractorModel: tractor.model,
+                        tractorOwner: tractor.owner,
+                        tractorColor: tractor.color,
+                        fromScreen: "Home",
+                      },
+                    } as any);
+                  }}
+                >
+                  <TractorThumbnail
+                    color={tractor.color}
+                    moderateScale={moderateScale}
+                    size={moderateScale(40)}
+                    imageUrl={tractor.main_image}
+                  />
+                  <View style={dynamicStyles.listItemContent}>
+                    <Text style={dynamicStyles.listItemName}>
+                      {tractor.model}
+                    </Text>
+                    <Text style={dynamicStyles.listItemSubtext}>
+                      {tractor.owner}
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={moderateScale(20)}
+                    color={colors.textTertiary}
+                  />
+                </TouchableOpacity>
+              ))
+            ) : (
+              <View
+                style={{ padding: moderateScale(20), alignItems: "center" }}
+              >
+                <Text
+                  style={[
+                    Typography.regularMd,
+                    { color: colors.textSecondary },
+                  ]}
+                >
+                  {t("home.noTractors") || "No tractors found"}
+                </Text>
+              </View>
+            )}
           </View>
         </View>
       </ScrollView>

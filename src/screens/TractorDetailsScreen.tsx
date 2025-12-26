@@ -1,4 +1,4 @@
-import React, {useMemo, useState} from 'react';
+import React, {useMemo, useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  Platform,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useRoute, useNavigation} from '@react-navigation/native';
@@ -21,6 +22,9 @@ import VideoPlayer from '../components/VideoPlayer';
 import ImagePreviewModal, {ImageItem} from '../components/ImagePreviewModal';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import {useStatusBar} from '../contexts/StatusBarContext';
+import {getData} from '../Service/Apimethod';
+import Apis, {API_BASE_URL} from '../Service/constant';
+import {getImageUrl} from '../utils/imageUtils';
 
 type TractorDetailsRouteParams = {
   tractorId: string;
@@ -30,7 +34,7 @@ type TractorDetailsRouteParams = {
   fromScreen?: 'Home' | 'List';
 };
 
-type SpecificationTab = 'engine' | 'tyre' | 'dimension' | 'transmission';
+type SpecificationTab = string; // Dynamic based on API response
 
 // Mock data for tractor details
 const getTractorDetails = (tractorId: string) => {
@@ -82,11 +86,11 @@ const getTractorDetails = (tractorId: string) => {
 
 // Specification Row Component
 const SpecRow = ({
-  label,
+  name,
   value,
   moderateScale,
 }: {
-  label: string;
+  name: string;
   value: string;
   moderateScale: (size: number, factor?: number) => number;
 }) => {
@@ -108,7 +112,7 @@ const SpecRow = ({
             flex: 1,
           },
         ]}>
-        {label}
+        {name}
       </Text>
       <Text
         style={[
@@ -126,6 +130,7 @@ const SpecRow = ({
   );
 };
 
+
 export default function TractorDetailsScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
@@ -133,15 +138,131 @@ export default function TractorDetailsScreen() {
   const navigation = useNavigation();
   const tabNavigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
   const params = route.params as TractorDetailsRouteParams;
-  const [selectedTab, setSelectedTab] = useState<SpecificationTab>('engine');
+  const [tractorDetails, setTractorDetails] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedTab, setSelectedTab] = useState<SpecificationTab>('');
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const tractorDetails = useMemo(
-    () => getTractorDetails(params?.tractorId || '1'),
-    [params?.tractorId],
-  );
+  // Fetch tractor details from API
+  const fetchTractorDetails = async (showRefreshing = false) => {
+    try {
+      if (showRefreshing) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+        const tractorId = params?.tractorId;
+        
+        if (!tractorId) {
+          console.error('No tractor ID provided');
+          setLoading(false);
+          return;
+        }
+
+        // Call API with tractorId as query parameter
+        // API endpoint: GET /api/dealers/tractors?tractorId=11
+        console.log('[TractorDetailsScreen] Fetching tractor with ID:', tractorId);
+        const response = await getData(Apis.DEALER_TRACTOR_BY_ID, { tractorId: tractorId });
+        
+        console.log('[TractorDetailsScreen] API Response:', JSON.stringify(response, null, 2));
+        
+        // Handle API response structure: { status: true, data: { tractorId, title, series, description, mainImage, galleryImages, videoUrl, specifications } }
+        let tractorData = null;
+        
+        if (response?.status === true && response?.data) {
+          // Response data is an object with tractor details
+          tractorData = response.data;
+          console.log('[TractorDetailsScreen] Tractor Data:', JSON.stringify(tractorData, null, 2));
+        }
+        
+        if (tractorData) {
+          
+          // Transform specifications from API format to component format
+          const transformedSpecs: Record<string, Array<{name: string; value: string}>> = {};
+          const availableTabs: string[] = [];
+          
+          if (tractorData.specifications) {
+            // API has specifications as object with keys like "Engine", "Tyre", etc.
+            Object.keys(tractorData.specifications).forEach((key) => {
+              const specKey = key.toLowerCase(); // Convert "Engine" to "engine"
+              if (Array.isArray(tractorData.specifications[key])) {
+                transformedSpecs[specKey] = tractorData.specifications[key];
+                availableTabs.push(specKey);
+              }
+            });
+          }
+          
+          // Set first available tab as selected
+          if (availableTabs.length > 0) {
+            setSelectedTab(availableTabs[0]);
+          }
+          
+          // Transform gallery images - use camelCase keys (galleryImages, mainImage, videoUrl)
+          const galleryImages = (tractorData.galleryImages || tractorData.gallery_images || []).map((img: string) => getImageUrl(img)).filter(Boolean);
+          const mainImage = getImageUrl(tractorData.mainImage || tractorData.main_image);
+          // Video URL - only format if it's a relative path, otherwise use as-is
+          let videoUrl = tractorData.videoUrl || tractorData.video_url || '';
+          if (videoUrl && !videoUrl.startsWith('http://') && !videoUrl.startsWith('https://')) {
+            videoUrl = getImageUrl(videoUrl) || '';
+          }
+          
+          // Transform thumbnails for display - include all gallery images
+          const thumbnails = [];
+          if (mainImage) {
+            thumbnails.push({id: 'main', type: 'image', uri: mainImage});
+          }
+          // Add all gallery images
+          galleryImages.forEach((img: string, index: number) => {
+            thumbnails.push({id: `gallery-${index}`, type: 'image', uri: img});
+          });
+          // Add video if available
+          if (videoUrl) {
+            thumbnails.push({id: 'video', type: 'video', uri: videoUrl});
+          }
+          
+          setTractorDetails({
+            id: tractorData.tractorId?.toString() || tractorData.id?.toString() || tractorId,
+            model: tractorData.title || params?.tractorModel || 'Unknown Model',
+            series: tractorData.series || '',
+            description: tractorData.description || '',
+            fullDescription: tractorData.description || '',
+            videoUri: videoUrl,
+            thumbnailUri: mainImage || undefined,
+            specifications: transformedSpecs,
+            thumbnails: thumbnails.length > 0 ? thumbnails : [
+              {id: '1', type: 'image', uri: mainImage || null},
+            ],
+            gallery_images: galleryImages,
+            main_image: mainImage,
+          });
+        } else {
+          console.warn('Unexpected API response format:', response);
+          // Fallback to mock data if API fails
+          setTractorDetails(getTractorDetails(tractorId));
+          setSelectedTab('engine');
+        }
+      } catch (error) {
+        console.error('Error fetching tractor details:', error);
+        // Fallback to mock data on error
+        setTractorDetails(getTractorDetails(params?.tractorId || '1'));
+        setSelectedTab('engine');
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    };
+
+  // Handle pull to refresh
+  const onRefresh = React.useCallback(() => {
+    fetchTractorDetails(true);
+  }, []);
+
+  useEffect(() => {
+    fetchTractorDetails();
+  }, [params?.tractorId]);
 
   const dynamicStyles = useMemo(
     () =>
@@ -150,20 +271,18 @@ export default function TractorDetailsScreen() {
           flex: 1,
           backgroundColor: colors.backgroundLight,
         },
-        statusBarBackground: {
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: Platform.OS === 'ios' ? insets.top : 0,
-          backgroundColor: colors.backgroundLight,
-        },
         header: {
           flexDirection: 'row',
           alignItems: 'center',
           paddingHorizontal: moderateScale(16),
-          paddingTop: insets.top ,          
+          paddingTop: insets.top + moderateScale(12),
+          paddingBottom: moderateScale(12),
           backgroundColor: colors.backgroundLight,
+        },
+        headerLeft: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          flex: 1,
         },
         backButton: {
           width: moderateScale(40),
@@ -177,6 +296,7 @@ export default function TractorDetailsScreen() {
           ...Typography.boldXxl,
           color: colors.textPrimary,
           fontSize: moderateScale(22),
+          marginLeft: moderateScale(10),
         },
         scrollContent: {
           padding: moderateScale(16),
@@ -294,23 +414,34 @@ export default function TractorDetailsScreen() {
     [moderateScale, insets],
   );
 
-  const currentSpecs =
-    tractorDetails.specifications[selectedTab] || tractorDetails.specifications.engine;
+  // Get available specification tabs dynamically
+  const availableTabs = useMemo(() => {
+    if (!tractorDetails?.specifications) return [];
+    return Object.keys(tractorDetails.specifications).map(key => key.toLowerCase());
+  }, [tractorDetails]);
+
+  // Get current specifications for selected tab
+  const currentSpecs = useMemo(() => {
+    if (!tractorDetails?.specifications || !selectedTab) return [];
+    return tractorDetails.specifications[selectedTab] || [];
+  }, [tractorDetails, selectedTab]);
 
   // Prepare images for preview modal - convert thumbnails to ImageItem format
   const previewImages: ImageItem[] = useMemo(() => {
+    if (!tractorDetails?.thumbnails) return [];
     const images: ImageItem[] = [];
-    tractorDetails.thumbnails.forEach((thumb, index) => {
-      if (thumb.type === 'image') {
+    tractorDetails.thumbnails.forEach((thumb: any, index: number) => {
+      if (thumb.type === 'image' && thumb.uri) {
         images.push({
           id: thumb.id,
-          uri: thumb.uri || undefined,
+          uri: thumb.uri,
           placeholder: `Image ${index + 1}`,
         });
       }
     });
+    // Note: gallery_images are already included in thumbnails, so no need to add separately
     return images;
-  }, [tractorDetails.thumbnails]);
+  }, [tractorDetails?.thumbnails]);
 
   const handleImagePress = (imageIndexInPreview: number) => {
     setSelectedImageIndex(imageIndexInPreview);
@@ -321,11 +452,6 @@ export default function TractorDetailsScreen() {
     setPreviewModalVisible(false);
   };
 
-  const handleReplaceImage = (imageId: string) => {
-    // Handle replace image action
-    console.log('Replace image:', imageId);
-    // You can add your replace image logic here
-  };
 
   // Update StatusBar and bottom bar to match screen background color
   useDynamicStatusBar({
@@ -335,38 +461,59 @@ export default function TractorDetailsScreen() {
 
   const {currentConfig} = useStatusBar();
 
+  if (loading || !tractorDetails) {
+    return (
+      <View style={[dynamicStyles.container, {justifyContent: 'center', alignItems: 'center'}]}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  // Helper function to format tab label
+  const getTabLabel = (tab: string): string => {
+    return tab.charAt(0).toUpperCase() + tab.slice(1);
+  };
+
   return (
       <View style={[dynamicStyles.container]}>
-        {Platform.OS === 'ios' && (
-          <View style={[dynamicStyles.statusBarBackground, {backgroundColor: currentConfig.backgroundColor}]} />
-        )}
         {/* Header */}
         <View style={dynamicStyles.header}>
-          <TouchableOpacity
-            style={dynamicStyles.backButton}
-            onPress={() => {
-              // If coming from Home, navigate back to Home tab
-              // If coming from List, use goBack() to return to list
-              if (params?.fromScreen === 'Home') {
-                tabNavigation.navigate(SCREEN_NAMES.Home);
-              } else {
-                navigation.goBack();
-              }
-            }}
-            activeOpacity={0.7}>
-            <Ionicons
-              name="arrow-back"
-              size={moderateScale(20)}
-              color={colors.textPrimary}
-            />
-          </TouchableOpacity>
+          <View style={dynamicStyles.headerLeft}>
+            <TouchableOpacity
+              style={dynamicStyles.backButton}
+              onPress={() => {
+                // If coming from Home, navigate back to Home tab
+                // If coming from List, use goBack() to return to list
+                if (params?.fromScreen === 'Home') {
+                  tabNavigation.navigate(SCREEN_NAMES.Home);
+                } else {
+                  navigation.goBack();
+                }
+              }}
+              activeOpacity={0.7}>
+              <Ionicons
+                name="arrow-back"
+                size={moderateScale(20)}
+                color={colors.textPrimary}
+              />
+            </TouchableOpacity>
+            <Text style={dynamicStyles.headerTitle}>Tractor Details</Text>
+          </View>
         </View>
 
       {/* Scrollable Content */}
       <ScrollView
         style={{flex: 1}}
         contentContainerStyle={dynamicStyles.scrollContent}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }>
         {/* Video Player Section */}
         <View style={dynamicStyles.card}>
           <View style={dynamicStyles.videoContainer}>
@@ -405,6 +552,12 @@ export default function TractorDetailsScreen() {
                         + {thumb.count} more
                       </Text>
                     </View>
+                  ) : thumb.uri ? (
+                    <Image
+                      source={{uri: thumb.uri}}
+                      style={dynamicStyles.thumbnailImage}
+                      resizeMode="cover"
+                    />
                   ) : (
                     <View style={dynamicStyles.thumbnailImage}>
                       <View
@@ -444,8 +597,10 @@ export default function TractorDetailsScreen() {
           </Text>
           <Text style={dynamicStyles.productDescription}>
             {showFullDescription
-              ? tractorDetails.fullDescription
-              : tractorDetails.description}
+              ? tractorDetails.fullDescription || tractorDetails.description
+              : (tractorDetails.description && tractorDetails.description.length > 150
+                  ? tractorDetails.description.substring(0, 150) + '...'
+                  : tractorDetails.description)}
           </Text>
           <TouchableOpacity
             onPress={() => setShowFullDescription(!showFullDescription)}
@@ -460,26 +615,15 @@ export default function TractorDetailsScreen() {
         <View style={dynamicStyles.card}>
           <Text style={dynamicStyles.specificationsTitle}>Specifications</Text>
 
-          {/* Tabs */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={dynamicStyles.tabScrollView}
-            contentContainerStyle={[dynamicStyles.tabContainer, dynamicStyles.tabScrollContent]}>
-            {(['engine', 'tyre', 'dimension', 'transmission'] as SpecificationTab[]).map(
-              tab => {
+          {/* Tabs - Dynamic based on API response */}
+          {availableTabs.length > 0 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={dynamicStyles.tabScrollView}
+              contentContainerStyle={[dynamicStyles.tabContainer, dynamicStyles.tabScrollContent]}>
+              {availableTabs.map(tab => {
                 const isSelected = selectedTab === tab;
-                let tabLabel = '';
-                switch (tab) {
-                  case 'dimension':
-                    tabLabel = 'Dimension';
-                    break;
-                  case 'transmission':
-                    tabLabel = 'Transmission';
-                    break;
-                  default:
-                    tabLabel = tab.charAt(0).toUpperCase() + tab.slice(1);
-                }
                 return (
                   <TouchableOpacity
                     key={tab}
@@ -494,23 +638,31 @@ export default function TractorDetailsScreen() {
                         dynamicStyles.tabText,
                         isSelected && dynamicStyles.tabTextSelected,
                       ]}>
-                      {tabLabel}
+                      {getTabLabel(tab)}
                     </Text>
                   </TouchableOpacity>
                 );
-              },
-            )}
-          </ScrollView>
+              })}
+            </ScrollView>
+          )}
 
           {/* Specifications List */}
-          {currentSpecs.map((spec, index) => (
-            <SpecRow
-              key={index}
-              label={spec.label}
-              value={spec.value}
-              moderateScale={moderateScale}
-            />
-          ))}
+          {currentSpecs.length > 0 ? (
+            currentSpecs.map((spec: any, index: number) => (
+              <SpecRow
+                key={index}
+                name={spec.name || spec.label || ''}
+                value={spec.value || ''}
+                moderateScale={moderateScale}
+              />
+            ))
+          ) : (
+            <View style={{padding: moderateScale(20), alignItems: 'center'}}>
+              <Text style={[Typography.regularMd, {color: colors.textTertiary}]}>
+                No specifications available
+              </Text>
+            </View>
+          )}
         </View>
       </ScrollView>
 
@@ -520,7 +672,6 @@ export default function TractorDetailsScreen() {
         images={previewImages}
         initialIndex={selectedImageIndex}
         onClose={handleCloseModal}
-        onReplaceImage={handleReplaceImage}
       />
 
       </View>
