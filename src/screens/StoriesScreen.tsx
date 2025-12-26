@@ -1,4 +1,4 @@
-import React, {useMemo, useState} from 'react';
+import React, {useMemo, useState, useEffect, useCallback} from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,10 @@ import {
   TouchableOpacity,
   Image,
   RefreshControl,
+  ActivityIndicator,
+  FlatList,
 } from 'react-native';
+import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import colors from '../utils/colors';
@@ -17,52 +20,102 @@ import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import {ImagePath} from '../assets/images';
 import {useNavigation} from '@react-navigation/native';
 import {SCREEN_NAMES} from '../constants/screenNames';
+import {getData} from '../Service/Apimethod';
+import Apis from '../Service/constant';
+import {getImageUrl} from '../utils/imageUtils';
 
-// Mock stories data
-const storiesData = [
-  {
-    id: '1',
-    title: 'Tractor Horsepower Guide: Find the Best Fit for Your Farm Work',
-    shortTitle: 'Tractor Horsepower Guide: Find the be...',
-    date: '10 November 2025',
-    bannerImage: ImagePath.farmerTractor,
-    logo: ImagePath.captainEnglishLogo,
-    overlayText: '12 HP Tractor TO 28 HP Tractor',
-  },
-  {
-    id: '2',
-    title: 'Tractor Horsepower Guide: Find the Best Fit for Your Farm Work',
-    shortTitle: 'Tractor Horsepower Guide: Find the be...',
-    date: '10 November 2025',
-    bannerImage: ImagePath.farmerTractor,
-    logo: ImagePath.captainEnglishLogo,
-    overlayText: '12 HP Tractor TO 28 HP Tractor',
-  },
-  {
-    id: '3',
-    title: 'Tractor Horsepower Guide: Find the Best Fit for Your Farm Work',
-    shortTitle: 'Tractor Horsepower Guide: Find the be...',
-    date: '10 November 2025',
-    bannerImage: ImagePath.farmerTractor,
-    logo: ImagePath.captainEnglishLogo,
-    overlayText: '12 HP Tractor TO 28 HP Tractor',
-  },
-];
+// Helper function to format date
+const formatDate = (dateString: string): string => {
+  if (!dateString) return '';
+  try {
+    const date = new Date(dateString);
+    const day = date.getDate();
+    const month = date.toLocaleString('default', {month: 'short'});
+    const year = date.getFullYear();
+    return `${day} ${month} ${year}`;
+  } catch (error) {
+    return dateString;
+  }
+};
 
 export default function StoriesScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
   const navigation = useNavigation();
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [stories, setStories] = useState<any[]>([]);
+
+  // Fetch stories from API
+  const fetchStories = useCallback(async (showRefreshing = false) => {
+    try {
+      if (showRefreshing) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      
+      console.log('[StoriesScreen] Fetching stories data');
+      const response = await getData(Apis.FARMER_STORIES, {});
+      
+      console.log('[StoriesScreen] Stories API Response:', JSON.stringify(response, null, 2));
+      
+      if (response?.status === true && response?.data) {
+        // Check if data has stories array (new structure) or is directly an array
+        const storiesArray = response.data.stories || 
+                           response.data.list ||
+                           (Array.isArray(response.data) ? response.data : []);
+        
+        console.log('[StoriesScreen] Stories array extracted:', storiesArray?.length || 0, 'stories');
+        
+        if (Array.isArray(storiesArray) && storiesArray.length > 0) {
+          // Transform API stories to match UI structure
+          const transformedStories = storiesArray.map((story: any) => {
+            const imageUrl = story.image_url ? getImageUrl(story.image_url) : null;
+            const bannerImage = imageUrl ? {uri: imageUrl} : ImagePath.storycard;
+            
+            // Create short title (truncate if needed)
+            const fullTitle = story.title || 'Story';
+            const shortTitle = fullTitle.length > 40 ? fullTitle.substring(0, 37) + '...' : fullTitle;
+            
+            return {
+              id: story.story_id || story.id || String(Math.random()),
+              title: fullTitle,
+              shortTitle: shortTitle,
+              date: formatDate(story.publish_date || story.story_date || story.date || ''),
+              bannerImage: bannerImage,
+              logo: ImagePath.captainEnglishLogo,
+              overlayText: story.overlay_text || story.overlayText || '',
+            };
+          });
+          
+          setStories(transformedStories);
+        } else {
+          console.warn('[StoriesScreen] No stories found in response');
+          setStories([]);
+        }
+      } else {
+        console.warn('[StoriesScreen] Unexpected API response format:', response);
+        setStories([]);
+      }
+    } catch (error) {
+      console.error('[StoriesScreen] Error fetching stories:', error);
+      setStories([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
 
   // Handle pull to refresh
   const onRefresh = React.useCallback(() => {
-    setRefreshing(true);
-    // Simulate API call - replace with actual API call when available
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1000);
-  }, []);
+    fetchStories(true);
+  }, [fetchStories]);
+
+  // Fetch stories on mount
+  useEffect(() => {
+    fetchStories();
+  }, [fetchStories]);
 
   useDynamicStatusBar({
     backgroundColor: colors.backgroundLight,
@@ -185,60 +238,154 @@ export default function StoriesScreen() {
     [moderateScale, insets.top],
   );
 
+  // Skeleton component matching the exact design
+  const renderSkeleton = () => {
+    return (
+      <SkeletonPlaceholder
+        backgroundColor={colors.backgroundGray}
+        highlightColor={colors.backgroundWhite}
+        borderRadius={moderateScale(12)}>
+        {[1, 2, 3].map((index) => (
+          <SkeletonPlaceholder.Item
+            key={index}
+            backgroundColor={colors.backgroundWhite}
+            borderRadius={moderateScale(12)}
+            marginBottom={moderateScale(16)}
+            overflow="hidden">
+            {/* Banner Skeleton - matches bannerContainer */}
+            <SkeletonPlaceholder.Item
+              height={moderateScale(170)}
+              marginHorizontal={moderateScale(10)}
+              marginTop={moderateScale(10)}
+              borderRadius={moderateScale(10)}
+            />
+            {/* Story Content Skeleton - matches storyContent */}
+            <SkeletonPlaceholder.Item
+              padding={moderateScale(16)}>
+              {/* Title Skeleton - matches storyTitle */}
+              <SkeletonPlaceholder.Item
+                width="90%"
+                height={moderateScale(14)}
+                borderRadius={moderateScale(2)}
+                marginBottom={moderateScale(8)}
+              />
+              {/* Date Row Skeleton - matches dateContainer */}
+              <SkeletonPlaceholder.Item
+                flexDirection="row"
+                alignItems="center">
+                <SkeletonPlaceholder.Item
+                  width={moderateScale(14)}
+                  height={moderateScale(14)}
+                  borderRadius={moderateScale(7)}
+                  marginRight={moderateScale(6)}
+                />
+                <SkeletonPlaceholder.Item
+                  width="40%"
+                  height={moderateScale(12)}
+                  borderRadius={moderateScale(2)}
+                />
+              </SkeletonPlaceholder.Item>
+            </SkeletonPlaceholder.Item>
+          </SkeletonPlaceholder.Item>
+        ))}
+      </SkeletonPlaceholder>
+    );
+  };
+
+  // Render story item
+  const renderStoryItem = ({item: story}: {item: any}) => {
+    return (
+      <TouchableOpacity
+        style={dynamicStyles.storyCard}
+        activeOpacity={0.7}
+        onPress={() => {
+          (navigation as any).navigate(SCREEN_NAMES.StoryDetails, {
+            storyId: story.id,
+            title: story.title,
+            date: story.date,
+            bannerImage: story.bannerImage,
+            images: [story.bannerImage, ImagePath.eventImage, ImagePath.eventImage2],
+            fromScreen: 'List',
+          });
+        }}>
+        {/* Banner Section */}
+        <View style={dynamicStyles.bannerContainer}>
+          <Image
+            source={
+              typeof story.bannerImage === 'object' && story.bannerImage?.uri
+                ? {uri: story.bannerImage.uri}
+                : story.bannerImage || ImagePath.storycard
+            }
+            style={{height: moderateScale(170), width: '100%', resizeMode: 'cover'}}
+          />
+        </View>
+
+        {/* Story Content */}
+        <View style={dynamicStyles.storyContent}>
+          <Text style={dynamicStyles.storyTitle} numberOfLines={1}>
+            {story.shortTitle}
+          </Text>
+          <View style={dynamicStyles.dateContainer}>
+            <Ionicons
+              name="calendar-outline"
+              size={moderateScale(14)}
+              color={colors.textSecondary}
+            />
+            <Text style={dynamicStyles.dateText}>{story.date}</Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  // List header component
+  const ListHeader = () => (
+    <Text style={dynamicStyles.title}>Stories</Text>
+  );
+
+  // List empty component
+  const ListEmptyComponent = () => {
+    if (loading || refreshing) {
+      return null;
+    }
+    return (
+      <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: moderateScale(100)}}>
+        <Text style={[Typography.regularMd, {color: colors.textTertiary, fontSize: moderateScale(14)}]}>
+          No stories available
+        </Text>
+      </View>
+    );
+  };
+
   return (
     <View style={dynamicStyles.container}>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={dynamicStyles.scrollContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[colors.primary]}
-            tintColor={colors.primary}
-          />
-        }>
-        <Text style={dynamicStyles.title}>Stories</Text>
-
-        {storiesData.map((story) => (
-          <TouchableOpacity
-            key={story.id}
-            style={dynamicStyles.storyCard}
-            activeOpacity={0.7}
-            onPress={() => {
-              (navigation as any).navigate(SCREEN_NAMES.StoryDetails, {
-                storyId: story.id,
-                title: story.title,
-                date: story.date,
-                bannerImage: story.bannerImage,
-                images: [story.bannerImage, ImagePath.eventImage, ImagePath.eventImage2],
-                fromScreen: 'List',
-              });
-            }}>
-            {/* Banner Section */}
-            <View style={dynamicStyles.bannerContainer}>
-             <Image source={ImagePath.storycard} 
-             style={{height:moderateScale(170),width:'100%',resizeMode:'cover'}}
-             />
-            </View>
-
-            {/* Story Content */}
-            <View style={dynamicStyles.storyContent}>
-              <Text style={dynamicStyles.storyTitle} numberOfLines={1}>
-                {story.shortTitle}
-              </Text>
-              <View style={dynamicStyles.dateContainer}>
-                <Ionicons
-                  name="calendar-outline"
-                  size={moderateScale(14)}
-                  color={colors.textSecondary}
-                />
-                <Text style={dynamicStyles.dateText}>{story.date}</Text>
-              </View>
-            </View>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+      {loading ? (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={dynamicStyles.scrollContent}>
+          <Text style={dynamicStyles.title}>Stories</Text>
+          {renderSkeleton()}
+        </ScrollView>
+      ) : (
+        <FlatList
+          data={stories}
+          renderItem={renderStoryItem}
+          keyExtractor={(item) => item.id}
+          ListHeaderComponent={ListHeader}
+          ListEmptyComponent={ListEmptyComponent}
+          contentContainerStyle={dynamicStyles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={false}
+              onRefresh={onRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
+          ListFooterComponent={refreshing ? renderSkeleton() : null}
+        />
+      )}
     </View>
   );
 }
