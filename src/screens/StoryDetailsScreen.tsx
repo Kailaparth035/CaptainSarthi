@@ -1,4 +1,4 @@
-import React, {useMemo, useState} from 'react';
+import React, {useMemo, useState, useEffect, useCallback} from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,10 @@ import {
   TouchableOpacity,
   Image,
   RefreshControl,
+  ActivityIndicator,
+  Dimensions,
 } from 'react-native';
+import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useRoute, useNavigation} from '@react-navigation/native';
 import {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
@@ -23,6 +26,9 @@ import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import {useStatusBar} from '../contexts/StatusBarContext';
 import {useTTS} from '../contexts/TTSContext';
 import {ImagePath} from '../assets/images';
+import {getData} from '../Service/Apimethod';
+import Apis, {API_BASE_URL} from '../Service/constant';
+import {getImageUrl} from '../utils/imageUtils';
 
 type StoryDetailsRouteParams = {
   storyId: string;
@@ -67,21 +73,116 @@ export default function StoryDetailsScreen() {
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [storyDetails, setStoryDetails] = useState<any>(null);
   const {playTTS, state: ttsState} = useTTS();
+
+  // Fetch story details from API
+  const fetchStoryDetails = useCallback(async (showRefreshing = false) => {
+    try {
+      if (showRefreshing) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      
+      const storyId = params?.storyId;
+      
+      if (!storyId) {
+        console.error('[StoryDetailsScreen] No story ID provided');
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+
+      // Call API with storyId - endpoint: /api/farmers/stories/{storyId}
+      console.log('[StoryDetailsScreen] Fetching story with ID:', storyId);
+      const apiUrl = `${API_BASE_URL}/api/farmers/stories/${storyId}`;
+      const response = await getData(apiUrl, {});
+      
+      console.log('[StoryDetailsScreen] API Response:', JSON.stringify(response, null, 2));
+      
+      if (response?.status === true && response?.data) {
+        const storyData = response.data;
+        console.log('[StoryDetailsScreen] Story Data:', JSON.stringify(storyData, null, 2));
+        
+        // Transform API data to match component format
+        // Handle video URL from media.cover_video
+        let videoUrl = '';
+        if (storyData.media?.cover_video?.video_url) {
+          videoUrl = storyData.media.cover_video.video_url;
+        } else if (storyData.video_url || storyData.videoUrl) {
+          videoUrl = storyData.video_url || storyData.videoUrl;
+        }
+        
+        // Handle thumbnail from media.cover_video.thumbnail_url
+        let thumbnailUrl = null;
+        if (storyData.media?.cover_video?.thumbnail_url) {
+          thumbnailUrl = getImageUrl(storyData.media.cover_video.thumbnail_url);
+        } else if (storyData.image_url) {
+          thumbnailUrl = getImageUrl(storyData.image_url);
+        }
+        const thumbnailUri = thumbnailUrl ? {uri: thumbnailUrl} : ImagePath.eventImage;
+        
+        // Handle date - use display_datetime or display_date
+        const date = storyData.display_datetime || storyData.display_date || storyData.story_date || storyData.date || '';
+        
+        // Handle description - use description.text
+        const description = storyData.description?.text || storyData.description || '';
+        
+        // Handle gallery images from media.images
+        const galleryImages: any[] = [];
+        if (storyData.media?.images && Array.isArray(storyData.media.images)) {
+          storyData.media.images.forEach((imgObj: any) => {
+            const imgUrl = imgObj.image_url ? getImageUrl(imgObj.image_url) : null;
+            if (imgUrl) {
+              galleryImages.push({uri: imgUrl});
+            }
+          });
+        }
+        // If no gallery images, use thumbnail
+        if (galleryImages.length === 0 && thumbnailUrl) {
+          galleryImages.push({uri: thumbnailUrl});
+        }
+        // Final fallback
+        if (galleryImages.length === 0) {
+          galleryImages.push(ImagePath.eventImage);
+        }
+        
+        setStoryDetails({
+          id: storyData.story_id || storyData.id || storyId,
+          title: storyData.title || params?.title || 'Story',
+          date: date,
+          description: description,
+          fullDescription: description,
+          videoUri: videoUrl,
+          thumbnailUri: thumbnailUri,
+          images: galleryImages,
+        });
+      } else {
+        console.warn('[StoryDetailsScreen] Unexpected API response format:', response);
+        // Fallback to mock data if API fails
+        setStoryDetails(getStoryDetails(storyId));
+      }
+    } catch (error) {
+      console.error('[StoryDetailsScreen] Error fetching story details:', error);
+      // Fallback to mock data on error
+      setStoryDetails(getStoryDetails(params?.storyId || '1'));
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [params?.storyId]);
 
   // Handle pull to refresh
   const onRefresh = React.useCallback(() => {
-    setRefreshing(true);
-    // Simulate API call - replace with actual API call when available
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1000);
-  }, []);
+    fetchStoryDetails(true);
+  }, [fetchStoryDetails]);
 
-  const storyDetails = useMemo(
-    () => getStoryDetails(params?.storyId || '1'),
-    [params?.storyId],
-  );
+  // Fetch story details on mount
+  useEffect(() => {
+    fetchStoryDetails();
+  }, [fetchStoryDetails]);
 
   const dynamicStyles = useMemo(
     () =>
@@ -234,15 +335,22 @@ export default function StoryDetailsScreen() {
 
   // Prepare images for preview modal
   const previewImages: ImageItem[] = useMemo(() => {
+    if (!storyDetails?.images) return [];
     const images: ImageItem[] = [];
-    storyDetails.images?.forEach((img, index) => {
+    storyDetails.images.forEach((img: any, index: number) => {
       if (typeof img === 'number') {
         images.push({
           id: `img-${index}`,
           source: img,
           placeholder: `Image ${index + 1}`,
         });
-      } else {
+      } else if (img?.uri) {
+        images.push({
+          id: `img-${index}`,
+          uri: img.uri,
+          placeholder: `Image ${index + 1}`,
+        });
+      } else if (typeof img === 'string') {
         images.push({
           id: `img-${index}`,
           uri: img,
@@ -251,7 +359,7 @@ export default function StoryDetailsScreen() {
       }
     });
     return images;
-  }, [storyDetails.images]);
+  }, [storyDetails?.images]);
 
   const handleImagePress = (imageIndex: number) => {
     setSelectedImageIndex(imageIndex);
@@ -267,7 +375,7 @@ export default function StoryDetailsScreen() {
   };
 
   const handleTextToSpeech = async () => {
-    const descriptionText = params?.description || storyDetails.fullDescription;
+    const descriptionText = params?.description || storyDetails?.fullDescription;
     await playTTS(descriptionText);
   };
 
@@ -277,6 +385,169 @@ export default function StoryDetailsScreen() {
   });
 
   const {currentConfig} = useStatusBar();
+  const screenWidth = Dimensions.get('window').width;
+
+  // Skeleton component matching the exact design
+  const renderSkeleton = () => {
+    const videoHeight = (screenWidth - moderateScale(32)) * (9 / 16);
+    return (
+      <ScrollView
+        style={{flex: 1}}
+        contentContainerStyle={dynamicStyles.scrollContent}
+        showsVerticalScrollIndicator={false}>
+        <SkeletonPlaceholder
+          backgroundColor={colors.backgroundGray}
+          highlightColor={colors.backgroundWhite}
+          borderRadius={moderateScale(10)}>
+          {/* Video Player Skeleton */}
+          <SkeletonPlaceholder.Item
+            width="100%"
+            height={videoHeight}
+            borderRadius={moderateScale(10)}
+            marginBottom={moderateScale(8)}
+          />
+
+          {/* Thumbnails Grid Skeleton */}
+          <SkeletonPlaceholder.Item
+            flexDirection="row"
+            marginTop={moderateScale(8)}
+            marginBottom={moderateScale(16)}>
+            {/* Left: Full height skeleton */}
+            <SkeletonPlaceholder.Item
+              flex={1.8}
+              height={moderateScale(128)}
+              borderRadius={moderateScale(8)}
+              marginRight={moderateScale(8)}
+            />
+            {/* Right: 2 stacked skeletons */}
+            <SkeletonPlaceholder.Item flex={1}>
+              <SkeletonPlaceholder.Item
+                width="100%"
+                height={moderateScale(60)}
+                borderRadius={moderateScale(8)}
+                marginBottom={moderateScale(8)}
+              />
+              <SkeletonPlaceholder.Item
+                width="100%"
+                height={moderateScale(60)}
+                borderRadius={moderateScale(8)}
+              />
+            </SkeletonPlaceholder.Item>
+          </SkeletonPlaceholder.Item>
+
+          {/* Story Title and Date Card Skeleton */}
+          <SkeletonPlaceholder.Item
+            backgroundColor={colors.backgroundWhite}
+            borderRadius={moderateScale(10)}
+            padding={moderateScale(16)}
+            marginVertical={moderateScale(16)}>
+            {/* Title Skeleton */}
+            <SkeletonPlaceholder.Item
+              width="95%"
+              height={moderateScale(20)}
+              borderRadius={moderateScale(4)}
+              marginBottom={moderateScale(8)}
+            />
+            <SkeletonPlaceholder.Item
+              width="75%"
+              height={moderateScale(20)}
+              borderRadius={moderateScale(4)}
+              marginBottom={moderateScale(12)}
+            />
+            {/* Date Row Skeleton */}
+            <SkeletonPlaceholder.Item
+              flexDirection="row"
+              alignItems="center">
+              <SkeletonPlaceholder.Item
+                width={moderateScale(18)}
+                height={moderateScale(18)}
+                borderRadius={moderateScale(9)}
+                marginRight={moderateScale(8)}
+              />
+              <SkeletonPlaceholder.Item
+                width="50%"
+                height={moderateScale(14)}
+                borderRadius={moderateScale(2)}
+              />
+            </SkeletonPlaceholder.Item>
+          </SkeletonPlaceholder.Item>
+
+        {/* Description Card Skeleton */}
+        <SkeletonPlaceholder.Item
+          backgroundColor={colors.backgroundWhite}
+          borderRadius={moderateScale(12)}
+          padding={moderateScale(16)}
+          marginBottom={moderateScale(16)}>
+          {/* TTS Button Skeleton */}
+          <SkeletonPlaceholder.Item
+            width="40%"
+            height={moderateScale(38)}
+            borderRadius={moderateScale(20)}
+            marginBottom={moderateScale(16)}
+          />
+          {/* Description Lines Skeleton */}
+          <SkeletonPlaceholder.Item
+            width="100%"
+            height={moderateScale(14)}
+            borderRadius={moderateScale(2)}
+            marginBottom={moderateScale(8)}
+          />
+          <SkeletonPlaceholder.Item
+            width="100%"
+            height={moderateScale(14)}
+            borderRadius={moderateScale(2)}
+            marginBottom={moderateScale(8)}
+          />
+          <SkeletonPlaceholder.Item
+            width="95%"
+            height={moderateScale(14)}
+            borderRadius={moderateScale(2)}
+            marginBottom={moderateScale(8)}
+          />
+          <SkeletonPlaceholder.Item
+            width="90%"
+            height={moderateScale(14)}
+            borderRadius={moderateScale(2)}
+            marginBottom={moderateScale(8)}
+          />
+          <SkeletonPlaceholder.Item
+            width="85%"
+            height={moderateScale(14)}
+            borderRadius={moderateScale(2)}
+          />
+        </SkeletonPlaceholder.Item>
+        </SkeletonPlaceholder>
+      </ScrollView>
+    );
+  };
+
+  if (loading || !storyDetails) {
+    return (
+      <View style={dynamicStyles.container}>
+        {/* Header */}
+        <View style={dynamicStyles.header}>
+          <TouchableOpacity
+            style={dynamicStyles.backButton}
+            onPress={() => {
+              if (params?.fromScreen === 'Home') {
+                tabNavigation.navigate(SCREEN_NAMES.Home);
+              } else {
+                navigation.goBack();
+              }
+            }}
+            activeOpacity={0.7}>
+            <Ionicons
+              name="arrow-back"
+              size={moderateScale(20)}
+              color={colors.textPrimary}
+            />
+          </TouchableOpacity>
+          <Text style={dynamicStyles.headerTitle}>Story detail</Text>
+        </View>
+        {renderSkeleton()}
+      </View>
+    );
+  }
 
   return (
     <View style={dynamicStyles.container}>
@@ -304,24 +575,35 @@ export default function StoryDetailsScreen() {
       </View>
 
       {/* Scrollable Content */}
-      <ScrollView
-        style={{flex: 1}}
-        contentContainerStyle={dynamicStyles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[colors.primary]}
-            tintColor={colors.primary}
-          />
-        }>
+      {refreshing ? (
+        renderSkeleton()
+      ) : (
+        <ScrollView
+          style={{flex: 1}}
+          contentContainerStyle={dynamicStyles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={false}
+              onRefresh={onRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }>
         {/* Video Player Section */}
         {/* <View style={dynamicStyles.card}> */}
           <View style={dynamicStyles.videoContainer}>
             <VideoPlayer
-              thumbnailUri={undefined}
-              thumbnailSource={storyDetails.thumbnailUri}
+              thumbnailUri={
+                typeof storyDetails.thumbnailUri === 'object' && storyDetails.thumbnailUri?.uri
+                  ? storyDetails.thumbnailUri.uri
+                  : undefined
+              }
+              thumbnailSource={
+                typeof storyDetails.thumbnailUri === 'number'
+                  ? storyDetails.thumbnailUri
+                  : undefined
+              }
               videoUri={storyDetails.videoUri}
               title={storyDetails.title}
             />
@@ -336,7 +618,11 @@ export default function StoryDetailsScreen() {
                 onPress={() => handleImagePress(0)}
                 activeOpacity={0.7}>
                 <Image
-                  source={storyDetails.images[0] || ImagePath.eventImage}
+                  source={
+                    typeof storyDetails.images[0] === 'object' && storyDetails.images[0]?.uri
+                      ? {uri: storyDetails.images[0].uri}
+                      : storyDetails.images[0] || ImagePath.eventImage
+                  }
                   style={dynamicStyles.thumbnailLeftImage}
                   resizeMode="cover"
                 />
@@ -345,14 +631,18 @@ export default function StoryDetailsScreen() {
 
             {/* Right: 2 stacked images */}
             <View style={dynamicStyles.thumbnailRight}>
-              {storyDetails.images?.slice(1, 3).map((image, index) => (
+              {storyDetails.images?.slice(1, 3).map((image: any, index: number) => (
                 <TouchableOpacity
                   key={index + 1}
                   style={[dynamicStyles.thumbnail]}
                   onPress={() => handleImagePress(index + 1)}
                   activeOpacity={0.7}>
                   <Image
-                    source={image || ImagePath.eventImage}
+                    source={
+                      typeof image === 'object' && image?.uri
+                        ? {uri: image.uri}
+                        : image || ImagePath.eventImage
+                    }
                     style={dynamicStyles.thumbnailImage}
                     resizeMode="cover"
                   />
@@ -410,7 +700,8 @@ export default function StoryDetailsScreen() {
             {params?.description || storyDetails.fullDescription}
           </Text>
         </View>
-      </ScrollView>
+        </ScrollView>
+      )}
 
       {/* Image Preview Modal */}
       <ImagePreviewModal
