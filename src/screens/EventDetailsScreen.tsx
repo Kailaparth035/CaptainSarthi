@@ -1,4 +1,4 @@
-import React, {useMemo, useState} from 'react';
+import React, {useMemo, useState, useEffect, useCallback} from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,10 @@ import {
   Pressable,
   Linking,
   RefreshControl,
+  ActivityIndicator,
+  Dimensions,
 } from 'react-native';
+import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useRoute, useNavigation} from '@react-navigation/native';
 import {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
@@ -29,6 +32,9 @@ import {useStatusBar} from '../contexts/StatusBarContext';
 import {useTTS} from '../contexts/TTSContext';
 import {ImagePath} from '../assets/images';
 import {useLanguage} from '../contexts/LanguageContext';
+import {getData} from '../Service/Apimethod';
+import Apis, {API_BASE_URL} from '../Service/constant';
+import {getImageUrl} from '../utils/imageUtils';
 
 type EventDetailsRouteParams = {
   eventId: string;
@@ -77,21 +83,126 @@ export default function EventDetailsScreen() {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [contactModalVisible, setContactModalVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [eventDetails, setEventDetails] = useState<any>(null);
   const {playTTS, state: ttsState} = useTTS();
+
+  // Fetch event details from API
+  const fetchEventDetails = useCallback(async (showRefreshing = false) => {
+    try {
+      if (showRefreshing) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      
+      const eventId = params?.eventId;
+      
+      if (!eventId) {
+        console.error('[EventDetailsScreen] No event ID provided');
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+
+      // Call API with eventId - endpoint: /api/farmers/events/{eventId}
+      console.log('[EventDetailsScreen] Fetching event with ID:', eventId);
+      const apiUrl = `${API_BASE_URL}/api/farmers/events/${eventId}`;
+      const response = await getData(apiUrl, {});
+      
+      console.log('[EventDetailsScreen] API Response:', JSON.stringify(response, null, 2));
+      
+      if (response?.status === true && response?.data) {
+        const eventData = response.data;
+        console.log('[EventDetailsScreen] Event Data:', JSON.stringify(eventData, null, 2));
+        
+        // Handle video URL from media.cover_video
+        let videoUrl = '';
+        if (eventData.media?.cover_video?.video_url) {
+          videoUrl = eventData.media.cover_video.video_url;
+        } else if (eventData.video_url || eventData.videoUrl) {
+          videoUrl = eventData.video_url || eventData.videoUrl;
+        }
+        
+        // Handle thumbnail from media.cover_video.thumbnail_url
+        let thumbnailUrl = null;
+        if (eventData.media?.cover_video?.thumbnail_url) {
+          thumbnailUrl = getImageUrl(eventData.media.cover_video.thumbnail_url);
+        } else if (eventData.image_url) {
+          thumbnailUrl = getImageUrl(eventData.image_url);
+        }
+        const thumbnailUri = thumbnailUrl ? {uri: thumbnailUrl} : ImagePath.eventImage;
+        
+        // Handle location
+        let location = 'Location not specified';
+        if (eventData.location?.full_address) {
+          location = eventData.location.full_address;
+        } else if (eventData.location?.city && eventData.location?.state) {
+          location = `${eventData.location.city}, ${eventData.location.state}`;
+        } else if (eventData.event_venue) {
+          location = eventData.event_venue;
+        }
+        
+        // Handle date - use display_datetime or display_date
+        const date = eventData.display_datetime || eventData.display_date || eventData.event_date || eventData.date || '';
+        
+        // Handle description - use description.text
+        const description = eventData.description?.text || eventData.description || '';
+        
+        // Handle gallery images from media.images
+        const galleryImages: any[] = [];
+        if (eventData.media?.images && Array.isArray(eventData.media.images)) {
+          eventData.media.images.forEach((imgObj: any) => {
+            const imgUrl = imgObj.image_url ? getImageUrl(imgObj.image_url) : null;
+            if (imgUrl) {
+              galleryImages.push({uri: imgUrl});
+            }
+          });
+        }
+        // If no gallery images, use thumbnail
+        if (galleryImages.length === 0 && thumbnailUrl) {
+          galleryImages.push({uri: thumbnailUrl});
+        }
+        // Final fallback
+        if (galleryImages.length === 0) {
+          galleryImages.push(ImagePath.eventImage);
+        }
+        
+        setEventDetails({
+          id: eventData.event_id || eventData.id || eventId,
+          title: eventData.title || params?.title || 'Event',
+          location: location,
+          date: date,
+          description: description,
+          fullDescription: description,
+          videoUri: videoUrl,
+          thumbnailUri: thumbnailUri,
+          images: galleryImages,
+        });
+      } else {
+        console.warn('[EventDetailsScreen] Unexpected API response format:', response);
+        // Fallback to mock data if API fails
+        setEventDetails(getEventDetails(eventId));
+      }
+    } catch (error) {
+      console.error('[EventDetailsScreen] Error fetching event details:', error);
+      // Fallback to mock data on error
+      setEventDetails(getEventDetails(params?.eventId || '1'));
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [params?.eventId]);
 
   // Handle pull to refresh
   const onRefresh = React.useCallback(() => {
-    setRefreshing(true);
-    // Simulate API call - replace with actual API call when available
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1000);
-  }, []);
+    fetchEventDetails(true);
+  }, [fetchEventDetails]);
 
-  const eventDetails = useMemo(
-    () => getEventDetails(params?.eventId || '1'),
-    [params?.eventId],
-  );
+  // Fetch event details on mount
+  useEffect(() => {
+    fetchEventDetails();
+  }, [fetchEventDetails]);
 
   const dynamicStyles = useMemo(
     () =>
@@ -254,16 +365,23 @@ export default function EventDetailsScreen() {
 
   // Prepare images for preview modal
   const previewImages: ImageItem[] = useMemo(() => {
+    if (!eventDetails?.images) return [];
     const images: ImageItem[] = [];
-    eventDetails.images?.forEach((img, index) => {
-      // Check if img is a require() result (number) or a string URI
+    eventDetails.images.forEach((img: any, index: number) => {
+      // Check if img is a require() result (number) or an object with uri
       if (typeof img === 'number') {
         images.push({
           id: `img-${index}`,
           source: img,
           placeholder: `Image ${index + 1}`,
         });
-      } else {
+      } else if (img?.uri) {
+        images.push({
+          id: `img-${index}`,
+          uri: img.uri,
+          placeholder: `Image ${index + 1}`,
+        });
+      } else if (typeof img === 'string') {
         images.push({
           id: `img-${index}`,
           uri: img,
@@ -272,7 +390,7 @@ export default function EventDetailsScreen() {
       }
     });
     return images;
-  }, [eventDetails.images]);
+  }, [eventDetails?.images]);
 
   const handleImagePress = (imageIndex: number) => {
     setSelectedImageIndex(imageIndex);
@@ -342,6 +460,193 @@ export default function EventDetailsScreen() {
   });
 
   const {currentConfig} = useStatusBar();
+  const screenWidth = Dimensions.get('window').width;
+
+  // Skeleton component matching the exact design
+  const renderSkeleton = () => {
+    const videoHeight = (screenWidth - moderateScale(32)) * (9 / 16);
+    return (
+      <ScrollView
+        style={{flex: 1}}
+        contentContainerStyle={dynamicStyles.scrollContent}
+        showsVerticalScrollIndicator={false}>
+        <SkeletonPlaceholder
+          backgroundColor={colors.backgroundGray}
+          highlightColor={colors.backgroundWhite}
+          borderRadius={moderateScale(10)}>
+          {/* Video Player Skeleton */}
+          <SkeletonPlaceholder.Item
+            width="100%"
+            height={videoHeight}
+            borderRadius={moderateScale(10)}
+            marginBottom={moderateScale(8)}
+          />
+
+          {/* Thumbnails Grid Skeleton */}
+          <SkeletonPlaceholder.Item
+            flexDirection="row"
+            marginTop={moderateScale(8)}
+            marginBottom={moderateScale(16)}>
+            {/* Left: Full height skeleton */}
+            <SkeletonPlaceholder.Item
+              flex={1.8}
+              height={moderateScale(128)}
+              borderRadius={moderateScale(8)}
+              marginRight={moderateScale(8)}
+            />
+            {/* Right: 2 stacked skeletons */}
+            <SkeletonPlaceholder.Item flex={1}>
+              <SkeletonPlaceholder.Item
+                width="100%"
+                height={moderateScale(60)}
+                borderRadius={moderateScale(8)}
+                marginBottom={moderateScale(8)}
+              />
+              <SkeletonPlaceholder.Item
+                width="100%"
+                height={moderateScale(60)}
+                borderRadius={moderateScale(8)}
+              />
+            </SkeletonPlaceholder.Item>
+          </SkeletonPlaceholder.Item>
+
+          {/* Event Details Card Skeleton */}
+          <SkeletonPlaceholder.Item
+            backgroundColor={colors.backgroundWhite}
+            borderRadius={moderateScale(10)}
+            padding={moderateScale(16)}
+            marginVertical={moderateScale(16)}>
+            {/* Title Skeleton */}
+            <SkeletonPlaceholder.Item
+              width="95%"
+              height={moderateScale(20)}
+              borderRadius={moderateScale(4)}
+              marginBottom={moderateScale(8)}
+            />
+            <SkeletonPlaceholder.Item
+              width="70%"
+              height={moderateScale(20)}
+              borderRadius={moderateScale(4)}
+              marginBottom={moderateScale(16)}
+            />
+            {/* Date Row Skeleton */}
+            <SkeletonPlaceholder.Item
+              flexDirection="row"
+              alignItems="center"
+              marginBottom={moderateScale(12)}>
+              <SkeletonPlaceholder.Item
+                width={moderateScale(18)}
+                height={moderateScale(18)}
+                borderRadius={moderateScale(9)}
+                marginRight={moderateScale(8)}
+              />
+              <SkeletonPlaceholder.Item
+                width="60%"
+                height={moderateScale(14)}
+                borderRadius={moderateScale(2)}
+              />
+            </SkeletonPlaceholder.Item>
+            {/* Location Row Skeleton */}
+            <SkeletonPlaceholder.Item
+              flexDirection="row"
+              alignItems="center">
+              <SkeletonPlaceholder.Item
+                width={moderateScale(18)}
+                height={moderateScale(18)}
+                borderRadius={moderateScale(9)}
+                marginRight={moderateScale(8)}
+              />
+              <SkeletonPlaceholder.Item
+                width="65%"
+                height={moderateScale(14)}
+                borderRadius={moderateScale(2)}
+              />
+            </SkeletonPlaceholder.Item>
+          </SkeletonPlaceholder.Item>
+
+          {/* Description Card Skeleton */}
+          <SkeletonPlaceholder.Item
+            backgroundColor={colors.backgroundWhite}
+            borderRadius={moderateScale(12)}
+            padding={moderateScale(16)}
+            marginBottom={moderateScale(16)}>
+            {/* TTS Button Skeleton */}
+            <SkeletonPlaceholder.Item
+              width="40%"
+              height={moderateScale(38)}
+              borderRadius={moderateScale(20)}
+              marginBottom={moderateScale(16)}
+            />
+            {/* Description Lines Skeleton */}
+            <SkeletonPlaceholder.Item
+              width="100%"
+              height={moderateScale(14)}
+              borderRadius={moderateScale(2)}
+              marginBottom={moderateScale(8)}
+            />
+            <SkeletonPlaceholder.Item
+              width="100%"
+              height={moderateScale(14)}
+              borderRadius={moderateScale(2)}
+              marginBottom={moderateScale(8)}
+            />
+            <SkeletonPlaceholder.Item
+              width="95%"
+              height={moderateScale(14)}
+              borderRadius={moderateScale(2)}
+              marginBottom={moderateScale(8)}
+            />
+            <SkeletonPlaceholder.Item
+              width="90%"
+              height={moderateScale(14)}
+              borderRadius={moderateScale(2)}
+              marginBottom={moderateScale(8)}
+            />
+            <SkeletonPlaceholder.Item
+              width="85%"
+              height={moderateScale(14)}
+              borderRadius={moderateScale(2)}
+            />
+          </SkeletonPlaceholder.Item>
+        </SkeletonPlaceholder>
+      </ScrollView>
+    );
+  };
+
+  if (loading || !eventDetails) {
+    return (
+      <View style={dynamicStyles.container}>
+        {/* Header */}
+        <View style={dynamicStyles.header}>
+          <View style={dynamicStyles.headerLeft}>
+            <TouchableOpacity
+              style={dynamicStyles.backButton}
+              onPress={() => {
+                if (params?.fromScreen === 'Home') {
+                  tabNavigation.navigate(SCREEN_NAMES.Home);
+                } else {
+                  navigation.goBack();
+                }
+              }}
+              activeOpacity={0.7}>
+              <Ionicons
+                name="arrow-back"
+                size={moderateScale(20)}
+                color={colors.textPrimary}
+              />
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity
+            style={dynamicStyles.contactButton}
+            onPress={handleContactUs}
+            activeOpacity={0.7}>
+            <Text style={dynamicStyles.contactButtonText}>Contact us</Text>
+          </TouchableOpacity>
+        </View>
+        {renderSkeleton()}
+      </View>
+    );
+  }
 
   return (
     <View style={dynamicStyles.container}>
@@ -376,24 +681,35 @@ export default function EventDetailsScreen() {
       </View>
 
       {/* Scrollable Content */}
-      <ScrollView
-        style={{flex: 1}}
-        contentContainerStyle={dynamicStyles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[colors.primary]}
-            tintColor={colors.primary}
-          />
-        }>
+      {refreshing ? (
+        renderSkeleton()
+      ) : (
+        <ScrollView
+          style={{flex: 1}}
+          contentContainerStyle={dynamicStyles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={false}
+              onRefresh={onRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }>
         {/* Video Player Section */}
         {/* <View style={dynamicStyles.card}> */}
           <View style={dynamicStyles.videoContainer}>
             <VideoPlayer
-              thumbnailUri={undefined}
-              thumbnailSource={eventDetails.thumbnailUri}
+              thumbnailUri={
+                typeof eventDetails.thumbnailUri === 'object' && eventDetails.thumbnailUri?.uri
+                  ? eventDetails.thumbnailUri.uri
+                  : undefined
+              }
+              thumbnailSource={
+                typeof eventDetails.thumbnailUri === 'number'
+                  ? eventDetails.thumbnailUri
+                  : undefined
+              }
               videoUri={eventDetails.videoUri}
               title={eventDetails.title}
             />
@@ -408,7 +724,11 @@ export default function EventDetailsScreen() {
                 onPress={() => handleImagePress(0)}
                 activeOpacity={0.7}>
                 <Image
-                  source={eventDetails.images[0] || ImagePath.eventImage}
+                  source={
+                    typeof eventDetails.images[0] === 'object' && eventDetails.images[0]?.uri
+                      ? {uri: eventDetails.images[0].uri}
+                      : eventDetails.images[0] || ImagePath.eventImage
+                  }
                   style={dynamicStyles.thumbnailLeftImage}
                   resizeMode="cover"
                 />
@@ -417,14 +737,18 @@ export default function EventDetailsScreen() {
 
             {/* Right: 2 stacked images */}
             <View style={dynamicStyles.thumbnailRight}>
-              {eventDetails.images?.slice(1, 3).map((image, index) => (
+              {eventDetails.images?.slice(1, 3).map((image: any, index: number) => (
                 <TouchableOpacity
                   key={index + 1}
                   style={[dynamicStyles.thumbnail]}
                   onPress={() => handleImagePress(index + 1)}
                   activeOpacity={0.7}>
                   <Image
-                    source={image || ImagePath.eventImage}
+                    source={
+                      typeof image === 'object' && image?.uri
+                        ? {uri: image.uri}
+                        : image || ImagePath.eventImage
+                    }
                     style={dynamicStyles.thumbnailImage}
                     resizeMode="cover"
                   />
@@ -494,7 +818,8 @@ export default function EventDetailsScreen() {
             {params?.description || eventDetails.fullDescription}
           </Text>
         </View>
-      </ScrollView>
+        </ScrollView>
+      )}
 
       {/* Image Preview Modal */}
       <ImagePreviewModal

@@ -1,4 +1,4 @@
-import React, {useMemo, useState} from 'react';
+import React, {useMemo, useState, useEffect, useCallback} from 'react';
 import {
   View,
   Text,
@@ -7,8 +7,10 @@ import {
   Image,
   TouchableOpacity,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
+import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -18,60 +20,130 @@ import {Typography} from '../utils/typography';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import {ImagePath} from '../assets/images';
 import {SCREEN_NAMES} from '../constants/screenNames';
+import {getData} from '../Service/Apimethod';
+import Apis from '../Service/constant';
+import {getImageUrl} from '../utils/imageUtils';
 
-// Mock event data
-const events = [
-  {
-    id: '1',
-    title: 'Captain tractor national',
-    location: 'Udaipur, rajasthan',
-    date: '9th Sep, 2025 to 10th Sep, 2025',
-    imageUri: ImagePath.eventImage, // Will use placeholder
-  },
-  {
-    id: '2',
-    title: 'Little master 250 launch',
-    location: 'Dy patil stadium, Mumbai',
-    date: '10:30 am, 15 Sept 2025',
-    imageUri: ImagePath.eventImage2, // Will use placeholder
-  },
-  {
-    id: '3',
-    title: 'Little master 250 launch',
-    location: 'Dy patil stadium, Mumbai',
-    date: '10:30 am, 15 Sept 2025',
-    imageUri: ImagePath.eventImage2,
-  },
-  {
-    id: '4',
-    title: 'Little master 250 launch',
-    location: 'Dy patil stadium, Mumbai',
-    date: '10:30 am, 15 Sept 2025',
-    imageUri: ImagePath.eventImage,
-  },
-  {
-    id: '5',
-    title: 'Little master 250 launch',
-    location: 'Dy patil stadium, Mumbai',
-    date: '10:30 am, 15 Sept 2025',
-    imageUri: ImagePath.eventImage2,
-  },
-];
+// Helper function to format date
+const formatDate = (dateString: string): string => {
+  if (!dateString) return '';
+  try {
+    const date = new Date(dateString);
+    const day = date.getDate();
+    const month = date.toLocaleString('default', {month: 'short'});
+    const year = date.getFullYear();
+    return `${day} ${month}, ${year}`;
+  } catch (error) {
+    return dateString;
+  }
+};
 
 export default function EventsScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
   const navigation = useNavigation();
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [events, setEvents] = useState<any[]>([]);
+
+  // Fetch events from API
+  const fetchEvents = useCallback(async (showRefreshing = false) => {
+    try {
+      if (showRefreshing) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      
+      console.log('[EventsScreen] Fetching events data');
+      const response = await getData(Apis.FARMER_EVENTS, {});
+      
+      console.log('[EventsScreen] Events API Response:', JSON.stringify(response, null, 2));
+      
+      if (response?.status === true && response?.data) {
+        // Check if data has events array (new structure) or is directly an array
+        const eventsArray = response.data.events || 
+                           response.data.list ||
+                           (Array.isArray(response.data) ? response.data : []);
+        
+        console.log('[EventsScreen] Events array extracted:', eventsArray?.length || 0, 'events');
+        
+        if (Array.isArray(eventsArray) && eventsArray.length > 0) {
+          // Transform API events to match UI structure
+          const transformedEvents = eventsArray.map((event: any) => {
+            const imageUrl = event.image_url ? getImageUrl(event.image_url) : null;
+            // Use ImagePath as fallback if no image URL
+            const imageUri = imageUrl ? {uri: imageUrl} : ImagePath.eventImage;
+            
+            // Handle location - prefer full_address, then event_venue, then construct from location object
+            let location = 'Location not specified';
+            if (event.location?.full_address) {
+              location = event.location.full_address;
+            } else if (event.location?.city && event.location?.state) {
+              location = `${event.location.city}, ${event.location.state}`;
+            } else if (event.event_venue) {
+              location = event.event_venue;
+            } else if (event.location) {
+              location = event.location;
+            } else if (event.venue) {
+              location = event.venue;
+            }
+            
+            // Handle date - prefer display_date, otherwise format from start_date/end_date
+            let date = '';
+            if (event.display_date) {
+              date = event.display_date;
+            } else if (event.start_date && event.end_date) {
+              // Format date range
+              const startDate = formatDate(event.start_date);
+              const endDate = formatDate(event.end_date);
+              date = `${startDate} to ${endDate}`;
+            } else if (event.start_date) {
+              date = formatDate(event.start_date);
+            } else if (event.event_date) {
+              date = formatDate(event.event_date);
+            } else if (event.publish_date) {
+              date = formatDate(event.publish_date);
+            } else if (event.date) {
+              date = formatDate(event.date);
+            }
+            
+            return {
+              id: event.event_id || event.id || String(Math.random()),
+              title: event.title || 'Event',
+              location: location,
+              date: date,
+              imageUri: imageUri,
+            };
+          });
+          
+          setEvents(transformedEvents);
+        } else {
+          console.warn('[EventsScreen] No events found in response');
+          setEvents([]);
+        }
+      } else {
+        console.warn('[EventsScreen] Unexpected API response format:', response);
+        setEvents([]);
+      }
+    } catch (error) {
+      console.error('[EventsScreen] Error fetching events:', error);
+      setEvents([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
 
   // Handle pull to refresh
   const onRefresh = React.useCallback(() => {
-    setRefreshing(true);
-    // Simulate API call - replace with actual API call when available
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1000);
-  }, []);
+    fetchEvents(true);
+  }, [fetchEvents]);
+
+  // Fetch events on mount
+  useEffect(() => {
+    fetchEvents();
+  }, [fetchEvents]);
 
   useDynamicStatusBar({
     backgroundColor: colors.backgroundLight,
@@ -192,6 +264,71 @@ export default function EventsScreen() {
     [moderateScale, insets.top],
   );
 
+  // Skeleton component for event cards - matches exact design
+  const renderSkeleton = () => {
+    return (
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={dynamicStyles.scrollContent}>
+        <SkeletonPlaceholder
+          backgroundColor={colors.backgroundGray}
+          highlightColor={colors.backgroundWhite}
+          borderRadius={moderateScale(12)}>
+          {[1, 2, 3, 4, 5].map((index) => (
+            <View key={index} style={dynamicStyles.eventCard}>
+              {/* Skeleton Image - matches eventImage style */}
+              <SkeletonPlaceholder.Item
+                width={moderateScale(80)}
+                height={moderateScale(80)}
+                borderRadius={moderateScale(8)}
+                marginRight={moderateScale(12)}
+              />
+              {/* Skeleton Content - matches eventContent style */}
+              <View style={{flex: 1, justifyContent: 'center', minWidth: 0}}>
+                {/* Skeleton Title - matches eventTitle (2 lines, fontSize 16) */}
+                <SkeletonPlaceholder.Item
+                  width="95%"
+                  height={moderateScale(16)}
+                  borderRadius={moderateScale(2)}
+                  marginBottom={moderateScale(8)}
+                />
+                <SkeletonPlaceholder.Item
+                  width="75%"
+                  height={moderateScale(16)}
+                  borderRadius={moderateScale(2)}
+                  marginBottom={moderateScale(8)}
+                />
+                {/* Skeleton Location - matches eventLocation with icon */}
+                <View style={{flexDirection: 'row', alignItems: 'center', marginBottom: moderateScale(6)}}>
+                  {/* Icon placeholder */}
+                  <SkeletonPlaceholder.Item
+                    width={moderateScale(16)}
+                    height={moderateScale(16)}
+                    borderRadius={moderateScale(8)}
+                    marginRight={moderateScale(6)}
+                  />
+                  {/* Location text */}
+                  <SkeletonPlaceholder.Item
+                    width="70%"
+                    height={moderateScale(14)}
+                    borderRadius={moderateScale(2)}
+                  />
+                </View>
+                {/* Skeleton Date Badge - matches eventDate style with gradient look */}
+                <SkeletonPlaceholder.Item
+                  width="55%"
+                  height={moderateScale(28)}
+                  borderRadius={moderateScale(8)}
+                  marginTop={moderateScale(4)}
+                />
+              </View>
+            </View>
+          ))}
+        </SkeletonPlaceholder>
+      </ScrollView>
+    );
+  };
+
   return (
     <View style={dynamicStyles.container}>
       {/* Header */}
@@ -200,30 +337,96 @@ export default function EventsScreen() {
       </View>
 
       {/* Events List */}
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={dynamicStyles.scrollContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[colors.primary]}
-            tintColor={colors.primary}
-          />
-        }>
-        {events.map((event) => (
+      {loading ? (
+        renderSkeleton()
+      ) : (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={dynamicStyles.scrollContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }>
+          {refreshing && events.length > 0 ? (
+            <View style={dynamicStyles.scrollContent}>
+              <SkeletonPlaceholder
+                backgroundColor={colors.backgroundGray}
+                highlightColor={colors.backgroundWhite}
+                borderRadius={moderateScale(12)}>
+                {[1, 2, 3, 4, 5].map((index) => (
+                  <View key={index} style={dynamicStyles.eventCard}>
+                    {/* Skeleton Image */}
+                    <SkeletonPlaceholder.Item
+                      width={moderateScale(80)}
+                      height={moderateScale(80)}
+                      borderRadius={moderateScale(8)}
+                      marginRight={moderateScale(12)}
+                    />
+                    {/* Skeleton Content */}
+                    <View style={{flex: 1, justifyContent: 'center', minWidth: 0}}>
+                      {/* Skeleton Title */}
+                      <SkeletonPlaceholder.Item
+                        width="95%"
+                        height={moderateScale(16)}
+                        borderRadius={moderateScale(2)}
+                        marginBottom={moderateScale(8)}
+                      />
+                      <SkeletonPlaceholder.Item
+                        width="75%"
+                        height={moderateScale(16)}
+                        borderRadius={moderateScale(2)}
+                        marginBottom={moderateScale(8)}
+                      />
+                      {/* Skeleton Location with icon */}
+                      <View style={{flexDirection: 'row', alignItems: 'center', marginBottom: moderateScale(6)}}>
+                        <SkeletonPlaceholder.Item
+                          width={moderateScale(16)}
+                          height={moderateScale(16)}
+                          borderRadius={moderateScale(8)}
+                          marginRight={moderateScale(6)}
+                        />
+                        <SkeletonPlaceholder.Item
+                          width="70%"
+                          height={moderateScale(14)}
+                          borderRadius={moderateScale(2)}
+                        />
+                      </View>
+                      {/* Skeleton Date Badge */}
+                      <SkeletonPlaceholder.Item
+                        width="55%"
+                        height={moderateScale(28)}
+                        borderRadius={moderateScale(8)}
+                        marginTop={moderateScale(4)}
+                      />
+                    </View>
+                  </View>
+                ))}
+              </SkeletonPlaceholder>
+            </View>
+          ) : events.length === 0 ? (
+            <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: moderateScale(100)}}>
+              <Text style={[Typography.regularMd, {color: colors.textTertiary, fontSize: moderateScale(14)}]}>
+                No events available
+              </Text>
+            </View>
+          ) : (
+            events.map((event) => (
           <TouchableOpacity
             key={event.id}
             style={dynamicStyles.eventCard}
             activeOpacity={0.7}
             onPress={() => {
-              navigation.navigate(SCREEN_NAMES.EventDetails as never, {
+              (navigation as any).navigate(SCREEN_NAMES.EventDetails, {
                 eventId: event.id,
                 title: event.title,
                 location: event.location,
                 date: event.date,
                 fromScreen: 'List',
-              } as never);
+              });
             }}>
             {/* Event Image */}
             <View style={dynamicStyles.eventImage}>
@@ -277,8 +480,10 @@ export default function EventsScreen() {
               </LinearGradient>
             </View>
           </TouchableOpacity>
-        ))}
-      </ScrollView>
+            ))
+          )}
+        </ScrollView>
+      )}
     </View>
   );
 }

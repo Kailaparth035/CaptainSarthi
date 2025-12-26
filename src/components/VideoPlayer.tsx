@@ -8,6 +8,8 @@ import {
   Modal,
   Dimensions,
   ActivityIndicator,
+  Linking,
+  Platform,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -15,6 +17,7 @@ import colors from '../utils/colors';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import {Typography} from '../utils/typography';
 import Video from 'react-native-video';
+import {isYouTubeUrl, extractYouTubeVideoId} from '../utils/youtubeUtils';
 
 type VideoPlayerProps = {
   thumbnailUri?: string;
@@ -215,8 +218,47 @@ export default function VideoPlayer({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handlePlay = () => {
+  const handlePlay = async () => {
     if (videoUri) {
+      // Check if it's a YouTube URL - if so, open in YouTube app/browser
+      if (isYouTubeUrl(videoUri)) {
+        try {
+          const videoId = extractYouTubeVideoId(videoUri);
+          
+          if (videoId) {
+            // Try to open in YouTube app first (iOS/Android)
+            const youtubeAppUrl = Platform.select({
+              ios: `youtube://watch?v=${videoId}`,
+              android: `vnd.youtube:${videoId}`,
+            });
+            
+            if (youtubeAppUrl) {
+              try {
+                // Try opening YouTube app directly (without canOpenURL check)
+                await Linking.openURL(youtubeAppUrl);
+                return;
+              } catch (appError) {
+                // YouTube app not available, fall through to browser
+                console.log('YouTube app not available, opening in browser');
+              }
+            }
+          }
+          
+          // Fallback to opening in browser - just open directly
+          await Linking.openURL(videoUri);
+        } catch (error) {
+          console.error('Error opening YouTube URL:', error);
+          // Last resort: try opening in browser
+          try {
+            await Linking.openURL(videoUri);
+          } catch (browserError) {
+            console.error('Error opening in browser:', browserError);
+          }
+        }
+        return;
+      }
+      
+      // For non-YouTube videos, open the modal
       setShowVideoModal(true);
       setIsPlaying(true);
       setVideoError(null);

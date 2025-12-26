@@ -53,6 +53,7 @@ if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   include("/Users/bhumit/WorkSpace/CaptainSarthi/android/app/.cxx/Debug/19m1a6b1/x86/safeareacontext_autolinked_build/cmake_install.cmake")
   include("/Users/bhumit/WorkSpace/CaptainSarthi/android/app/.cxx/Debug/19m1a6b1/x86/rnscreens_autolinked_build/cmake_install.cmake")
   include("/Users/bhumit/WorkSpace/CaptainSarthi/android/app/.cxx/Debug/19m1a6b1/x86/RNVectorIconsSpec_autolinked_build/cmake_install.cmake")
+  include("/Users/bhumit/WorkSpace/CaptainSarthi/android/app/.cxx/Debug/19m1a6b1/x86/RNCWebViewSpec_autolinked_build/cmake_install.cmake")
   include("/Users/bhumit/WorkSpace/CaptainSarthi/android/app/.cxx/Debug/19m1a6b1/x86/rnworklets_autolinked_build/cmake_install.cmake")
 
 endif()

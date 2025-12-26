@@ -9,6 +9,7 @@
     "/Users/bhumit/WorkSpace/CaptainSarthi/node_modules/react-native-safe-area-context/android/src/main/jni/CMakeLists.txt",
     "/Users/bhumit/WorkSpace/CaptainSarthi/node_modules/react-native-screens/android/src/main/jni/CMakeLists.txt",
     "/Users/bhumit/WorkSpace/CaptainSarthi/node_modules/react-native-vector-icons/android/build/generated/source/codegen/jni/CMakeLists.txt",
+    "/Users/bhumit/WorkSpace/CaptainSarthi/node_modules/react-native-webview/android/build/generated/source/codegen/jni/CMakeLists.txt",
     "/Users/bhumit/WorkSpace/CaptainSarthi/node_modules/react-native-worklets/android/build/generated/source/codegen/jni/CMakeLists.txt",
     "/Users/bhumit/WorkSpace/CaptainSarthi/node_modules/react-native/ReactAndroid/cmake-utils/default-app-setup/CMakeLists.txt"
   ],
@@ -64,6 +65,11 @@
     },
     "react_codegen_rngesturehandler_codegen::@39f233abcd2c728bc6ec": {
       "artifactName": "react_codegen_rngesturehandler_codegen",
+      "abi": "x86_64",
+      "runtimeFiles": []
+    },
+    "react_codegen_RNCWebViewSpec::@eb48929f9f7453740a6c": {
+      "artifactName": "react_codegen_RNCWebViewSpec",
       "abi": "x86_64",
       "runtimeFiles": []
     },

@@ -497,7 +497,7 @@ export default function TractorDetailsScreen() {
                 color={colors.textPrimary}
               />
             </TouchableOpacity>
-            <Text style={dynamicStyles.headerTitle}>Tractor Details</Text>
+            <Text style={dynamicStyles.headerTitle}>Tractor Details </Text>
           </View>
         </View>
 
