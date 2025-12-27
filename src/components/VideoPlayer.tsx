@@ -8,8 +8,6 @@ import {
   Modal,
   Dimensions,
   ActivityIndicator,
-  Linking,
-  Platform,
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -17,6 +15,7 @@ import colors from '../utils/colors';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import {Typography} from '../utils/typography';
 import Video from 'react-native-video';
+import YoutubePlayer from 'react-native-youtube-iframe';
 import {isYouTubeUrl, extractYouTubeVideoId} from '../utils/youtubeUtils';
 
 type VideoPlayerProps = {
@@ -44,6 +43,8 @@ export default function VideoPlayer({
   const [volume, setVolume] = useState(1);
   const [showControls, setShowControls] = useState(true);
   const [isSeeking, setIsSeeking] = useState(false);
+  const [youtubeVideoId, setYoutubeVideoId] = useState<string | null>(null);
+  const [isYouTubeVideo, setIsYouTubeVideo] = useState(false);
   const videoRef = useRef<any>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const screenWidth = Dimensions.get('window').width;
@@ -110,8 +111,11 @@ export default function VideoPlayer({
         },
         videoPlayer: {
           width: '100%',
-          height: '100%',
+          height: '42%',
+          // marginTop: moderateScale(20),
           backgroundColor: '#000',
+          // justifyContent: 'center',
+          // alignItems: 'center',
         },
         videoControls: {
           position: 'absolute',
@@ -220,45 +224,22 @@ export default function VideoPlayer({
 
   const handlePlay = async () => {
     if (videoUri) {
-      // Check if it's a YouTube URL - if so, open in YouTube app/browser
+      // Check if it's a YouTube URL - if so, use YouTube iframe player
       if (isYouTubeUrl(videoUri)) {
-        try {
-          const videoId = extractYouTubeVideoId(videoUri);
-          
-          if (videoId) {
-            // Try to open in YouTube app first (iOS/Android)
-            const youtubeAppUrl = Platform.select({
-              ios: `youtube://watch?v=${videoId}`,
-              android: `vnd.youtube:${videoId}`,
-            });
-            
-            if (youtubeAppUrl) {
-              try {
-                // Try opening YouTube app directly (without canOpenURL check)
-                await Linking.openURL(youtubeAppUrl);
-                return;
-              } catch (appError) {
-                // YouTube app not available, fall through to browser
-                console.log('YouTube app not available, opening in browser');
-              }
-            }
-          }
-          
-          // Fallback to opening in browser - just open directly
-          await Linking.openURL(videoUri);
-        } catch (error) {
-          console.error('Error opening YouTube URL:', error);
-          // Last resort: try opening in browser
-          try {
-            await Linking.openURL(videoUri);
-          } catch (browserError) {
-            console.error('Error opening in browser:', browserError);
-          }
+        const videoId = extractYouTubeVideoId(videoUri);
+        if (videoId) {
+          setYoutubeVideoId(videoId);
+          setIsYouTubeVideo(true);
+          setShowVideoModal(true);
+          setIsPlaying(true);
+          setVideoError(null);
+          return;
         }
-        return;
       }
       
       // For non-YouTube videos, open the modal
+      setIsYouTubeVideo(false);
+      setYoutubeVideoId(null);
       setShowVideoModal(true);
       setIsPlaying(true);
       setVideoError(null);
@@ -266,6 +247,8 @@ export default function VideoPlayer({
       setShowControls(true);
       resetControlsTimeout();
     } else {
+      setIsYouTubeVideo(false);
+      setYoutubeVideoId(null);
       setShowVideoModal(true);
     }
   };
@@ -276,6 +259,8 @@ export default function VideoPlayer({
     setVideoError(null);
     setCurrentTime(0);
     setDuration(0);
+    setIsYouTubeVideo(false);
+    setYoutubeVideoId(null);
     if (controlsTimeoutRef.current) {
       clearTimeout(controlsTimeoutRef.current);
     }
@@ -286,7 +271,9 @@ export default function VideoPlayer({
 
   const togglePlayPause = () => {
     setIsPlaying(!isPlaying);
-    resetControlsTimeout();
+    if (!isYouTubeVideo) {
+      resetControlsTimeout();
+    }
   };
 
   const handleVideoLoad = (data: any) => {
@@ -464,21 +451,40 @@ export default function VideoPlayer({
             onPress={handleVideoPress}>
             {videoUri ? (
               <>
-                <Video
-                  ref={videoRef}
-                  source={{uri: videoUri}}
-                  style={dynamicStyles.videoPlayer}
-                  paused={!isPlaying}
-                  resizeMode="contain"
-                  onLoad={handleVideoLoad}
-                  onError={handleVideoError}
-                  onProgress={handleProgress}
-                  controls={false}
-                  playInBackground={false}
-                  playWhenInactive={false}
-                  volume={volume}
-                  muted={volume === 0}
-                />
+                {isYouTubeVideo && youtubeVideoId ? (
+                  <View style={dynamicStyles.videoPlayer}>
+                    <YoutubePlayer
+                      height={screenHeight * 0.6}
+                      videoId={youtubeVideoId}
+                      play={isPlaying}
+                      onChangeState={(state) => {
+                        if (state === 'ended') {
+                          setIsPlaying(false);
+                        }
+                      }}
+                      onError={(error) => {
+                        console.error('YouTube player error:', error);
+                        setVideoError('Failed to load video. Please try again.');
+                      }}
+                    />
+                  </View>
+                ) : (
+                  <Video
+                    ref={videoRef}
+                    source={{uri: videoUri}}
+                    style={dynamicStyles.videoPlayer}
+                    paused={!isPlaying}
+                    resizeMode="contain"
+                    onLoad={handleVideoLoad}
+                    onError={handleVideoError}
+                    onProgress={handleProgress}
+                    controls={false}
+                    playInBackground={false}
+                    playWhenInactive={false}
+                    volume={volume}
+                    muted={volume === 0}
+                  />
+                )}
                 
                 {isVideoLoading && (
                   <View style={dynamicStyles.loadingContainer}>
@@ -515,7 +521,7 @@ export default function VideoPlayer({
                   </View>
                 )}
 
-                {!isVideoLoading && !videoError && showControls && (
+                {!isVideoLoading && !videoError && showControls && !isYouTubeVideo && (
                   <View style={dynamicStyles.videoControls}>
                     {/* Main Controls Row */}
                     <View style={dynamicStyles.controlsRow}>
