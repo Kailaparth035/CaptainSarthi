@@ -115,7 +115,8 @@
     "english": "English",
     "gujarati": "Gujarati",
     "hindi": "Hindi",
-    "selectLanguage": "Select Language"
+    "selectLanguage": "Select Language",
+    "save": "Save"
   },
   "common": {
     "continue": "Continue",
@@ -259,10 +260,6 @@
     "selectOption": "Select option",
     "uploadTractorImage": "Upload Tractor image",
     "uploadSecondImage": "Upload second image"
-  },
-  "language": {
-    "title": "Language",
-    "save": "Save"
   }
 }
 

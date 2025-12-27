@@ -115,7 +115,8 @@
     "english": "અંગ્રેજી",
     "gujarati": "ગુજરાતી",
     "hindi": "હિંદી",
-    "selectLanguage": "ભાષા પસંદ કરો"
+    "selectLanguage": "ભાષા પસંદ કરો",
+    "save": "સાચવો"
   },
   "common": {
     "continue": "આગળ વધો",
@@ -259,10 +260,6 @@
     "selectOption": "વિકલ્પ પસંદ કરો",
     "uploadTractorImage": "ટ્રેક્ટર છબી અપલોડ કરો",
     "uploadSecondImage": "બીજી છબી અપલોડ કરો"
-  },
-  "language": {
-    "title": "ભાષા",
-    "save": "સાચવો"
   }
 }
 

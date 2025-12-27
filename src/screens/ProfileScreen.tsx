@@ -407,9 +407,8 @@ export default function ProfileScreen() {
               <View style={dynamicStyles.languageContent}>
                 <Text style={dynamicStyles.languageLabel}>{t('language.title')}</Text>
                 <Text style={dynamicStyles.languageText}>
-                  {currentLanguage === 'en' ? t('language.english') : 
-                   currentLanguage === 'gu' ? t('language.gujarati') : 
-                   t('language.hindi')}
+                {t('language.selectLanguage')}
+
                 </Text>
               </View>
             </View>
