@@ -6,6 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
@@ -19,8 +21,12 @@ import {SCREEN_NAMES} from '../constants/screenNames';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import {clearSession, getSession} from '../utils/session';
 import {useLanguage} from '../contexts/LanguageContext';
-import {getData} from '../Service/Apimethod';
+import {getData, postDataWithImage} from '../Service/Apimethod';
 import Apis from '../Service/constant';
+import {getImageUrl} from '../utils/imageUtils';
+import {pickAndCropImageFromCamera, pickAndCropImageFromGallery} from '../utils/imageCropUtils';
+import ImagePickerModal from '../components/ImagePickerModal';
+import Toast, {ToastType} from '../components/Toast';
 
 export default function FarmerProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -30,6 +36,12 @@ export default function FarmerProfileScreen() {
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
   const [updateNumberModalVisible, setUpdateNumberModalVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [imagePickerVisible, setImagePickerVisible] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<ToastType>('success');
+  const [profileImage, setProfileImage] = useState<string | null>(null);
   const [userData, setUserData] = useState({
     name: 'Harrison wills',
     phone: '+91 54852 26478',
@@ -50,6 +62,16 @@ export default function FarmerProfileScreen() {
       if (response?.status === true && response?.data) {
         const data = response.data;
         const personalDetails = data.personal_details || {};
+        
+        // Profile photo
+        if (personalDetails.profile_photo_url) {
+          const imageUrl = getImageUrl(personalDetails.profile_photo_url);
+          if (imageUrl) {
+            setProfileImage(imageUrl);
+          }
+        } else {
+          setProfileImage(null);
+        }
         
         // Build full name
         const firstName = personalDetails.first_name || '';
@@ -118,6 +140,129 @@ export default function FarmerProfileScreen() {
   const onRefresh = React.useCallback(() => {
     fetchFarmerProfile(true);
   }, [fetchFarmerProfile]);
+
+  // Toast handlers
+  const showToastMessage = (message: string, type: ToastType = 'success') => {
+    setToastMessage(message);
+    setToastType(type);
+    setShowToast(true);
+  };
+
+  const hideToast = () => {
+    setShowToast(false);
+  };
+
+  // Validate image format
+  const isValidImageFormat = (fileExtension: string): boolean => {
+    const validFormats = ['jpg', 'jpeg', 'png'];
+    return validFormats.includes(fileExtension.toLowerCase());
+  };
+
+  // Handle image upload
+  const handleImageUpload = async (imageUri: string | null) => {
+    if (!imageUri) return;
+
+    try {
+      setUploading(true);
+      
+      // Extract file extension from URI or default to jpeg
+      const uriParts = imageUri.split('.');
+      const fileExtension = uriParts.length > 1 ? uriParts[uriParts.length - 1].toLowerCase() : 'jpg';
+      
+      // Validate image format
+      if (!isValidImageFormat(fileExtension)) {
+        showToastMessage('Only upload JPG, PNG, JPEG image formats', 'error');
+        setUploading(false);
+        return;
+      }
+      
+      const mimeType = fileExtension === 'png' ? 'image/png' : 'image/jpeg';
+      const fileName = `profile-image-${Date.now()}.${fileExtension}`;
+      
+      // Create FormData
+      const formData = new FormData();
+      formData.append('image', {
+        uri: imageUri,
+        type: mimeType,
+        name: fileName,
+      } as any);
+
+      console.log('[FarmerProfileScreen] Uploading profile image:', fileName);
+      
+      // Upload image
+      const response = await postDataWithImage(Apis.FARMER_PROFILE_IMAGE, formData);
+      
+      if (response?.status === true) {
+        // Show success message
+        showToastMessage(response?.message || 'Profile image updated successfully', 'success');
+        
+        // Refresh profile data to get updated image
+        await fetchFarmerProfile(false);
+      } else {
+        showToastMessage(response?.message || 'Failed to upload profile image', 'error');
+      }
+    } catch (error) {
+      console.error('[FarmerProfileScreen] Error uploading profile image:', error);
+      showToastMessage('Failed to upload profile image. Please try again.', 'error');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Handle camera press
+  const handleCameraPress = async () => {
+    try {
+      console.log('[FarmerProfileScreen] Opening camera with crop...');
+      const imageUri = await pickAndCropImageFromCamera({
+        width: 400,
+        height: 400,
+        cropping: true,
+        cropperCircleOverlay: true,
+        compressImageQuality: 0.8,
+        freeStyleCropEnabled: false,
+      });
+      console.log('[FarmerProfileScreen] Camera result:', imageUri);
+      if (imageUri) {
+        await handleImageUpload(imageUri);
+      }
+    } catch (error: any) {
+      console.error('[FarmerProfileScreen] Error in handleCameraPress:', error);
+      // Don't show error if user cancelled
+      if (error?.message !== 'User cancelled image selection' && !error?.message?.includes('User cancelled')) {
+        showToastMessage('Failed to open camera. Please try again.', 'error');
+      }
+    }
+  };
+
+  // Handle gallery press
+  const handleGalleryPress = async () => {
+    try {
+      console.log('[FarmerProfileScreen] Opening gallery with crop...');
+      const imageUri = await pickAndCropImageFromGallery({
+        width: 400,
+        height: 400,
+        cropping: true,
+        cropperCircleOverlay: true,
+        compressImageQuality: 0.8,
+        freeStyleCropEnabled: false,
+      });
+      console.log('[FarmerProfileScreen] Gallery result:', imageUri);
+      if (imageUri) {
+        await handleImageUpload(imageUri);
+      }
+    } catch (error: any) {
+      console.error('[FarmerProfileScreen] Error in handleGalleryPress:', error);
+      // Don't show error if user cancelled
+      if (error?.message !== 'User cancelled image selection' && !error?.message?.includes('User cancelled')) {
+        showToastMessage('Failed to open gallery. Please try again.', 'error');
+      }
+    }
+  };
+
+  // Handle profile image press
+  const handleProfileImagePress = () => {
+    setImagePickerVisible(true);
+  };
 
   const getInitials = (name: string) => {
     const parts = name.trim().split(' ');
@@ -317,14 +462,28 @@ export default function FarmerProfileScreen() {
           {/* Profile Header */}
           <View style={dynamicStyles.profileHeader}>
             <View style={dynamicStyles.profileImageContainer}>
-              <View style={dynamicStyles.profileImage}>
-                <Text style={dynamicStyles.profileImageText}>
-                  {getInitials(userData.name)}
-                </Text>
-              </View>
+              {uploading ? (
+                <View style={dynamicStyles.profileImage}>
+                  <ActivityIndicator size="small" color={colors.textSecondary} />
+                </View>
+              ) : profileImage ? (
+                <Image
+                  source={{uri: profileImage}}
+                  style={dynamicStyles.profileImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={dynamicStyles.profileImage}>
+                  <Text style={dynamicStyles.profileImageText}>
+                    {getInitials(userData.name)}
+                  </Text>
+                </View>
+              )}
               <TouchableOpacity
                 style={dynamicStyles.cameraIconContainer}
-                activeOpacity={0.7}>
+                onPress={handleProfileImagePress}
+                activeOpacity={0.7}
+                disabled={uploading}>
                 <Ionicons
                   name="camera"
                   size={moderateScale(14)}
@@ -462,6 +621,22 @@ export default function FarmerProfileScreen() {
         onClose={() => setUpdateNumberModalVisible(false)}
         existingNumber={userData.phone}
         onSendRequest={handleSendRequest}
+      />
+
+      {/* Image Picker Modal */}
+      <ImagePickerModal
+        visible={imagePickerVisible}
+        onClose={() => setImagePickerVisible(false)}
+        onCameraPress={handleCameraPress}
+        onGalleryPress={handleGalleryPress}
+      />
+
+      {/* Toast */}
+      <Toast
+        visible={showToast}
+        message={toastMessage}
+        type={toastType}
+        onClose={hideToast}
       />
     </View>
   );

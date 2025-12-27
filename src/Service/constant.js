@@ -26,6 +26,7 @@ const Apis = {
   DEALER_ADD_FARMER:`${API_BASE_URL}/api/dealers/v1/farmer/add`,
   FARMER_DASHBOARD:`${API_BASE_URL}/api/farmers/dashboard`,
   FARMER_PROFILE:`${API_BASE_URL}/api/farmers/profile`,
+  FARMER_PROFILE_IMAGE:`${API_BASE_URL}/api/farmers/profile/image`,
   FARMER_EVENTS:`${API_BASE_URL}/api/farmers/events`,
   FARMER_STORIES:`${API_BASE_URL}/api/farmers/stories`,
   FARMER_EVENT_BY_ID:`${API_BASE_URL}/api/farmers/events`,
