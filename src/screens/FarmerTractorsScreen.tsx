@@ -1,13 +1,16 @@
-import React, {useMemo} from 'react';
+import React, {useMemo, useState, useCallback} from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
+  ActivityIndicator,
+  Image,
+  RefreshControl,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {useNavigation} from '@react-navigation/native';
+import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import colors from '../utils/colors';
@@ -16,68 +19,21 @@ import {Typography} from '../utils/typography';
 import {SCREEN_NAMES} from '../constants/screenNames';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import {useLanguage} from '../contexts/LanguageContext';
-
-// Mock data - extended list of tractors
-const allTractors = [
-  {
-    id: '1',
-    model: '280 DX 2 WD',
-    owner: 'Adam smith',
-    color: colors.tractorGreen,
-  },
-  {
-    id: '2',
-    model: '280 4WD',
-    owner: 'Nathan ellis',
-    color: colors.tractorOrange,
-  },
-  {
-    id: '3',
-    model: '120 Little master',
-    owner: 'William regal',
-    color: colors.tractorGreen,
-  },
-  {
-    id: '4',
-    model: '350 Pro',
-    owner: 'David Wills',
-    color: colors.tractorOrange,
-  },
-  {
-    id: '5',
-    model: '200 Standard',
-    owner: 'Sarah Johnson',
-    color: colors.tractorGreen,
-  },
-  {
-    id: '6',
-    model: '450 Premium',
-    owner: 'Michael Brown',
-    color: colors.tractorOrange,
-  },
-  {
-    id: '7',
-    model: '150 Compact',
-    owner: 'Emily Davis',
-    color: colors.tractorGreen,
-  },
-  {
-    id: '8',
-    model: '300 Deluxe',
-    owner: 'James Wilson',
-    color: colors.tractorOrange,
-  },
-];
+import {getData} from '../Service/Apimethod';
+import Apis from '../Service/constant';
+import {getImageUrl} from '../utils/imageUtils';
 
 // Tractor Thumbnail Component
 const TractorThumbnail = ({
   color,
   size,
   moderateScale,
+  imageUrl,
 }: {
   color: string;
   size?: number;
   moderateScale: (size: number, factor?: number) => number;
+  imageUrl?: string | null;
 }) => {
   const thumbnailSize = size || moderateScale(48);
   return (
@@ -89,12 +45,25 @@ const TractorThumbnail = ({
         backgroundColor: color,
         alignItems: 'center',
         justifyContent: 'center',
+        overflow: 'hidden',
       }}>
-      <MaterialCommunityIcons
-        name="tractor"
-        size={moderateScale(24)}
-        color={colors.textWhite}
-      />
+      {imageUrl ? (
+        <Image
+          source={{uri: imageUrl}}
+          style={{
+            width: thumbnailSize,
+            height: thumbnailSize,
+            borderRadius: thumbnailSize / 2,
+          }}
+          resizeMode="cover"
+        />
+      ) : (
+        <MaterialCommunityIcons
+          name="tractor"
+          size={moderateScale(24)}
+          color={colors.textWhite}
+        />
+      )}
     </View>
   );
 };
@@ -104,12 +73,109 @@ export default function FarmerTractorsScreen() {
   const {moderateScale} = useDeviceMetrics();
   const {t} = useLanguage();
   const navigation = useNavigation();
+  const [tractors, setTractors] = useState<any[]>([]);
+  const [loadingTractors, setLoadingTractors] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Update StatusBar and bottom bar to match screen background color
   useDynamicStatusBar({
     backgroundColor: colors.backgroundLight,
     bottomBarColor: colors.backgroundLight,
   });
+
+  // Fetch tractors from API
+  const fetchTractors = async (showRefreshing = false) => {
+    try {
+      if (showRefreshing) {
+        setRefreshing(true);
+      } else {
+        setLoadingTractors(true);
+      }
+      console.log('[FarmerTractorsScreen] Fetching latest tractors data');
+      const response = await getData(Apis.DEALER_TRACTORS, {});
+      
+      // Handle API response structure: { status: true, data: { tractors: [...], current_page, total_pages, total_tractors } }
+      console.log('[FarmerTractorsScreen] Tractors API Response:', JSON.stringify(response, null, 2));
+      
+      if (response?.status === true && response?.data) {
+        // Check if data has tractors array (new structure)
+        const tractorsArray = response.data.tractors || 
+                           (Array.isArray(response.data) ? response.data : []);
+        
+        console.log('[FarmerTractorsScreen] Tractors array extracted:', tractorsArray?.length || 0, 'tractors');
+        
+        if (Array.isArray(tractorsArray) && tractorsArray.length > 0) {
+          const transformedTractors = tractorsArray.map((tractor: any, index: number) => {
+            // Get color based on index
+            const colorsArray = [colors.tractorGreen, colors.tractorOrange, colors.tractorGreen];
+            const color = colorsArray[index % colorsArray.length];
+            
+            // Use title as model name, fallback to series or description
+            const modelName = tractor.title || tractor.series || tractor.description || 'Unknown Model';
+            
+            // Use series name instead of owner
+            const seriesName = tractor.series || 'N/A';
+            
+            return {
+              id: tractor.id?.toString() || index.toString(),
+              model: modelName,
+              owner: seriesName, // Using series instead of owner
+              color: color,
+              title: tractor.title,
+              series: tractor.series,
+              description: tractor.description,
+              main_image: getImageUrl(tractor.main_image),
+              gallery_images: (tractor.gallery_images || []).map((img: string) => getImageUrl(img)).filter(Boolean),
+            };
+          });
+          setTractors(transformedTractors);
+        } else {
+          setTractors([]);
+        }
+      } else if (Array.isArray(response)) {
+        // Fallback: if response is directly an array
+        const transformedTractors = response.map((tractor: any, index: number) => {
+          const colorsArray = [colors.tractorGreen, colors.tractorOrange, colors.tractorGreen];
+          const color = colorsArray[index % colorsArray.length];
+          const modelName = tractor.title || tractor.series || tractor.description || 'Unknown Model';
+          const seriesName = tractor.series || 'N/A';
+          
+          return {
+            id: tractor.id?.toString() || index.toString(),
+            model: modelName,
+            owner: seriesName, // Using series instead of owner
+            color: color,
+            title: tractor.title,
+            series: tractor.series,
+            description: tractor.description,
+            main_image: getImageUrl(tractor.main_image),
+            gallery_images: (tractor.gallery_images || []).map((img: string) => getImageUrl(img)).filter(Boolean),
+          };
+        });
+        setTractors(transformedTractors);
+      } else {
+        setTractors([]);
+      }
+    } catch (error) {
+      console.error('[FarmerTractorsScreen] Error fetching tractors:', error);
+      setTractors([]);
+    } finally {
+      setLoadingTractors(false);
+      setRefreshing(false);
+    }
+  };
+
+  // Handle pull to refresh
+  const onRefresh = useCallback(() => {
+    fetchTractors(true);
+  }, []);
+
+  // Fetch data on mount and whenever screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchTractors();
+    }, [])
+  );
 
  const dynamicStyles = useMemo(
     () =>
@@ -177,6 +243,25 @@ export default function FarmerTractorsScreen() {
           color: colors.textTertiary,
           fontSize: moderateScale(12),
         },
+        emptyContainer: {
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          paddingVertical: moderateScale(60),
+        },
+        emptyText: {
+          ...Typography.regularMd,
+          fontSize: moderateScale(16),
+          color: colors.textTertiary,
+          textAlign: 'center',
+          marginTop: moderateScale(12),
+        },
+        loadingContainer: {
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          paddingVertical: moderateScale(60),
+        },
       }),
     [moderateScale, insets.top],
   );
@@ -189,53 +274,79 @@ export default function FarmerTractorsScreen() {
       </View>
 
       {/* Tractors List */}
-       <View
+      <View
         style={{
           flex: 1,
           padding: moderateScale(10),
           backgroundColor: colors.backgroundLight,
         }}
       >
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        style={dynamicStyles.listContainer}>
-        {allTractors.map((tractor, index) => (
-          <TouchableOpacity
-            key={tractor.id}
-            style={[
-              dynamicStyles.listItem,
-              index !== allTractors.length - 1 &&
-                dynamicStyles.listItemBorder,
-            ]}
-            activeOpacity={0.7}
-            onPress={() => {
-              (navigation as any).navigate(SCREEN_NAMES.FarmerTractorDetails, {
-                tractorId: tractor.id,
-                tractorModel: tractor.model,
-                tractorOwner: tractor.owner,
-                tractorColor: tractor.color,
-                fromScreen: 'List',
-              });
-            }}>
-            <TractorThumbnail
-              color={tractor.color}
-              moderateScale={moderateScale}
-              size={moderateScale(40)}
-            />
-            <View style={dynamicStyles.listItemContent}>
-              <Text style={dynamicStyles.listItemName}>{tractor.model}</Text>
-              <Text style={dynamicStyles.listItemSubtext}>
-                {tractor.owner}
-              </Text>
-            </View>
-            <Ionicons
-              name="chevron-forward"
-              size={moderateScale(18)}
+        {loadingTractors ? (
+          <View style={[dynamicStyles.listContainer, dynamicStyles.loadingContainer]}>
+            <ActivityIndicator size="large" color={colors.primary} />
+          </View>
+        ) : tractors.length > 0 ? (
+          <FlatList
+            data={tractors}
+            keyExtractor={(item) => item.id}
+            renderItem={({item: tractor, index}) => (
+              <TouchableOpacity
+                style={[
+                  dynamicStyles.listItem,
+                  index !== tractors.length - 1 &&
+                    dynamicStyles.listItemBorder,
+                ]}
+                activeOpacity={0.7}
+                onPress={() => {
+                  (navigation as any).navigate(SCREEN_NAMES.FarmerTractorDetails, {
+                    tractorId: tractor.id,
+                    tractorModel: tractor.model,
+                    tractorOwner: tractor.owner,
+                    tractorColor: tractor.color,
+                    fromScreen: 'List',
+                  });
+                }}
+              >
+                <TractorThumbnail
+                  color={tractor.color}
+                  moderateScale={moderateScale}
+                  size={moderateScale(40)}
+                  imageUrl={tractor.main_image}
+                />
+                <View style={dynamicStyles.listItemContent}>
+                  <Text style={dynamicStyles.listItemName}>{tractor.model}</Text>
+                  <Text style={dynamicStyles.listItemSubtext}>
+                    {tractor.owner}
+                  </Text>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={moderateScale(18)}
+                  color={colors.textTertiary}
+                />
+              </TouchableOpacity>
+            )}
+            showsVerticalScrollIndicator={false}
+            style={dynamicStyles.listContainer}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={[colors.primary]}
+                tintColor={colors.primary}
+              />
+            }
+          />
+        ) : (
+          <View style={[dynamicStyles.listContainer, dynamicStyles.emptyContainer]}>
+            <MaterialCommunityIcons
+              name="tractor"
+              size={moderateScale(64)}
               color={colors.textTertiary}
             />
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
+            <Text style={dynamicStyles.emptyText}>No tractors found</Text>
+          </View>
+        )}
       </View>
     </View>
   );

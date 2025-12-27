@@ -1,4 +1,4 @@
-import React, {useMemo, useState} from 'react';
+import React, {useMemo, useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,8 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useRoute, useNavigation} from '@react-navigation/native';
@@ -21,6 +23,9 @@ import ImagePreviewModal, {ImageItem} from '../components/ImagePreviewModal';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import {useStatusBar} from '../contexts/StatusBarContext';
 import {useLanguage} from '../contexts/LanguageContext';
+import {getData} from '../Service/Apimethod';
+import Apis, {API_BASE_URL} from '../Service/constant';
+import {getImageUrl} from '../utils/imageUtils';
 
 type TractorDetailsRouteParams = {
   tractorId: string;
@@ -30,63 +35,15 @@ type TractorDetailsRouteParams = {
   fromScreen?: 'Home' | 'List';
 };
 
-type SpecificationTab = 'engine' | 'tyre' | 'dimension' | 'transmission';
-
-// Mock data for tractor details
-const getTractorDetails = (tractorId: string) => {
-  const defaultData = {
-    id: tractorId,
-    model: '120 Little master',
-    series: '12 HP Series',
-    description:
-      'The Captain Little Master 12 HP is a lightweight tractor specially designed for monsoon use, offering superior performance in wet and muddy fields.',
-    fullDescription:
-      'The Captain Little Master 12 HP is a lightweight tractor specially designed for monsoon use, offering superior performance in wet and muddy fields. It features advanced water-resistant components and enhanced traction capabilities that make it ideal for agricultural work during the rainy season. The compact design ensures easy maneuverability in tight spaces while maintaining robust performance.',
-    videoUri: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', // Sample video URL - replace with actual video URL
-    thumbnailUri: undefined, // Optional: Add thumbnail image URL
-    specifications: {
-      engine: [
-        {label: 'Engine power (HP)', value: '12 HP'},
-        {label: 'No. of cylinder', value: '1'},
-        {label: 'Capacity (CC)', value: '611 CC'},
-        {label: 'Rated speed (RPM)', value: '3000 RPM'},
-        {label: 'Cooling system', value: 'Water cooled'},
-        {label: 'Bore/stroke (mm)', value: '92 / 92 mm'},
-      ],
-      tyre: [
-        {label: 'Front tyre', value: '6.00 x 16'},
-        {label: 'Rear tyre', value: '8.3 x 20'},
-        {label: 'Tyre type', value: 'Agricultural'},
-      ],
-      dimension: [
-        {label: 'Length (mm)', value: '2400 mm'},
-        {label: 'Width (mm)', value: '1200 mm'},
-        {label: 'Height (mm)', value: '1400 mm'},
-        {label: 'Wheelbase (mm)', value: '1500 mm'},
-      ],
-      transmission: [
-        {label: 'Gearbox', value: '6 Forward + 2 Reverse'},
-        {label: 'Clutch', value: 'Single plate'},
-        {label: 'PTO speed', value: '540 RPM'},
-      ],
-    },
-    thumbnails: [
-      {id: '1', type: 'image', uri: null},
-      {id: '2', type: 'image', uri: null},
-      {id: '3', type: 'more', count: 2},
-    ],
-  };
-
-  return defaultData;
-};
+type SpecificationTab = string; // Dynamic based on API response
 
 // Specification Row Component
 const SpecRow = ({
-  label,
+  name,
   value,
   moderateScale,
 }: {
-  label: string;
+  name: string;
   value: string;
   moderateScale: (size: number, factor?: number) => number;
 }) => {
@@ -108,7 +65,7 @@ const SpecRow = ({
             flex: 1,
           },
         ]}>
-        {label}
+        {name}
       </Text>
       <Text
         style={[
@@ -134,15 +91,130 @@ export default function FarmerTractorDetails() {
   const navigation = useNavigation();
   const tabNavigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
   const params = route.params as TractorDetailsRouteParams;
-  const [selectedTab, setSelectedTab] = useState<SpecificationTab>('engine');
+  const [tractorDetails, setTractorDetails] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedTab, setSelectedTab] = useState<SpecificationTab>('');
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const tractorDetails = useMemo(
-    () => getTractorDetails(params?.tractorId || '1'),
-    [params?.tractorId],
-  );
+  // Fetch tractor details from API
+  const fetchTractorDetails = async (showRefreshing = false) => {
+    try {
+      if (showRefreshing) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+      const tractorId = params?.tractorId;
+      
+      if (!tractorId) {
+        console.error('[FarmerTractorDetails] No tractor ID provided');
+        setLoading(false);
+        return;
+      }
+
+      // Call API with tractorId as query parameter
+      // API endpoint: GET /api/dealers/tractors?tractorId=11
+      console.log('[FarmerTractorDetails] Fetching tractor with ID:', tractorId);
+      const response = await getData(Apis.DEALER_TRACTOR_BY_ID, { tractorId: tractorId });
+      
+      console.log('[FarmerTractorDetails] API Response:', JSON.stringify(response, null, 2));
+      
+      // Handle API response structure: { status: true, data: { tractorId, title, series, description, mainImage, galleryImages, videoUrl, specifications } }
+      let tractorData = null;
+      
+      if (response?.status === true && response?.data) {
+        // Response data is an object with tractor details
+        tractorData = response.data;
+        console.log('[FarmerTractorDetails] Tractor Data:', JSON.stringify(tractorData, null, 2));
+      }
+      
+      if (tractorData) {
+        // Transform specifications from API format to component format
+        const transformedSpecs: Record<string, Array<{name: string; value: string}>> = {};
+        const availableTabs: string[] = [];
+        
+        if (tractorData.specifications) {
+          // API has specifications as object with keys like "Engine", "Tyre", etc.
+          Object.keys(tractorData.specifications).forEach((key) => {
+            const specKey = key.toLowerCase(); // Convert "Engine" to "engine"
+            if (Array.isArray(tractorData.specifications[key])) {
+              transformedSpecs[specKey] = tractorData.specifications[key];
+              availableTabs.push(specKey);
+            }
+          });
+        }
+        
+        // Set first available tab as selected
+        if (availableTabs.length > 0) {
+          setSelectedTab(availableTabs[0]);
+        }
+        
+        // Transform gallery images - use camelCase keys (galleryImages, mainImage, videoUrl)
+        const galleryImages = (tractorData.galleryImages || tractorData.gallery_images || []).map((img: string) => getImageUrl(img)).filter(Boolean);
+        const mainImage = getImageUrl(tractorData.mainImage || tractorData.main_image);
+        // Video URL - only format if it's a relative path, otherwise use as-is
+        let videoUrl = tractorData.videoUrl || tractorData.video_url || '';
+        if (videoUrl && !videoUrl.startsWith('http://') && !videoUrl.startsWith('https://')) {
+          videoUrl = getImageUrl(videoUrl) || '';
+        }
+        
+        // Transform thumbnails for display - include all gallery images
+        const thumbnails = [];
+        if (mainImage) {
+          thumbnails.push({id: 'main', type: 'image', uri: mainImage});
+        }
+        // Add all gallery images
+        galleryImages.forEach((img: string, index: number) => {
+          thumbnails.push({id: `gallery-${index}`, type: 'image', uri: img});
+        });
+        // Add video if available
+        if (videoUrl) {
+          thumbnails.push({id: 'video', type: 'video', uri: videoUrl});
+        }
+        
+        setTractorDetails({
+          id: tractorData.tractorId?.toString() || tractorData.id?.toString() || tractorId,
+          model: tractorData.title || params?.tractorModel || 'Unknown Model',
+          series: tractorData.series || '',
+          description: tractorData.description || '',
+          fullDescription: tractorData.description || '',
+          videoUri: videoUrl,
+          thumbnailUri: mainImage || undefined,
+          specifications: transformedSpecs,
+          thumbnails: thumbnails.length > 0 ? thumbnails : [
+            {id: '1', type: 'image', uri: mainImage || null},
+          ],
+          gallery_images: galleryImages,
+          main_image: mainImage,
+        });
+      } else {
+        console.warn('[FarmerTractorDetails] Unexpected API response format:', response);
+        // Set empty state if API fails
+        setTractorDetails(null);
+      }
+    } catch (error) {
+      console.error('[FarmerTractorDetails] Error fetching tractor details:', error);
+      // Set empty state on error
+      setTractorDetails(null);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  // Handle pull to refresh
+  const onRefresh = React.useCallback(() => {
+    fetchTractorDetails(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    fetchTractorDetails();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params?.tractorId]);
 
   const dynamicStyles = useMemo(
     () =>
@@ -290,13 +362,18 @@ export default function FarmerTractorDetails() {
     [moderateScale, insets],
   );
 
-  const currentSpecs =
-    tractorDetails.specifications[selectedTab] || tractorDetails.specifications.engine;
+  const currentSpecs = tractorDetails
+    ? (tractorDetails.specifications?.[selectedTab] || 
+       (Object.keys(tractorDetails.specifications || {}).length > 0 
+         ? tractorDetails.specifications[Object.keys(tractorDetails.specifications)[0]]
+         : []))
+    : [];
 
   // Prepare images for preview modal - convert thumbnails to ImageItem format
   const previewImages: ImageItem[] = useMemo(() => {
+    if (!tractorDetails) return [];
     const images: ImageItem[] = [];
-    tractorDetails.thumbnails.forEach((thumb, index) => {
+    (tractorDetails.thumbnails || []).forEach((thumb: any, index: number) => {
       if (thumb.type === 'image') {
         images.push({
           id: thumb.id,
@@ -306,7 +383,7 @@ export default function FarmerTractorDetails() {
       }
     });
     return images;
-  }, [tractorDetails.thumbnails]);
+  }, [tractorDetails?.thumbnails]);
 
   const handleImagePress = (imageIndexInPreview: number) => {
     setSelectedImageIndex(imageIndexInPreview);
@@ -356,10 +433,23 @@ export default function FarmerTractorDetails() {
         </View>
 
       {/* Scrollable Content */}
+      {loading ? (
+        <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      ) : tractorDetails ? (
       <ScrollView
         style={{flex: 1}}
         contentContainerStyle={dynamicStyles.scrollContent}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }>
         {/* Video Player Section */}
         <View style={dynamicStyles.card}>
           <View style={dynamicStyles.videoContainer}>
@@ -372,7 +462,7 @@ export default function FarmerTractorDetails() {
 
           {/* Thumbnails Row */}
           <View style={dynamicStyles.thumbnailRow}>
-            {tractorDetails.thumbnails.map((thumb, index) => {
+            {tractorDetails.thumbnails.map((thumb: any, index: number) => {
               // Calculate image index in previewImages array for click handler
               let imageIndexInPreview = 0;
               if (thumb.type === 'image') {
@@ -398,6 +488,12 @@ export default function FarmerTractorDetails() {
                         + {thumb.count} more
                       </Text>
                     </View>
+                  ) : thumb.uri ? (
+                    <Image
+                      source={{uri: thumb.uri}}
+                      style={dynamicStyles.thumbnailImage}
+                      resizeMode="cover"
+                    />
                   ) : (
                     <View style={dynamicStyles.thumbnailImage}>
                       <View
@@ -454,25 +550,15 @@ export default function FarmerTractorDetails() {
           <Text style={dynamicStyles.specificationsTitle}>{t('tractors.specifications')}</Text>
 
           {/* Tabs */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={dynamicStyles.tabScrollView}
-            contentContainerStyle={[dynamicStyles.tabContainer, dynamicStyles.tabScrollContent]}>
-            {(['engine', 'tyre', 'dimension', 'transmission'] as SpecificationTab[]).map(
-              tab => {
+          {tractorDetails.specifications && Object.keys(tractorDetails.specifications).length > 0 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={dynamicStyles.tabScrollView}
+              contentContainerStyle={[dynamicStyles.tabContainer, dynamicStyles.tabScrollContent]}>
+              {Object.keys(tractorDetails.specifications).map((tab) => {
                 const isSelected = selectedTab === tab;
-                let tabLabel = '';
-                switch (tab) {
-                  case 'dimension':
-                    tabLabel = 'Dimension';
-                    break;
-                  case 'transmission':
-                    tabLabel = 'Transmission';
-                    break;
-                  default:
-                    tabLabel = tab.charAt(0).toUpperCase() + tab.slice(1);
-                }
+                const tabLabel = tab.charAt(0).toUpperCase() + tab.slice(1);
                 return (
                   <TouchableOpacity
                     key={tab}
@@ -491,21 +577,28 @@ export default function FarmerTractorDetails() {
                     </Text>
                   </TouchableOpacity>
                 );
-              },
-            )}
-          </ScrollView>
+              })}
+            </ScrollView>
+          )}
 
           {/* Specifications List */}
-          {currentSpecs.map((spec, index) => (
+          {currentSpecs.map((spec: any, index: number) => (
             <SpecRow
               key={index}
-              label={spec.label}
-              value={spec.value}
+              name={spec.name || spec.label || ''}
+              value={spec.value || ''}
               moderateScale={moderateScale}
             />
           ))}
         </View>
       </ScrollView>
+      ) : (
+        <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', padding: moderateScale(32)}}>
+          <Text style={[Typography.regularMd, {fontSize: moderateScale(16), color: colors.textTertiary, textAlign: 'center'}]}>
+            No tractor details available
+          </Text>
+        </View>
+      )}
 
       {/* Image Preview Modal */}
       <ImagePreviewModal
