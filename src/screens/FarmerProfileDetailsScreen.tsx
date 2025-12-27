@@ -1,4 +1,4 @@
-import React, {useMemo, useState} from 'react';
+import React, {useMemo, useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -17,34 +17,22 @@ import {Typography} from '../utils/typography';
 import {ImagePath} from '../assets/images';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import {useLanguage} from '../contexts/LanguageContext';
+import {getData} from '../Service/Apimethod';
+import Apis from '../Service/constant';
+import {getImageUrl} from '../utils/imageUtils';
 
-// Mock data for farmer profile details
-const getFarmerProfileDetails = () => {
-  return {
-    firstName: 'Harrison',
-    middleName: 'Richard',
-    lastName: 'Wills',
-    fullName: 'Harrison wills',
-    mobile: '+91 54852 26478',
-    dateOfBirth: '10 Feb 1996',
-    dateOfMarriage: '3 Nov 2015',
-    dealershipName: 'J.P enterprise',
-    dealershipAddress: 'Padavia Road, Veraval (Shapar), Kotda Sangani, Rajkot (Gujarat) INDIA.360024.',
-    tractors: [
-      {
-        id: '1',
-        model: '280 DX 2 WD',
-        vehicleNo: 'GJ 27 MS 6402',
-        ownerName: 'David wills',
-        chassisNo: 'MBNGAALDNNNA02481',
-        engineNo: '1104C-E44TA',
-        mobile: '+91 54852 26478',
-        dateOfInvoice: '12 Oct 2025',
-        dateOfRegistration: '16 Oct 2025',
-        whoDrives: 'Father',
-      },
-    ],
-  };
+// Helper function to format date
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return '';
+  try {
+    const date = new Date(dateString);
+    const day = date.getDate();
+    const month = date.toLocaleString('default', {month: 'short'});
+    const year = date.getFullYear();
+    return `${day} ${month} ${year}`;
+  } catch (error) {
+    return dateString;
+  }
 };
 
 // Info Row Component
@@ -137,17 +125,168 @@ export default function FarmerProfileDetailsScreen() {
   const {t} = useLanguage();
   const navigation = useNavigation();
   const [refreshing, setRefreshing] = useState(false);
+  const [profileDetails, setProfileDetails] = useState({
+    firstName: '',
+    middleName: '',
+    lastName: '',
+    fullName: '',
+    mobile: '',
+    dateOfBirth: '',
+    dateOfMarriage: '',
+    dealershipName: '',
+    dealershipAddress: '',
+    profileImage: null as string | null,
+    tractors: [] as Array<{
+      id: string;
+      model: string;
+      vehicleNo: string;
+      ownerName: string;
+      chassisNo: string;
+      engineNo: string;
+      mobile: string;
+      dateOfInvoice: string;
+      dateOfRegistration: string;
+      whoDrives: string;
+      tractorImage: string | null;
+    }>,
+  });
 
-  const profileDetails = useMemo(() => getFarmerProfileDetails(), []);
+  // Fetch farmer profile data from API
+  const fetchFarmerProfile = React.useCallback(async (showRefreshing = false) => {
+    try {
+      if (showRefreshing) {
+        setRefreshing(true);
+      }
+      console.log('[FarmerProfileDetailsScreen] Fetching farmer profile data');
+      const response = await getData(Apis.FARMER_PROFILE, {});
+      
+      console.log('[FarmerProfileDetailsScreen] Profile API response:', JSON.stringify(response, null, 2));
+      
+      if (response?.status === true && response?.data) {
+        const data = response.data;
+        const personalDetails = data.personal_details || {};
+        const dealershipDetails = data.dealership_details || {};
+        const tractorDetails = data.tractor_details || {};
+        
+        // Profile photo
+        let profileImage: string | null = null;
+        if (personalDetails.profile_photo_url) {
+          const imageUrl = getImageUrl(personalDetails.profile_photo_url);
+          if (imageUrl) {
+            profileImage = imageUrl;
+          }
+        }
+        
+        // Build full name
+        const firstName = personalDetails.first_name || '';
+        const middleName = personalDetails.middle_name || '';
+        const lastName = personalDetails.last_name || '';
+        const fullNameParts = [firstName, middleName, lastName].filter(Boolean);
+        const fullName = fullNameParts.join(' ') || '';
+        
+        // Mobile number
+        const mobile = personalDetails.mobile_no ? `+91 ${personalDetails.mobile_no}` : '';
+        
+        // Date of Birth
+        const dateOfBirth = personalDetails.date_of_birth 
+          ? formatDate(personalDetails.date_of_birth)
+          : '';
+        
+        // Date of Marriage
+        const dateOfMarriage = personalDetails.date_of_marriage 
+          ? formatDate(personalDetails.date_of_marriage)
+          : '';
+        
+        // Dealership details
+        const dealershipName = dealershipDetails.dealership_name || '';
+        const dealershipAddress = dealershipDetails.dealership_address || '';
+        
+        // Tractor details - map tractor_list to tractors array
+        const tractors: Array<{
+          id: string;
+          model: string;
+          vehicleNo: string;
+          ownerName: string;
+          chassisNo: string;
+          engineNo: string;
+          mobile: string;
+          dateOfInvoice: string;
+          dateOfRegistration: string;
+          whoDrives: string;
+          tractorImage: string | null;
+        }> = [];
+        if (tractorDetails.tractor_list && Array.isArray(tractorDetails.tractor_list)) {
+          tractorDetails.tractor_list.forEach((tractor: any, index: number) => {
+            let tractorImage: string | null = null;
+            if (tractor.tractor_image_url) {
+              const imageUrl = getImageUrl(tractor.tractor_image_url);
+              if (imageUrl) {
+                tractorImage = imageUrl;
+              }
+            }
+            
+            // Use display_invoice_date if available, otherwise use date_of_invoice
+            const dateOfInvoice = tractor.display_invoice_date 
+              ? formatDate(tractor.display_invoice_date)
+              : tractor.date_of_invoice 
+              ? formatDate(tractor.date_of_invoice)
+              : '';
+            
+            // Use display_registration_date if available, otherwise use date_of_registration
+            const dateOfRegistration = tractor.display_registration_date 
+              ? formatDate(tractor.display_registration_date)
+              : tractor.date_of_registration 
+              ? formatDate(tractor.date_of_registration)
+              : '';
+            
+            tractors.push({
+              id: tractor.tractor_id || String(index + 1),
+              model: tractor.model_name || '',
+              vehicleNo: tractor.vehicle_no || '',
+              ownerName: tractor.owner_name || '',
+              chassisNo: tractor.chassis_no || '',
+              engineNo: tractor.engine_no || '',
+              mobile: tractor.mobile_no ? `+91 ${tractor.mobile_no}` : '',
+              dateOfInvoice: dateOfInvoice,
+              dateOfRegistration: dateOfRegistration,
+              whoDrives: tractor.who_drives || '',
+              tractorImage: tractorImage,
+            });
+          });
+        }
+        
+        setProfileDetails({
+          firstName,
+          middleName,
+          lastName,
+          fullName,
+          mobile,
+          dateOfBirth,
+          dateOfMarriage,
+          dealershipName,
+          dealershipAddress,
+          profileImage,
+          tractors,
+        });
+      } else {
+        console.warn('[FarmerProfileDetailsScreen] Unexpected API response format:', response);
+      }
+    } catch (error) {
+      console.error('[FarmerProfileDetailsScreen] Error fetching farmer profile:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
+  // Fetch profile on mount
+  useEffect(() => {
+    fetchFarmerProfile();
+  }, [fetchFarmerProfile]);
 
   // Handle pull to refresh
   const onRefresh = React.useCallback(() => {
-    setRefreshing(true);
-    // Simulate API call - replace with actual API call when available
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1000);
-  }, []);
+    fetchFarmerProfile(true);
+  }, [fetchFarmerProfile]);
 
   // Update StatusBar and bottom bar to match screen background color
   useDynamicStatusBar({
@@ -320,11 +459,19 @@ export default function FarmerProfileDetailsScreen() {
           {/* Profile Header */}
           <View style={dynamicStyles.profileHeader}>
             <View style={dynamicStyles.profileImageContainer}>
-              <View style={dynamicStyles.profileImage}>
-                <Text style={dynamicStyles.profileImageText}>
-                  {getInitials(profileDetails.fullName)}
-                </Text>
-              </View>
+              {profileDetails.profileImage ? (
+                <Image
+                  source={{uri: profileDetails.profileImage}}
+                  style={dynamicStyles.profileImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={dynamicStyles.profileImage}>
+                  <Text style={dynamicStyles.profileImageText}>
+                    {getInitials(profileDetails.fullName)}
+                  </Text>
+                </View>
+              )}
               <TouchableOpacity
                 style={dynamicStyles.cameraIconContainer}
                 activeOpacity={0.7}>
@@ -403,15 +550,27 @@ export default function FarmerProfileDetailsScreen() {
             {/* Tractor Image */}
             <View style={dynamicStyles.tractorImageContainer}>
               <View style={dynamicStyles.tractorMainImage}>
-                <Image
-                  source={ImagePath.tractor}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    borderRadius: moderateScale(8),
-                  }}
-                  resizeMode="cover"
-                />
+                {tractor.tractorImage ? (
+                  <Image
+                    source={{uri: tractor.tractorImage}}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      borderRadius: moderateScale(8),
+                    }}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Image
+                    source={ImagePath.tractor}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      borderRadius: moderateScale(8),
+                    }}
+                    resizeMode="cover"
+                  />
+                )}
               </View>
             </View>
 

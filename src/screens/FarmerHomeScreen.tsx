@@ -63,6 +63,7 @@ export default function FarmerHomeScreen() {
   const [recentEvents, setRecentEvents] = useState<any[]>([]);
   const [recentStories, setRecentStories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [farmerName, setFarmerName] = useState<string>('');
 
   // Membership services with translations
   const membershipServices = useMemo(() => [
@@ -102,6 +103,34 @@ export default function FarmerHomeScreen() {
     backgroundColor: colors.backgroundLight,
     bottomBarColor: colors.backgroundLight,
   });
+
+  // Fetch farmer profile to get name
+  const fetchFarmerProfile = async () => {
+    try {
+      console.log('[FarmerHomeScreen] Fetching farmer profile data...');
+      const response = await getData(Apis.FARMER_PROFILE, {});
+      
+      if (response?.status === true && response?.data) {
+        const data = response.data;
+        const personalDetails = data.personal_details || {};
+        
+        // Build full name
+        const firstName = personalDetails.first_name || '';
+        const middleName = personalDetails.middle_name || '';
+        const lastName = personalDetails.last_name || '';
+        const fullNameParts = [firstName, middleName, lastName].filter(Boolean);
+        const fullName = fullNameParts.join(' ') || '';
+        
+        if (fullName) {
+          // Use first name for greeting, or full name if first name is not available
+          const displayName = firstName || fullName;
+          setFarmerName(displayName);
+        }
+      }
+    } catch (error) {
+      console.error('[FarmerHomeScreen] Error fetching farmer profile:', error);
+    }
+  };
 
   // Fetch dashboard data from API
   const fetchDashboardData = async () => {
@@ -187,6 +216,7 @@ export default function FarmerHomeScreen() {
     React.useCallback(() => {
       console.log('[FarmerHomeScreen] Screen focused - fetching dashboard data');
       fetchDashboardData();
+      fetchFarmerProfile();
     }, [])
   );
 
@@ -614,7 +644,7 @@ export default function FarmerHomeScreen() {
     <View style={dynamicStyles.container}>
       {/* Header */}
       <View style={dynamicStyles.header}>
-        <Text style={dynamicStyles.greeting}>{t('farmerHome.greeting')} Harrison</Text>
+        <Text style={dynamicStyles.greeting}>{t('farmerHome.greeting')} {farmerName || ''}</Text>
         <View style={{flexDirection: 'row', alignItems: 'center', gap: moderateScale(12)}}>
           <TouchableOpacity
             style={dynamicStyles.bellIcon}

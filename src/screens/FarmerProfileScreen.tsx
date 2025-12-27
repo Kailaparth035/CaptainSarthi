@@ -1,4 +1,4 @@
-import React, {useMemo, useState} from 'react';
+import React, {useMemo, useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,8 @@ import {SCREEN_NAMES} from '../constants/screenNames';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import {clearSession, getSession} from '../utils/session';
 import {useLanguage} from '../contexts/LanguageContext';
+import {getData} from '../Service/Apimethod';
+import Apis from '../Service/constant';
 
 export default function FarmerProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -34,11 +36,63 @@ export default function FarmerProfileScreen() {
     initials: 'HW',
   });
 
-  // Handle pull to refresh
-  const onRefresh = React.useCallback(() => {
-    setRefreshing(true);
-    // Reload user data from session
-    const loadUserData = async () => {
+  // Fetch farmer profile data from API
+  const fetchFarmerProfile = React.useCallback(async (showRefreshing = false) => {
+    try {
+      if (showRefreshing) {
+        setRefreshing(true);
+      }
+      console.log('[FarmerProfileScreen] Fetching farmer profile data');
+      const response = await getData(Apis.FARMER_PROFILE, {});
+      
+      let hasMobileFromAPI = false;
+      
+      if (response?.status === true && response?.data) {
+        const data = response.data;
+        const personalDetails = data.personal_details || {};
+        
+        // Build full name
+        const firstName = personalDetails.first_name || '';
+        const middleName = personalDetails.middle_name || '';
+        const lastName = personalDetails.last_name || '';
+        const fullNameParts = [firstName, middleName, lastName].filter(Boolean);
+        const fullName = fullNameParts.join(' ') || '';
+        
+        // Mobile number
+        const mobile = personalDetails.mobile_no ? `+91 ${personalDetails.mobile_no}` : '';
+        hasMobileFromAPI = !!personalDetails.mobile_no;
+        
+        // Get initials
+        const initials = fullName 
+          ? (fullNameParts.length >= 2 
+              ? (fullNameParts[0][0] + fullNameParts[fullNameParts.length - 1][0]).toUpperCase()
+              : fullName.substring(0, 2).toUpperCase())
+          : 'FW';
+        
+        setUserData({
+          name: fullName,
+          phone: mobile,
+          initials: initials,
+        });
+      }
+      
+      // Also load phone from session as fallback if not available from API
+      if (!hasMobileFromAPI) {
+        try {
+          const session = await getSession();
+          if (session?.mobileNumber) {
+            setUserData(prev => ({
+              ...prev,
+              phone: session.mobileNumber || prev.phone,
+            }));
+          }
+        } catch (error) {
+          console.error('[FarmerProfileScreen] Error loading session data:', error);
+        }
+      }
+    } catch (error) {
+      console.error('[FarmerProfileScreen] Error fetching farmer profile:', error);
+      // Fallback to session data on error
       try {
         const session = await getSession();
         if (session?.mobileNumber) {
@@ -47,32 +101,23 @@ export default function FarmerProfileScreen() {
             phone: session.mobileNumber || prev.phone,
           }));
         }
-      } catch (error) {
-        console.error('Error loading user data:', error);
-      } finally {
-        setRefreshing(false);
+      } catch (sessionError) {
+        console.error('[FarmerProfileScreen] Error loading session data:', sessionError);
       }
-    };
-    loadUserData();
+    } finally {
+      setRefreshing(false);
+    }
   }, []);
 
-  // Load user data from session
-  React.useEffect(() => {
-    const loadUserData = async () => {
-      try {
-        const session = await getSession();
-        if (session?.mobileNumber) {
-          setUserData(prev => ({
-            ...prev,
-            phone: session.mobileNumber || prev.phone,
-          }));
-        }
-      } catch (error) {
-        console.error('Error loading user data:', error);
-      }
-    };
-    loadUserData();
-  }, []);
+  // Load user data on mount
+  useEffect(() => {
+    fetchFarmerProfile();
+  }, [fetchFarmerProfile]);
+
+  // Handle pull to refresh
+  const onRefresh = React.useCallback(() => {
+    fetchFarmerProfile(true);
+  }, [fetchFarmerProfile]);
 
   const getInitials = (name: string) => {
     const parts = name.trim().split(' ');
