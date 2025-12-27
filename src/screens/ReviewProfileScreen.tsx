@@ -28,6 +28,9 @@ import {saveProfileReviewed, getUserRole} from '../utils/session';
 import { ImagePath } from '../assets/images';
 import {useLanguage} from '../contexts/LanguageContext';
 import Toast, {ToastType} from '../components/Toast';
+import {getData} from '../Service/Apimethod';
+import Apis from '../Service/constant';
+import {getImageUrl} from '../utils/imageUtils';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -44,31 +47,31 @@ export default function ReviewProfileScreen() {
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
 
   // Personal details
-  const [dealershipName, setDealershipName] = useState('J.K enterprise');
-  const [firstName, setFirstName] = useState('Harrison');
-  const [middleName, setMiddleName] = useState('Nathan');
-  const [lastName, setLastName] = useState('Wills');
-  const [countryCode, setCountryCode] = useState('+91');
-  const [phoneNumber, setPhoneNumber] = useState('01254 03254');
-  const [dobDD, setDobDD] = useState('28');
-  const [dobMM, setDobMM] = useState('02');
-  const [dobYYYY, setDobYYYY] = useState('1979');
-  const [domDD, setDomDD] = useState('14');
-  const [domMM, setDomMM] = useState('03');
-  const [domYYYY, setDomYYYY] = useState('1999');
+  const [dealershipName, setDealershipName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [middleName, setMiddleName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [countryCode, setCountryCode] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [dobDD, setDobDD] = useState('');
+  const [dobMM, setDobMM] = useState('');
+  const [dobYYYY, setDobYYYY] = useState('');
+  const [domDD, setDomDD] = useState('');
+  const [domMM, setDomMM] = useState('');
+  const [domYYYY, setDomYYYY] = useState('');
 
   // Tractor details
   const [tractorCount, setTractorCount] = useState(1);
   const [tractorImage, setTractorImage] = useState<string | null>(null);
-  const [modelName, setModelName] = useState('280 DX 2 WD');
-  const [vehicleNo, setVehicleNo] = useState('GJ 27 MS 6402');
-  const [ownerName, setOwnerName] = useState('David wills');
-  const [chassisNo, setChassisNo] = useState('MBNGAALDNNNA02481');
-  const [engineNo, setEngineNo] = useState('1104C-E44TA');
-  const [tractorMobileNo, setTractorMobileNo] = useState('+91 54852 26478');
-  const [dateOfInvoice, setDateOfInvoice] = useState('12 Oct 2025');
-  const [dateOfRegistration, setDateOfRegistration] = useState('16 Oct 2025');
-  const [whoDrives, setWhoDrives] = useState('Father');
+  const [modelName, setModelName] = useState('');
+  const [vehicleNo, setVehicleNo] = useState('');
+  const [ownerName, setOwnerName] = useState('');
+  const [chassisNo, setChassisNo] = useState('');
+  const [engineNo, setEngineNo] = useState('');
+  const [tractorMobileNo, setTractorMobileNo] = useState('');
+  const [dateOfInvoice, setDateOfInvoice] = useState('');
+  const [dateOfRegistration, setDateOfRegistration] = useState('');
+  const [whoDrives, setWhoDrives] = useState('');
 
   useDynamicStatusBar({
     backgroundColor: colors.backgroundWhite,
@@ -88,6 +91,133 @@ export default function ReviewProfileScreen() {
       }
     };
     checkUserRole();
+  }, []);
+
+  // Fetch farmer profile data from API
+  useEffect(() => {
+    const fetchFarmerProfile = async () => {
+      try {
+        console.log('[ReviewProfileScreen] Fetching farmer profile data');
+        const response = await getData(Apis.FARMER_PROFILE, {});
+        
+        console.log('[ReviewProfileScreen] Profile API response:', JSON.stringify(response, null, 2));
+        
+        if (response?.status === true && response?.data) {
+          const data = response.data;
+          const personalDetails = data.personal_details || {};
+          const dealershipDetails = data.dealership_details || {};
+          const tractorDetails = data.tractor_details || {};
+          
+          // Profile photo
+          if (personalDetails.profile_photo_url) {
+            const imageUrl = getImageUrl(personalDetails.profile_photo_url);
+            if (imageUrl) {
+              setProfilePhoto(imageUrl);
+            }
+          }
+          
+          // Personal details
+          if (dealershipDetails.dealership_name) {
+            setDealershipName(dealershipDetails.dealership_name);
+          }
+          if (personalDetails.first_name) {
+            setFirstName(personalDetails.first_name);
+          }
+          if (personalDetails.middle_name) {
+            setMiddleName(personalDetails.middle_name);
+          }
+          if (personalDetails.last_name) {
+            setLastName(personalDetails.last_name);
+          }
+          
+          // Phone number - default to +91 for India
+          setCountryCode('+91');
+          if (personalDetails.mobile_no) {
+            setPhoneNumber(personalDetails.mobile_no);
+          }
+          
+          // Date of Birth
+          if (personalDetails.date_of_birth) {
+            const dob = personalDetails.date_of_birth;
+            if (typeof dob === 'string') {
+              const dobDate = new Date(dob);
+              if (!isNaN(dobDate.getTime())) {
+                setDobDD(String(dobDate.getDate()).padStart(2, '0'));
+                setDobMM(String(dobDate.getMonth() + 1).padStart(2, '0'));
+                setDobYYYY(String(dobDate.getFullYear()));
+              }
+            }
+          }
+          
+          // Date of Marriage
+          if (personalDetails.date_of_marriage) {
+            const dom = personalDetails.date_of_marriage;
+            if (typeof dom === 'string') {
+              const domDate = new Date(dom);
+              if (!isNaN(domDate.getTime())) {
+                setDomDD(String(domDate.getDate()).padStart(2, '0'));
+                setDomMM(String(domDate.getMonth() + 1).padStart(2, '0'));
+                setDomYYYY(String(domDate.getFullYear()));
+              }
+            }
+          }
+          
+          // Tractor details - get first tractor from tractor_list
+          if (tractorDetails.tractor_list && Array.isArray(tractorDetails.tractor_list) && tractorDetails.tractor_list.length > 0) {
+            const firstTractor = tractorDetails.tractor_list[0];
+            setTractorCount(tractorDetails.tractor_count || tractorDetails.tractor_list.length);
+            
+            // Tractor image
+            if (firstTractor.tractor_image_url) {
+              const tractorImageUrl = getImageUrl(firstTractor.tractor_image_url);
+              if (tractorImageUrl) {
+                setTractorImage(tractorImageUrl);
+              }
+            }
+            
+            if (firstTractor.model_name) {
+              setModelName(firstTractor.model_name);
+            }
+            if (firstTractor.vehicle_no) {
+              setVehicleNo(firstTractor.vehicle_no);
+            }
+            if (firstTractor.owner_name) {
+              setOwnerName(firstTractor.owner_name);
+            }
+            if (firstTractor.chassis_no) {
+              setChassisNo(firstTractor.chassis_no);
+            }
+            if (firstTractor.engine_no) {
+              setEngineNo(firstTractor.engine_no);
+            }
+            if (firstTractor.mobile_no) {
+              setTractorMobileNo(firstTractor.mobile_no);
+            }
+            // Use display_invoice_date if available, otherwise use date_of_invoice
+            if (firstTractor.display_invoice_date) {
+              setDateOfInvoice(firstTractor.display_invoice_date);
+            } else if (firstTractor.date_of_invoice) {
+              setDateOfInvoice(firstTractor.date_of_invoice);
+            }
+            // Use display_registration_date if available, otherwise use date_of_registration
+            if (firstTractor.display_registration_date) {
+              setDateOfRegistration(firstTractor.display_registration_date);
+            } else if (firstTractor.date_of_registration) {
+              setDateOfRegistration(firstTractor.date_of_registration);
+            }
+            if (firstTractor.who_drives) {
+              setWhoDrives(firstTractor.who_drives);
+            }
+          }
+        } else {
+          console.warn('[ReviewProfileScreen] Unexpected API response format:', response);
+        }
+      } catch (error) {
+        console.error('[ReviewProfileScreen] Error fetching farmer profile:', error);
+      }
+    };
+    
+    fetchFarmerProfile();
   }, []);
 
   const [currentImageType, setCurrentImageType] = useState<'profile' | 'tractor'>('profile');
