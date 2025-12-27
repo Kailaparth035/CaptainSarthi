@@ -18,6 +18,7 @@ import useDeviceMetrics from '../utils/responsiveCustom';
 import {Typography, FontFamily} from '../utils/typography';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import {useImagePicker} from '../hooks/useImagePicker';
+import {pickAndCropImageFromCamera, pickAndCropImageFromGallery} from '../utils/imageCropUtils';
 import {RootStackParamList} from '../navigation/RootNavigator';
 import SimpleBoxInput from '../components/FloatingInput';
 import ImagePickerModal from '../components/ImagePickerModal';
@@ -114,9 +115,25 @@ export default function ReviewProfileScreen() {
 
   const handleCameraPress = async () => {
     try {
-      const imageUri = await pickImage('camera', {
-        onError: (message) => showToastMessage(message),
-      });
+      let imageUri: string | null = null;
+      
+      // Use cropping for profile images
+      if (currentImageType === 'profile') {
+        imageUri = await pickAndCropImageFromCamera({
+          width: 400,
+          height: 400,
+          cropping: true,
+          cropperCircleOverlay: true,
+          compressImageQuality: 0.8,
+          freeStyleCropEnabled: false,
+        });
+      } else {
+        // Use regular picker for tractor images
+        imageUri = await pickImage('camera', {
+          onError: (message) => showToastMessage(message),
+        });
+      }
+      
       if (imageUri) {
         if (currentImageType === 'profile') {
           setProfilePhoto(imageUri);
@@ -125,18 +142,37 @@ export default function ReviewProfileScreen() {
         }
       }
       setImagePickerVisible(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error picking image from camera:', error);
-      showToastMessage('Failed to open camera. Please try again.');
+      // Don't show error if user cancelled
+      if (error?.message !== 'User cancelled image selection') {
+        showToastMessage('Failed to open camera. Please try again.');
+      }
       setImagePickerVisible(false);
     }
   };
 
   const handleGalleryPress = async () => {
     try {
-      const imageUri = await pickImage('gallery', {
-        onError: (message) => showToastMessage(message),
-      });
+      let imageUri: string | null = null;
+      
+      // Use cropping for profile images
+      if (currentImageType === 'profile') {
+        imageUri = await pickAndCropImageFromGallery({
+          width: 400,
+          height: 400,
+          cropping: true,
+          cropperCircleOverlay: true,
+          compressImageQuality: 0.8,
+          freeStyleCropEnabled: false,
+        });
+      } else {
+        // Use regular picker for tractor images
+        imageUri = await pickImage('gallery', {
+          onError: (message) => showToastMessage(message),
+        });
+      }
+      
       if (imageUri) {
         if (currentImageType === 'profile') {
           setProfilePhoto(imageUri);
@@ -145,9 +181,12 @@ export default function ReviewProfileScreen() {
         }
       }
       setImagePickerVisible(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error picking image from gallery:', error);
-      showToastMessage('Failed to open gallery. Please try again.');
+      // Don't show error if user cancelled
+      if (error?.message !== 'User cancelled image selection') {
+        showToastMessage('Failed to open gallery. Please try again.');
+      }
       setImagePickerVisible(false);
     }
   };

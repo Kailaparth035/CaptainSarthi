@@ -21,6 +21,7 @@ import {getData, postDataWithImage} from '../Service/Apimethod';
 import Apis, {API_BASE_URL} from '../Service/constant';
 import {getImageUrl} from '../utils/imageUtils';
 import {useImagePicker} from '../hooks/useImagePicker';
+import {pickAndCropImageFromCamera, pickAndCropImageFromGallery} from '../utils/imageCropUtils';
 import ImagePickerModal from '../components/ImagePickerModal';
 import Toast, {ToastType} from '../components/Toast';
 
@@ -292,34 +293,50 @@ export default function ProfileDetailsScreen() {
   // Handle camera press
   const handleCameraPress = async () => {
     try {
-      console.log('Opening camera...');
-      const imageUri = await pickImage('camera', {
-        onError: (message) => showToastMessage(message, 'error'),
+      console.log('Opening camera with crop...');
+      const imageUri = await pickAndCropImageFromCamera({
+        width: 400,
+        height: 400,
+        cropping: true,
+        cropperCircleOverlay: true,
+        compressImageQuality: 0.8,
+        freeStyleCropEnabled: false,
       });
       console.log('Camera result:', imageUri);
       if (imageUri) {
         await handleImageUpload(imageUri);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error in handleCameraPress:', error);
-      showToastMessage('Failed to open camera. Please try again.', 'error');
+      // Don't show error if user cancelled
+      if (error?.message !== 'User cancelled image selection') {
+        showToastMessage('Failed to open camera. Please try again.', 'error');
+      }
     }
   };
 
   // Handle gallery press
   const handleGalleryPress = async () => {
     try {
-      console.log('Opening gallery...');
-      const imageUri = await pickImage('gallery', {
-        onError: (message) => showToastMessage(message, 'error'),
+      console.log('Opening gallery with crop...');
+      const imageUri = await pickAndCropImageFromGallery({
+        width: 400,
+        height: 400,
+        cropping: true,
+        cropperCircleOverlay: true,
+        compressImageQuality: 0.8,
+        freeStyleCropEnabled: false,
       });
       console.log('Gallery result:', imageUri);
       if (imageUri) {
         await handleImageUpload(imageUri);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error in handleGalleryPress:', error);
-      showToastMessage('Failed to open gallery. Please try again.', 'error');
+      // Don't show error if user cancelled
+      if (error?.message !== 'User cancelled image selection') {
+        showToastMessage('Failed to open gallery. Please try again.', 'error');
+      }
     }
   };
 
