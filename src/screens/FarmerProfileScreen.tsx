@@ -367,9 +367,7 @@ export default function FarmerProfileScreen() {
               <View style={dynamicStyles.optionContent}>
                 <Text style={dynamicStyles.optionLabel}>{t('language.title')}</Text>
                 <Text style={dynamicStyles.optionText}>
-                  {currentLanguage === 'en' ? t('language.english') : 
-                   currentLanguage === 'gu' ? t('language.gujarati') : 
-                   t('language.hindi')}
+                {t('language.selectLanguage')}
                 </Text>
               </View>
             </View>
