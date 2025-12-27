@@ -53,7 +53,7 @@ function getIconForRoute(
       );
     case SCREEN_NAMES.Tractors:
       return (
-        <MaterialCommunityIcons name="tractor" size={size + 2} color={color} />
+        <MaterialCommunityIcons name="tractor" size={size + 2} color={color} style={{marginLeft: focused? 15 : 0}} />
       );
     case SCREEN_NAMES.Profile:
       return (
