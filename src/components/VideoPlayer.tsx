@@ -9,6 +9,7 @@ import {
   Dimensions,
   ActivityIndicator,
 } from 'react-native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import Slider from '@react-native-community/slider';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import colors from '../utils/colors';
@@ -34,6 +35,7 @@ export default function VideoPlayer({
   containerStyle,
 }: VideoPlayerProps) {
   const {moderateScale} = useDeviceMetrics();
+  const insets = useSafeAreaInsets();
   const [isPlaying, setIsPlaying] = useState(false);
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [isVideoLoading, setIsVideoLoading] = useState(false);
@@ -46,7 +48,7 @@ export default function VideoPlayer({
   const [youtubeVideoId, setYoutubeVideoId] = useState<string | null>(null);
   const [isYouTubeVideo, setIsYouTubeVideo] = useState(false);
   const videoRef = useRef<any>(null);
-  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const screenWidth = Dimensions.get('window').width;
   const screenHeight = Dimensions.get('window').height;
 
@@ -105,17 +107,14 @@ export default function VideoPlayer({
         },
         videoContainer: {
           width: screenWidth,
-          height: screenHeight * 0.6,
+          height: screenHeight * 0.2,
           justifyContent: 'center',
           alignItems: 'center',
         },
         videoPlayer: {
           width: '100%',
-          height: '42%',
-          // marginTop: moderateScale(20),
+          height: '100%',
           backgroundColor: '#000',
-          // justifyContent: 'center',
-          // alignItems: 'center',
         },
         videoControls: {
           position: 'absolute',
@@ -189,7 +188,7 @@ export default function VideoPlayer({
         },
         closeButton: {
           position: 'absolute',
-          top: moderateScale(50),
+          top: insets.top + moderateScale(12),
           right: moderateScale(20),
           width: moderateScale(40),
           height: moderateScale(40),
@@ -197,7 +196,8 @@ export default function VideoPlayer({
           backgroundColor: 'rgba(255, 255, 255, 0.3)',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 10,
+          zIndex: 1000,
+          elevation: 10,
         },
         placeholderContainer: {
           width: '100%',
@@ -212,7 +212,7 @@ export default function VideoPlayer({
           color: colors.textTertiary,
         },
       }),
-    [moderateScale, screenWidth, screenHeight],
+    [moderateScale, screenWidth, screenHeight, insets.top],
   );
 
   // Format time in MM:SS format
@@ -457,12 +457,12 @@ export default function VideoPlayer({
                       height={screenHeight * 0.6}
                       videoId={youtubeVideoId}
                       play={isPlaying}
-                      onChangeState={(state) => {
+                      onChangeState={(state: string) => {
                         if (state === 'ended') {
                           setIsPlaying(false);
                         }
                       }}
-                      onError={(error) => {
+                      onError={(error: any) => {
                         console.error('YouTube player error:', error);
                         setVideoError('Failed to load video. Please try again.');
                       }}

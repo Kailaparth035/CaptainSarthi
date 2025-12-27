@@ -175,6 +175,7 @@ export default function FarmerTractorDetails() {
         },
         scrollContent: {
           padding: moderateScale(16),
+          paddingBottom: moderateScale(8),
         },
         bottomTabBarContainer: {
           position: 'absolute',
@@ -191,12 +192,12 @@ export default function FarmerTractorDetails() {
         videoContainer: {
           width: '100%',
           aspectRatio: 16 / 9,
-          marginBottom: moderateScale(12),
+          marginBottom: moderateScale(8),
         },
         thumbnailRow: {
           flexDirection: 'row',
           gap: moderateScale(8),
-          marginTop: moderateScale(8),
+          marginTop: moderateScale(4),
         },
         thumbnail: {
           flex: 1,
