@@ -379,6 +379,7 @@ export default function FilterModal({
           style={[
             dynamicStyles.applyButtonContainer,
             {paddingBottom: insets.bottom + moderateScale(4)},
+            {paddingTop: moderateScale(12)},
           ]}>
           <TouchableOpacity
             style={dynamicStyles.applyButton}
