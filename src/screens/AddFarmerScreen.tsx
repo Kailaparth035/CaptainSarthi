@@ -1646,10 +1646,24 @@ export default function AddFarmerScreen() {
         if (tractor.tractorImages && tractor.tractorImages.length > 0) {
           const validImages = tractor.tractorImages.filter(img => img && img.trim() !== '');
           validImages.forEach((imageUri, imageIndex) => {
-            // For first tractor: tractor_image_0, tractor_image_0 (if 2 images)
-            // For second tractor: tractor_image_1, tractor_image_1 (if 2 images)
-            // Using same key for multiple images (some servers support this)
-            appendImage(`tractor_image_${tractorIndex}`, imageUri, imageIndex);
+            // When tractor count is 1 (tractorIndex = 0):
+            //   First image: Tackertar_0
+            //   Second image: Tackertar_0
+            // When tractor count is 2 (tractorIndex = 1):
+            //   First image: Tackertar_1
+            //   Second image: Tackertar_2
+            let imageKey = '';
+            if (tractorIndex === 0) {
+              // First tractor: both images use Tackertar_0
+              imageKey = 'Tackertar_0';
+            } else if (tractorIndex === 1) {
+              // Second tractor: first image uses Tackertar_1, second uses Tackertar_2
+              imageKey = imageIndex === 0 ? 'Tackertar_1' : 'Tackertar_2';
+            } else {
+              // Fallback for any additional tractors (shouldn't happen based on current logic)
+              imageKey = `Tackertar_${tractorIndex}`;
+            }
+            appendImage(imageKey, imageUri, imageIndex);
           });
         }
 
