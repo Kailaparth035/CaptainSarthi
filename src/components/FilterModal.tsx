@@ -77,7 +77,7 @@ export default function FilterModal({
       StyleSheet.create({
         modalOverlay: {
           flex: 1,
-          backgroundColor: colors.backgroundLight,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
         },
         modalContent: {
           flex: 1,
