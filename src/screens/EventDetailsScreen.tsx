@@ -74,7 +74,7 @@ const getEventDetails = (eventId: string) => {
 export default function EventDetailsScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
-  const {t} = useLanguage();
+  const {t, currentLanguage} = useLanguage();
   const route = useRoute();
   const navigation = useNavigation();
   const tabNavigation = useNavigation<BottomTabNavigationProp<FarmerTabParamList>>();
@@ -85,6 +85,7 @@ export default function EventDetailsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [eventDetails, setEventDetails] = useState<any>(null);
+  const [eventApiData, setEventApiData] = useState<any>(null); // Store full API response
   const {playTTS, state: ttsState} = useTTS();
 
   // Fetch event details from API
@@ -147,7 +148,27 @@ export default function EventDetailsScreen() {
         const date = eventData.display_datetime || eventData.display_date || eventData.event_date || eventData.date || '';
         
         // Handle description - use description.text
-        const description = eventData.description?.text || eventData.description || '';
+        const defaultDescription = eventData.description?.text || eventData.description || '';
+        
+        // Store full API data including languages array
+        setEventApiData(eventData);
+        
+        // Get language-specific content (using currentLanguage from context via closure)
+        // Map language code to language_id (en -> 1, hi -> 2, gu -> 3)
+        const languageIdMap: Record<string, number> = {
+          'en': 1,
+          'hi': 2,
+          'gu': 3,
+        };
+        
+        const currentLanguageId = languageIdMap[currentLanguage] || 1;
+        const languageSpecificContent = eventData.languages?.find(
+          (lang: any) => lang.language_id === currentLanguageId
+        );
+        
+        // Use language-specific title and description if available, otherwise use default
+        const displayTitle = languageSpecificContent?.title || eventData.title || params?.title || 'Event';
+        const displayDescription = languageSpecificContent?.description || defaultDescription;
         
         // Handle gallery images from media.images
         const galleryImages: any[] = [];
@@ -170,11 +191,11 @@ export default function EventDetailsScreen() {
         
         setEventDetails({
           id: eventData.event_id || eventData.id || eventId,
-          title: eventData.title || params?.title || 'Event',
+          title: displayTitle,
           location: location,
           date: date,
-          description: description,
-          fullDescription: description,
+          description: displayDescription,
+          fullDescription: displayDescription,
           videoUri: videoUrl,
           thumbnailUri: thumbnailUri,
           images: galleryImages,
@@ -188,16 +209,45 @@ export default function EventDetailsScreen() {
       console.error('[EventDetailsScreen] Error fetching event details:', error);
       // Fallback to mock data on error
       setEventDetails(getEventDetails(params?.eventId || '1'));
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [params?.eventId]);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    }, [params?.eventId]);
 
   // Handle pull to refresh
   const onRefresh = React.useCallback(() => {
     fetchEventDetails(true);
   }, [fetchEventDetails]);
+
+  // Update displayed content when language changes
+  useEffect(() => {
+    if (eventApiData) {
+      // Map language code to language_id (en -> 1, hi -> 2, gu -> 3)
+      const languageIdMap: Record<string, number> = {
+        'en': 1,
+        'hi': 2,
+        'gu': 3,
+      };
+      
+      const currentLanguageId = languageIdMap[currentLanguage] || 1;
+      const languageSpecificContent = eventApiData.languages?.find(
+        (lang: any) => lang.language_id === currentLanguageId
+      );
+      
+      // Update title and description based on selected language
+      const displayTitle = languageSpecificContent?.title || eventApiData.title || params?.title || 'Event';
+      const defaultDescription = eventApiData.description?.text || eventApiData.description || '';
+      const displayDescription = languageSpecificContent?.description || defaultDescription;
+      
+      setEventDetails((prev: any) => ({
+        ...prev,
+        title: displayTitle,
+        description: displayDescription,
+        fullDescription: displayDescription,
+      }));
+    }
+  }, [currentLanguage, eventApiData, params?.title]);
 
   // Fetch event details on mount
   useEffect(() => {
