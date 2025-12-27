@@ -714,7 +714,7 @@ export default function FarmerDetailsScreen() {
               />
               <InfoRow
                 label="Mobile no."
-                value={tractor.mobile}
+                value={tractor.mobile ? tractor.mobile : farmerDetails.mobile}
                 moderateScale={moderateScale}
               />
               <InfoRow
