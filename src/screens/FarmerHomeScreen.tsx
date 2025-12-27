@@ -8,6 +8,7 @@ import {
   Image,
   FlatList,
   Dimensions,
+  RefreshControl,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation, CommonActions, useFocusEffect} from '@react-navigation/native';
@@ -15,6 +16,7 @@ import {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
 import {FarmerTabParamList} from '../navigation/FarmerTabNavigator';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
 import colors from '../utils/colors';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import {Typography, FontFamily} from '../utils/typography';
@@ -56,13 +58,14 @@ export default function FarmerHomeScreen() {
   const tabNavigation = useNavigation<BottomTabNavigationProp<FarmerTabParamList>>();
   const [currentCarouselIndex, setCurrentCarouselIndex] = useState(0);
   const carouselRef = useRef<FlatList>(null);
-  const autoSlideTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const autoSlideTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   
   // API data states
   const [carouselItems, setCarouselItems] = useState<any[]>([]);
   const [recentEvents, setRecentEvents] = useState<any[]>([]);
   const [recentStories, setRecentStories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [farmerName, setFarmerName] = useState<string>('');
 
   // Membership services with translations
@@ -133,9 +136,13 @@ export default function FarmerHomeScreen() {
   };
 
   // Fetch dashboard data from API
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = React.useCallback(async (showRefreshing = false) => {
     try {
-      setLoading(true);
+      if (showRefreshing) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
       console.log('[FarmerHomeScreen] Fetching dashboard data...');
       const response = await getData(Apis.FARMER_DASHBOARD, {});
       
@@ -208,17 +215,24 @@ export default function FarmerHomeScreen() {
       setRecentStories([]);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  };
+  }, []);
 
   // Fetch data on mount and when screen comes into focus
   useFocusEffect(
     React.useCallback(() => {
       console.log('[FarmerHomeScreen] Screen focused - fetching dashboard data');
-      fetchDashboardData();
+      fetchDashboardData(false);
       fetchFarmerProfile();
-    }, [])
+    }, [fetchDashboardData])
   );
+
+  // Pull to refresh handler
+  const onRefresh = React.useCallback(() => {
+    fetchDashboardData(true);
+    fetchFarmerProfile();
+  }, [fetchDashboardData]);
 
   // Auto slide functionality
   const startAutoSlide = () => {
@@ -640,6 +654,221 @@ export default function FarmerHomeScreen() {
     </View>
   );
 
+  // Skeleton content component
+  const renderSkeletonContent = () => {
+    return (
+      <SkeletonPlaceholder
+        backgroundColor={colors.backgroundGray}
+        highlightColor={colors.backgroundWhite}
+        borderRadius={moderateScale(10)}>
+        {/* Carousel Skeleton */}
+        <SkeletonPlaceholder.Item
+          backgroundColor={colors.backgroundWhite}
+          borderRadius={moderateScale(12)}
+          padding={moderateScale(10)}
+          marginHorizontal={moderateScale(16)}
+          marginBottom={moderateScale(16)}>
+          <SkeletonPlaceholder.Item
+            width="100%"
+            height={moderateScale(180)}
+            borderRadius={moderateScale(12)}
+          />
+        </SkeletonPlaceholder.Item>
+
+        {/* Events Section Skeleton */}
+        <SkeletonPlaceholder.Item
+          backgroundColor={colors.backgroundWhite}
+          borderRadius={moderateScale(12)}
+          paddingVertical={moderateScale(12)}
+          marginBottom={moderateScale(16)}
+          marginHorizontal={moderateScale(16)}>
+          {/* Section Header Skeleton */}
+          <SkeletonPlaceholder.Item
+            flexDirection="row"
+            justifyContent="space-between"
+            paddingHorizontal={moderateScale(16)}
+            marginBottom={moderateScale(12)}>
+            <SkeletonPlaceholder.Item
+              width="40%"
+              height={moderateScale(18)}
+              borderRadius={moderateScale(4)}
+            />
+            <SkeletonPlaceholder.Item
+              width="20%"
+              height={moderateScale(14)}
+              borderRadius={moderateScale(4)}
+            />
+          </SkeletonPlaceholder.Item>
+
+          {/* Events List Skeleton */}
+          <SkeletonPlaceholder.Item
+            flexDirection="row"
+            paddingHorizontal={moderateScale(16)}>
+            {[1, 2].map((index) => (
+              <SkeletonPlaceholder.Item
+                key={index}
+                width={screenWidth / 2}
+                marginRight={moderateScale(12)}
+                backgroundColor={colors.backgroundWhite}
+                borderRadius={moderateScale(12)}
+                borderWidth={1}
+                borderColor={colors.borderDefault}
+                flexDirection="row"
+                padding={moderateScale(10)}>
+                <SkeletonPlaceholder.Item
+                  width={moderateScale(55)}
+                  height={moderateScale(55)}
+                  borderRadius={moderateScale(8)}
+                  marginRight={moderateScale(10)}
+                />
+                <SkeletonPlaceholder.Item flex={1}>
+                  <SkeletonPlaceholder.Item
+                    width="90%"
+                    height={moderateScale(13)}
+                    borderRadius={moderateScale(2)}
+                    marginBottom={moderateScale(8)}
+                  />
+                  <SkeletonPlaceholder.Item
+                    width="60%"
+                    height={moderateScale(12)}
+                    borderRadius={moderateScale(2)}
+                  />
+                </SkeletonPlaceholder.Item>
+              </SkeletonPlaceholder.Item>
+            ))}
+          </SkeletonPlaceholder.Item>
+        </SkeletonPlaceholder.Item>
+
+        {/* Stories Section Skeleton */}
+        <SkeletonPlaceholder.Item
+          backgroundColor={colors.backgroundWhite}
+          borderRadius={moderateScale(12)}
+          paddingVertical={moderateScale(12)}
+          marginBottom={moderateScale(16)}
+          marginHorizontal={moderateScale(16)}>
+          {/* Section Header Skeleton */}
+          <SkeletonPlaceholder.Item
+            flexDirection="row"
+            justifyContent="space-between"
+            paddingHorizontal={moderateScale(16)}
+            marginBottom={moderateScale(12)}>
+            <SkeletonPlaceholder.Item
+              width="40%"
+              height={moderateScale(18)}
+              borderRadius={moderateScale(4)}
+            />
+            <SkeletonPlaceholder.Item
+              width="20%"
+              height={moderateScale(14)}
+              borderRadius={moderateScale(4)}
+            />
+          </SkeletonPlaceholder.Item>
+
+          {/* Stories List Skeleton */}
+          <SkeletonPlaceholder.Item
+            flexDirection="row"
+            paddingHorizontal={moderateScale(16)}>
+            {[1, 2].map((index) => (
+              <SkeletonPlaceholder.Item
+                key={index}
+                width={screenWidth / 2}
+                marginRight={moderateScale(12)}
+                backgroundColor={colors.backgroundWhite}
+                borderRadius={moderateScale(12)}
+                borderWidth={1}
+                borderColor={colors.borderDefault}
+                flexDirection="row"
+                padding={moderateScale(10)}>
+                <SkeletonPlaceholder.Item
+                  width={moderateScale(55)}
+                  height={moderateScale(55)}
+                  borderRadius={moderateScale(8)}
+                  marginRight={moderateScale(10)}
+                />
+                <SkeletonPlaceholder.Item flex={1}>
+                  <SkeletonPlaceholder.Item
+                    width="90%"
+                    height={moderateScale(13)}
+                    borderRadius={moderateScale(2)}
+                    marginBottom={moderateScale(8)}
+                  />
+                  <SkeletonPlaceholder.Item
+                    width="60%"
+                    height={moderateScale(12)}
+                    borderRadius={moderateScale(2)}
+                  />
+                </SkeletonPlaceholder.Item>
+              </SkeletonPlaceholder.Item>
+            ))}
+          </SkeletonPlaceholder.Item>
+        </SkeletonPlaceholder.Item>
+
+        {/* Membership Services Section Skeleton */}
+        <SkeletonPlaceholder.Item
+          backgroundColor={colors.backgroundWhite}
+          borderRadius={moderateScale(10)}
+          paddingTop={moderateScale(15)}
+          marginHorizontal={moderateScale(16)}>
+          {/* Section Header Skeleton */}
+          <SkeletonPlaceholder.Item
+            width="50%"
+            height={moderateScale(18)}
+            borderRadius={moderateScale(4)}
+            marginLeft={moderateScale(16)}
+            marginBottom={moderateScale(12)}
+          />
+
+          {/* Services List Skeleton */}
+          {[1, 2, 3, 4, 5].map((index) => (
+            <SkeletonPlaceholder.Item
+              key={index}
+              flexDirection="row"
+              alignItems="center"
+              backgroundColor={colors.backgroundWhite}
+              borderRadius={moderateScale(12)}
+              borderWidth={1}
+              borderColor={colors.borderColor}
+              padding={moderateScale(10)}
+              marginBottom={index < 5 ? moderateScale(14) : 0}
+              marginHorizontal={moderateScale(16)}>
+              <SkeletonPlaceholder.Item
+                width={moderateScale(48)}
+                height={moderateScale(48)}
+                borderRadius={moderateScale(10)}
+                marginRight={moderateScale(12)}
+              />
+              <SkeletonPlaceholder.Item flex={1}>
+                <SkeletonPlaceholder.Item
+                  width="70%"
+                  height={moderateScale(16)}
+                  borderRadius={moderateScale(4)}
+                  marginBottom={moderateScale(4)}
+                />
+                <SkeletonPlaceholder.Item
+                  width="90%"
+                  height={moderateScale(12)}
+                  borderRadius={moderateScale(4)}
+                />
+              </SkeletonPlaceholder.Item>
+            </SkeletonPlaceholder.Item>
+          ))}
+        </SkeletonPlaceholder.Item>
+      </SkeletonPlaceholder>
+    );
+  };
+
+  // Skeleton component matching the exact design
+  const renderSkeleton = () => {
+    return (
+      <ScrollView
+        style={{flex: 1}}
+        contentContainerStyle={dynamicStyles.scrollContent}
+        showsVerticalScrollIndicator={false}>
+        {renderSkeletonContent()}
+      </ScrollView>
+    );
+  };
+
   return (
     <View style={dynamicStyles.container}>
       {/* Header */}
@@ -675,15 +904,25 @@ export default function FarmerHomeScreen() {
         </View>
       </View>
 
-      {loading ? (
-        <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+      {loading && !refreshing ? (
+        renderSkeleton()
       ) : (
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={dynamicStyles.scrollContent}>
-          {/* Full Screen Video/Image Carousel */}
+          contentContainerStyle={dynamicStyles.scrollContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }>
+          {refreshing ? (
+            renderSkeletonContent()
+          ) : (
+            <>
+              {/* Full Screen Video/Image Carousel */}
           {carouselItems.length > 0 && (
             <View style={dynamicStyles.carouselContainer}>
               <View style={dynamicStyles.carouselWrapper}>
@@ -720,7 +959,7 @@ export default function FarmerHomeScreen() {
                     }
                     // Fallback to scrollToOffset
                     const itemWidth = screenWidth - moderateScale(32) - moderateScale(20);
-                    const wait = new Promise(resolve => setTimeout(resolve, 500));
+                    const wait = new Promise<void>(resolve => setTimeout(() => resolve(), 500));
                     wait.then(() => {
                       if (carouselRef.current) {
                         try {
@@ -832,6 +1071,8 @@ export default function FarmerHomeScreen() {
         </View>
           {membershipServices.map(service => renderServiceCard(service))}
         </View>
+            </>
+          )}
         </ScrollView>
       )}
     </View>

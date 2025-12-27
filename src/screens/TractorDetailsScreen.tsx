@@ -8,6 +8,7 @@ import {
   Image,
   ActivityIndicator,
   RefreshControl,
+  Dimensions,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useRoute, useNavigation} from '@react-navigation/native';
@@ -15,6 +16,7 @@ import {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
 import {TabParamList} from '../navigation/TabNavigator';
 import {SCREEN_NAMES} from '../constants/screenNames';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
 import colors from '../utils/colors';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import {Typography, FontFamily} from '../utils/typography';
@@ -25,6 +27,8 @@ import {useStatusBar} from '../contexts/StatusBarContext';
 import {getData} from '../Service/Apimethod';
 import Apis, {API_BASE_URL} from '../Service/constant';
 import {getImageUrl} from '../utils/imageUtils';
+
+const screenWidth = Dimensions.get('window').width;
 
 type TractorDetailsRouteParams = {
   tractorId: string;
@@ -462,7 +466,206 @@ export default function TractorDetailsScreen() {
 
   const {currentConfig} = useStatusBar();
 
-  if (loading || !tractorDetails) {
+  // Skeleton content component
+  const renderSkeletonContent = () => {
+    const videoHeight = (screenWidth - moderateScale(32)) * (9 / 16);
+    return (
+      <SkeletonPlaceholder
+        backgroundColor={colors.backgroundGray}
+        highlightColor={colors.backgroundWhite}
+        borderRadius={moderateScale(10)}>
+        {/* Video Player Skeleton */}
+        <SkeletonPlaceholder.Item
+          width="100%"
+          height={videoHeight}
+          borderRadius={moderateScale(10)}
+          marginBottom={moderateScale(8)}
+        />
+
+        {/* Thumbnails Grid Skeleton */}
+        <SkeletonPlaceholder.Item
+          flexDirection="row"
+          marginTop={moderateScale(8)}
+          marginBottom={moderateScale(16)}>
+          {/* Left: Full height skeleton */}
+          <SkeletonPlaceholder.Item
+            flex={1.8}
+            height={moderateScale(128)}
+            borderRadius={moderateScale(8)}
+            marginRight={moderateScale(8)}
+          />
+          {/* Right: 2 stacked skeletons */}
+          <SkeletonPlaceholder.Item flex={1}>
+            <SkeletonPlaceholder.Item
+              width="100%"
+              height={moderateScale(60)}
+              borderRadius={moderateScale(8)}
+              marginBottom={moderateScale(8)}
+            />
+            <SkeletonPlaceholder.Item
+              width="100%"
+              height={moderateScale(60)}
+              borderRadius={moderateScale(8)}
+            />
+          </SkeletonPlaceholder.Item>
+        </SkeletonPlaceholder.Item>
+
+        {/* Product Information Card Skeleton */}
+        <SkeletonPlaceholder.Item
+          backgroundColor={colors.backgroundWhite}
+          borderRadius={moderateScale(10)}
+          padding={moderateScale(16)}
+          marginBottom={moderateScale(16)}>
+          {/* Title Skeleton */}
+          <SkeletonPlaceholder.Item
+            width="95%"
+            height={moderateScale(20)}
+            borderRadius={moderateScale(4)}
+            marginBottom={moderateScale(8)}
+          />
+          <SkeletonPlaceholder.Item
+            width="70%"
+            height={moderateScale(16)}
+            borderRadius={moderateScale(4)}
+            marginBottom={moderateScale(16)}
+          />
+          {/* Description Lines Skeleton */}
+          <SkeletonPlaceholder.Item
+            width="100%"
+            height={moderateScale(14)}
+            borderRadius={moderateScale(2)}
+            marginBottom={moderateScale(8)}
+          />
+          <SkeletonPlaceholder.Item
+            width="100%"
+            height={moderateScale(14)}
+            borderRadius={moderateScale(2)}
+            marginBottom={moderateScale(8)}
+          />
+          <SkeletonPlaceholder.Item
+            width="95%"
+            height={moderateScale(14)}
+            borderRadius={moderateScale(2)}
+            marginBottom={moderateScale(8)}
+          />
+          <SkeletonPlaceholder.Item
+            width="60%"
+            height={moderateScale(14)}
+            borderRadius={moderateScale(2)}
+            marginBottom={moderateScale(12)}
+          />
+          {/* Read More Skeleton */}
+          <SkeletonPlaceholder.Item
+            width="25%"
+            height={moderateScale(14)}
+            borderRadius={moderateScale(2)}
+          />
+        </SkeletonPlaceholder.Item>
+
+        {/* Specifications Card Skeleton */}
+        <SkeletonPlaceholder.Item
+          backgroundColor={colors.backgroundWhite}
+          borderRadius={moderateScale(12)}
+          padding={moderateScale(16)}
+          marginBottom={moderateScale(16)}>
+          {/* Title Skeleton */}
+          <SkeletonPlaceholder.Item
+            width="50%"
+            height={moderateScale(20)}
+            borderRadius={moderateScale(4)}
+            marginBottom={moderateScale(16)}
+          />
+
+          {/* Tabs Skeleton */}
+          <SkeletonPlaceholder.Item
+            flexDirection="row"
+            marginBottom={moderateScale(16)}>
+            <SkeletonPlaceholder.Item
+              width={moderateScale(80)}
+              height={moderateScale(32)}
+              borderRadius={moderateScale(20)}
+              marginRight={moderateScale(8)}
+            />
+            <SkeletonPlaceholder.Item
+              width={moderateScale(80)}
+              height={moderateScale(32)}
+              borderRadius={moderateScale(20)}
+              marginRight={moderateScale(8)}
+            />
+            <SkeletonPlaceholder.Item
+              width={moderateScale(100)}
+              height={moderateScale(32)}
+              borderRadius={moderateScale(20)}
+            />
+          </SkeletonPlaceholder.Item>
+
+          {/* Specifications Rows Skeleton */}
+          {[1, 2, 3, 4, 5, 6].map((index) => (
+            <SkeletonPlaceholder.Item
+              key={index}
+              flexDirection="row"
+              justifyContent="space-between"
+              marginBottom={moderateScale(12)}>
+              <SkeletonPlaceholder.Item
+                width="50%"
+                height={moderateScale(14)}
+                borderRadius={moderateScale(2)}
+              />
+              <SkeletonPlaceholder.Item
+                width="40%"
+                height={moderateScale(14)}
+                borderRadius={moderateScale(2)}
+              />
+            </SkeletonPlaceholder.Item>
+          ))}
+        </SkeletonPlaceholder.Item>
+      </SkeletonPlaceholder>
+    );
+  };
+
+  // Skeleton component matching the exact design
+  const renderSkeleton = () => {
+    return (
+      <ScrollView
+        style={{flex: 1}}
+        contentContainerStyle={dynamicStyles.scrollContent}
+        showsVerticalScrollIndicator={false}>
+        {renderSkeletonContent()}
+      </ScrollView>
+    );
+  };
+
+  if (loading && !refreshing) {
+    return (
+      <View style={dynamicStyles.container}>
+        {/* Header */}
+        <View style={dynamicStyles.header}>
+          <View style={dynamicStyles.headerLeft}>
+            <TouchableOpacity
+              style={dynamicStyles.backButton}
+              onPress={() => {
+                if (params?.fromScreen === 'Home') {
+                  tabNavigation.navigate(SCREEN_NAMES.Home);
+                } else {
+                  navigation.goBack();
+                }
+              }}
+              activeOpacity={0.7}>
+              <Ionicons
+                name="arrow-back"
+                size={moderateScale(20)}
+                color={colors.textPrimary}
+              />
+            </TouchableOpacity>
+            <Text style={dynamicStyles.headerTitle}>Tractor Details </Text>
+          </View>
+        </View>
+        {renderSkeleton()}
+      </View>
+    );
+  }
+
+  if (!tractorDetails) {
     return (
       <View style={[dynamicStyles.container, {justifyContent: 'center', alignItems: 'center'}]}>
         <ActivityIndicator size="large" color={colors.primary} />
@@ -515,7 +718,11 @@ export default function TractorDetailsScreen() {
             tintColor={colors.primary}
           />
         }>
-        {/* Video Player Section */}
+        {refreshing ? (
+          renderSkeletonContent()
+        ) : (
+          <>
+            {/* Video Player Section */}
         <View style={dynamicStyles.card}>
           <View style={dynamicStyles.videoContainer}>
             <VideoPlayer
@@ -527,7 +734,7 @@ export default function TractorDetailsScreen() {
 
           {/* Thumbnails Row */}
           <View style={dynamicStyles.thumbnailRow}>
-            {tractorDetails.thumbnails.map((thumb, index) => {
+            {tractorDetails.thumbnails.map((thumb: any, index: number) => {
               // Calculate image index in previewImages array for click handler
               let imageIndexInPreview = 0;
               if (thumb.type === 'image') {
@@ -665,6 +872,8 @@ export default function TractorDetailsScreen() {
             </View>
           )}
         </View>
+          </>
+        )}
       </ScrollView>
 
       {/* Image Preview Modal */}

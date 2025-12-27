@@ -15,6 +15,7 @@ import {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
 import {TabParamList} from '../navigation/TabNavigator';
 import {SCREEN_NAMES} from '../constants/screenNames';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
 import colors from '../utils/colors';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import {Typography} from '../utils/typography';
@@ -457,6 +458,152 @@ export default function FarmerDetailsScreen() {
     [moderateScale, insets.top],
   );
 
+  // Skeleton content component
+  const renderSkeletonContent = () => {
+    return (
+      <SkeletonPlaceholder
+        backgroundColor={colors.backgroundGray}
+        highlightColor={colors.backgroundWhite}
+        borderRadius={moderateScale(10)}>
+        {/* Profile Card Skeleton */}
+        <SkeletonPlaceholder.Item
+          backgroundColor={colors.backgroundWhite}
+          borderRadius={moderateScale(12)}
+          padding={moderateScale(16)}
+          marginBottom={moderateScale(16)}>
+          {/* Profile Header Skeleton */}
+          <SkeletonPlaceholder.Item
+            flexDirection="row"
+            alignItems="center"
+            marginBottom={moderateScale(20)}>
+            {/* Profile Image Skeleton */}
+            <SkeletonPlaceholder.Item
+              width={moderateScale(60)}
+              height={moderateScale(60)}
+              borderRadius={moderateScale(30)}
+              marginRight={moderateScale(16)}
+            />
+            {/* Profile Info Skeleton */}
+            <SkeletonPlaceholder.Item flex={1}>
+              <SkeletonPlaceholder.Item
+                width="70%"
+                height={moderateScale(18)}
+                borderRadius={moderateScale(4)}
+                marginBottom={moderateScale(8)}
+              />
+              <SkeletonPlaceholder.Item
+                width="50%"
+                height={moderateScale(14)}
+                borderRadius={moderateScale(4)}
+              />
+            </SkeletonPlaceholder.Item>
+          </SkeletonPlaceholder.Item>
+
+          {/* Info Rows Skeleton */}
+          {[1, 2, 3, 4, 5, 6, 7].map((index) => (
+            <SkeletonPlaceholder.Item
+              key={index}
+              flexDirection="row"
+              justifyContent="space-between"
+              marginBottom={moderateScale(12)}>
+              <SkeletonPlaceholder.Item
+                width="40%"
+                height={moderateScale(14)}
+                borderRadius={moderateScale(2)}
+              />
+              <SkeletonPlaceholder.Item
+                width="50%"
+                height={moderateScale(14)}
+                borderRadius={moderateScale(2)}
+              />
+            </SkeletonPlaceholder.Item>
+          ))}
+        </SkeletonPlaceholder.Item>
+
+        {/* Tractor Card Skeleton */}
+        <SkeletonPlaceholder.Item
+          backgroundColor={colors.backgroundWhite}
+          borderRadius={moderateScale(12)}
+          padding={moderateScale(16)}
+          marginBottom={moderateScale(16)}>
+          {/* Tractor Header Skeleton */}
+          <SkeletonPlaceholder.Item
+            flexDirection="row"
+            justifyContent="space-between"
+            marginBottom={moderateScale(16)}>
+            <SkeletonPlaceholder.Item
+              width="40%"
+              height={moderateScale(18)}
+              borderRadius={moderateScale(4)}
+            />
+            <SkeletonPlaceholder.Item
+              width="30%"
+              height={moderateScale(14)}
+              borderRadius={moderateScale(4)}
+            />
+          </SkeletonPlaceholder.Item>
+
+          {/* Tractor Image Skeleton */}
+          <SkeletonPlaceholder.Item
+            width="100%"
+            height={moderateScale(200)}
+            borderRadius={moderateScale(8)}
+            marginBottom={moderateScale(16)}
+          />
+
+          {/* RC Images Skeleton */}
+          <SkeletonPlaceholder.Item
+            flexDirection="row"
+            justifyContent="space-around"
+            marginBottom={moderateScale(16)}>
+            <SkeletonPlaceholder.Item
+              width={moderateScale(140)}
+              height={moderateScale(70)}
+              borderRadius={moderateScale(8)}
+            />
+            <SkeletonPlaceholder.Item
+              width={moderateScale(140)}
+              height={moderateScale(70)}
+              borderRadius={moderateScale(8)}
+            />
+          </SkeletonPlaceholder.Item>
+
+          {/* Tractor Info Rows Skeleton */}
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((index) => (
+            <SkeletonPlaceholder.Item
+              key={index}
+              flexDirection="row"
+              justifyContent="space-between"
+              marginBottom={moderateScale(12)}>
+              <SkeletonPlaceholder.Item
+                width="40%"
+                height={moderateScale(14)}
+                borderRadius={moderateScale(2)}
+              />
+              <SkeletonPlaceholder.Item
+                width="50%"
+                height={moderateScale(14)}
+                borderRadius={moderateScale(2)}
+              />
+            </SkeletonPlaceholder.Item>
+          ))}
+        </SkeletonPlaceholder.Item>
+      </SkeletonPlaceholder>
+    );
+  };
+
+  // Skeleton component matching the exact design
+  const renderSkeleton = () => {
+    return (
+      <ScrollView
+        style={{flex: 1}}
+        contentContainerStyle={dynamicStyles.scrollContent}
+        showsVerticalScrollIndicator={false}>
+        {renderSkeletonContent()}
+      </ScrollView>
+    );
+  };
+
   return (
     <View style={[dynamicStyles.container]}>
       {/* Header */}
@@ -494,24 +641,26 @@ export default function FarmerDetailsScreen() {
       </View>
 
       {/* Scrollable Content */}
-      {loading ? (
-        <View style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}>
-          <ActivityIndicator size="large" color={colors.primary} />
-        </View>
+      {loading && !refreshing ? (
+        renderSkeleton()
       ) : farmerDetails ? (
-      <ScrollView
-        style={{flex: 1}}
-        contentContainerStyle={dynamicStyles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[colors.primary]}
-            tintColor={colors.primary}
-          />
-        }>
-        {/* User Details Card */}
+        <ScrollView
+          style={{flex: 1}}
+          contentContainerStyle={dynamicStyles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }>
+          {refreshing ? (
+            renderSkeletonContent()
+          ) : (
+            <>
+              {/* User Details Card */}
         <View style={dynamicStyles.card}>
           <View style={dynamicStyles.profileHeader}>
             <View style={dynamicStyles.profileImageContainer}>
@@ -732,7 +881,9 @@ export default function FarmerDetailsScreen() {
             );
           })}
         </View>
-      </ScrollView>
+            </>
+          )}
+        </ScrollView>
       ) : (
         <View style={{flex: 1, alignItems: 'center', justifyContent: 'center', padding: moderateScale(20)}}>
           <Text style={[Typography.regularMd, {color: colors.textSecondary}]}>

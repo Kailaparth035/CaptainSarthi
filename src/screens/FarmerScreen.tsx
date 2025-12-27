@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
 import colors from '../utils/colors';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import { Typography } from '../utils/typography';
@@ -481,47 +482,102 @@ export default function FarmerScreen() {
     [moderateScale, insets.top],
   );
 
+  // Skeleton content component
+  const renderSkeletonContent = () => {
+    return (
+      <View style={dynamicStyles.listContainer}>
+        <SkeletonPlaceholder
+          backgroundColor={colors.backgroundGray}
+          highlightColor={colors.backgroundWhite}
+          borderRadius={moderateScale(10)}>
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((index) => (
+            <SkeletonPlaceholder.Item
+              key={index}
+              flexDirection="row"
+              alignItems="center"
+              paddingHorizontal={moderateScale(16)}
+              paddingVertical={moderateScale(12)}>
+              <SkeletonPlaceholder.Item
+                width={moderateScale(40)}
+                height={moderateScale(40)}
+                borderRadius={moderateScale(20)}
+                marginRight={moderateScale(12)}
+              />
+              <SkeletonPlaceholder.Item flex={1}>
+                <SkeletonPlaceholder.Item
+                  width="70%"
+                  height={moderateScale(14)}
+                  borderRadius={moderateScale(2)}
+                  marginBottom={moderateScale(6)}
+                />
+                <SkeletonPlaceholder.Item
+                  width="50%"
+                  height={moderateScale(12)}
+                  borderRadius={moderateScale(2)}
+                />
+              </SkeletonPlaceholder.Item>
+              <SkeletonPlaceholder.Item
+                width={moderateScale(18)}
+                height={moderateScale(18)}
+                borderRadius={moderateScale(9)}
+              />
+            </SkeletonPlaceholder.Item>
+          ))}
+        </SkeletonPlaceholder>
+      </View>
+    );
+  };
+
+  // Skeleton component matching the exact design
+  const renderSkeleton = () => {
+    return renderSkeletonContent();
+  };
+
   return (
     <View style={[dynamicStyles.container]}>
       {/* Header */}
       <View style={dynamicStyles.header}>
         <Text style={dynamicStyles.headerTitle}>{t('farmer.title')}</Text>
-        <TouchableOpacity
-          style={dynamicStyles.addButton}
-          onPress={() => navigation.navigate(SCREEN_NAMES.AddFarmer)}
-          activeOpacity={0.7}>
-          <Text style={dynamicStyles.addButtonText}>{t('farmer.addNew')}</Text>
-        </TouchableOpacity>
+        {!loadingFarmers && !refreshing && (
+          <TouchableOpacity
+            style={dynamicStyles.addButton}
+            onPress={() => navigation.navigate(SCREEN_NAMES.AddFarmer)}
+            activeOpacity={0.7}>
+            <Text style={dynamicStyles.addButtonText}>{t('farmer.addNew')}</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Search and Filter */}
-      <View style={dynamicStyles.searchContainer}>
-        <View style={dynamicStyles.searchBar}>
-          <Ionicons
-            name="search-outline"
-            size={moderateScale(20)}
-            color={colors.textTertiary}
-            style={dynamicStyles.searchIcon}
-          />
-          <TextInput
-            style={dynamicStyles.searchInput}
-            placeholder={t('common.search')}
-            placeholderTextColor={colors.textTertiary}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
+      {!loadingFarmers && !refreshing && (
+        <View style={dynamicStyles.searchContainer}>
+          <View style={dynamicStyles.searchBar}>
+            <Ionicons
+              name="search-outline"
+              size={moderateScale(20)}
+              color={colors.textTertiary}
+              style={dynamicStyles.searchIcon}
+            />
+            <TextInput
+              style={dynamicStyles.searchInput}
+              placeholder={t('common.search')}
+              placeholderTextColor={colors.textTertiary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+          </View>
+          <TouchableOpacity
+            style={dynamicStyles.filterButton}
+            activeOpacity={0.7}
+            onPress={() => setIsFilterModalVisible(true)}>
+            <Ionicons
+              name="options-outline"
+              size={moderateScale(20)}
+              color={colors.textSecondary}
+            />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          style={dynamicStyles.filterButton}
-          activeOpacity={0.7}
-          onPress={() => setIsFilterModalVisible(true)}>
-          <Ionicons
-            name="options-outline"
-            size={moderateScale(20)}
-            color={colors.textSecondary}
-          />
-        </TouchableOpacity>
-      </View>
+      )}
 
       {/* Farmers List */}
       <View
@@ -531,10 +587,8 @@ export default function FarmerScreen() {
           backgroundColor: colors.backgroundLight,
         }}
       >
-        {loadingFarmers ? (
-          <View style={[dynamicStyles.listContainer, dynamicStyles.loadingContainer]}>
-            <ActivityIndicator size="large" color={colors.primary} />
-          </View>
+        {loadingFarmers && !refreshing ? (
+          renderSkeleton()
         ) : filteredFarmers.length > 0 ? (
           <ScrollView
             showsVerticalScrollIndicator={false}
@@ -548,7 +602,11 @@ export default function FarmerScreen() {
               />
             }
           >
-            {filteredFarmers.map((farmer, index) => (
+            {refreshing ? (
+              renderSkeletonContent()
+            ) : (
+              <>
+                {filteredFarmers.map((farmer, index) => (
               <TouchableOpacity
                 key={farmer.id}
                 style={[
@@ -585,7 +643,9 @@ export default function FarmerScreen() {
                   color={colors.textTertiary}
                 />
               </TouchableOpacity>
-            ))}
+                ))}
+              </>
+            )}
           </ScrollView>
         ) : (
           <View style={[dynamicStyles.listContainer, dynamicStyles.emptyContainer]}>

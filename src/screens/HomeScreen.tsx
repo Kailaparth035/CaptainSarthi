@@ -15,6 +15,7 @@ import {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
 import colors from '../utils/colors';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import {FontFamily, Typography} from '../utils/typography';
@@ -401,6 +402,212 @@ export default function HomeScreen() {
     return farmers.slice(0, 4);
   }, [farmers]);
 
+  // Check if initial loading (both farmers and tractors loading)
+  const isInitialLoading = loadingFarmers || loadingTractors;
+
+  // Skeleton content component
+  const renderSkeletonContent = () => {
+    return (
+      <SkeletonPlaceholder
+        backgroundColor={colors.backgroundGray}
+        highlightColor={colors.backgroundWhite}
+        borderRadius={moderateScale(10)}>
+        {/* Summary Cards Skeleton */}
+        <SkeletonPlaceholder.Item
+          flexDirection="row"
+          gap={moderateScale(16)}
+          marginBottom={moderateScale(16)}>
+          <SkeletonPlaceholder.Item
+            flex={1}
+            backgroundColor={colors.backgroundWhite}
+            borderRadius={moderateScale(12)}
+            padding={moderateScale(12)}
+            height={moderateScale(80)}
+            flexDirection="row"
+            alignItems="center">
+            <SkeletonPlaceholder.Item
+              width={moderateScale(48)}
+              height={moderateScale(48)}
+              borderRadius={moderateScale(8)}
+              marginRight={moderateScale(10)}
+            />
+            <SkeletonPlaceholder.Item flex={1}>
+              <SkeletonPlaceholder.Item
+                width="60%"
+                height={moderateScale(16)}
+                borderRadius={moderateScale(4)}
+                marginBottom={moderateScale(4)}
+              />
+              <SkeletonPlaceholder.Item
+                width="80%"
+                height={moderateScale(12)}
+                borderRadius={moderateScale(4)}
+              />
+            </SkeletonPlaceholder.Item>
+          </SkeletonPlaceholder.Item>
+          <SkeletonPlaceholder.Item
+            flex={1}
+            backgroundColor={colors.backgroundWhite}
+            borderRadius={moderateScale(12)}
+            padding={moderateScale(12)}
+            height={moderateScale(80)}
+            flexDirection="row"
+            alignItems="center">
+            <SkeletonPlaceholder.Item
+              width={moderateScale(48)}
+              height={moderateScale(48)}
+              borderRadius={moderateScale(8)}
+              marginRight={moderateScale(10)}
+            />
+            <SkeletonPlaceholder.Item flex={1}>
+              <SkeletonPlaceholder.Item
+                width="60%"
+                height={moderateScale(16)}
+                borderRadius={moderateScale(4)}
+                marginBottom={moderateScale(4)}
+              />
+              <SkeletonPlaceholder.Item
+                width="80%"
+                height={moderateScale(12)}
+                borderRadius={moderateScale(4)}
+              />
+            </SkeletonPlaceholder.Item>
+          </SkeletonPlaceholder.Item>
+        </SkeletonPlaceholder.Item>
+
+        {/* Farmers Section Skeleton */}
+        <SkeletonPlaceholder.Item
+          backgroundColor={colors.backgroundWhite}
+          borderRadius={moderateScale(12)}
+          padding={moderateScale(16)}
+          marginBottom={moderateScale(16)}>
+          {/* Section Header Skeleton */}
+          <SkeletonPlaceholder.Item
+            flexDirection="row"
+            justifyContent="space-between"
+            marginBottom={moderateScale(16)}>
+            <SkeletonPlaceholder.Item
+              width="30%"
+              height={moderateScale(18)}
+              borderRadius={moderateScale(4)}
+            />
+            <SkeletonPlaceholder.Item
+              width="20%"
+              height={moderateScale(15)}
+              borderRadius={moderateScale(4)}
+            />
+          </SkeletonPlaceholder.Item>
+
+          {/* Farmers List Skeleton */}
+          {[1, 2, 3, 4].map((index) => (
+            <SkeletonPlaceholder.Item
+              key={index}
+              flexDirection="row"
+              alignItems="center"
+              marginBottom={index < 4 ? moderateScale(10) : 0}
+              paddingBottom={index < 4 ? moderateScale(10) : 0}>
+              <SkeletonPlaceholder.Item
+                width={moderateScale(40)}
+                height={moderateScale(40)}
+                borderRadius={moderateScale(20)}
+                marginRight={moderateScale(16)}
+              />
+              <SkeletonPlaceholder.Item flex={1}>
+                <SkeletonPlaceholder.Item
+                  width="60%"
+                  height={moderateScale(14)}
+                  borderRadius={moderateScale(2)}
+                  marginBottom={moderateScale(6)}
+                />
+                <SkeletonPlaceholder.Item
+                  width="40%"
+                  height={moderateScale(12)}
+                  borderRadius={moderateScale(2)}
+                />
+              </SkeletonPlaceholder.Item>
+              <SkeletonPlaceholder.Item
+                width={moderateScale(18)}
+                height={moderateScale(18)}
+                borderRadius={moderateScale(9)}
+              />
+            </SkeletonPlaceholder.Item>
+          ))}
+        </SkeletonPlaceholder.Item>
+
+        {/* Tractors Section Skeleton */}
+        <SkeletonPlaceholder.Item
+          backgroundColor={colors.backgroundWhite}
+          borderRadius={moderateScale(12)}
+          padding={moderateScale(16)}
+          marginBottom={moderateScale(16)}>
+          {/* Section Header Skeleton */}
+          <SkeletonPlaceholder.Item
+            flexDirection="row"
+            justifyContent="space-between"
+            marginBottom={moderateScale(16)}>
+            <SkeletonPlaceholder.Item
+              width="30%"
+              height={moderateScale(18)}
+              borderRadius={moderateScale(4)}
+            />
+            <SkeletonPlaceholder.Item
+              width="20%"
+              height={moderateScale(15)}
+              borderRadius={moderateScale(4)}
+            />
+          </SkeletonPlaceholder.Item>
+
+          {/* Tractors List Skeleton */}
+          {[1, 2, 3].map((index) => (
+            <SkeletonPlaceholder.Item
+              key={index}
+              flexDirection="row"
+              alignItems="center"
+              marginBottom={index < 3 ? moderateScale(10) : 0}
+              paddingBottom={index < 3 ? moderateScale(10) : 0}>
+              <SkeletonPlaceholder.Item
+                width={moderateScale(40)}
+                height={moderateScale(40)}
+                borderRadius={moderateScale(20)}
+                marginRight={moderateScale(16)}
+              />
+              <SkeletonPlaceholder.Item flex={1}>
+                <SkeletonPlaceholder.Item
+                  width="70%"
+                  height={moderateScale(14)}
+                  borderRadius={moderateScale(2)}
+                  marginBottom={moderateScale(6)}
+                />
+                <SkeletonPlaceholder.Item
+                  width="50%"
+                  height={moderateScale(12)}
+                  borderRadius={moderateScale(2)}
+                />
+              </SkeletonPlaceholder.Item>
+              <SkeletonPlaceholder.Item
+                width={moderateScale(20)}
+                height={moderateScale(20)}
+                borderRadius={moderateScale(10)}
+              />
+            </SkeletonPlaceholder.Item>
+          ))}
+        </SkeletonPlaceholder.Item>
+      </SkeletonPlaceholder>
+    );
+  };
+
+  // Skeleton component matching the exact design
+  const renderSkeleton = () => {
+    return (
+      <ScrollView
+        style={{flex: 1}}
+        contentContainerStyle={dynamicStyles.scrollContent}
+        showsVerticalScrollIndicator={false}>
+        {renderSkeletonContent()}
+      </ScrollView>
+    );
+  };
+
   const dynamicStyles = useMemo(
     () =>
       StyleSheet.create({
@@ -605,19 +812,26 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
       </View>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={dynamicStyles.scrollContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[colors.primary]}
-            tintColor={colors.primary}
-          />
-        }
-      >
-        {/* Summary Cards */}
+      {isInitialLoading && !refreshing ? (
+        renderSkeleton()
+      ) : (
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={dynamicStyles.scrollContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
+        >
+          {refreshing ? (
+            renderSkeletonContent()
+          ) : (
+            <>
+              {/* Summary Cards */}
         <View style={dynamicStyles.summaryContainer}>
           <SummaryCard
             icon="people"
@@ -704,13 +918,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
           <View style={dynamicStyles.listContainer}>
-            {loadingFarmers ? (
-              <View
-                style={{ padding: moderateScale(20), alignItems: "center" }}
-              >
-                <ActivityIndicator size="small" color={colors.primary} />
-              </View>
-            ) : displayedFarmers.length > 0 ? (
+            {displayedFarmers.length > 0 ? (
               displayedFarmers.map((client, index) => (
                 <TouchableOpacity
                   key={client.id}
@@ -793,13 +1001,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
           <View style={dynamicStyles.listContainer}>
-            {loadingTractors ? (
-              <View
-                style={{ padding: moderateScale(20), alignItems: "center" }}
-              >
-                <ActivityIndicator size="small" color={colors.primary} />
-              </View>
-            ) : tractors.length > 0 ? (
+            {tractors.length > 0 ? (
               tractors.map((tractor, index) => (
                 <TouchableOpacity
                   key={tractor.id}
@@ -860,7 +1062,10 @@ export default function HomeScreen() {
             )}
           </View>
         </View>
-      </ScrollView>
+            </>
+          )}
+        </ScrollView>
+      )}
     </View>
   );
 }

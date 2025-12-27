@@ -14,6 +14,7 @@ import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
 import colors from '../utils/colors';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import {Typography} from '../utils/typography';
@@ -269,6 +270,57 @@ export default function TractorsScreen() {
     [moderateScale, insets.top],
   );
 
+  // Skeleton content component
+  const renderSkeletonContent = () => {
+    return (
+      <View style={dynamicStyles.listContainer}>
+        <SkeletonPlaceholder
+          backgroundColor={colors.backgroundGray}
+          highlightColor={colors.backgroundWhite}
+          borderRadius={moderateScale(10)}>
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((index) => (
+            <SkeletonPlaceholder.Item
+              key={index}
+              flexDirection="row"
+              alignItems="center"
+              paddingHorizontal={moderateScale(16)}
+              paddingVertical={moderateScale(12)}>
+              <SkeletonPlaceholder.Item
+                width={moderateScale(40)}
+                height={moderateScale(40)}
+                borderRadius={moderateScale(20)}
+                marginRight={moderateScale(12)}
+              />
+              <SkeletonPlaceholder.Item flex={1}>
+                <SkeletonPlaceholder.Item
+                  width="70%"
+                  height={moderateScale(14)}
+                  borderRadius={moderateScale(2)}
+                  marginBottom={moderateScale(6)}
+                />
+                <SkeletonPlaceholder.Item
+                  width="50%"
+                  height={moderateScale(12)}
+                  borderRadius={moderateScale(2)}
+                />
+              </SkeletonPlaceholder.Item>
+              <SkeletonPlaceholder.Item
+                width={moderateScale(18)}
+                height={moderateScale(18)}
+                borderRadius={moderateScale(9)}
+              />
+            </SkeletonPlaceholder.Item>
+          ))}
+        </SkeletonPlaceholder>
+      </View>
+    );
+  };
+
+  // Skeleton component matching the exact design
+  const renderSkeleton = () => {
+    return renderSkeletonContent();
+  };
+
   return (
     <View style={[dynamicStyles.container]}>
       {/* Header */}
@@ -289,10 +341,8 @@ export default function TractorsScreen() {
           backgroundColor: colors.backgroundLight,
         }}
       >
-        {loadingTractors ? (
-          <View style={[dynamicStyles.listContainer, dynamicStyles.loadingContainer]}>
-            <ActivityIndicator size="large" color={colors.primary} />
-          </View>
+        {loadingTractors && !refreshing ? (
+          renderSkeleton()
         ) : tractors.length > 0 ? (
           <ScrollView
             showsVerticalScrollIndicator={false}
@@ -306,7 +356,11 @@ export default function TractorsScreen() {
               />
             }
           >
-            {tractors.map((tractor, index) => (
+            {refreshing ? (
+              renderSkeletonContent()
+            ) : (
+              <>
+                {tractors.map((tractor, index) => (
               <TouchableOpacity
                 key={tractor.id}
                 style={[
@@ -343,7 +397,9 @@ export default function TractorsScreen() {
                   color={colors.textTertiary}
                 />
               </TouchableOpacity>
-            ))}
+                ))}
+              </>
+            )}
           </ScrollView>
         ) : (
           <View style={[dynamicStyles.listContainer, dynamicStyles.emptyContainer]}>
