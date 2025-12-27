@@ -157,7 +157,7 @@ export default function FilterModal({
         categoryTextSelected: {
           ...Typography.boldMd,
           fontSize: moderateScale(16),
-          color: colors.textPrimary,
+          color: colors.primary,
         },
         rightPanel: {
           flex: 1,
@@ -181,6 +181,12 @@ export default function FilterModal({
           color: colors.textPrimary,
           flex: 1,
         },
+        optionTextSelected: {
+          ...Typography.boldMd,
+          fontSize: moderateScale(16),
+          color: colors.primary,
+          flex: 1,
+        },
         radioButton: {
           width: moderateScale(20),
           height: moderateScale(20),
@@ -199,26 +205,26 @@ export default function FilterModal({
           borderRadius: moderateScale(5),
           backgroundColor: colors.primary,
         },
-        blueLine: {
-          position: 'absolute',
-          left: 0,
-          top: 0,
-          bottom: 0,
-          width: moderateScale(4),
-          backgroundColor: colors.blue,
-        },
+        // blueLine: {
+        //   position: 'absolute',
+        //   left: 0,
+        //   top: 0,
+        //   bottom: 0,
+        //   width: moderateScale(4),
+        //   backgroundColor: colors.blue,
+        // },
         applyButtonContainer: {
           paddingHorizontal: moderateScale(20),
-          paddingTop: moderateScale(16),
-          paddingBottom: moderateScale(20),
-          backgroundColor: colors.backgroundWhite,
+          height: moderateScale(70),
+            backgroundColor: colors.backgroundWhite,
         },
         applyButton: {
-          paddingVertical: moderateScale(16),
+          // paddingVertical: moderateScale(16),
           borderRadius: moderateScale(12),
           backgroundColor: colors.primary,
           alignItems: 'center',
           justifyContent: 'center',
+          height: moderateScale(50),
         },
         applyButtonText: {
           ...Typography.semiBoldMd,
@@ -310,7 +316,7 @@ export default function FilterModal({
         <View style={dynamicStyles.contentContainer}>
           {/* Left Panel - Categories */}
           <View style={dynamicStyles.leftPanel}>
-            <View style={dynamicStyles.blueLine} />
+            {/* <View style={dynamicStyles.blueLine} /> */}
             <ScrollView
               style={dynamicStyles.leftPanelContent}
               showsVerticalScrollIndicator={false}>
@@ -348,7 +354,10 @@ export default function FilterModal({
                     style={dynamicStyles.optionItem}
                     onPress={() => handleOptionSelect(option.value)}
                     activeOpacity={0.7}>
-                    <Text style={dynamicStyles.optionText}>{option.label}</Text>
+                    <Text style={[
+                      dynamicStyles.optionText,
+                      isSelected && dynamicStyles.optionTextSelected,
+                    ]}>{option.label}</Text>
                     <View
                       style={[
                         dynamicStyles.radioButton,
@@ -369,7 +378,7 @@ export default function FilterModal({
         <View
           style={[
             dynamicStyles.applyButtonContainer,
-            {paddingBottom: insets.bottom + moderateScale(12)},
+            {paddingBottom: insets.bottom + moderateScale(4)},
           ]}>
           <TouchableOpacity
             style={dynamicStyles.applyButton}
