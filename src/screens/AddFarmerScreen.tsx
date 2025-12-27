@@ -8,7 +8,6 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -28,7 +27,7 @@ import ImagePreviewModal, {ImageItem} from '../components/ImagePreviewModal';
 import Dropdown from '../components/Dropdown';
 import SearchableDropdown from '../components/SearchableDropdown';
 import Button from '../components/Button';
-import Toast from '../components/Toast';
+import Toast, {ToastType} from '../components/Toast';
 import {SCREEN_NAMES} from '../constants/screenNames';
 import {
   TextInputQuestion,
@@ -293,6 +292,18 @@ export default function AddFarmerScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<ToastType>('success');
+
+  // Helper function to show toast messages
+  const showToastMessage = (message: string, type: ToastType = 'error') => {
+    setToastMessage(message);
+    setToastType(type);
+    setShowToast(true);
+  };
+
+  const hideToast = () => {
+    setShowToast(false);
+  };
 
   // Category
   const [category, setCategory] = useState('');
@@ -558,11 +569,11 @@ export default function AddFarmerScreen() {
         console.log('Categories loaded:', categories);
       } else {
         console.warn('Failed to fetch categories:', response);
-        Alert.alert('Error', 'Failed to load categories. Please try again.');
+        showToastMessage('Failed to load categories. Please try again.');
       }
     } catch (error) {
       console.error('Error fetching categories:', error);
-      Alert.alert('Error', 'Failed to load categories. Please try again.');
+      showToastMessage('Failed to load categories. Please try again.');
     } finally {
       setCategoriesLoading(false);
     }
@@ -833,7 +844,9 @@ export default function AddFarmerScreen() {
     try {
       setImagePickerVisible(false); // Close picker modal first
       console.log('Opening camera for:', imagePickerType);
-      const imageUri = await pickImage('camera');
+      const imageUri = await pickImage('camera', {
+        onError: (message) => showToastMessage(message),
+      });
       console.log('Camera result:', imageUri);
       if (imageUri) {
         if (imagePickerType === 'profile') {
@@ -850,7 +863,7 @@ export default function AddFarmerScreen() {
       }
     } catch (error) {
       console.error('Error in handleCameraPress:', error);
-      Alert.alert('Error', 'Failed to open camera. Please try again.');
+      showToastMessage('Failed to open camera. Please try again.');
     }
   };
 
@@ -858,7 +871,9 @@ export default function AddFarmerScreen() {
     try {
       setImagePickerVisible(false); // Close picker modal first
       console.log('Opening gallery for:', imagePickerType);
-      const imageUri = await pickImage('gallery');
+      const imageUri = await pickImage('gallery', {
+        onError: (message) => showToastMessage(message),
+      });
       console.log('Gallery result:', imageUri);
       if (imageUri) {
         if (imagePickerType === 'profile') {
@@ -870,7 +885,7 @@ export default function AddFarmerScreen() {
       }
     } catch (error) {
       console.error('Error in handleGalleryPress:', error);
-      Alert.alert('Error', 'Failed to open gallery. Please try again.');
+      showToastMessage('Failed to open gallery. Please try again.');
     }
   };
 
@@ -1004,7 +1019,7 @@ export default function AddFarmerScreen() {
               tractorImages: newImages,
             };
           } else {
-            Alert.alert('Error', 'At least one tractor image is required');
+            showToastMessage('At least one tractor image is required');
           }
         }
         return tractor;
@@ -1037,7 +1052,7 @@ export default function AddFarmerScreen() {
     if (tractors.length > 1) {
       setTractors(prev => prev.filter(t => t.id !== tractorId));
     } else {
-      Alert.alert('Error', 'At least one tractor is required');
+      showToastMessage('At least one tractor is required');
     }
   };
 
@@ -1465,7 +1480,7 @@ export default function AddFarmerScreen() {
     }
 
     if (!profilePhoto) {
-      Alert.alert('Error', 'Profile photo is required');
+      showToastMessage('Profile photo is required');
       return;
     }
 
@@ -1688,8 +1703,7 @@ export default function AddFarmerScreen() {
 
       if (response?.status === true) {
         // Show success toast
-        setToastMessage('Sent for verification check notifications for update');
-        setShowToast(true);
+        showToastMessage('Sent for verification check notifications for update', 'success');
         
         // Navigate back after a short delay to allow toast to be visible
         setTimeout(() => {
@@ -1697,12 +1711,12 @@ export default function AddFarmerScreen() {
         }, 2000);
       } else {
         const errorMessage = response?.message || response?.error || 'Failed to add farmer. Please try again.';
-        Alert.alert('Error', errorMessage);
+        showToastMessage(errorMessage);
       }
     } catch (error: any) {
       console.error('Error submitting farmer:', error);
       const errorMessage = error?.response?.data?.message || error?.message || 'Failed to add farmer. Please try again.';
-      Alert.alert('Error', errorMessage);
+      showToastMessage(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -2227,6 +2241,7 @@ export default function AddFarmerScreen() {
                           ? errors.selectedSubQuestion
                           : undefined
                       }
+                      onError={(message) => showToastMessage(message)}
                     />
                   );
 
@@ -2846,9 +2861,9 @@ export default function AddFarmerScreen() {
       <Toast
         visible={showToast}
         message={toastMessage}
-        type="success"
+        type={toastType}
         duration={3000}
-        onClose={() => setShowToast(false)}
+        onClose={hideToast}
       />
     </View>
   );

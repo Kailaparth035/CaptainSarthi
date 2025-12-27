@@ -293,7 +293,9 @@ export default function ProfileDetailsScreen() {
   const handleCameraPress = async () => {
     try {
       console.log('Opening camera...');
-      const imageUri = await pickImage('camera');
+      const imageUri = await pickImage('camera', {
+        onError: (message) => showToastMessage(message, 'error'),
+      });
       console.log('Camera result:', imageUri);
       if (imageUri) {
         await handleImageUpload(imageUri);
@@ -308,7 +310,9 @@ export default function ProfileDetailsScreen() {
   const handleGalleryPress = async () => {
     try {
       console.log('Opening gallery...');
-      const imageUri = await pickImage('gallery');
+      const imageUri = await pickImage('gallery', {
+        onError: (message) => showToastMessage(message, 'error'),
+      });
       console.log('Gallery result:', imageUri);
       if (imageUri) {
         await handleImageUpload(imageUri);

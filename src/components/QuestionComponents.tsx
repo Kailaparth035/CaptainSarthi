@@ -310,6 +310,7 @@ type FileUploadQuestionProps = {
   onUpload: (imageUri: string) => void;
   uploadedFileName?: string;
   error?: string;
+  onError?: (message: string) => void;
 };
 
 export function FileUploadQuestion({
@@ -317,6 +318,7 @@ export function FileUploadQuestion({
   onUpload,
   uploadedFileName,
   error,
+  onError,
 }: FileUploadQuestionProps) {
   const {moderateScale} = useDeviceMetrics();
   const {pickImage} = useImagePicker();
@@ -324,23 +326,41 @@ export function FileUploadQuestion({
 
   const handleCameraPress = async () => {
     try {
-      const imageUri = await pickImage('camera');
+      const imageUri = await pickImage('camera', {
+        onError: (message) => {
+          if (onError) {
+            onError(message);
+          }
+        },
+      });
       if (imageUri) {
         onUpload(imageUri);
       }
     } catch (error) {
       console.error('Error in handleCameraPress:', error);
+      if (onError) {
+        onError('Failed to open camera. Please try again.');
+      }
     }
   };
 
   const handleGalleryPress = async () => {
     try {
-      const imageUri = await pickImage('gallery');
+      const imageUri = await pickImage('gallery', {
+        onError: (message) => {
+          if (onError) {
+            onError(message);
+          }
+        },
+      });
       if (imageUri) {
         onUpload(imageUri);
       }
     } catch (error) {
       console.error('Error in handleGalleryPress:', error);
+      if (onError) {
+        onError('Failed to open gallery. Please try again.');
+      }
     }
   };
 

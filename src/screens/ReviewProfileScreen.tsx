@@ -26,6 +26,7 @@ import {SCREEN_NAMES} from '../constants/screenNames';
 import {saveProfileReviewed, getUserRole} from '../utils/session';
 import { ImagePath } from '../assets/images';
 import {useLanguage} from '../contexts/LanguageContext';
+import Toast, {ToastType} from '../components/Toast';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -89,6 +90,22 @@ export default function ReviewProfileScreen() {
   }, []);
 
   const [currentImageType, setCurrentImageType] = useState<'profile' | 'tractor'>('profile');
+  
+  // Toast state
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<ToastType>('error');
+
+  // Helper function to show toast messages
+  const showToastMessage = (message: string, type: ToastType = 'error') => {
+    setToastMessage(message);
+    setToastType(type);
+    setShowToast(true);
+  };
+
+  const hideToast = () => {
+    setShowToast(false);
+  };
 
   const handleImagePicker = (type: 'profile' | 'tractor') => {
     setCurrentImageType(type);
@@ -97,7 +114,9 @@ export default function ReviewProfileScreen() {
 
   const handleCameraPress = async () => {
     try {
-      const imageUri = await pickImage('camera');
+      const imageUri = await pickImage('camera', {
+        onError: (message) => showToastMessage(message),
+      });
       if (imageUri) {
         if (currentImageType === 'profile') {
           setProfilePhoto(imageUri);
@@ -108,13 +127,16 @@ export default function ReviewProfileScreen() {
       setImagePickerVisible(false);
     } catch (error) {
       console.error('Error picking image from camera:', error);
+      showToastMessage('Failed to open camera. Please try again.');
       setImagePickerVisible(false);
     }
   };
 
   const handleGalleryPress = async () => {
     try {
-      const imageUri = await pickImage('gallery');
+      const imageUri = await pickImage('gallery', {
+        onError: (message) => showToastMessage(message),
+      });
       if (imageUri) {
         if (currentImageType === 'profile') {
           setProfilePhoto(imageUri);
@@ -125,6 +147,7 @@ export default function ReviewProfileScreen() {
       setImagePickerVisible(false);
     } catch (error) {
       console.error('Error picking image from gallery:', error);
+      showToastMessage('Failed to open gallery. Please try again.');
       setImagePickerVisible(false);
     }
   };
@@ -510,6 +533,15 @@ export default function ReviewProfileScreen() {
         onClose={() => setImagePickerVisible(false)}
         onCameraPress={handleCameraPress}
         onGalleryPress={handleGalleryPress}
+      />
+
+      {/* Toast Notification */}
+      <Toast
+        visible={showToast}
+        message={toastMessage}
+        type={toastType}
+        duration={3000}
+        onClose={hideToast}
       />
     </KeyboardAvoidingView>
   );
