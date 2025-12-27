@@ -150,6 +150,25 @@ export default function EventDetailsScreen() {
         // Handle description - use description.text
         const defaultDescription = eventData.description?.text || eventData.description || '';
         
+        // Handle contacts from API response
+        const contacts = eventData.contacts || [];
+        // First contact is typically toll-free number, second is WhatsApp
+        const tollFreeNumber = contacts[0];
+        // Extract WhatsApp number (remove +91 prefix and spaces)
+        let whatsappNumber = contacts[1];
+        if (whatsappNumber && whatsappNumber.startsWith('+91')) {
+          whatsappNumber = whatsappNumber.replace('+91', '').trim();
+        } else if (whatsappNumber && whatsappNumber.startsWith('91')) {
+          whatsappNumber = whatsappNumber.replace('91', '').trim();
+        }
+        // Remove any spaces or special characters
+        if (whatsappNumber) {
+          whatsappNumber = whatsappNumber.replace(/\s/g, '').replace(/[^\d]/g, '');
+        }
+        
+        // Get WhatsApp message from API
+        const whatsappMessage = eventData.whatsapp_message || '';
+
         // Store full API data including languages array
         setEventApiData(eventData);
         
@@ -199,6 +218,9 @@ export default function EventDetailsScreen() {
           videoUri: videoUrl,
           thumbnailUri: thumbnailUri,
           images: galleryImages,
+          tollFreeNumber: tollFreeNumber,
+          whatsappNumber: whatsappNumber,
+          whatsappMessage: whatsappMessage,
         });
       } else {
         console.warn('[EventDetailsScreen] Unexpected API response format:', response);
@@ -884,8 +906,9 @@ export default function EventDetailsScreen() {
       <ContactUsModal
         visible={contactModalVisible}
         onClose={() => setContactModalVisible(false)}
-        tollFreeNumber="1800 212 2129"
-        whatsappNumber="919099433133"
+        tollFreeNumber={eventDetails?.tollFreeNumber || '1800 212 2129'}
+        whatsappNumber={eventDetails?.whatsappNumber || '919099433133'}
+        whatsappMessage={eventDetails?.whatsappMessage || ''}
       />
     </View>
   );

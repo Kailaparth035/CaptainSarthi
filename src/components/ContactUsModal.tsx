@@ -22,6 +22,7 @@ type ContactUsModalProps = {
   onClose: () => void;
   tollFreeNumber?: string;
   whatsappNumber?: string;
+  whatsappMessage?: string;
 };
 
 export default function ContactUsModal({
@@ -29,6 +30,7 @@ export default function ContactUsModal({
   onClose,
   tollFreeNumber = '1800 212 2129',
   whatsappNumber = '919099433133',
+  whatsappMessage = '',
 }: ContactUsModalProps) {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
@@ -123,12 +125,26 @@ export default function ContactUsModal({
 
   const handleCall = async (phoneNumber: string) => {
     try {
-      const phoneUrl = `tel:${phoneNumber.replace(/\s/g, '')}`;
+      // Remove spaces and special characters, but keep the number format
+      const cleanNumber = phoneNumber.replace(/\s/g, '').replace(/[^\d+]/g, '');
+      
+      // Use telprompt: for iOS to open dialer (doesn't initiate call immediately)
+      // Use tel: for Android which opens dialer with number pre-filled
+      const phoneUrl = Platform.OS === 'ios' 
+        ? `telprompt:${cleanNumber}`
+        : `tel:${cleanNumber}`;
+      
       const canOpen = await Linking.canOpenURL(phoneUrl);
       if (canOpen) {
         await Linking.openURL(phoneUrl);
       } else {
-        console.log('Cannot make phone call');
+        // Fallback to tel: if telprompt: is not supported
+        const fallbackUrl = `tel:${cleanNumber}`;
+        try {
+          await Linking.openURL(fallbackUrl);
+        } catch (fallbackError) {
+          console.log('Cannot open phone dialer');
+        }
       }
     } catch (error) {
       console.log('Error opening phone dialer:', error);
@@ -138,15 +154,28 @@ export default function ContactUsModal({
   const handleWhatsApp = async () => {
     try {
       const phoneNumber = whatsappNumber.replace(/\s/g, '').replace(/\+/g, '');
-      const whatsappUrl = `https://wa.me/${phoneNumber}`;
+      
+      // Encode the message for URL
+      const encodedMessage = whatsappMessage ? encodeURIComponent(whatsappMessage) : '';
+      
+      // Use WhatsApp URL with message if provided
+      const whatsappUrl = encodedMessage 
+        ? `https://wa.me/${phoneNumber}?text=${encodedMessage}`
+        : `https://wa.me/${phoneNumber}`;
       
       const canOpen = await Linking.canOpenURL(whatsappUrl);
       if (canOpen) {
         await Linking.openURL(whatsappUrl);
       } else {
-        // Fallback: try WhatsApp app directly
-        const whatsappAppUrl = `whatsapp://send?phone=${phoneNumber}`;
-        await Linking.openURL(whatsappAppUrl);
+        // Fallback: try WhatsApp app directly with message
+        const whatsappAppUrl = encodedMessage
+          ? `whatsapp://send?phone=${phoneNumber}&text=${encodedMessage}`
+          : `whatsapp://send?phone=${phoneNumber}`;
+        try {
+          await Linking.openURL(whatsappAppUrl);
+        } catch (appError) {
+          console.log('Error opening WhatsApp app:', appError);
+        }
       }
     } catch (error) {
       console.log('Error opening WhatsApp:', error);
