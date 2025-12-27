@@ -12,6 +12,7 @@ import {
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
 import colors from '../utils/colors';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import {Typography} from '../utils/typography';
@@ -462,10 +463,136 @@ export default function ProfileDetailsScreen() {
     return name.substring(0, 2).toUpperCase();
   };
 
+  // Skeleton content component
+  const renderSkeletonContent = () => {
+    return (
+      <SkeletonPlaceholder
+        backgroundColor={colors.backgroundGray}
+        highlightColor={colors.backgroundWhite}
+        borderRadius={moderateScale(10)}>
+        {/* Profile Information Card Skeleton */}
+        <SkeletonPlaceholder.Item
+          backgroundColor={colors.backgroundWhite}
+          borderRadius={moderateScale(12)}
+          padding={moderateScale(16)}
+          marginBottom={moderateScale(16)}>
+          {/* Profile Header Skeleton */}
+          <SkeletonPlaceholder.Item
+            flexDirection="row"
+            alignItems="center"
+            marginBottom={moderateScale(20)}>
+            {/* Profile Image Skeleton */}
+            <SkeletonPlaceholder.Item
+              width={moderateScale(60)}
+              height={moderateScale(60)}
+              borderRadius={moderateScale(30)}
+              marginRight={moderateScale(16)}
+            />
+            {/* Profile Info Skeleton */}
+            <SkeletonPlaceholder.Item flex={1}>
+              <SkeletonPlaceholder.Item
+                width="70%"
+                height={moderateScale(18)}
+                borderRadius={moderateScale(4)}
+                marginBottom={moderateScale(8)}
+              />
+              <SkeletonPlaceholder.Item
+                width="50%"
+                height={moderateScale(14)}
+                borderRadius={moderateScale(4)}
+              />
+            </SkeletonPlaceholder.Item>
+          </SkeletonPlaceholder.Item>
+
+          {/* Info Rows Skeleton */}
+          {[1, 2, 3, 4, 5].map((index) => (
+            <SkeletonPlaceholder.Item
+              key={index}
+              flexDirection="row"
+              justifyContent="space-between"
+              marginBottom={moderateScale(12)}>
+              <SkeletonPlaceholder.Item
+                width="45%"
+                height={moderateScale(14)}
+                borderRadius={moderateScale(2)}
+              />
+              <SkeletonPlaceholder.Item
+                width="55%"
+                height={moderateScale(14)}
+                borderRadius={moderateScale(2)}
+              />
+            </SkeletonPlaceholder.Item>
+          ))}
+        </SkeletonPlaceholder.Item>
+
+        {/* Address Card Skeleton */}
+        <SkeletonPlaceholder.Item
+          backgroundColor={colors.backgroundWhite}
+          borderRadius={moderateScale(12)}
+          padding={moderateScale(16)}
+          marginBottom={moderateScale(16)}>
+          {/* Card Title Skeleton */}
+          <SkeletonPlaceholder.Item
+            width="50%"
+            height={moderateScale(18)}
+            borderRadius={moderateScale(4)}
+            marginBottom={moderateScale(16)}
+          />
+
+          {/* Address Info Rows Skeleton */}
+          {[1, 2, 3, 4, 5, 6, 7].map((index) => (
+            <SkeletonPlaceholder.Item
+              key={index}
+              flexDirection="row"
+              justifyContent="space-between"
+              marginBottom={moderateScale(12)}>
+              <SkeletonPlaceholder.Item
+                width="45%"
+                height={moderateScale(14)}
+                borderRadius={moderateScale(2)}
+              />
+              <SkeletonPlaceholder.Item
+                width="55%"
+                height={moderateScale(14)}
+                borderRadius={moderateScale(2)}
+              />
+            </SkeletonPlaceholder.Item>
+          ))}
+        </SkeletonPlaceholder.Item>
+      </SkeletonPlaceholder>
+    );
+  };
+
+  // Skeleton component matching the exact design
+  const renderSkeleton = () => {
+    return (
+      <ScrollView
+        style={{flex: 1}}
+        contentContainerStyle={dynamicStyles.scrollContent}
+        showsVerticalScrollIndicator={false}>
+        {renderSkeletonContent()}
+      </ScrollView>
+    );
+  };
+
   if (loading || !profileDetails) {
     return (
-      <View style={[dynamicStyles.container, {justifyContent: 'center', alignItems: 'center'}]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={dynamicStyles.container}>
+        {/* Header */}
+        <View style={dynamicStyles.header}>
+          <TouchableOpacity
+            style={dynamicStyles.backButton}
+            onPress={() => navigation.goBack()}
+            activeOpacity={0.7}>
+            <Ionicons
+              name="arrow-back"
+              size={moderateScale(20)}
+              color={colors.textPrimary}
+            />
+          </TouchableOpacity>
+          <Text style={dynamicStyles.headerTitle}>{t('profile.title')}</Text>
+        </View>
+        {renderSkeleton()}
       </View>
     );
   }
@@ -500,7 +627,11 @@ export default function ProfileDetailsScreen() {
             tintColor={colors.primary}
           />
         }>
-        {/* Profile Information Card */}
+        {refreshing ? (
+          renderSkeletonContent()
+        ) : (
+          <>
+            {/* Profile Information Card */}
         <View style={dynamicStyles.card}>
           {/* Profile Header */}
           <View style={dynamicStyles.profileHeader}>
@@ -613,6 +744,8 @@ export default function ProfileDetailsScreen() {
             isShowBorderBottom={false}
           />
         </View>
+          </>
+        )}
       </ScrollView>
 
       {/* Image Picker Modal */}

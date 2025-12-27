@@ -12,6 +12,7 @@ import {
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
 import colors from '../utils/colors';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import {Typography} from '../utils/typography';
@@ -128,6 +129,7 @@ export default function FarmerProfileDetailsScreen() {
   const {moderateScale} = useDeviceMetrics();
   const {t} = useLanguage();
   const navigation = useNavigation();
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [imagePickerVisible, setImagePickerVisible] = useState(false);
@@ -165,6 +167,8 @@ export default function FarmerProfileDetailsScreen() {
     try {
       if (showRefreshing) {
         setRefreshing(true);
+      } else {
+        setLoading(true);
       }
       console.log('[FarmerProfileDetailsScreen] Fetching farmer profile data');
       const response = await getData(Apis.FARMER_PROFILE, {});
@@ -283,6 +287,7 @@ export default function FarmerProfileDetailsScreen() {
     } catch (error) {
       console.error('[FarmerProfileDetailsScreen] Error fetching farmer profile:', error);
     } finally {
+      setLoading(false);
       setRefreshing(false);
     }
   }, []);
@@ -556,6 +561,135 @@ export default function FarmerProfileDetailsScreen() {
     return name.substring(0, 2).toUpperCase();
   };
 
+  // Skeleton content component
+  const renderSkeletonContent = () => {
+    return (
+      <SkeletonPlaceholder
+        backgroundColor={colors.backgroundGray}
+        highlightColor={colors.backgroundWhite}
+        borderRadius={moderateScale(10)}>
+        {/* Profile Card Skeleton */}
+        <SkeletonPlaceholder.Item
+          backgroundColor={colors.backgroundWhite}
+          borderRadius={moderateScale(12)}
+          padding={moderateScale(16)}
+          marginBottom={moderateScale(16)}>
+          {/* Profile Header Skeleton */}
+          <SkeletonPlaceholder.Item
+            flexDirection="row"
+            alignItems="center"
+            marginBottom={moderateScale(20)}>
+            {/* Profile Image Skeleton */}
+            <SkeletonPlaceholder.Item
+              width={moderateScale(60)}
+              height={moderateScale(60)}
+              borderRadius={moderateScale(30)}
+              marginRight={moderateScale(16)}
+            />
+            {/* Profile Info Skeleton */}
+            <SkeletonPlaceholder.Item flex={1}>
+              <SkeletonPlaceholder.Item
+                width="70%"
+                height={moderateScale(18)}
+                borderRadius={moderateScale(4)}
+                marginBottom={moderateScale(8)}
+              />
+              <SkeletonPlaceholder.Item
+                width="50%"
+                height={moderateScale(14)}
+                borderRadius={moderateScale(4)}
+              />
+            </SkeletonPlaceholder.Item>
+          </SkeletonPlaceholder.Item>
+
+          {/* Info Rows Skeleton */}
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((index) => (
+            <SkeletonPlaceholder.Item
+              key={index}
+              flexDirection="row"
+              justifyContent="space-between"
+              marginBottom={moderateScale(12)}>
+              <SkeletonPlaceholder.Item
+                width="35%"
+                height={moderateScale(14)}
+                borderRadius={moderateScale(2)}
+              />
+              <SkeletonPlaceholder.Item
+                width="55%"
+                height={moderateScale(14)}
+                borderRadius={moderateScale(2)}
+              />
+            </SkeletonPlaceholder.Item>
+          ))}
+        </SkeletonPlaceholder.Item>
+
+        {/* Tractor Card Skeleton */}
+        <SkeletonPlaceholder.Item
+          backgroundColor={colors.backgroundWhite}
+          borderRadius={moderateScale(12)}
+          padding={moderateScale(16)}
+          marginBottom={moderateScale(16)}>
+          {/* Tractor Header Skeleton */}
+          <SkeletonPlaceholder.Item
+            flexDirection="row"
+            justifyContent="space-between"
+            marginBottom={moderateScale(16)}>
+            <SkeletonPlaceholder.Item
+              width="40%"
+              height={moderateScale(18)}
+              borderRadius={moderateScale(4)}
+            />
+            <SkeletonPlaceholder.Item
+              width="30%"
+              height={moderateScale(14)}
+              borderRadius={moderateScale(4)}
+            />
+          </SkeletonPlaceholder.Item>
+
+          {/* Tractor Image Skeleton */}
+          <SkeletonPlaceholder.Item
+            width="100%"
+            height={moderateScale(200)}
+            borderRadius={moderateScale(8)}
+            marginBottom={moderateScale(16)}
+          />
+
+          {/* Tractor Info Rows Skeleton */}
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((index) => (
+            <SkeletonPlaceholder.Item
+              key={index}
+              flexDirection="row"
+              justifyContent="space-between"
+              marginBottom={moderateScale(12)}>
+              <SkeletonPlaceholder.Item
+                width="35%"
+                height={moderateScale(14)}
+                borderRadius={moderateScale(2)}
+              />
+              <SkeletonPlaceholder.Item
+                width="55%"
+                height={moderateScale(14)}
+                borderRadius={moderateScale(2)}
+              />
+            </SkeletonPlaceholder.Item>
+          ))}
+        </SkeletonPlaceholder.Item>
+      </SkeletonPlaceholder>
+    );
+  };
+
+  // Skeleton component matching the exact design
+  const renderSkeleton = () => {
+    return (
+      <ScrollView
+        style={{flex: 1}}
+        contentContainerStyle={dynamicStyles.scrollContent}
+        showsVerticalScrollIndicator={false}>
+        {renderSkeletonContent()}
+      </ScrollView>
+    );
+  };
+
   return (
     <View style={dynamicStyles.container}>
       {/* Header */}
@@ -574,19 +708,26 @@ export default function FarmerProfileDetailsScreen() {
       </View>
 
       {/* Scrollable Content */}
-      <ScrollView
-        style={{flex: 1}}
-        contentContainerStyle={dynamicStyles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[colors.primary]}
-            tintColor={colors.primary}
-          />
-        }>
-        {/* User Profile Section */}
+      {loading && !refreshing ? (
+        renderSkeleton()
+      ) : (
+        <ScrollView
+          style={{flex: 1}}
+          contentContainerStyle={dynamicStyles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }>
+          {refreshing ? (
+            renderSkeletonContent()
+          ) : (
+            <>
+              {/* User Profile Section */}
         <View style={dynamicStyles.card}>
           {/* Profile Header */}
           <View style={dynamicStyles.profileHeader}>
@@ -761,7 +902,10 @@ export default function FarmerProfileDetailsScreen() {
             />
           </View>
         ))}
-      </ScrollView>
+            </>
+          )}
+        </ScrollView>
+      )}
 
       {/* Image Picker Modal */}
       <ImagePickerModal
