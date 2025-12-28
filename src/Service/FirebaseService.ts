@@ -4,7 +4,7 @@
  */
 
 import messaging from '@react-native-firebase/messaging';
-import {Platform} from 'react-native';
+import {Platform, PermissionsAndroid} from 'react-native';
 
 class FirebaseService {
   private static instance: FirebaseService;
@@ -28,24 +28,73 @@ class FirebaseService {
   async requestPermission(): Promise<boolean> {
     try {
       if (Platform.OS === 'android') {
+        // For Android 13+ (API 33+), we need to request POST_NOTIFICATIONS permission
+        const androidVersion = typeof Platform.Version === 'number' 
+          ? Platform.Version 
+          : parseInt(Platform.Version as string, 10);
+
+        if (androidVersion >= 33) {
+          // Android 13+ requires POST_NOTIFICATIONS permission
+          console.log('Firebase: Requesting POST_NOTIFICATIONS permission for Android 13+');
+          
+          try {
+            // Check if permission is already granted
+            const checkResult = await PermissionsAndroid.check(
+              PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
+            );
+
+            if (checkResult) {
+              console.log('Firebase: Notification permission already granted');
+              return true;
+            }
+
+            // Request permission - this will show the system permission dialog
+            console.log('Firebase: Requesting notification permission...');
+            const requestResult = await PermissionsAndroid.request(
+              PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
+            );
+            console.log('Firebase: Notification permission request result:', requestResult);
+
+            if (requestResult === PermissionsAndroid.RESULTS.GRANTED) {
+              console.log('Firebase: Notification permission granted');
+              return true;
+            } else {
+              console.log('Firebase: Notification permission denied');
+              return false;
+            }
+          } catch (error) {
+            console.error('Firebase: Error requesting POST_NOTIFICATIONS permission:', error);
+            return false;
+          }
+        } else {
+          // For Android < 13, Firebase messaging handles permissions automatically
+          console.log('Firebase: Android < 13, using Firebase messaging permission');
+          const authStatus = await messaging().requestPermission();
+          const enabled =
+            authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+            authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+
+          if (enabled) {
+            console.log('Firebase: Notification permission granted');
+            return true;
+          } else {
+            console.log('Firebase: Notification permission denied');
+            return false;
+          }
+        }
+      } else {
+        // iOS
+        console.log('Firebase: Requesting notification permission for iOS');
         const authStatus = await messaging().requestPermission();
         const enabled =
           authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
           authStatus === messaging.AuthorizationStatus.PROVISIONAL;
 
         if (enabled) {
-          console.log('Firebase: Notification permission granted');
-          return true;
+          console.log('Firebase: iOS notification permission granted');
         } else {
-          console.log('Firebase: Notification permission denied');
-          return false;
+          console.log('Firebase: iOS notification permission denied');
         }
-      } else {
-        // iOS
-        const authStatus = await messaging().requestPermission();
-        const enabled =
-          authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-          authStatus === messaging.AuthorizationStatus.PROVISIONAL;
 
         return enabled;
       }
