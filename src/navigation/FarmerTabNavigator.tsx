@@ -36,7 +36,31 @@ export default function FarmerTabNavigator() {
       }}
       tabBar={props => <FarmerBottomTabBar {...props} />}>
       <Tab.Screen name={SCREEN_NAMES.Home} component={FarmerHomeStack} />
-      <Tab.Screen name={SCREEN_NAMES.Events} component={EventsStack} />
+      <Tab.Screen 
+        name={SCREEN_NAMES.Events} 
+        component={EventsStack}
+        listeners={({navigation, route}) => ({
+          tabPress: (e) => {
+            // Always reset stack to Events list page when tab is pressed
+            const state = navigation.getState();
+            const tabState = state.routes.find(r => r.key === route.key)?.state;
+            
+            // If stack exists and has multiple screens, pop to root
+            if (tabState && tabState.index > 0) {
+              e.preventDefault();
+              // Navigate to root screen to reset the stack
+              navigation.dispatch(
+                CommonActions.navigate({
+                  name: SCREEN_NAMES.Events,
+                  params: {
+                    screen: SCREEN_NAMES.Events,
+                  },
+                })
+              );
+            }
+          },
+        })}
+      />
       <Tab.Screen 
         name={SCREEN_NAMES.Stories} 
         component={StoriesStack}
