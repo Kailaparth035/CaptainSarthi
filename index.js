@@ -11,14 +11,21 @@ import { name as appName } from './app.json';
 import messaging from '@react-native-firebase/messaging';
 
 // Ensure icon fonts are loaded (helps on some setups)
+// This is important for React Native Vector Icons to work properly
 try {
-  // loadFont is safe to call multiple times
-  // eslint-disable-next-line no-unused-expressions
-  Ionicons.loadFont && Ionicons.loadFont();
-  // eslint-disable-next-line no-unused-expressions
-  MaterialCommunityIcons.loadFont && MaterialCommunityIcons.loadFont();
+  // Preload fonts to ensure they're available immediately
+  if (Ionicons && typeof Ionicons.loadFont === 'function') {
+    Ionicons.loadFont().catch((err) => {
+      console.warn('Failed to load Ionicons font:', err);
+    });
+  }
+  if (MaterialCommunityIcons && typeof MaterialCommunityIcons.loadFont === 'function') {
+    MaterialCommunityIcons.loadFont().catch((err) => {
+      console.warn('Failed to load MaterialCommunityIcons font:', err);
+    });
+  }
 } catch (e) {
-  // noop
+  console.warn('Error loading vector icon fonts:', e);
 }
 
 // Register background handler for Android

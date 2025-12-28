@@ -42,3 +42,20 @@
 # Keep AsyncStorage
 -keep class com.reactnativecommunity.asyncstorage.** { *; }
 -dontwarn com.reactnativecommunity.asyncstorage.**
+
+# Firebase ProGuard Rules
+-keep class com.google.firebase.** { *; }
+-keep class com.google.android.gms.** { *; }
+-dontwarn com.google.firebase.**
+-dontwarn com.google.android.gms.**
+
+# Keep Firebase Messaging
+-keep class io.invertase.firebase.** { *; }
+-dontwarn io.invertase.firebase.**
+
+# Keep React Native Vector Icons fonts
+-keep class com.oblador.vectoricons.** { *; }
+-dontwarn com.oblador.vectoricons.**
+-keep class * extends android.graphics.Typeface { *; }
+-keep class * extends android.graphics.fonts.Font { *; }
+-keep class * extends android.graphics.fonts.FontFamily { *; }

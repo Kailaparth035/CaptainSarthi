@@ -147,3 +147,4 @@ tasks.named("clean").configure {
 
 // Apply Google Services plugin (must be at the end)
 apply plugin: "com.google.gms.google-services"
+apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"
