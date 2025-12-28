@@ -16,9 +16,49 @@ import {TTSProvider} from './src/contexts/TTSContext';
 import {LanguageProvider} from './src/contexts/LanguageContext';
 import TTSPlayer from './src/components/TTSPlayer';
 import {StatusBar} from 'react-native';
+import {useEffect} from 'react';
 import './src/i18n'; // Initialize i18n
+import FirebaseService from './src/Service/FirebaseService';
+import messaging from '@react-native-firebase/messaging';
 
 function App() {
+  useEffect(() => {
+    // Initialize Firebase
+    FirebaseService.initialize();
+
+    // Set up foreground message handler
+    const unsubscribeForeground = messaging().onMessage(async (remoteMessage) => {
+      console.log('App: Foreground notification:', remoteMessage);
+      // You can show a local notification here using react-native-push-notification
+      // or display an in-app notification
+      if (remoteMessage.notification) {
+        // Handle foreground notification display
+        console.log('App: Notification title:', remoteMessage.notification.title);
+        console.log('App: Notification body:', remoteMessage.notification.body);
+      }
+    });
+
+    // Set up background/quit state notification handler
+    messaging().onNotificationOpenedApp((remoteMessage) => {
+      console.log('App: Notification opened from background:', remoteMessage);
+      // Handle navigation or other actions when notification is opened
+    });
+
+    // Check if app was opened from a notification (quit state)
+    messaging()
+      .getInitialNotification()
+      .then((remoteMessage) => {
+        if (remoteMessage) {
+          console.log('App: Notification opened from quit state:', remoteMessage);
+          // Handle navigation or other actions when app is opened from notification
+        }
+      });
+
+    return () => {
+      unsubscribeForeground();
+    };
+  }, []);
+
   return (
     <SafeAreaProvider>
       <LanguageProvider>

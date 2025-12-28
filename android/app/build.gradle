@@ -144,3 +144,6 @@ tasks.named("clean").configure {
         }
     }
 }
+
+// Apply Google Services plugin (must be at the end)
+apply plugin: "com.google.gms.google-services"
