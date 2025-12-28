@@ -127,8 +127,8 @@ export default function StoryDetailsScreen() {
         // Handle date - use display_datetime or display_date
         const date = storyData.display_datetime || storyData.display_date || storyData.story_date || storyData.date || '';
         
-        // Handle description - use description.text
-        const description = storyData.description?.text || storyData.description || '';
+        // Handle description - use content.full_description or content.short_description
+        const description = storyData.content?.full_description || storyData.content?.short_description || storyData.description?.text || storyData.description || '';
         
         // Handle gallery images from media.images
         const galleryImages: any[] = [];
