@@ -709,7 +709,7 @@ export default function StoryDetailsScreen() {
         images={previewImages}
         initialIndex={selectedImageIndex}
         onClose={handleCloseModal}
-        onReplaceImage={handleReplaceImage}
+        // onReplaceImage={handleReplaceImage}
       />
     </View>
   );

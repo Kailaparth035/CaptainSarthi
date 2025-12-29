@@ -103,10 +103,10 @@ const InfoRow = ({
           {
             fontSize: moderateScale(14),
             color: colors.textTertiary,
-            flex: 0.35,
+            flex: 0.6,
           },
         ]}>
-        {label}:
+        {label}
       </Text>
       <Text
         style={[
@@ -114,7 +114,7 @@ const InfoRow = ({
           {
             fontSize: moderateScale(14),
             color: colors.textPrimary,
-            flex: 0.65,
+            flex: 0.4,
             textAlign: 'right',
           },
         ]}>
@@ -238,16 +238,17 @@ export default function FarmerProfileDetailsScreen() {
               }
             }
             
-            // Use display_invoice_date if available, otherwise use date_of_invoice
+            // Use display_invoice_date directly if available (already formatted), otherwise format date_of_invoice
             const dateOfInvoice = tractor.display_invoice_date 
-              ? formatDate(tractor.display_invoice_date)
+              ? tractor.display_invoice_date
               : tractor.date_of_invoice 
               ? formatDate(tractor.date_of_invoice)
               : '';
             
-            // Use display_registration_date if available, otherwise use date_of_registration
+            // Use display_registration_date directly if available (already formatted), otherwise format date_of_registration
+            // If display_registration_date is null, show empty string
             const dateOfRegistration = tractor.display_registration_date 
-              ? formatDate(tractor.display_registration_date)
+              ? tractor.display_registration_date
               : tractor.date_of_registration 
               ? formatDate(tractor.date_of_registration)
               : '';

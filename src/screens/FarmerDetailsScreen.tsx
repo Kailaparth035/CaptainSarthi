@@ -68,7 +68,7 @@ const InfoRow = ({
             marginRight: moderateScale(8),
           },
         ]}>
-        {label}:
+        {label}
       </Text>
       <Text
         style={[
@@ -175,25 +175,39 @@ export default function FarmerDetailsScreen() {
         const fullName = nameParts.join(' ').trim();
         
         // Transform tractors array
-        const transformedTractors = (farmerData.tractors || []).map((tractor: any) => ({
-          id: tractor.tractorId?.toString() || '',
-          tractorId: tractor.tractorId,
-          model: tractor.model || '',
-          chassisNo: tractor.chassisNo || '',
-          vehicleNo: tractor.vehicleNo || '',
-          engineNo: tractor.engineNo || '',
-          mobile: tractor.ownerMobile || '',
-          dateOfInvoice: formatDate(tractor.dateOfInvoice) || '',
-          whoDrives: tractor.whoDrives || '',
-          tractorImage: getImageUrl(tractor.tractorImage),
-          rcImagesFront: getImageUrl(tractor.rcImagesFront),
-          rcImagesBack: getImageUrl(tractor.rcImagesBack),
-          // Keep rcImages for backward compatibility if needed
-          rcImages: [
-            tractor.rcImagesFront ? getImageUrl(tractor.rcImagesFront) : null,
-            tractor.rcImagesBack ? getImageUrl(tractor.rcImagesBack) : null,
-          ].filter(Boolean) as string[],
-        }));
+        const transformedTractors = (farmerData.tractors || []).map((tractor: any) => {
+          // Process tractorImages array - convert all URLs to full image URLs
+          const tractorImagesArray = (tractor.tractorImages || []).map((imgUrl: string) => 
+            getImageUrl(imgUrl)
+          ).filter(Boolean) as string[];
+          
+          // If tractorImage exists but not in tractorImages array, add it
+          const mainImageUrl = getImageUrl(tractor.tractorImage);
+          if (mainImageUrl && !tractorImagesArray.includes(mainImageUrl)) {
+            tractorImagesArray.unshift(mainImageUrl);
+          }
+          
+          return {
+            id: tractor.tractorId?.toString() || '',
+            tractorId: tractor.tractorId,
+            model: tractor.model || '',
+            chassisNo: tractor.chassisNo || '',
+            vehicleNo: tractor.vehicleNo || '',
+            engineNo: tractor.engineNo || '',
+            mobile: tractor.ownerMobile || '',
+            dateOfInvoice: formatDate(tractor.dateOfInvoice) || '',
+            whoDrives: tractor.whoDrives || '',
+            tractorImage: mainImageUrl, // Keep for backward compatibility
+            tractorImages: tractorImagesArray, // Array of all tractor images
+            rcImagesFront: getImageUrl(tractor.rcImagesFront),
+            rcImagesBack: getImageUrl(tractor.rcImagesBack),
+            // Keep rcImages for backward compatibility if needed
+            rcImages: [
+              tractor.rcImagesFront ? getImageUrl(tractor.rcImagesFront) : null,
+              tractor.rcImagesBack ? getImageUrl(tractor.rcImagesBack) : null,
+            ].filter(Boolean) as string[],
+          };
+        });
         
         // Transform API response to match expected format
         setFarmerDetails({
@@ -248,8 +262,18 @@ export default function FarmerDetailsScreen() {
     const tractor = farmerDetails.tractors[selectedTractorIndex];
     if (!tractor) return images;
     
-    // Add tractor main image if available
-    if (tractor.tractorImage) {
+    // Add all tractor images from tractorImages array
+    if (tractor.tractorImages && Array.isArray(tractor.tractorImages)) {
+      tractor.tractorImages.forEach((imageUri: string, index: number) => {
+        if (imageUri) {
+          images.push({
+            id: `tractor-image-${index}`,
+            uri: imageUri,
+          });
+        }
+      });
+    } else if (tractor.tractorImage) {
+      // Fallback to single tractorImage if tractorImages array is not available
       images.push({
         id: 'tractor-main',
         uri: tractor.tractorImage,
@@ -415,7 +439,7 @@ export default function FarmerDetailsScreen() {
           color: colors.textTertiary,
         },
         tractorImageContainer: {
-          alignItems: 'center',
+          width: '100%',
           marginVertical: moderateScale(16),
         },
         tractorMainImage: {
@@ -424,6 +448,20 @@ export default function FarmerDetailsScreen() {
           borderRadius: moderateScale(8),
           backgroundColor: colors.backgroundGray,
           marginBottom: moderateScale(12),
+          overflow: 'hidden',
+        },
+        tractorImagesRow: {
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          width: '100%',
+          marginBottom: moderateScale(12),
+        },
+        tractorImageHalf: {
+          width: '48%',
+          height: moderateScale(150),
+          borderRadius: moderateScale(8),
+          backgroundColor: colors.backgroundGray,
+          overflow: 'hidden',
         },
         documentImagesContainer: {
           flexDirection: 'row',
@@ -439,6 +477,19 @@ export default function FarmerDetailsScreen() {
           backgroundColor: colors.backgroundGray,
           alignItems: 'center',
           justifyContent: 'center',
+        },
+        tractorImagesContainer: {
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          marginTop: moderateScale(12),
+          gap: moderateScale(8),
+        },
+        tractorImageThumbnail: {
+          width: moderateScale(100),
+          height: moderateScale(100),
+          borderRadius: moderateScale(8),
+          backgroundColor: colors.backgroundGray,
+          marginBottom: moderateScale(8),
         },
         placeholderImage: {
           width: '100%',
@@ -740,45 +791,155 @@ export default function FarmerDetailsScreen() {
             const rcImageFront = tractor.rcImagesFront || null;
             const rcImageBack = tractor.rcImagesBack || null;
             
+            // Get tractor images array (multiple images)
+            const tractorImages = tractor.tractorImages || [];
+            const hasTractorImages = tractorImages.length > 0;
+            
             // Calculate image index for preview modal
-            const getImageIndex = (imageType: 'tractor' | 'rcFront' | 'rcBack') => {
+            const getImageIndex = (imageType: 'tractor' | 'tractorImage' | 'rcFront' | 'rcBack', imageIndex?: number) => {
               let imgIndex = 0;
-              if (imageType === 'tractor' && tractor.tractorImage) {
-                imgIndex = 0;
+              
+              if (imageType === 'tractor' || imageType === 'tractorImage') {
+                // First images are tractor images
+                if (imageIndex !== undefined) {
+                  imgIndex = imageIndex;
+                } else {
+                  imgIndex = 0; // Default to first tractor image
+                }
               } else if (imageType === 'rcFront' && rcImageFront) {
-                imgIndex = tractor.tractorImage ? 1 : 0;
+                // RC front comes after all tractor images
+                imgIndex = tractorImages.length;
               } else if (imageType === 'rcBack' && rcImageBack) {
-                imgIndex = (tractor.tractorImage ? 1 : 0) + (rcImageFront ? 1 : 0);
+                // RC back comes after tractor images and RC front
+                imgIndex = tractorImages.length + (rcImageFront ? 1 : 0);
               }
               return imgIndex;
             };
             
             return (
               <View key={tractor.id || tractor.tractorId || index}>
-                {/* Tractor Main Image */}
+                {/* Tractor Images - Show in row if 2 images, full width if 1, thumbnails if more than 2 */}
                 <View style={dynamicStyles.tractorImageContainer}>
-                  <TouchableOpacity
-                    style={dynamicStyles.tractorMainImage}
-                    onPress={() => {
-                      if (tractor.tractorImage || rcImageFront || rcImageBack) {
+                  {hasTractorImages ? (
+                    // Multiple images from tractorImages array
+                    tractorImages.length === 1 ? (
+                      // Single image - full width
+                      <TouchableOpacity
+                        style={dynamicStyles.tractorMainImage}
+                        onPress={() => {
+                          setSelectedTractorIndex(index);
+                          setSelectedImageIndex(getImageIndex('tractorImage', 0));
+                          setPreviewModalVisible(true);
+                        }}
+                        activeOpacity={0.7}>
+                        <Image 
+                          source={{uri: tractorImages[0]}} 
+                          style={dynamicStyles.tractorMainImage}
+                          resizeMode="contain"
+                        />
+                      </TouchableOpacity>
+                    ) : tractorImages.length === 2 ? (
+                      // Two images - show side by side in a row
+                      <View style={dynamicStyles.tractorImagesRow}>
+                        <TouchableOpacity
+                          style={dynamicStyles.tractorImageHalf}
+                          onPress={() => {
+                            setSelectedTractorIndex(index);
+                            setSelectedImageIndex(getImageIndex('tractorImage', 0));
+                            setPreviewModalVisible(true);
+                          }}
+                          activeOpacity={0.7}>
+                          <Image 
+                            source={{uri: tractorImages[0]}} 
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              borderRadius: moderateScale(8),
+                            }}
+                            resizeMode="contain"
+                          />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={dynamicStyles.tractorImageHalf}
+                          onPress={() => {
+                            setSelectedTractorIndex(index);
+                            setSelectedImageIndex(getImageIndex('tractorImage', 1));
+                            setPreviewModalVisible(true);
+                          }}
+                          activeOpacity={0.7}>
+                          <Image 
+                            source={{uri: tractorImages[1]}} 
+                            style={{
+                              width: '100%',
+                              height: '100%',
+                              borderRadius: moderateScale(8),
+                            }}
+                            resizeMode="contain"
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      // More than 2 images - first full width, then thumbnails
+                      <>
+                        <TouchableOpacity
+                          style={dynamicStyles.tractorMainImage}
+                          onPress={() => {
+                            setSelectedTractorIndex(index);
+                            setSelectedImageIndex(getImageIndex('tractorImage', 0));
+                            setPreviewModalVisible(true);
+                          }}
+                          activeOpacity={0.7}>
+                          <Image 
+                            source={{uri: tractorImages[0]}} 
+                            style={dynamicStyles.tractorMainImage}
+                            resizeMode="contain"
+                          />
+                        </TouchableOpacity>
+                        <View style={dynamicStyles.tractorImagesContainer}>
+                          {tractorImages.slice(1).map((imageUri: string, imgIndex: number) => (
+                            <TouchableOpacity
+                              key={`tractor-thumb-${imgIndex + 1}`}
+                              style={dynamicStyles.tractorImageThumbnail}
+                              onPress={() => {
+                                setSelectedTractorIndex(index);
+                                setSelectedImageIndex(getImageIndex('tractorImage', imgIndex + 1));
+                                setPreviewModalVisible(true);
+                              }}
+                              activeOpacity={0.7}>
+                              <Image 
+                                source={{uri: imageUri}} 
+                                style={dynamicStyles.tractorImageThumbnail}
+                                resizeMode="contain"
+                              />
+                            </TouchableOpacity>
+                          ))}
+                        </View>
+                      </>
+                    )
+                  ) : tractor.tractorImage ? (
+                    // Fallback to single tractorImage
+                    <TouchableOpacity
+                      style={dynamicStyles.tractorMainImage}
+                      onPress={() => {
                         setSelectedTractorIndex(index);
-                        setSelectedImageIndex(getImageIndex('tractor'));
+                        setSelectedImageIndex(getImageIndex('tractorImage', 0));
                         setPreviewModalVisible(true);
-                      }
-                    }}
-                    activeOpacity={tractor.tractorImage ? 0.7 : 1}>
-                    {tractor.tractorImage ? (
+                      }}
+                      activeOpacity={0.7}>
                       <Image 
                         source={{uri: tractor.tractorImage}} 
                         style={dynamicStyles.tractorMainImage}
-                        resizeMode="cover"
+                        resizeMode="contain"
                       />
-                    ) : (
+                    </TouchableOpacity>
+                  ) : (
+                    // No image available
+                    <View style={dynamicStyles.tractorMainImage}>
                       <View style={dynamicStyles.placeholderImage}>
                         <Text style={dynamicStyles.placeholderText}>No image available</Text>
                       </View>
-                    )}
-                  </TouchableOpacity>
+                    </View>
+                  )}
 
                   {/* RC Book Images */}
                   <View style={dynamicStyles.documentImagesContainer}>
@@ -787,7 +948,7 @@ export default function FarmerDetailsScreen() {
                       onPress={() => {
                         if (rcImageFront) {
                           setSelectedTractorIndex(index);
-                          setSelectedImageIndex(getImageIndex('rcFront'));
+                          setSelectedImageIndex(getImageIndex('rcFront', undefined));
                           setPreviewModalVisible(true);
                         }
                       }}
@@ -814,7 +975,7 @@ export default function FarmerDetailsScreen() {
                       onPress={() => {
                         if (rcImageBack) {
                           setSelectedTractorIndex(index);
-                          setSelectedImageIndex(getImageIndex('rcBack'));
+                          setSelectedImageIndex(getImageIndex('rcBack', undefined));
                           setPreviewModalVisible(true);
                         }
                       }}

@@ -31,13 +31,16 @@ type NotificationStatus = 'complete' | 'pending' | 'failed';
 
 interface NotificationItem {
   id: string;
-  name: string;
-  subtitle: string;
-  status: NotificationStatus;
+  title: string;
+  description: string;
+  timestamp: string;
+  type: 'event' | 'story' | 'other';
+  isRead: boolean;
   hasArrow?: boolean;
   firstName?: string;
   lastName?: string;
   rejectionReason?: string;
+  status?: NotificationStatus;
 }
 
 const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
@@ -59,59 +62,34 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
     bottomBarColor: colors.backgroundLight,
   });
 
-  // Sample notification data
+  // Sample notification data matching the image design
   const notifications: NotificationItem[] = [
     {
       id: '1',
-      name: 'David wills',
-      subtitle: 'Verification complete • Send login details',
-      status: 'complete',
+      title: 'Annual meetup 2025',
+      description: 'Captain Tractors proudly organized its Nat..',
+      timestamp: '10:35 AM',
+      type: 'event',
+      isRead: false,
     },
     {
       id: '2',
-      name: 'David wills',
-      subtitle: 'Verification pending',
-      status: 'pending',
-    },
-    {
-      id: '3',
-      name: 'Cody rollins',
-      subtitle: 'Verification failed • See rejection reason',
-      status: 'failed',
-      hasArrow: true,
-      firstName: 'Michael',
-      lastName: 'Harris',
-      rejectionReason:
-        "Farmer's name is not same in Aadhar card and PAN card.",
+      title: 'Captain added a story',
+      description: 'Captain Tractors proudly organized its Nat..',
+      timestamp: '10:35 AM',
+      type: 'story',
+      isRead: false,
     },
   ];
 
-  const getStatusIcon = (status: NotificationStatus) => {
-    switch (status) {
-      case 'complete':
-        return {
-          icon: 'checkmark',
-          color: colors.statusSuccess,
-          bgColor: colors.statusSuccess,
-        };
-      case 'pending':
-        return {
-          icon: 'alert-circle',
-          color: colors.statusWarning,
-          bgColor: colors.statusWarning,
-        };
-      case 'failed':
-        return {
-          icon: 'close',
-          color: colors.statusError,
-          bgColor: colors.statusError,
-        };
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case 'event':
+        return 'calendar-outline';
+      case 'story':
+        return 'time-outline';
       default:
-        return {
-          icon: 'alert-circle',
-          color: colors.textTertiary,
-          bgColor: colors.textTertiary,
-        };
+        return 'notifications-outline';
     }
   };
 
@@ -134,7 +112,7 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
           width: moderateScale(40),
           height: moderateScale(40),
           borderRadius: moderateScale(20),
-          backgroundColor: colors.backgroundWhite,
+          backgroundColor: 'transparent',
           alignItems: 'center',
           justifyContent: 'center',
           marginRight: moderateScale(12),
@@ -143,16 +121,16 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
           ...Typography.boldXxl,
           color: colors.textPrimary,
           fontSize: moderateScale(22),
-          marginLeft: moderateScale(10),
         },
         scrollContent: {
           padding: moderateScale(16),
           paddingBottom: moderateScale(100),
         },
-        card: {
+        notificationCard: {
           backgroundColor: colors.backgroundWhite,
           borderRadius: moderateScale(12),
           padding: moderateScale(16),
+          marginBottom: moderateScale(12),
           shadowColor: colors.shadowColor,
           shadowOpacity: 0.08,
           shadowOffset: {width: 0, height: moderateScale(4)},
@@ -161,50 +139,57 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
         },
         notificationItem: {
           flexDirection: 'row',
-          alignItems: 'center',
-          paddingVertical: moderateScale(12),
-          borderBottomWidth: 1,
-          borderBottomColor: colors.borderLight,
-        },
-        lastNotificationItem: {
-          borderBottomWidth: 0,
+          alignItems: 'flex-start',
         },
         iconContainer: {
           width: moderateScale(48),
           height: moderateScale(48),
           borderRadius: moderateScale(24),
-          backgroundColor: colors.backgroundGray,
+          borderWidth: 1,
+          borderColor: colors.borderLight,
+          backgroundColor: colors.backgroundWhite,
           alignItems: 'center',
           justifyContent: 'center',
           marginRight: moderateScale(12),
-          position: 'relative',
-        },
-        statusBadge: {
-          position: 'absolute',
-          bottom: moderateScale(-2),
-          right: moderateScale(-2),
-          width: moderateScale(18),
-          height: moderateScale(18),
-          borderRadius: moderateScale(9),
-          borderWidth: moderateScale(2),
-          borderColor: colors.backgroundWhite,
-          alignItems: 'center',
-          justifyContent: 'center',
         },
         notificationContent: {
           flex: 1,
+          flexDirection: 'row',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
         },
-        notificationName: {
-          ...Typography.semiBoldMd,
-          fontSize: moderateScale(14),
-          color: colors.textPrimary,
+        notificationTextContainer: {
+          flex: 1,
+          marginRight: moderateScale(8),
+        },
+        notificationTitleRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
           marginBottom: moderateScale(4),
         },
-        notificationSubtitle: {
+        notificationTitle: {
+          ...Typography.semiBoldMd,
+          fontSize: moderateScale(16),
+          color: colors.textPrimary,
+          marginRight: moderateScale(6),
+        },
+        unreadDot: {
+          width: moderateScale(8),
+          height: moderateScale(8),
+          borderRadius: moderateScale(4),
+          backgroundColor: '#FF3B30', // Red color for unread indicator
+        },
+        notificationDescription: {
+          ...Typography.regularSm,
+          fontSize: moderateScale(14),
+          color: colors.textSecondary,
+          lineHeight: moderateScale(20),
+        },
+        timestamp: {
           ...Typography.regularSm,
           fontSize: moderateScale(12),
           color: colors.textTertiary,
-          lineHeight: moderateScale(16),
+          marginTop: moderateScale(2),
         },
         arrowIcon: {
           marginLeft: moderateScale(8),
@@ -260,15 +245,18 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
   );
 
   const handleNotificationPress = (notification: NotificationItem) => {
-    // Handle notification press - show modal for failed notifications
+    // Handle notification press - navigate to details or show modal
     if (notification.status === 'failed') {
       setSelectedNotification(notification);
       setFirstName(notification.firstName || '');
       setLastName(notification.lastName || '');
       setRejectionReason(notification.rejectionReason || '');
       setShowFailedModal(true);
-    } else if (notification.hasArrow) {
+    } else {
       console.log('Navigate to notification details:', notification.id);
+      // Navigate based on notification type
+      // For events: navigate to event details
+      // For stories: navigate to story details
       // You can add navigation logic here if needed
     }
   };
@@ -310,64 +298,52 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
         style={{flex: 1}}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}>
-        {/* Notifications Card */}
-        <View style={styles.card}>
-          {notifications.map((notification, index) => {
-            const statusIcon = getStatusIcon(notification.status);
-            const isLast = index === notifications.length - 1;
+        {/* Notifications - Each as separate card */}
+        {notifications.map((notification) => {
+          const iconName = getNotificationIcon(notification.type);
 
-            return (
-              <Pressable
-                key={notification.id}
-                style={[
-                  styles.notificationItem,
-                  isLast && styles.lastNotificationItem,
-                ]}
-                onPress={() => handleNotificationPress(notification)}
-                activeOpacity={0.7}>
-                {/* Icon with Status Badge */}
+          return (
+            <Pressable
+              key={notification.id}
+              style={styles.notificationCard}
+              onPress={() => handleNotificationPress(notification)}
+              activeOpacity={0.7}>
+              <View style={styles.notificationItem}>
+                {/* Icon Container */}
                 <View style={styles.iconContainer}>
                   <Ionicons
-                    name="person"
+                    name={iconName}
                     size={moderateScale(24)}
-                    color={colors.textTertiary}
+                    color={colors.textPrimary}
                   />
-                  <View
-                    style={[
-                      styles.statusBadge,
-                      {backgroundColor: statusIcon.bgColor},
-                    ]}>
-                    <Ionicons
-                      name={statusIcon.icon}
-                      size={moderateScale(10)}
-                      color={colors.textWhite}
-                    />
-                  </View>
                 </View>
 
                 {/* Notification Content */}
                 <View style={styles.notificationContent}>
-                  <Text style={styles.notificationName}>
-                    {notification.name}
-                  </Text>
-                  <Text style={styles.notificationSubtitle}>
-                    {notification.subtitle}
+                  <View style={styles.notificationTextContainer}>
+                    {/* Title with Unread Dot */}
+                    <View style={styles.notificationTitleRow}>
+                      <Text style={styles.notificationTitle}>
+                        {notification.title}
+                      </Text>
+                      {!notification.isRead && (
+                        <View style={styles.unreadDot} />
+                      )}
+                    </View>
+                    {/* Description */}
+                    <Text style={styles.notificationDescription}>
+                      {notification.description}
+                    </Text>
+                  </View>
+                  {/* Timestamp */}
+                  <Text style={styles.timestamp}>
+                    {notification.timestamp}
                   </Text>
                 </View>
-
-                {/* Arrow Icon (if applicable) */}
-                {notification.hasArrow && (
-                  <Ionicons
-                    name="chevron-forward"
-                    size={moderateScale(20)}
-                    color={colors.textTertiary}
-                    style={styles.arrowIcon}
-                  />
-                )}
-              </Pressable>
-            );
-          })}
-        </View>
+              </View>
+            </Pressable>
+          );
+        })}
       </ScrollView>
 
       {/* Verification Failed Bottom Sheet Modal */}
@@ -448,4 +424,5 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
 };
 
 export default NotificationsScreen;
+
 

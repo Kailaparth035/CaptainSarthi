@@ -1,4 +1,4 @@
-import React, {useMemo, useState, useEffect} from 'react';
+import React, {useMemo, useState, useEffect, useRef} from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
   RefreshControl,
   Image,
+  AppState,
+  AppStateStatus,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation, CommonActions, useFocusEffect} from '@react-navigation/native';
@@ -213,8 +215,8 @@ export default function HomeScreen() {
     bottomBarColor: colors.backgroundLight,
   });
 
-  // Fetch all dashboard data
-  const fetchAllData = async (isRefresh = false) => {
+  // Fetch all dashboard data - memoized to prevent unnecessary re-renders
+  const fetchAllData = React.useCallback(async (isRefresh = false) => {
     try {
       if (isRefresh) {
         setRefreshing(true);
@@ -382,14 +384,37 @@ export default function HomeScreen() {
         setLoadingTractors(false);
       }
     }
-  };
+  }, []);
 
-  // Fetch data on mount and whenever screen comes into focus
+  // Track app state to refresh when app comes to foreground
+  const appState = useRef(AppState.currentState);
+  const [appStateVisible, setAppStateVisible] = useState(appState.current);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === 'active'
+      ) {
+        // App has come to the foreground - refresh data
+        console.log('[HomeScreen] App came to foreground - refreshing data');
+        fetchAllData();
+      }
+      appState.current = nextAppState;
+      setAppStateVisible(appState.current);
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, [fetchAllData]);
+
+  // Fetch data on mount and whenever screen comes into focus (tab switch, navigation)
   useFocusEffect(
     React.useCallback(() => {
       console.log('[HomeScreen] Screen focused - fetching latest data');
       fetchAllData();
-    }, [])
+    }, [fetchAllData])
   );
 
   // Pull to refresh handler

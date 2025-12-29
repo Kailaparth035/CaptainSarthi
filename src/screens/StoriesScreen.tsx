@@ -9,6 +9,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   FlatList,
+  Platform,
 } from 'react-native';
 import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -349,9 +350,18 @@ export default function StoriesScreen() {
       return null;
     }
     return (
-      <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: moderateScale(100)}}>
-        <Text style={[Typography.regularMd, {color: colors.textTertiary, fontSize: moderateScale(14)}]}>
-          No stories available
+      <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: moderateScale(100), paddingBottom: moderateScale(50)}}>
+        <Image 
+          source={ImagePath.noStory} 
+          style={{
+            width: moderateScale(200),
+            height: moderateScale(200),
+            resizeMode: 'contain',
+            marginBottom: moderateScale(20),
+          }}
+        />
+        <Text style={[Typography.boldXl, {color: colors.textPrimary, fontSize: moderateScale(20)}]}>
+          No story found
         </Text>
       </View>
     );

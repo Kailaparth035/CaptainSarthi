@@ -247,6 +247,8 @@
     "enterEngineNumber": "એન્જિન નંબર દાખલ કરો",
     "ownerName": "માલિકનું નામ",
     "enterOwnerName": "માલિકનું નામ દાખલ કરો",
+    "vehicleNumber": "વાહન નંબર",
+    "enterVehicleNumber": "વાહન નંબર દાખલ કરો (ઉદાહરણ: GJ 27 AJ 9314)",
     "registrationNumber": "નોંધણી નંબર",
     "enterRegistrationNumber": "નોંધણી નંબર દાખલ કરો",
     "purchaseDate": "ખરીદી",

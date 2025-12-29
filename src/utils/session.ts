@@ -90,6 +90,8 @@ export const getSession = async (): Promise<UserSession | null> => {
 
 /**
  * Clear user session from AsyncStorage
+ * Note: Language selection and Terms acceptance are NOT cleared on logout - 
+ * they persist as one-time preferences that should only be shown on first app install
  */
 export const clearSession = async (): Promise<void> => {
   try {
@@ -97,8 +99,11 @@ export const clearSession = async (): Promise<void> => {
     await AsyncStorage.removeItem(USER_DATA_KEY);
     await AsyncStorage.removeItem(USER_ROLE_KEY);
     await clearProfileReviewed();
-    await clearTermsAccepted();
-    await clearLanguageSelected();
+    // Terms acceptance is NOT cleared - it should persist across logins/logouts
+    // so that Onboarding screen doesn't show again after first login
+    // await clearTermsAccepted();
+    // Language selection is NOT cleared - it should persist across logins/logouts
+    // await clearLanguageSelected();
     // Also clear auth token
     await clearAuthToken();
   } catch (error) {

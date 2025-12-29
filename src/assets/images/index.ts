@@ -23,7 +23,8 @@ export const ImagePath = {
   onboardingScreen : require('../images/onboardingScreen.png'),  
   captainLogo : require('../images/captainLogo.png'),
   language : require('../images/Language.png'),
-  
+  noEvent : require('../images/noEvent.png'),
+  noStory : require('../images/noStory.png'),
 };
 
 

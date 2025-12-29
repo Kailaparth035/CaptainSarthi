@@ -247,6 +247,8 @@
     "enterEngineNumber": "Enter engine number",
     "ownerName": "Owner name",
     "enterOwnerName": "Enter owner name",
+    "vehicleNumber": "Vehicle number",
+    "enterVehicleNumber": "Enter vehicle number (e.g., GJ 27 AJ 9314)",
     "registrationNumber": "Registration number",
     "enterRegistrationNumber": "Enter registration number",
     "purchaseDate": "purchase",

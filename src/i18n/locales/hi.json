@@ -247,6 +247,8 @@
     "enterEngineNumber": "इंजन नंबर दर्ज करें",
     "ownerName": "मालिक का नाम",
     "enterOwnerName": "मालिक का नाम दर्ज करें",
+    "vehicleNumber": "वाहन संख्या",
+    "enterVehicleNumber": "वाहन संख्या दर्ज करें (उदाहरण: GJ 27 AJ 9314)",
     "registrationNumber": "पंजीकरण नंबर",
     "enterRegistrationNumber": "पंजीकरण नंबर दर्ज करें",
     "purchaseDate": "खरीद",

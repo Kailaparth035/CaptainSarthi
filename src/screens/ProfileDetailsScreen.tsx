@@ -78,7 +78,7 @@ const InfoRow = ({
             flex: 0.45,
           },
         ]}>
-        {label}:
+        {label}
       </Text>
       <Text
         style={[

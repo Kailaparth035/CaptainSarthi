@@ -991,10 +991,10 @@ export default function FarmerHomeScreen() {
           )}
 
           {/* Recent Events Section */}
-          {recentEvents.length > 0 && (
-            <View style={dynamicStyles.eventSliderContainer}>
-              <View style={dynamicStyles.sectionHeader}>
-                <Text style={dynamicStyles.sectionTitle}>{t('farmerHome.recentEvents')}</Text>
+          <View style={dynamicStyles.eventSliderContainer}>
+            <View style={dynamicStyles.sectionHeader}>
+              <Text style={dynamicStyles.sectionTitle}>{t('farmerHome.recentEvents')}</Text>
+              {recentEvents.length > 0 && (
                 <TouchableOpacity 
                   activeOpacity={0.7} 
                   onPress={() => {
@@ -1010,7 +1010,9 @@ export default function FarmerHomeScreen() {
                   }}>
                   <Text style={dynamicStyles.seeAllText}>{t('home.seeAll')}</Text>
                 </TouchableOpacity>
-              </View>
+              )}
+            </View>
+            {recentEvents.length > 0 ? (
               <FlatList
                 data={recentEvents}
                 renderItem={renderEventCard}
@@ -1022,14 +1024,29 @@ export default function FarmerHomeScreen() {
                   paddingRight: moderateScale(16),
                 }}
               />
-            </View>
-          )}
+            ) : (
+              <View style={{alignItems: 'center', justifyContent: 'center', paddingVertical: moderateScale(40), paddingHorizontal: moderateScale(16)}}>
+                <Image 
+                  source={ImagePath.noEvent} 
+                  style={{
+                    width: moderateScale(200),
+                    height: moderateScale(200),
+                    resizeMode: 'contain',
+                    marginBottom: moderateScale(20),
+                  }}
+                />
+                <Text style={[Typography.boldXl, {color: colors.textPrimary, fontSize: moderateScale(20)}]}>
+                  No events found
+                </Text>
+              </View>
+            )}
+          </View>
 
           {/* Recent Stories Section */}
-          {recentStories.length > 0 && (
-            <View style={dynamicStyles.eventSliderContainer}>
-              <View style={dynamicStyles.sectionHeader}>
-                <Text style={dynamicStyles.sectionTitle}>{t('farmerHome.recentStories')}</Text>
+          <View style={dynamicStyles.eventSliderContainer}>
+            <View style={dynamicStyles.sectionHeader}>
+              <Text style={dynamicStyles.sectionTitle}>{t('farmerHome.recentStories')}</Text>
+              {recentStories.length > 0 && (
                 <TouchableOpacity 
                   activeOpacity={0.7}
                   onPress={() => {
@@ -1045,7 +1062,9 @@ export default function FarmerHomeScreen() {
                   }}>
                   <Text style={dynamicStyles.seeAllText}>{t('home.seeAll')}</Text>
                 </TouchableOpacity>
-              </View>
+              )}
+            </View>
+            {recentStories.length > 0 ? (
               <FlatList
                 data={recentStories}
                 renderItem={renderStoryCard}
@@ -1057,8 +1076,23 @@ export default function FarmerHomeScreen() {
                   paddingRight: moderateScale(16),
                 }}
               />
-            </View>
-          )}
+            ) : (
+              <View style={{alignItems: 'center', justifyContent: 'center', paddingVertical: moderateScale(40), paddingHorizontal: moderateScale(16)}}>
+                <Image 
+                  source={ImagePath.noStory} 
+                  style={{
+                    width: moderateScale(200),
+                    height: moderateScale(200),
+                    resizeMode: 'contain',
+                    marginBottom: moderateScale(20),
+                  }}
+                />
+                <Text style={[Typography.boldXl, {color: colors.textPrimary, fontSize: moderateScale(20)}]}>
+                  No story found
+                </Text>
+              </View>
+            )}
+          </View>
 
         {/* Membership Services Section */}
         <View style={{backgroundColor:colors.white,marginHorizontal:moderateScale(16),borderRadius:moderateScale(10),paddingTop:moderateScale(15)}}>

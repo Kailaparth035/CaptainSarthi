@@ -899,7 +899,7 @@ export default function EventDetailsScreen() {
         images={previewImages}
         initialIndex={selectedImageIndex}
         onClose={handleCloseModal}
-        onReplaceImage={handleReplaceImage}
+        // onReplaceImage={handleReplaceImage}
       />
 
       {/* Contact Us Modal */}

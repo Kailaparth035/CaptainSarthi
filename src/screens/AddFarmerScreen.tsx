@@ -161,20 +161,20 @@ type TractorDetails = {
   rcFront?: string;
   rcBack?: string;
   modelName: string;
+  vehicleNumber: string;
   chassisNumber: string;
   engineNumber: string;
   ownerName: string;
-  registrationNumber: string;
   purchaseDateDD: string;
   purchaseDateMM: string;
   purchaseDateYYYY: string;
   whoFrom: string;
   errors: {
     modelName?: string;
+    vehicleNumber?: string;
     chassisNumber?: string;
     engineNumber?: string;
     ownerName?: string;
-    registrationNumber?: string;
     purchaseDateDD?: string;
     purchaseDateMM?: string;
     purchaseDateYYYY?: string;
@@ -364,10 +364,10 @@ export default function AddFarmerScreen() {
       id: '1',
       tractorImages: [], // Start with empty array, add first slot when needed
       modelName: '',
+      vehicleNumber: '',
       chassisNumber: '',
       engineNumber: '',
       ownerName: '',
-      registrationNumber: '',
       purchaseDateDD: '',
       purchaseDateMM: '',
       purchaseDateYYYY: '',
@@ -1035,10 +1035,10 @@ export default function AddFarmerScreen() {
         id: newId,
         tractorImages: [''], // Start with one empty slot for first image
         modelName: '',
+        vehicleNumber: '',
         chassisNumber: '',
         engineNumber: '',
         ownerName: '',
-        registrationNumber: '',
         purchaseDateDD: '',
         purchaseDateMM: '',
         purchaseDateYYYY: '',
@@ -1339,11 +1339,19 @@ export default function AddFarmerScreen() {
         console.log('ERROR: Owner name is required');
       }
       
-      console.log('Registration number:', tractor.registrationNumber || '✗ Missing');
-      if (!tractor.registrationNumber || !tractor.registrationNumber.trim()) {
-        tractorErrorsObj.registrationNumber = 'Registration number is required';
+      console.log('Vehicle number:', tractor.vehicleNumber || '✗ Missing');
+      if (!tractor.vehicleNumber || !tractor.vehicleNumber.trim()) {
+        tractorErrorsObj.vehicleNumber = 'Vehicle number is required';
         tractorErrors = true;
-        console.log('ERROR: Registration number is required');
+        console.log('ERROR: Vehicle number is required');
+      } else {
+        // Validate vehicle number format (e.g., "GJ 27 AJ 9314" or "GJ27AJ9314")
+        const vehicleNumberRegex = /^[A-Z]{2}\s?\d{1,2}\s?[A-Z]{1,2}\s?\d{1,4}$/i;
+        if (!vehicleNumberRegex.test(tractor.vehicleNumber.trim())) {
+          tractorErrorsObj.vehicleNumber = 'Please enter a valid vehicle number (e.g., GJ 27 AJ 9314)';
+          tractorErrors = true;
+          console.log('ERROR: Invalid vehicle number format');
+        }
       }
       
       console.log('Purchase date - DD:', tractor.purchaseDateDD, 'MM:', tractor.purchaseDateMM, 'YYYY:', tractor.purchaseDateYYYY);
@@ -1354,6 +1362,7 @@ export default function AddFarmerScreen() {
         tractorErrors = true;
         console.log('ERROR: Date of purchase is required');
       }
+      
       
       // console.log('Who from:', tractor.whoFrom || '✗ Missing');
       // if (!tractor.whoFrom || !tractor.whoFrom.trim()) {
@@ -1578,13 +1587,18 @@ export default function AddFarmerScreen() {
       });
 
       // Format tractor details
+      // Use purchase date values for registration date fields
       const tractorDetailsArray = tractors.map(tractor => ({
         model_name: tractor.modelName,
+        vehicle_number: tractor.vehicleNumber,
         chassis_number: tractor.chassisNumber,
         engine_number: tractor.engineNumber,
         invoice_day: tractor.purchaseDateDD,
         invoice_month: tractor.purchaseDateMM,
         invoice_year: tractor.purchaseDateYYYY,
+        registration_day: tractor.purchaseDateDD, // Use purchase date for registration
+        registration_month: tractor.purchaseDateMM, // Use purchase date for registration
+        registration_year: tractor.purchaseDateYYYY, // Use purchase date for registration
         who_drives: tractor.whoFrom,
       }));
 
@@ -1641,6 +1655,8 @@ export default function AddFarmerScreen() {
 
       // Helper function to append image to FormData
       const appendImage = (key: string, imageUri: string, index?: number) => {
+        console.log("image upload key and value:",key,imageUri,index);
+        
         if (!imageUri || imageUri.trim() === '') return;
         
         const uriParts = imageUri.split('.');
@@ -1670,13 +1686,13 @@ export default function AddFarmerScreen() {
             let imageKey = '';
             if (tractorIndex === 0) {
               // First tractor: both images use Tackertar_0
-              imageKey = 'Tackertar_0';
+              imageKey = 'tractor_images_0';
             } else if (tractorIndex === 1) {
               // Second tractor: first image uses Tackertar_1, second uses Tackertar_2
-              imageKey = imageIndex === 0 ? 'Tackertar_1' : 'Tackertar_2';
+              imageKey =  'tractor_images_1' ;
             } else {
               // Fallback for any additional tractors (shouldn't happen based on current logic)
-              imageKey = `Tackertar_${tractorIndex}`;
+              imageKey = `tractor_images_${tractorIndex}`;
             }
             appendImage(imageKey, imageUri, imageIndex);
           });
@@ -1694,8 +1710,9 @@ export default function AddFarmerScreen() {
       });
 
       console.log('Submitting farmer data:', JSON.stringify(farmerData, null, 2));
-      console.log('Profile photo URI:', profilePhoto);
+      console.log('Profile photo URI:', JSON.stringify(formData));
 
+      
       // Call API
       const response = await postDataWithImage(Apis.DEALER_ADD_FARMER, formData);
 
@@ -1736,7 +1753,7 @@ export default function AddFarmerScreen() {
     ddRef?: any,
     mmRef?: any,
     yyyyRef?: any,
-    dateType?: 'dob' | 'dom' | 'purchase',
+    dateType?: 'dob' | 'dom' | 'purchase' | 'registration',
     dateError?: string | undefined,
     setDateError?: (error: string | undefined) => void,
   ) => {
@@ -1824,6 +1841,17 @@ export default function AddFarmerScreen() {
         if (compareDates(day, month, year, currentDD, currentMM, currentYYYY) > 0) {
           if (setDateError) {
             setDateError('Purchase date cannot be in the future');
+          }
+        } else {
+          if (setDateError) {
+            setDateError(undefined);
+          }
+        }
+      } else if (dateType === 'registration') {
+        // Registration date should be reasonable (not in future)
+        if (compareDates(day, month, year, currentDD, currentMM, currentYYYY) > 0) {
+          if (setDateError) {
+            setDateError('Registration date cannot be in the future');
           }
         } else {
           if (setDateError) {
@@ -2370,6 +2398,7 @@ export default function AddFarmerScreen() {
                   keyboardType="phone-pad"
                   error={errors.phoneNumber}
                   numberOfLinesLabel={1}
+                  maxLength={10}
                 />
               </View>
             </View>
@@ -2709,6 +2738,30 @@ export default function AddFarmerScreen() {
                   numberOfLinesLabel={1}
                 />
               </View>
+              <View onLayout={registerFieldPosition(`tractor_${tractor.id}_vehicleNumber`)}>
+                <SimpleBoxInput
+                  label={t('addFarmer.vehicleNumber')}
+                  value={tractor.vehicleNumber}
+                  onChangeText={text =>
+                    updateTractorField(tractor.id, 'vehicleNumber', text)
+                  }
+                  placeholder={t('addFarmer.enterVehicleNumber')}
+                  error={tractor.errors.vehicleNumber}
+                  numberOfLinesLabel={1}
+                />
+              </View>
+              <View onLayout={registerFieldPosition(`tractor_${tractor.id}_ownerName`)}>
+                <SimpleBoxInput
+                  label={t('addFarmer.ownerName')}
+                  value={tractor.ownerName}
+                  onChangeText={text =>
+                    updateTractorField(tractor.id, 'ownerName', text)
+                  }
+                  placeholder={t('addFarmer.enterOwnerName')}
+                  error={tractor.errors.ownerName}
+                  numberOfLinesLabel={1}
+                />
+              </View>
               <View onLayout={registerFieldPosition(`tractor_${tractor.id}_chassisNumber`)}>
                 <SimpleBoxInput
                   label={t('addFarmer.chassisNumber')}
@@ -2730,30 +2783,6 @@ export default function AddFarmerScreen() {
                   }
                   placeholder={t('addFarmer.enterEngineNumber')}
                   error={tractor.errors.engineNumber}
-                  numberOfLinesLabel={1}
-                />
-              </View>
-              <View onLayout={registerFieldPosition(`tractor_${tractor.id}_ownerName`)}>
-                <SimpleBoxInput
-                  label={t('addFarmer.ownerName')}
-                  value={tractor.ownerName}
-                  onChangeText={text =>
-                    updateTractorField(tractor.id, 'ownerName', text)
-                  }
-                  placeholder={t('addFarmer.enterOwnerName')}
-                  error={tractor.errors.ownerName}
-                  numberOfLinesLabel={1}
-                />
-              </View>
-              <View onLayout={registerFieldPosition(`tractor_${tractor.id}_registrationNumber`)}>
-                <SimpleBoxInput
-                  label={t('addFarmer.registrationNumber')}
-                  value={tractor.registrationNumber}
-                  onChangeText={text =>
-                    updateTractorField(tractor.id, 'registrationNumber', text)
-                  }
-                  placeholder={t('addFarmer.enterRegistrationNumber')}
-                  error={tractor.errors.registrationNumber}
                   numberOfLinesLabel={1}
                 />
               </View>

@@ -95,7 +95,7 @@ export default function FarmerTractorsScreen() {
       const response = await getData(Apis.DEALER_TRACTORS, {});
       
       // Handle API response structure: { status: true, data: { tractors: [...], current_page, total_pages, total_tractors } }
-      console.log('[FarmerTractorsScreen] Tractors API Response:', JSON.stringify(response, null, 2));
+      console.log('[FarmerTractorsScreen] Tractors API Response:', response);
       
       if (response?.status === true && response?.data) {
         // Check if data has tractors array (new structure)

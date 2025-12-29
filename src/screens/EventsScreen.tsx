@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
@@ -408,9 +409,18 @@ export default function EventsScreen() {
               </SkeletonPlaceholder>
             </View>
           ) : events.length === 0 ? (
-            <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: moderateScale(100)}}>
-              <Text style={[Typography.regularMd, {color: colors.textTertiary, fontSize: moderateScale(14)}]}>
-                No events available
+            <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: moderateScale(100), paddingBottom: moderateScale(50)}}>
+              <Image 
+                source={ImagePath.noEvent} 
+                style={{
+                  width: moderateScale(200),
+                  height: moderateScale(200),
+                  resizeMode: 'contain',
+                  marginBottom: moderateScale(20),
+                }}
+              />
+              <Text style={[Typography.boldXl, {color: colors.textPrimary, fontSize: moderateScale(20)}]}>
+                No events found
               </Text>
             </View>
           ) : (

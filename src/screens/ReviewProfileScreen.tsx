@@ -28,7 +28,7 @@ import {saveProfileReviewed, getUserRole} from '../utils/session';
 import { ImagePath } from '../assets/images';
 import {useLanguage} from '../contexts/LanguageContext';
 import Toast, {ToastType} from '../components/Toast';
-import {getData} from '../Service/Apimethod';
+import {getData, putData, postDataWithImage} from '../Service/Apimethod';
 import Apis from '../Service/constant';
 import {getImageUrl} from '../utils/imageUtils';
 
@@ -113,6 +113,7 @@ export default function ReviewProfileScreen() {
             const imageUrl = getImageUrl(personalDetails.profile_photo_url);
             if (imageUrl) {
               setProfilePhoto(imageUrl);
+              setOriginalProfilePhoto(imageUrl);
             }
           }
           
@@ -193,17 +194,22 @@ export default function ReviewProfileScreen() {
             if (firstTractor.mobile_no) {
               setTractorMobileNo(firstTractor.mobile_no);
             }
-            // Use display_invoice_date if available, otherwise use date_of_invoice
+            // Use display_invoice_date if available (already formatted), otherwise use date_of_invoice
             if (firstTractor.display_invoice_date) {
               setDateOfInvoice(firstTractor.display_invoice_date);
             } else if (firstTractor.date_of_invoice) {
               setDateOfInvoice(firstTractor.date_of_invoice);
+            } else {
+              setDateOfInvoice('');
             }
-            // Use display_registration_date if available, otherwise use date_of_registration
+            // Use display_registration_date if available (already formatted), otherwise use date_of_registration
+            // If display_registration_date is null, show empty string
             if (firstTractor.display_registration_date) {
               setDateOfRegistration(firstTractor.display_registration_date);
             } else if (firstTractor.date_of_registration) {
               setDateOfRegistration(firstTractor.date_of_registration);
+            } else {
+              setDateOfRegistration('');
             }
             if (firstTractor.who_drives) {
               setWhoDrives(firstTractor.who_drives);
@@ -221,6 +227,10 @@ export default function ReviewProfileScreen() {
   }, []);
 
   const [currentImageType, setCurrentImageType] = useState<'profile' | 'tractor'>('profile');
+  
+  // Loading state
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [originalProfilePhoto, setOriginalProfilePhoto] = useState<string | null>(null);
   
   // Toast state
   const [showToast, setShowToast] = useState(false);
@@ -321,14 +331,138 @@ export default function ReviewProfileScreen() {
     }
   };
 
+  // Helper function to format date from DD/MM/YYYY to YYYY-MM-DD
+  const formatDateForAPI = (day: string, month: string, year: string): string | null => {
+    if (!day || !month || !year) return null;
+    
+    const dayNum = parseInt(day, 10);
+    const monthNum = parseInt(month, 10);
+    const yearNum = parseInt(year, 10);
+    
+    if (isNaN(dayNum) || isNaN(monthNum) || isNaN(yearNum)) return null;
+    
+    // Validate date
+    if (dayNum < 1 || dayNum > 31 || monthNum < 1 || monthNum > 12 || yearNum < 1900 || yearNum > 2100) {
+      return null;
+    }
+    
+    return `${yearNum}-${String(monthNum).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+  };
+
+  // Helper function to upload profile image
+  const uploadProfileImage = async (imageUri: string): Promise<boolean> => {
+    try {
+      // Check if image is a local file (starts with file://) or remote URL
+      if (!imageUri || imageUri.startsWith('http://') || imageUri.startsWith('https://')) {
+        // Already uploaded or remote URL, skip upload
+        return true;
+      }
+
+      // Extract file extension
+      const uriParts = imageUri.split('.');
+      const fileExtension = uriParts.length > 1 ? uriParts[uriParts.length - 1].toLowerCase() : 'jpg';
+      const validFormats = ['jpg', 'jpeg', 'png'];
+      
+      if (!validFormats.includes(fileExtension)) {
+        showToastMessage('Only upload JPG, PNG, JPEG image formats', 'error');
+        return false;
+      }
+
+      const mimeType = fileExtension === 'png' ? 'image/png' : 'image/jpeg';
+      const fileName = `profile-image-${Date.now()}.${fileExtension}`;
+      
+      // Create FormData
+      const formData = new FormData();
+      formData.append('image', {
+        uri: imageUri,
+        type: mimeType,
+        name: fileName,
+      } as any);
+
+      console.log('[ReviewProfileScreen] Uploading profile image:', fileName);
+      
+      // Upload image
+      const response = await postDataWithImage(Apis.FARMER_PROFILE_IMAGE, formData);
+      
+      if (response?.status === true) {
+        console.log('[ReviewProfileScreen] Profile image uploaded successfully');
+        return true;
+      } else {
+        showToastMessage(response?.message || 'Failed to upload profile image', 'error');
+        return false;
+      }
+    } catch (error) {
+      console.error('[ReviewProfileScreen] Error uploading profile image:', error);
+      showToastMessage('Failed to upload profile image. Please try again.', 'error');
+      return false;
+    }
+  };
+
   const handleContinue = async () => {
     try {
-      // Mark profile as reviewed
-      await saveProfileReviewed();
-      // Navigate to FarmerTabs
-      navigation.replace(SCREEN_NAMES.FarmerTabs);
+      setIsSubmitting(true);
+
+      // Upload profile image if it's a new local image (file:// URI) or different from original
+      if (profilePhoto) {
+        const isLocalImage = profilePhoto.startsWith('file://') || profilePhoto.startsWith('content://');
+        const isDifferentImage = profilePhoto !== originalProfilePhoto;
+        
+        if (isLocalImage || (isDifferentImage && !profilePhoto.startsWith('http'))) {
+          const imageUploaded = await uploadProfileImage(profilePhoto);
+          if (!imageUploaded) {
+            setIsSubmitting(false);
+            return; // Stop if image upload fails
+          }
+        }
+      }
+
+      // Format dates for API
+      const dateOfBirth = formatDateForAPI(dobDD, dobMM, dobYYYY);
+      const dateOfMarriage = formatDateForAPI(domDD, domMM, domYYYY);
+
+      // Prepare request body
+      const updateData: any = {
+        first_name: firstName.trim(),
+        middle_name: middleName.trim(),
+        last_name: lastName.trim(),
+        dealership_name: dealershipName.trim(),
+      };
+
+      // Add dates only if they are valid
+      if (dateOfBirth) {
+        updateData.date_of_birth = dateOfBirth;
+      }
+      if (dateOfMarriage) {
+        updateData.date_of_marriage = dateOfMarriage;
+      }
+
+      console.log('[ReviewProfileScreen] Updating farmer profile:', updateData);
+
+      // Call PUT API to update farmer profile
+      const response = await putData(Apis.FARMER_PROFILE, updateData);
+
+      if (response?.status === true) {
+        console.log('[ReviewProfileScreen] Profile updated successfully:', response);
+        
+        // Show success message
+        showToastMessage(response?.message || 'Profile updated successfully', 'success');
+        
+        // Mark profile as reviewed
+        await saveProfileReviewed();
+        
+        // Navigate to FarmerTabs after a short delay to show success message
+        setTimeout(() => {
+          navigation.replace(SCREEN_NAMES.FarmerTabs);
+        }, 1000);
+      } else {
+        // Show error message
+        showToastMessage(response?.message || 'Failed to update profile. Please try again.', 'error');
+        setIsSubmitting(false);
+      }
     } catch (error) {
-      console.error('Error saving profile review status:', error);
+      console.error('[ReviewProfileScreen] Error updating profile:', error);
+      showToastMessage('Failed to update profile. Please try again.', 'error');
+      setIsSubmitting(false);
     }
   };
 
@@ -694,6 +828,8 @@ export default function ReviewProfileScreen() {
           title={t('reviewProfile.continue')}
           onPress={handleContinue}
           style={dynamicStyles.continueButton}
+          disabled={isSubmitting}
+          loading={isSubmitting}
         />
       </ScrollView>
 

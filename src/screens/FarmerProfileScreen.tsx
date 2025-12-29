@@ -21,9 +21,10 @@ import {SCREEN_NAMES} from '../constants/screenNames';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import {clearSession, getSession} from '../utils/session';
 import {useLanguage} from '../contexts/LanguageContext';
-import {getData, postDataWithImage} from '../Service/Apimethod';
+import {getData, postData, postDataWithImage} from '../Service/Apimethod';
 import Apis from '../Service/constant';
 import {getImageUrl} from '../utils/imageUtils';
+import FirebaseService from '../Service/FirebaseService';
 import {pickAndCropImageFromCamera, pickAndCropImageFromGallery} from '../utils/imageCropUtils';
 import ImagePickerModal from '../components/ImagePickerModal';
 import Toast, {ToastType} from '../components/Toast';
@@ -406,6 +407,33 @@ export default function FarmerProfileScreen() {
 
   const handleConfirmLogout = async () => {
     try {
+      // Unregister FCM token before logout
+      try {
+        const deviceToken = await FirebaseService.getToken();
+        
+        if (deviceToken) {
+          // Prepare request body
+          const bodyData = {
+            device_token: deviceToken,
+          };
+          
+          // Call FCM unregister API
+          const response = await postData(Apis.FARMER_FCM_UNREGISTER, bodyData);
+          
+          if (response) {
+            console.log('[FarmerProfileScreen] FCM token unregistered successfully:', response);
+          } else {
+            console.log('[FarmerProfileScreen] FCM token unregistration failed or no response');
+          }
+        } else {
+          console.log('[FarmerProfileScreen] FCM token not available for unregistration');
+        }
+      } catch (fcmError) {
+        console.error('[FarmerProfileScreen] Error unregistering FCM token:', fcmError);
+        // Continue with logout even if FCM unregistration fails
+      }
+      
+      // Clear session and navigate to login
       await clearSession();
       setLogoutModalVisible(false);
       (navigation as any).reset({

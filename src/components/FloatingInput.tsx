@@ -52,7 +52,7 @@ const SimpleBoxInput = forwardRef<TextInput, SimpleBoxInputProps>(
         backgroundColor: isEditable ? colors.white : colors.backgroundGray,
         paddingVertical: Platform.OS === 'ios' ?  moderateScale(14) : moderateScale(4),
         paddingHorizontal: moderateScale(15),
-        opacity: isEditable ? 1 : 0.6,
+        // opacity: isEditable ? 1 : 0.6,
       },
       labelBox: {
         position: 'absolute',
