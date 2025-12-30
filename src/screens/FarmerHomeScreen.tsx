@@ -68,6 +68,7 @@ export default function FarmerHomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [farmerName, setFarmerName] = useState<string>('');
+  const [unreadCount, setUnreadCount] = useState<number>(0);
 
   // Membership services with translations
   const membershipServices = useMemo(() => [
@@ -107,6 +108,25 @@ export default function FarmerHomeScreen() {
     backgroundColor: colors.backgroundLight,
     bottomBarColor: colors.backgroundLight,
   });
+
+  // Fetch unread notification count
+  const fetchUnreadCount = async () => {
+    try {
+      console.log('[FarmerHomeScreen] Fetching unread notification count...');
+      const response = await getData(Apis.FARMER_PUSH_NOTIFICATIONS_UNREAD_COUNT, {});
+      
+      if (response?.status === true && response?.data) {
+        const count = response.data.count || response.data.unread_count || 0;
+        setUnreadCount(count);
+        console.log('[FarmerHomeScreen] Unread notification count:', count);
+      } else {
+        setUnreadCount(0);
+      }
+    } catch (error) {
+      console.error('[FarmerHomeScreen] Error fetching unread count:', error);
+      setUnreadCount(0);
+    }
+  };
 
   // Fetch farmer profile to get name and store profile data
   const fetchFarmerProfile = async () => {
@@ -279,6 +299,7 @@ export default function FarmerHomeScreen() {
       console.log('[FarmerHomeScreen] Screen focused - fetching dashboard data');
       fetchDashboardData(false);
       fetchFarmerProfile();
+      fetchUnreadCount();
     }, [fetchDashboardData])
   );
 
@@ -286,6 +307,7 @@ export default function FarmerHomeScreen() {
   const onRefresh = React.useCallback(() => {
     fetchDashboardData(true);
     fetchFarmerProfile();
+    fetchUnreadCount();
   }, [fetchDashboardData]);
 
   // Auto slide functionality
@@ -408,6 +430,16 @@ export default function FarmerHomeScreen() {
           padding: moderateScale(4),
           alignItems: 'center',
           justifyContent: 'center',
+          position: 'relative',
+        },
+        notificationBadge: {
+          position: 'absolute',
+          top: moderateScale(6),
+          right: moderateScale(6),
+          width: moderateScale(8),
+          height: moderateScale(8),
+          borderRadius: moderateScale(4),
+          backgroundColor: colors.primary,
         },
         carouselContainer: {
           marginHorizontal: moderateScale(16),
@@ -954,6 +986,9 @@ export default function FarmerHomeScreen() {
               size={moderateScale(22)}
               color={colors.textPrimary}
             />
+            {unreadCount > 0 && (
+              <View style={dynamicStyles.notificationBadge} />
+            )}
           </TouchableOpacity>
         </View>
       </View>

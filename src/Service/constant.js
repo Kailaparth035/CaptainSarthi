@@ -38,6 +38,7 @@ const Apis = {
   FARMER_FCM_UNREGISTER:`${API_BASE_URL}/api/farmers/fcm/unregister`,
   FARMER_PUSH_NOTIFICATIONS:`${API_BASE_URL}/api/farmers/push-notifications`,
   FARMER_PUSH_NOTIFICATION_READ:`${API_BASE_URL}/api/farmers/push-notifications`,
+  FARMER_PUSH_NOTIFICATIONS_UNREAD_COUNT:`${API_BASE_URL}/api/farmers/push-notifications/unread-count`,
   // Location APIs
   GET_STATES:`${API_BASE_URL}/api/dealers/locations/states`,
   GET_DISTRICTS:`${API_BASE_URL}/api/dealers/locations/districts`,
