@@ -24,6 +24,8 @@ import {SCREEN_NAMES} from '../constants/screenNames';
 import {getData} from '../Service/Apimethod';
 import Apis from '../Service/constant';
 import {getImageUrl} from '../utils/imageUtils';
+import {getFarmerProfileData} from '../utils/session';
+import {useLanguage} from '../contexts/LanguageContext';
 
 // Helper function to format date
 const formatDate = (dateString: string): string => {
@@ -43,9 +45,84 @@ export default function EventsScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
   const navigation = useNavigation();
+  const {currentLanguage} = useLanguage();
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState<any[]>([]);
+  const [rawEvents, setRawEvents] = useState<any[]>([]); // Store raw events for language re-transformation
+
+  // Helper function to transform events with language-specific titles
+  const transformEventsWithLanguage = useCallback((eventsArray: any[], language: string) => {
+    // Map language code to language_id (en -> 1, hi -> 2, gu -> 3)
+    const languageIdMap: Record<string, number> = {
+      'en': 1,
+      'hi': 2,
+      'gu': 3,
+    };
+    
+    const currentLanguageId = languageIdMap[language] || 1;
+    
+    // Transform API events to match UI structure
+    return eventsArray.map((event: any) => {
+      const imageUrl = event.image_url ? getImageUrl(event.image_url) : null;
+      // Use ImagePath as fallback if no image URL
+      const imageUri = imageUrl ? {uri: imageUrl} : ImagePath.eventImage;
+      
+      // Handle language-specific title
+      // Check if languages array exists and find matching language
+      let displayTitle = event.title || 'Event';
+      if (event.languages && Array.isArray(event.languages) && event.languages.length > 0) {
+        const languageSpecificContent = event.languages.find(
+          (lang: any) => lang.language_id === currentLanguageId
+        );
+        // Use language-specific title if found, otherwise use default title
+        if (languageSpecificContent?.title) {
+          displayTitle = languageSpecificContent.title;
+        }
+      }
+      
+      // Handle location - prefer full_address, then event_venue, then construct from location object
+      let location = 'Location not specified';
+      if (event.location?.full_address) {
+        location = event.location.full_address;
+      } else if (event.location?.city && event.location?.state) {
+        location = `${event.location.city}, ${event.location.state}`;
+      } else if (event.event_venue) {
+        location = event.event_venue;
+      } else if (event.location) {
+        location = event.location;
+      } else if (event.venue) {
+        location = event.venue;
+      }
+      
+      // Handle date - prefer display_date, otherwise format from start_date/end_date
+      let date = '';
+      if (event.display_date) {
+        date = event.display_date;
+      } else if (event.start_date && event.end_date) {
+        // Format date range
+        const startDate = formatDate(event.start_date);
+        const endDate = formatDate(event.end_date);
+        date = `${startDate} to ${endDate}`;
+      } else if (event.start_date) {
+        date = formatDate(event.start_date);
+      } else if (event.event_date) {
+        date = formatDate(event.event_date);
+      } else if (event.publish_date) {
+        date = formatDate(event.publish_date);
+      } else if (event.date) {
+        date = formatDate(event.date);
+      }
+      
+      return {
+        id: event.event_id || event.id || String(Math.random()),
+        title: displayTitle,
+        location: location,
+        date: date,
+        imageUri: imageUri,
+      };
+    });
+  }, []);
 
   // Fetch events from API
   const fetchEvents = useCallback(async (showRefreshing = false) => {
@@ -56,8 +133,51 @@ export default function EventsScreen() {
         setLoading(true);
       }
       
-      console.log('[EventsScreen] Fetching events data');
-      const response = await getData(Apis.FARMER_EVENTS, {});
+      // Get stored farmer profile data to extract location details
+      const profileData = await getFarmerProfileData();
+      const locationDetails = profileData?.location_details || {};
+      
+      console.log('[EventsScreen] Profile data:', profileData);
+      console.log('[EventsScreen] Location details:', locationDetails);
+      
+      // Build query parameters in correct order: state, district, village, category
+      // Format: state=1&district=2&village=3&category=1
+      // const queryParams: any = {};
+      let urlParams;
+
+      
+      // Add state parameter (first)
+      if (locationDetails.state_id) {
+        // queryParams.state = String(locationDetails.state_id);
+        urlParams =`?state=${locationDetails.state_id}`
+      }
+      
+      // Add district parameter (second)
+      if (locationDetails.district_id) {
+        // queryParams.district = String(locationDetails.district_id);
+        urlParams= urlParams + `&district=${locationDetails.district_id}`
+      }
+      
+      // Add village parameter (third)
+      if (locationDetails.village_id) {
+        // queryParams.village = String(locationDetails.village_id);
+        urlParams=urlParams + `&village=${locationDetails.village_id}`
+      }
+      
+      // Add category parameter (fourth)
+      if (locationDetails.category_id) {
+        // queryParams.category = String(locationDetails.category_id);
+        urlParams=urlParams +`&category=${locationDetails.category_id}`
+      }
+      
+      console.log('[EventsScreen] Query parameters (ordered):', urlParams);
+      
+      // Always use events by location API when we have profile data
+      // Use location API if we have any location parameters, otherwise use regular API
+      const apiEndpoint =  Apis.FARMER_EVENTS_BY_LOCATION + urlParams;
+      console.log('[EventsScreen] API Endpoint:', apiEndpoint);
+      
+      const response = await getData(apiEndpoint);
       
       console.log('[EventsScreen] Events API Response:', JSON.stringify(response, null, 2));
       
@@ -70,71 +190,40 @@ export default function EventsScreen() {
         console.log('[EventsScreen] Events array extracted:', eventsArray?.length || 0, 'events');
         
         if (Array.isArray(eventsArray) && eventsArray.length > 0) {
-          // Transform API events to match UI structure
-          const transformedEvents = eventsArray.map((event: any) => {
-            const imageUrl = event.image_url ? getImageUrl(event.image_url) : null;
-            // Use ImagePath as fallback if no image URL
-            const imageUri = imageUrl ? {uri: imageUrl} : ImagePath.eventImage;
-            
-            // Handle location - prefer full_address, then event_venue, then construct from location object
-            let location = 'Location not specified';
-            if (event.location?.full_address) {
-              location = event.location.full_address;
-            } else if (event.location?.city && event.location?.state) {
-              location = `${event.location.city}, ${event.location.state}`;
-            } else if (event.event_venue) {
-              location = event.event_venue;
-            } else if (event.location) {
-              location = event.location;
-            } else if (event.venue) {
-              location = event.venue;
-            }
-            
-            // Handle date - prefer display_date, otherwise format from start_date/end_date
-            let date = '';
-            if (event.display_date) {
-              date = event.display_date;
-            } else if (event.start_date && event.end_date) {
-              // Format date range
-              const startDate = formatDate(event.start_date);
-              const endDate = formatDate(event.end_date);
-              date = `${startDate} to ${endDate}`;
-            } else if (event.start_date) {
-              date = formatDate(event.start_date);
-            } else if (event.event_date) {
-              date = formatDate(event.event_date);
-            } else if (event.publish_date) {
-              date = formatDate(event.publish_date);
-            } else if (event.date) {
-              date = formatDate(event.date);
-            }
-            
-            return {
-              id: event.event_id || event.id || String(Math.random()),
-              title: event.title || 'Event',
-              location: location,
-              date: date,
-              imageUri: imageUri,
-            };
-          });
+          // Store raw events for language re-transformation
+          setRawEvents(eventsArray);
+          
+          // Transform events with current language
+          const transformedEvents = transformEventsWithLanguage(eventsArray, currentLanguage);
           
           setEvents(transformedEvents);
         } else {
           console.warn('[EventsScreen] No events found in response');
           setEvents([]);
+          setRawEvents([]);
         }
       } else {
         console.warn('[EventsScreen] Unexpected API response format:', response);
         setEvents([]);
+        setRawEvents([]);
       }
     } catch (error) {
       console.error('[EventsScreen] Error fetching events:', error);
       setEvents([]);
+      setRawEvents([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [transformEventsWithLanguage, currentLanguage]);
+
+  // Re-transform events when language changes (if events are already loaded)
+  useEffect(() => {
+    if (rawEvents.length > 0) {
+      const transformedEvents = transformEventsWithLanguage(rawEvents, currentLanguage);
+      setEvents(transformedEvents);
+    }
+  }, [currentLanguage, rawEvents, transformEventsWithLanguage]);
 
   // Handle pull to refresh
   const onRefresh = React.useCallback(() => {
@@ -145,6 +234,14 @@ export default function EventsScreen() {
   useEffect(() => {
     fetchEvents();
   }, [fetchEvents]);
+
+  // Re-transform events when language changes (if events are already loaded)
+  useEffect(() => {
+    if (events.length > 0) {
+      // Re-fetch to get fresh data with current language transformation
+      fetchEvents();
+    }
+  }, [currentLanguage]);
 
   useDynamicStatusBar({
     backgroundColor: colors.backgroundLight,

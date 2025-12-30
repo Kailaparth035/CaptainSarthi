@@ -29,6 +29,7 @@ import {ImagePath} from '../assets/images';
 import {getData} from '../Service/Apimethod';
 import Apis, {API_BASE_URL} from '../Service/constant';
 import {getImageUrl} from '../utils/imageUtils';
+import {useLanguage} from '../contexts/LanguageContext';
 
 type StoryDetailsRouteParams = {
   storyId: string;
@@ -70,11 +71,13 @@ export default function StoryDetailsScreen() {
   const navigation = useNavigation();
   const tabNavigation = useNavigation<BottomTabNavigationProp<FarmerTabParamList>>();
   const params = route.params as StoryDetailsRouteParams;
+  const {currentLanguage} = useLanguage();
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [storyDetails, setStoryDetails] = useState<any>(null);
+  const [storyApiData, setStoryApiData] = useState<any>(null); // Store full API data for language re-transformation
   const {playTTS, state: ttsState} = useTTS();
 
   // Fetch story details from API
@@ -106,6 +109,22 @@ export default function StoryDetailsScreen() {
         const storyData = response.data;
         console.log('[StoryDetailsScreen] Story Data:', JSON.stringify(storyData, null, 2));
         
+        // Store full API data including languages array
+        setStoryApiData(storyData);
+        
+        // Get language-specific content
+        // Map language code to language_id (en -> 1, hi -> 2, gu -> 3)
+        const languageIdMap: Record<string, number> = {
+          'en': 1,
+          'hi': 2,
+          'gu': 3,
+        };
+        
+        const currentLanguageId = languageIdMap[currentLanguage] || 1;
+        const languageSpecificContent = storyData.languages?.find(
+          (lang: any) => lang.language_id === currentLanguageId
+        );
+        
         // Transform API data to match component format
         // Handle video URL from media.cover_video
         let videoUrl = '';
@@ -127,8 +146,12 @@ export default function StoryDetailsScreen() {
         // Handle date - use display_datetime or display_date
         const date = storyData.display_datetime || storyData.display_date || storyData.story_date || storyData.date || '';
         
-        // Handle description - use content.full_description or content.short_description
-        const description = storyData.content?.full_description || storyData.content?.short_description || storyData.description?.text || storyData.description || '';
+        // Handle description - use language-specific description if available, otherwise use default
+        const defaultDescription = storyData.content?.full_description || storyData.content?.short_description || storyData.description?.text || storyData.description || '';
+        const displayDescription = languageSpecificContent?.description || defaultDescription;
+        
+        // Use language-specific title if available, otherwise use default title
+        const displayTitle = languageSpecificContent?.title || storyData.title || params?.title || 'Story';
         
         // Handle gallery images from media.images
         const galleryImages: any[] = [];
@@ -151,10 +174,10 @@ export default function StoryDetailsScreen() {
         
         setStoryDetails({
           id: storyData.story_id || storyData.id || storyId,
-          title: storyData.title || params?.title || 'Story',
+          title: displayTitle,
           date: date,
-          description: description,
-          fullDescription: description,
+          description: displayDescription,
+          fullDescription: displayDescription,
           videoUri: videoUrl,
           thumbnailUri: thumbnailUri,
           images: galleryImages,
@@ -172,7 +195,36 @@ export default function StoryDetailsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [params?.storyId]);
+  }, [params?.storyId, currentLanguage]);
+
+  // Update displayed content when language changes
+  useEffect(() => {
+    if (storyApiData) {
+      // Map language code to language_id (en -> 1, hi -> 2, gu -> 3)
+      const languageIdMap: Record<string, number> = {
+        'en': 1,
+        'hi': 2,
+        'gu': 3,
+      };
+      
+      const currentLanguageId = languageIdMap[currentLanguage] || 1;
+      const languageSpecificContent = storyApiData.languages?.find(
+        (lang: any) => lang.language_id === currentLanguageId
+      );
+      
+      // Update title and description with language-specific content
+      const displayTitle = languageSpecificContent?.title || storyApiData.title || params?.title || 'Story';
+      const defaultDescription = storyApiData.content?.full_description || storyApiData.content?.short_description || storyApiData.description?.text || storyApiData.description || '';
+      const displayDescription = languageSpecificContent?.description || defaultDescription;
+      
+      setStoryDetails((prev: any) => ({
+        ...prev,
+        title: displayTitle,
+        description: displayDescription,
+        fullDescription: displayDescription,
+      }));
+    }
+  }, [currentLanguage, storyApiData, params?.title]);
 
   // Handle pull to refresh
   const onRefresh = React.useCallback(() => {

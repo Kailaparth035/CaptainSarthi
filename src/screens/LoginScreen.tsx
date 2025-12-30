@@ -33,7 +33,7 @@ import SimpleBoxInput from '../components/FloatingInput';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Toast, { ToastType } from '../components/Toast';
-import { saveSession, saveLoginResponse, isProfileReviewed, isTermsAccepted } from '../utils/session';
+import { saveSession, saveLoginResponse, isTermsAccepted } from '../utils/session';
 import { isFarmerRole } from '../utils/userRole';
 import { postData } from '../Service/Apimethod';
 import Apis from '../Service/constant';
@@ -466,9 +466,10 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
             if (!termsAccepted) {
               navigation.replace(SCREEN_NAMES.Terms);
             } else {
-              // Check if profile has been reviewed
-              const profileReviewed = await isProfileReviewed();
-              if (profileReviewed) {
+              // Check if profile is completed from login response
+              const profileCompleted = user?.profile_completed === true;
+              console.log('[LoginScreen] Profile completed status:', profileCompleted);
+              if (profileCompleted) {
                 navigation.replace(SCREEN_NAMES.FarmerTabs);
               } else {
                 navigation.replace(SCREEN_NAMES.ReviewProfile);
@@ -484,8 +485,10 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
               if (!termsAccepted) {
                 navigation.replace(SCREEN_NAMES.Terms);
               } else {
-                const profileReviewed = await isProfileReviewed();
-                if (profileReviewed) {
+                // Check if profile is completed from login response
+                const profileCompleted = user?.profile_completed === true;
+                console.log('[LoginScreen] Profile completed status (fallback):', profileCompleted);
+                if (profileCompleted) {
                   navigation.replace(SCREEN_NAMES.FarmerTabs);
                 } else {
                   navigation.replace(SCREEN_NAMES.ReviewProfile);

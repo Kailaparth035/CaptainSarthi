@@ -1,6 +1,6 @@
 import React from 'react';
 import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
-import {CommonActions} from '@react-navigation/native';
+import {CommonActions, StackActions} from '@react-navigation/native';
 import {SCREEN_NAMES} from '../constants/screenNames';
 import FarmerBottomTabBar from './components/FarmerBottomTabBar';
 import FarmerHomeStack from './stacks/FarmerHomeStack';
@@ -27,6 +27,50 @@ export type FarmerTabParamList = {
 
 const Tab = createBottomTabNavigator<FarmerTabParamList>();
 
+// Helper function to create tab press listener that resets stack to root
+const createTabPressListener = (screenName: string) => {
+  return ({navigation, route}: any) => ({
+    tabPress: (e: any) => {
+      const state = navigation.getState();
+      const tabState = state.routes.find((r: any) => r.key === route.key)?.state;
+      const currentTabIndex = state.index;
+      const targetTabIndex = state.routes.findIndex((r: any) => r.key === route.key);
+      
+      // Always reset to root screen when tab is pressed
+      // Check if stack has multiple screens OR if we're switching from another tab
+      const needsReset = (tabState && tabState.index > 0) || currentTabIndex !== targetTabIndex;
+      
+      if (needsReset) {
+        e.preventDefault();
+        
+        // Reset the entire navigation state but preserve tab structure
+        // Only reset the specific tab's nested stack
+        const allRoutes = state.routes.map((r: any, index: number) => {
+          if (r.key === route.key) {
+            // Reset this tab's stack to root
+            return {
+              ...r,
+              state: {
+                routes: [{name: screenName}],
+                index: 0,
+              },
+            };
+          }
+          // Keep other tabs as they are
+          return r;
+        });
+        
+        navigation.dispatch(
+          CommonActions.reset({
+            index: targetTabIndex,
+            routes: allRoutes,
+          })
+        );
+      }
+    },
+  });
+};
+
 export default function FarmerTabNavigator() {
   return (
     <Tab.Navigator
@@ -35,59 +79,36 @@ export default function FarmerTabNavigator() {
         tabBarShowLabel: false,
       }}
       tabBar={props => <FarmerBottomTabBar {...props} />}>
-      <Tab.Screen name={SCREEN_NAMES.Home} component={FarmerHomeStack} />
+      <Tab.Screen 
+        name={SCREEN_NAMES.Home} 
+        component={FarmerHomeStack}
+        listeners={createTabPressListener(SCREEN_NAMES.Home)}
+      />
       <Tab.Screen 
         name={SCREEN_NAMES.Events} 
         component={EventsStack}
-        listeners={({navigation, route}) => ({
-          tabPress: (e) => {
-            // Always reset stack to Events list page when tab is pressed
-            const state = navigation.getState();
-            const tabState = state.routes.find(r => r.key === route.key)?.state;
-            
-            // If stack exists and has multiple screens, pop to root
-            if (tabState && tabState.index > 0) {
-              e.preventDefault();
-              // Navigate to root screen to reset the stack
-              navigation.dispatch(
-                CommonActions.navigate({
-                  name: SCREEN_NAMES.Events,
-                  params: {
-                    screen: SCREEN_NAMES.Events,
-                  },
-                })
-              );
-            }
-          },
-        })}
+        listeners={createTabPressListener(SCREEN_NAMES.Events)}
+      />
+      <Tab.Screen 
+        name={SCREEN_NAMES.History} 
+        component={HistoryStack}
+        listeners={createTabPressListener(SCREEN_NAMES.History)}
       />
       <Tab.Screen 
         name={SCREEN_NAMES.Stories} 
         component={StoriesStack}
-        listeners={({navigation, route}) => ({
-          tabPress: (e) => {
-            // Always reset stack to Stories list page when tab is pressed
-            const state = navigation.getState();
-            const tabState = state.routes.find(r => r.key === route.key)?.state;
-            
-            // If stack exists and has multiple screens, pop to root
-            if (tabState && tabState.index > 0) {
-              e.preventDefault();
-              // Navigate to root screen to reset the stack
-              navigation.dispatch(
-                CommonActions.navigate({
-                  name: SCREEN_NAMES.Stories,
-                  params: {
-                    screen: SCREEN_NAMES.Stories,
-                  },
-                })
-              );
-            }
-          },
-        })}
+        listeners={createTabPressListener(SCREEN_NAMES.Stories)}
       />
-      <Tab.Screen name={SCREEN_NAMES.Tractors} component={FarmerTractorsStack} />
-      <Tab.Screen name={SCREEN_NAMES.Profile} component={FarmerProfileStack} />
+      <Tab.Screen 
+        name={SCREEN_NAMES.Tractors} 
+        component={FarmerTractorsStack}
+        listeners={createTabPressListener(SCREEN_NAMES.Tractors)}
+      />
+      <Tab.Screen 
+        name={SCREEN_NAMES.Profile} 
+        component={FarmerProfileStack}
+        listeners={createTabPressListener(SCREEN_NAMES.Profile)}
+      />
     </Tab.Navigator>
   );
 }

@@ -455,7 +455,10 @@ export default function FarmerProfileScreen() {
   };
 
   const handleUpdateNumber = () => {
+    console.log('[FarmerProfileScreen] Update number button clicked');
+    console.log('[FarmerProfileScreen] Current modal state:', updateNumberModalVisible);
     setUpdateNumberModalVisible(true);
+    console.log('[FarmerProfileScreen] Modal state set to true');
   };
 
   const handleSendRequest = (newNumber: string) => {
@@ -646,8 +649,11 @@ export default function FarmerProfileScreen() {
       {/* Update Number Modal */}
       <UpdateNumberModal
         visible={updateNumberModalVisible}
-        onClose={() => setUpdateNumberModalVisible(false)}
-        existingNumber={userData.phone}
+        onClose={() => {
+          console.log('[FarmerProfileScreen] Closing update number modal');
+          setUpdateNumberModalVisible(false);
+        }}
+        existingNumber={userData.phone || ''}
         onSendRequest={handleSendRequest}
       />
 

@@ -29,6 +29,7 @@ import {useLanguage} from '../contexts/LanguageContext';
 import {getData} from '../Service/Apimethod';
 import Apis, {API_BASE_URL} from '../Service/constant';
 import {getImageUrl} from '../utils/imageUtils';
+import {saveFarmerProfileData, FarmerProfileData} from '../utils/session';
 
 const screenWidth = Dimensions.get('window').width;
 const screenHeight = Dimensions.get('window').height;
@@ -107,7 +108,7 @@ export default function FarmerHomeScreen() {
     bottomBarColor: colors.backgroundLight,
   });
 
-  // Fetch farmer profile to get name
+  // Fetch farmer profile to get name and store profile data
   const fetchFarmerProfile = async () => {
     try {
       console.log('[FarmerHomeScreen] Fetching farmer profile data...');
@@ -129,6 +130,59 @@ export default function FarmerHomeScreen() {
           const displayName = firstName || fullName;
           setFarmerName(displayName);
         }
+
+        // Extract location details from profile data
+        // Location data might be in different places in the response
+        const locationDetails = data.location_details || data.location || {};
+        const addressData = data.address || data.Address || personalDetails.address || personalDetails.Address || {};
+        
+        // Try to extract location IDs from various possible locations
+        // Check location_details, address, personal_details, or root level
+        const stateId = locationDetails.state_id || locationDetails.stateId || 
+                       addressData.state_id || addressData.stateId || 
+                       data.state_id || data.stateId || 
+                       personalDetails.state_id || personalDetails.stateId;
+        
+        const districtId = locationDetails.district_id || locationDetails.districtId || 
+                          addressData.district_id || addressData.districtId || 
+                          data.district_id || data.districtId || 
+                          personalDetails.district_id || personalDetails.districtId;
+        
+        const villageId = locationDetails.village_id || locationDetails.villageId || 
+                         addressData.village_id || addressData.villageId || 
+                         data.village_id || data.villageId || 
+                         personalDetails.village_id || personalDetails.villageId;
+        
+        const categoryId = locationDetails.category_id || locationDetails.categoryId || 
+                          data.category_id || data.categoryId || 
+                          personalDetails.category_id || personalDetails.categoryId;
+        
+        // Prepare profile data to save
+        const profileData: FarmerProfileData = {
+          personal_details: personalDetails,
+          location_details: {
+            state_id: stateId,
+            district_id: districtId,
+            village_id: villageId,
+            category_id: categoryId,
+            state: locationDetails.state || addressData.state || data.state,
+            district: locationDetails.district || addressData.district || data.district,
+            village: locationDetails.village || addressData.village || data.village,
+            category: locationDetails.category || data.category,
+          },
+          dealership_details: data.dealership_details || {},
+          tractor_details: data.tractor_details || {},
+          fullData: data, // Store full data for reference
+        };
+
+        // Save profile data to AsyncStorage
+        await saveFarmerProfileData(profileData);
+        console.log('[FarmerHomeScreen] Farmer profile data saved to AsyncStorage:', {
+          state_id: profileData.location_details?.state_id,
+          district_id: profileData.location_details?.district_id,
+          village_id: profileData.location_details?.village_id,
+          category_id: profileData.location_details?.category_id,
+        });
       }
     } catch (error) {
       console.error('[FarmerHomeScreen] Error fetching farmer profile:', error);

@@ -1103,12 +1103,8 @@ export default function AddFarmerScreen() {
     console.log('=== VALIDATION START ===');
     const newErrors: FormErrors = {};
 
-    // Profile photo
-    console.log('Checking profile photo:', profilePhoto ? '✓ Present' : '✗ Missing');
-    if (!profilePhoto) {
-      newErrors.profilePhoto = 'Profile photo is required';
-      console.log('ERROR: Profile photo is required');
-    }
+    // Profile photo - now optional (not required)
+    console.log('Checking profile photo:', profilePhoto ? '✓ Present' : '○ Optional (not provided)');
 
     // Category
     console.log('Checking category:', category || '✗ Missing');
@@ -1488,11 +1484,7 @@ export default function AddFarmerScreen() {
       return;
     }
 
-    if (!profilePhoto) {
-      showToastMessage('Profile photo is required');
-      return;
-    }
-
+    // Profile photo is now optional, so we don't require it
     try {
       setSubmitting(true);
 
@@ -1641,17 +1633,19 @@ export default function AddFarmerScreen() {
       // Add data as JSON string
       formData.append('data', JSON.stringify(farmerData));
       
-      // Add profile photo
-      const profileUriParts = profilePhoto.split('.');
-      const profileFileExtension = profileUriParts.length > 1 ? profileUriParts[profileUriParts.length - 1].toLowerCase() : 'jpg';
-      const profileMimeType = profileFileExtension === 'png' ? 'image/png' : 'image/jpeg';
-      const profileFileName = `profile-photo-${Date.now()}.${profileFileExtension}`;
-      
-      formData.append('profile_photo', {
-        uri: profilePhoto,
-        type: profileMimeType,
-        name: profileFileName,
-      } as any);
+      // Add profile photo (optional)
+      if (profilePhoto) {
+        const profileUriParts = profilePhoto.split('.');
+        const profileFileExtension = profileUriParts.length > 1 ? profileUriParts[profileUriParts.length - 1].toLowerCase() : 'jpg';
+        const profileMimeType = profileFileExtension === 'png' ? 'image/png' : 'image/jpeg';
+        const profileFileName = `profile-photo-${Date.now()}.${profileFileExtension}`;
+        
+        formData.append('profile_photo', {
+          uri: profilePhoto,
+          type: profileMimeType,
+          name: profileFileName,
+        } as any);
+      }
 
       // Helper function to append image to FormData
       const appendImage = (key: string, imageUri: string, index?: number) => {
@@ -1727,7 +1721,7 @@ export default function AddFarmerScreen() {
           navigation.goBack();
         }, 2000);
       } else {
-        const errorMessage = response?.message || response?.error || 'Failed to add farmer. Please try again.';
+        const errorMessage = response || response?.message || response?.error || 'Failed to add farmer. Please try again.';
         showToastMessage(errorMessage);
       }
     } catch (error: any) {
@@ -2897,4 +2891,3 @@ export default function AddFarmerScreen() {
     </View>
   );
 }
-

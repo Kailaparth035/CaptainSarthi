@@ -20,7 +20,7 @@ import {Typography} from '../utils/typography';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import {useLanguage} from '../contexts/LanguageContext';
 import Button from '../components/Button';
-import {saveLanguageSelected, getSession, isProfileReviewed, isTermsAccepted, getUserRole, isLoggedIn} from '../utils/session';
+import {saveLanguageSelected, getSession, isTermsAccepted, getUserRole, getUserData, isLoggedIn} from '../utils/session';
 import {SCREEN_NAMES} from '../constants/screenNames';
 import {isFarmerRole} from '../utils/userRole';
 import {getData} from '../Service/Apimethod';
@@ -123,9 +123,11 @@ export default function LanguageSelectScreen() {
           if (!termsAccepted) {
             navigation.replace(SCREEN_NAMES.Terms);
           } else {
-            // Check if profile has been reviewed
-            const profileReviewed = await isProfileReviewed();
-            if (profileReviewed) {
+            // Check if profile is completed from user data
+            const userData = await getUserData();
+            const profileCompleted = userData?.user?.profile_completed === true;
+            console.log('[LanguageSelectScreen] Profile completed status:', profileCompleted);
+            if (profileCompleted) {
               navigation.replace(SCREEN_NAMES.FarmerTabs);
             } else {
               navigation.replace(SCREEN_NAMES.ReviewProfile);

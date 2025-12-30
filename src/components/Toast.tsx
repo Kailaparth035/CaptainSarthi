@@ -32,6 +32,7 @@ export default function Toast({
   onClose,
   style,
 }: ToastProps) {
+  // ALL HOOKS MUST BE CALLED BEFORE ANY CONDITIONAL RETURNS
   const insets = useSafeAreaInsets();
   const { moderateScale } = useDeviceMetrics();
   const toastAnimation = useRef(new Animated.Value(0)).current;
@@ -105,8 +106,8 @@ export default function Toast({
       },
       shadowOpacity: 0.25,
       shadowRadius: 3.84,
-      elevation: 5,
-      zIndex: 1000,
+      elevation: 10, // Increased for Android to ensure visibility
+      zIndex: 9999, // Increased z-index to ensure it's above modal content
     },
     toastIcon: {
       width: moderateScale(40),

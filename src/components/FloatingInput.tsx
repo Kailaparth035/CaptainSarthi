@@ -1,4 +1,4 @@
-import React, { forwardRef, useState } from 'react';
+import React, { forwardRef, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -41,7 +41,7 @@ const SimpleBoxInput = forwardRef<TextInput, SimpleBoxInputProps>(
     const [isFocused, setIsFocused] = useState(false);
     const isEditable = props.editable !== false; // Default to true if not specified
 
-    const styles = StyleSheet.create({
+    const styles = useMemo(() => StyleSheet.create({
       container: {
         marginVertical: moderateScale(14),
       },
@@ -76,7 +76,7 @@ const SimpleBoxInput = forwardRef<TextInput, SimpleBoxInputProps>(
         color: 'red',
         fontSize: moderateScale(10),
       },
-    });
+    }), [moderateScale, isFocused, isEditable]);
 
     return (
       <View style={[styles.container, containerStyle]}>

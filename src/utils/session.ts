@@ -7,6 +7,7 @@ const USER_ROLE_KEY = '@user_role';
 const PROFILE_REVIEWED_KEY = '@profile_reviewed';
 const TERMS_ACCEPTED_KEY = '@terms_accepted';
 const LANGUAGE_SELECTED_KEY = '@language_selected';
+const FARMER_PROFILE_DATA_KEY = '@farmer_profile_data';
 
 export interface UserSession {
   isLoggedIn: boolean;
@@ -35,6 +36,7 @@ export interface UserDetails {
   id: number;
   name: string;
   phone: string;
+  profile_completed?: boolean;
   // Add other user fields as needed
 }
 
@@ -46,6 +48,41 @@ export interface UserData {
   dealer?: DealerData;
   farmer?: FarmerData;
   // Add other user data fields as needed
+}
+
+export interface FarmerProfileData {
+  // Personal details
+  personal_details?: {
+    first_name?: string;
+    middle_name?: string;
+    last_name?: string;
+    mobile_no?: string;
+    date_of_birth?: string;
+    date_of_marriage?: string;
+    profile_photo_url?: string;
+  };
+  // Location details
+  location_details?: {
+    state_id?: string | number;
+    district_id?: string | number;
+    village_id?: string | number;
+    category_id?: string | number;
+    state?: string;
+    district?: string;
+    village?: string;
+    category?: string;
+  };
+  // Dealership details
+  dealership_details?: {
+    dealership_name?: string;
+    dealership_address?: string;
+  };
+  // Tractor details
+  tractor_details?: {
+    tractor_list?: any[];
+  };
+  // Full API response data
+  fullData?: any;
 }
 
 /**
@@ -99,6 +136,7 @@ export const clearSession = async (): Promise<void> => {
     await AsyncStorage.removeItem(USER_DATA_KEY);
     await AsyncStorage.removeItem(USER_ROLE_KEY);
     await clearProfileReviewed();
+    await clearFarmerProfileData();
     // Terms acceptance is NOT cleared - it should persist across logins/logouts
     // so that Onboarding screen doesn't show again after first login
     // await clearTermsAccepted();
@@ -313,6 +351,47 @@ export const clearLanguageSelected = async (): Promise<void> => {
     await AsyncStorage.removeItem(LANGUAGE_SELECTED_KEY);
   } catch (error) {
     console.error('Error clearing language selection status:', error);
+    throw error;
+  }
+};
+
+/**
+ * Save farmer profile data to AsyncStorage
+ */
+export const saveFarmerProfileData = async (profileData: FarmerProfileData): Promise<void> => {
+  try {
+    await AsyncStorage.setItem(FARMER_PROFILE_DATA_KEY, JSON.stringify(profileData));
+    console.log('[session] Farmer profile data saved to AsyncStorage');
+  } catch (error) {
+    console.error('Error saving farmer profile data:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get farmer profile data from AsyncStorage
+ */
+export const getFarmerProfileData = async (): Promise<FarmerProfileData | null> => {
+  try {
+    const profileData = await AsyncStorage.getItem(FARMER_PROFILE_DATA_KEY);
+    if (profileData) {
+      return JSON.parse(profileData) as FarmerProfileData;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error getting farmer profile data:', error);
+    return null;
+  }
+};
+
+/**
+ * Clear farmer profile data (on logout)
+ */
+export const clearFarmerProfileData = async (): Promise<void> => {
+  try {
+    await AsyncStorage.removeItem(FARMER_PROFILE_DATA_KEY);
+  } catch (error) {
+    console.error('Error clearing farmer profile data:', error);
     throw error;
   }
 };

@@ -4,7 +4,7 @@ import { Alert } from 'react-native';
 // TODO: Import your navigation logic if needed to redirect on 401
 const handleApiResponse = (response) => {
   const { status, data, config } = response;
-  console.log('data====>>',data?.message);
+  console.log('data====>>',status, data,response);
   
  switch (status) {
     case 200:
@@ -18,6 +18,7 @@ const handleApiResponse = (response) => {
       break;
       
       case 404: 
+      return 
       // Alert.alert('Something went wrong!',data?.message);
       break;
 
@@ -76,7 +77,7 @@ export const postDataWithImage = async (url, formData) => {
     });
     return handleApiResponse(response);
   } catch (error) {
-    console.log("Upload error:", error?.response?.data || error);
+    console.log("Upload error:", error?.response?.data || error?.message);
     return null;
   }
 };

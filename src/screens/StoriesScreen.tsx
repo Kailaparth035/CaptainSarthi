@@ -24,6 +24,8 @@ import {SCREEN_NAMES} from '../constants/screenNames';
 import {getData} from '../Service/Apimethod';
 import Apis from '../Service/constant';
 import {getImageUrl} from '../utils/imageUtils';
+import {getFarmerProfileData} from '../utils/session';
+import {useLanguage} from '../contexts/LanguageContext';
 
 // Helper function to format date
 const formatDate = (dateString: string): string => {
@@ -43,9 +45,55 @@ export default function StoriesScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
   const navigation = useNavigation();
+  const {currentLanguage} = useLanguage();
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [stories, setStories] = useState<any[]>([]);
+  const [rawStories, setRawStories] = useState<any[]>([]); // Store raw stories for language re-transformation
+
+  // Helper function to transform stories with language-specific titles
+  const transformStoriesWithLanguage = useCallback((storiesArray: any[], language: string) => {
+    // Map language code to language_id (en -> 1, hi -> 2, gu -> 3)
+    const languageIdMap: Record<string, number> = {
+      'en': 1,
+      'hi': 2,
+      'gu': 3,
+    };
+    
+    const currentLanguageId = languageIdMap[language] || 1;
+    
+    // Transform API stories to match UI structure
+    return storiesArray.map((story: any) => {
+      const imageUrl = story.image_url ? getImageUrl(story.image_url) : null;
+      const bannerImage = imageUrl ? {uri: imageUrl} : ImagePath.storycard;
+      
+      // Handle language-specific title
+      // Check if languages array exists and find matching language
+      let displayTitle = story.title || 'Story';
+      if (story.languages && Array.isArray(story.languages) && story.languages.length > 0) {
+        const languageSpecificContent = story.languages.find(
+          (lang: any) => lang.language_id === currentLanguageId
+        );
+        // Use language-specific title if found, otherwise use default title
+        if (languageSpecificContent?.title) {
+          displayTitle = languageSpecificContent.title;
+        }
+      }
+      
+      // Create short title (truncate if needed)
+      const shortTitle = displayTitle.length > 40 ? displayTitle.substring(0, 37) + '...' : displayTitle;
+      
+      return {
+        id: story.story_id || story.id || String(Math.random()),
+        title: displayTitle,
+        shortTitle: shortTitle,
+        date: formatDate(story.publish_date || story.story_date || story.date || ''),
+        bannerImage: bannerImage,
+        logo: ImagePath.captainEnglishLogo,
+        overlayText: story.overlay_text || story.overlayText || '',
+      };
+    });
+  }, []);
 
   // Fetch stories from API
   const fetchStories = useCallback(async (showRefreshing = false) => {
@@ -56,8 +104,58 @@ export default function StoriesScreen() {
         setLoading(true);
       }
       
-      console.log('[StoriesScreen] Fetching stories data');
-      const response = await getData(Apis.FARMER_STORIES, {});
+      // Get stored farmer profile data to extract location details
+      const profileData = await getFarmerProfileData();
+      const locationDetails = profileData?.location_details || {};
+      
+      console.log('[StoriesScreen] Profile data:', profileData);
+      console.log('[StoriesScreen] Location details:', locationDetails);
+      
+      // Build query parameters in correct order: state, district, village, category
+    let urlParams;
+
+      
+      // Add state parameter (first)
+      if (locationDetails.state_id) {
+        // queryParams.state = String(locationDetails.state_id);
+        urlParams =`?state=${locationDetails.state_id}`
+      }
+      
+      // Add district parameter (second)
+      if (locationDetails.district_id) {
+        // queryParams.district = String(locationDetails.district_id);
+        urlParams= urlParams + `&district=${locationDetails.district_id}`
+      }
+      
+      // Add village parameter (third)
+      if (locationDetails.village_id) {
+        // queryParams.village = String(locationDetails.village_id);
+        urlParams=urlParams + `&village=${locationDetails.village_id}`
+      }
+      
+      // Add category parameter (fourth)
+      if (locationDetails.category_id) {
+        // queryParams.category = String(locationDetails.category_id);
+        urlParams=urlParams +`&category=${locationDetails.category_id}`
+      }
+      
+      console.log('[EventsScreen] Query parameters (ordered):', urlParams);
+      
+      // Always use stories by location API when we have profile data
+      // Use location API if we have any location parameters, otherwise use regular API
+      const apiEndpoint = Apis.FARMER_STORIES_BY_LOCATION + urlParams
+      
+      // Build URL string to verify order: state=1&district=2&village=3&category=1
+      // const urlParams = new URLSearchParams();
+      // if (queryParams.state) urlParams.append('state', queryParams.state);
+      // if (queryParams.district) urlParams.append('district', queryParams.district);
+      // if (queryParams.village) urlParams.append('village', queryParams.village);
+      // if (queryParams.category) urlParams.append('category', queryParams.category);
+      
+      console.log('[StoriesScreen] API Endpoint:', apiEndpoint);
+      // console.log('[StoriesScreen] Full URL:', `${apiEndpoint}?${urlParams.toString()}`);
+      
+      const response = await getData(apiEndpoint);
       
       console.log('[StoriesScreen] Stories API Response:', JSON.stringify(response, null, 2));
       
@@ -70,43 +168,40 @@ export default function StoriesScreen() {
         console.log('[StoriesScreen] Stories array extracted:', storiesArray?.length || 0, 'stories');
         
         if (Array.isArray(storiesArray) && storiesArray.length > 0) {
-          // Transform API stories to match UI structure
-          const transformedStories = storiesArray.map((story: any) => {
-            const imageUrl = story.image_url ? getImageUrl(story.image_url) : null;
-            const bannerImage = imageUrl ? {uri: imageUrl} : ImagePath.storycard;
-            
-            // Create short title (truncate if needed)
-            const fullTitle = story.title || 'Story';
-            const shortTitle = fullTitle.length > 40 ? fullTitle.substring(0, 37) + '...' : fullTitle;
-            
-            return {
-              id: story.story_id || story.id || String(Math.random()),
-              title: fullTitle,
-              shortTitle: shortTitle,
-              date: formatDate(story.publish_date || story.story_date || story.date || ''),
-              bannerImage: bannerImage,
-              logo: ImagePath.captainEnglishLogo,
-              overlayText: story.overlay_text || story.overlayText || '',
-            };
-          });
+          // Store raw stories for language re-transformation
+          setRawStories(storiesArray);
+          
+          // Transform stories with current language
+          const transformedStories = transformStoriesWithLanguage(storiesArray, currentLanguage);
           
           setStories(transformedStories);
         } else {
           console.warn('[StoriesScreen] No stories found in response');
           setStories([]);
+          setRawStories([]);
         }
       } else {
         console.warn('[StoriesScreen] Unexpected API response format:', response);
         setStories([]);
+        setRawStories([]);
       }
     } catch (error) {
       console.error('[StoriesScreen] Error fetching stories:', error);
       setStories([]);
+      setRawStories([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [transformStoriesWithLanguage, currentLanguage]);
+
+  // Re-transform stories when language changes (if stories are already loaded)
+  useEffect(() => {
+    if (rawStories.length > 0) {
+      const transformedStories = transformStoriesWithLanguage(rawStories, currentLanguage);
+      setStories(transformedStories);
+    }
+  }, [currentLanguage, rawStories, transformStoriesWithLanguage]);
 
   // Handle pull to refresh
   const onRefresh = React.useCallback(() => {
