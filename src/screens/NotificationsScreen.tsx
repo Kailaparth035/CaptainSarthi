@@ -1,4 +1,4 @@
-import React, {useMemo, useState, useEffect} from 'react';
+import React, {useMemo, useState, useEffect, useCallback, useRef} from 'react';
 import {
   View,
   Text,
@@ -8,11 +8,17 @@ import {
   Pressable,
   Modal,
   Platform,
+  FlatList,
+  RefreshControl,
 } from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
+import {useNavigation} from '@react-navigation/native';
+import {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
 import {RootStackParamList} from '../navigation/RootNavigator';
+import {FarmerTabParamList} from '../navigation/FarmerTabNavigator';
 import {SCREEN_NAMES} from '../constants/screenNames';
 import {useLanguage} from '../contexts/LanguageContext';
 import colors from '../utils/colors';
@@ -21,6 +27,9 @@ import useDeviceMetrics from '../utils/responsiveCustom';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import Button from '../components/Button';
 import SimpleBoxInput from '../components/FloatingInput';
+import {getData} from '../Service/Apimethod';
+import Apis from '../Service/constant';
+import {isLoggedIn, getUserRole} from '../utils/session';
 
 type NotificationsScreenProps = NativeStackScreenProps<
   RootStackParamList,
@@ -41,6 +50,11 @@ interface NotificationItem {
   lastName?: string;
   rejectionReason?: string;
   status?: NotificationStatus;
+  referenceId?: string | number;
+  clickAction?: string;
+  eventId?: string;
+  storyId?: string;
+  dataType?: string; // data.type from API response
 }
 
 const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
@@ -49,38 +63,32 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
   const {t} = useLanguage();
+  const tabNavigation = useNavigation<BottomTabNavigationProp<FarmerTabParamList>>();
   const [showFailedModal, setShowFailedModal] = useState(false);
   const [selectedNotification, setSelectedNotification] =
     useState<NotificationItem | null>(null);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
+  
+  // API state
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  
+  // API request parameters
+  const page = 1;
+  const limit = 20; // Fetch 50 notifications at once
+  
+  // Ref to prevent multiple simultaneous API calls
+  const isFetchingRef = useRef(false);
+  const mountedRef = useRef(true);
 
   // Match status bar with light grey background
   useDynamicStatusBar({
     backgroundColor: colors.backgroundLight,
     bottomBarColor: colors.backgroundLight,
   });
-
-  // Sample notification data matching the image design
-  const notifications: NotificationItem[] = [
-    {
-      id: '1',
-      title: 'Annual meetup 2025',
-      description: 'Captain Tractors proudly organized its Nat..',
-      timestamp: '10:35 AM',
-      type: 'event',
-      isRead: false,
-    },
-    {
-      id: '2',
-      title: 'Captain added a story',
-      description: 'Captain Tractors proudly organized its Nat..',
-      timestamp: '10:35 AM',
-      type: 'story',
-      isRead: false,
-    },
-  ];
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -92,6 +100,146 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
         return 'notifications-outline';
     }
   };
+
+  // Format timestamp
+  const formatTimestamp = (timestamp: string) => {
+    // If timestamp is already formatted, return as is
+    if (timestamp && timestamp.includes('AM') || timestamp.includes('PM')) {
+      return timestamp;
+    }
+    // Otherwise, try to format it
+    try {
+      const date = new Date(timestamp);
+      const hours = date.getHours();
+      const minutes = date.getMinutes();
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const formattedHours = hours % 12 || 12;
+      const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
+      return `${formattedHours}:${formattedMinutes} ${ampm}`;
+    } catch (e) {
+      return timestamp;
+    }
+  };
+
+  // Transform API response to NotificationItem
+  const transformNotification = (item: any): NotificationItem => {
+    const notificationData = item.data || {};
+    return {
+      id: item.id?.toString() || item.notification_id?.toString() || String(Math.random()),
+      title: item.title || item.message || 'Notification',
+      description: item.description || item.body || item.message || '',
+      timestamp: formatTimestamp(item.createdAt || item.created_at || item.timestamp || item.date || ''),
+      type: item.type || 'other',
+      isRead: item.is_read === true || item.isRead === true || false,
+      hasArrow: item.has_arrow !== false,
+      firstName: item.first_name || item.firstName || '',
+      lastName: item.last_name || item.lastName || '',
+      rejectionReason: item.rejection_reason || item.rejectionReason || '',
+      status: item.status || undefined,
+      referenceId: item.reference_id || item.referenceId,
+      clickAction: notificationData.click_action || notificationData.clickAction,
+      eventId: notificationData.event_id || notificationData.eventId,
+      storyId: notificationData.story_id || notificationData.storyId,
+      dataType: notificationData.type || item.type || 'other', // data.type from API response
+    };
+  };
+
+  // Fetch notifications from API
+  const fetchNotifications = useCallback(async (showRefreshing = false) => {
+    // Prevent multiple simultaneous API calls
+    if (isFetchingRef.current) {
+      console.log('[NotificationsScreen] Already fetching, skipping duplicate call');
+      return;
+    }
+
+    try {
+      isFetchingRef.current = true;
+
+      // Check if farmer is logged in
+      const loggedIn = await isLoggedIn();
+      const role = await getUserRole();
+      
+      if (!loggedIn || role !== 'farmer') {
+        console.log('[NotificationsScreen] Farmer not logged in, skipping API call');
+        isFetchingRef.current = false;
+        if (mountedRef.current) {
+          setLoading(false);
+          setRefreshing(false);
+        }
+        return;
+      }
+
+      if (showRefreshing) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
+      // Pass page and limit as query parameters
+      const params = {
+        page: page.toString(),
+        limit: limit.toString(),
+      };
+
+      console.log('[NotificationsScreen] Fetching notifications - Page:', page, 'Limit:', limit);
+      
+      const response = await getData(Apis.FARMER_PUSH_NOTIFICATIONS, params);
+      
+      console.log('[NotificationsScreen] Notifications API Response:', JSON.stringify(response, null, 2));
+      
+      if (response?.status === true && response?.data) {
+        // Handle response structure
+        const notificationsArray = response.data.notifications || 
+                                   response.data.list || 
+                                   response.data.data ||
+                                   (Array.isArray(response.data) ? response.data : []);
+        
+        if (mountedRef.current) {
+          if (Array.isArray(notificationsArray)) {
+            const transformedNotifications = notificationsArray.map(transformNotification);
+            setNotifications(transformedNotifications);
+          } else {
+            console.warn('[NotificationsScreen] Unexpected notifications array format');
+            setNotifications([]);
+          }
+        }
+      } else {
+        console.warn('[NotificationsScreen] Unexpected API response format:', response);
+        if (mountedRef.current) {
+          setNotifications([]);
+        }
+      }
+    } catch (error) {
+      console.error('[NotificationsScreen] Error fetching notifications:', error);
+      if (mountedRef.current) {
+        setNotifications([]);
+      }
+    } finally {
+      isFetchingRef.current = false;
+      if (mountedRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    }
+  }, []);
+
+  // Handle pull to refresh
+  const onRefresh = useCallback(() => {
+    fetchNotifications(true);
+  }, [fetchNotifications]);
+
+  // Fetch notifications on mount (only once)
+  useEffect(() => {
+    mountedRef.current = true;
+    fetchNotifications(false);
+    
+    // Cleanup on unmount
+    return () => {
+      mountedRef.current = false;
+      isFetchingRef.current = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount - fetchNotifications is stable with no dependencies
 
   const styles = useMemo(
     () =>
@@ -125,6 +273,13 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
         scrollContent: {
           padding: moderateScale(16),
           paddingBottom: moderateScale(100),
+        },
+        listContent: {
+          padding: moderateScale(16),
+          paddingBottom: moderateScale(100),
+        },
+        skeletonContainer: {
+          padding: moderateScale(16),
         },
         notificationCard: {
           backgroundColor: colors.backgroundWhite,
@@ -253,11 +408,32 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
       setRejectionReason(notification.rejectionReason || '');
       setShowFailedModal(true);
     } else {
-      console.log('Navigate to notification details:', notification.id);
-      // Navigate based on notification type
-      // For events: navigate to event details
-      // For stories: navigate to story details
-      // You can add navigation logic here if needed
+      // Navigate based on data.type from notification data
+      const dataType = notification.dataType;
+      const eventId = notification.eventId;
+      const storyId = notification.storyId;
+      
+      if (dataType === 'event' && eventId) {
+        // Navigate to Events tab and then to EventDetails
+        tabNavigation.navigate(SCREEN_NAMES.Events, {
+          screen: SCREEN_NAMES.EventDetails,
+          params: {
+            eventId: eventId,
+            fromScreen: 'Notifications',
+          },
+        } as any);
+      } else if (dataType === 'story' && storyId) {
+        // Navigate to Stories tab and then to StoryDetails
+        tabNavigation.navigate(SCREEN_NAMES.Stories, {
+          screen: SCREEN_NAMES.StoryDetails,
+          params: {
+            storyId: storyId,
+            fromScreen: 'Notifications',
+          },
+        } as any);
+      } else {
+        console.log('No navigation action for notification:', notification.id, 'dataType:', dataType);
+      }
     }
   };
 
@@ -276,6 +452,126 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
     handleCloseModal();
   };
 
+  // Render notification item
+  const renderNotificationItem = ({item}: {item: NotificationItem}) => {
+    const iconName = getNotificationIcon(item.type);
+
+    return (
+      <Pressable
+        style={styles.notificationCard}
+        onPress={() => handleNotificationPress(item)}
+        activeOpacity={0.7}>
+        <View style={styles.notificationItem}>
+          {/* Icon Container */}
+          <View style={styles.iconContainer}>
+            <Ionicons
+              name={iconName}
+              size={moderateScale(24)}
+              color={colors.textPrimary}
+            />
+          </View>
+
+          {/* Notification Content */}
+          <View style={styles.notificationContent}>
+            <View style={styles.notificationTextContainer}>
+              {/* Title with Unread Dot */}
+              <View style={styles.notificationTitleRow}>
+                <Text style={styles.notificationTitle}>
+                  {item.title}
+                </Text>
+                {!item.isRead && (
+                  <View style={styles.unreadDot} />
+                )}
+              </View>
+              {/* Description */}
+              <Text style={styles.notificationDescription}>
+                {item.description}
+              </Text>
+            </View>
+            {/* Timestamp */}
+            <Text style={styles.timestamp}>
+              {item.timestamp}
+            </Text>
+          </View>
+        </View>
+      </Pressable>
+    );
+  };
+
+  // Skeleton placeholder component
+  const renderSkeleton = () => {
+    return (
+      <View style={styles.skeletonContainer}>
+        <SkeletonPlaceholder
+          backgroundColor={colors.backgroundGray}
+          highlightColor={colors.backgroundWhite}
+          borderRadius={moderateScale(10)}>
+          {[1, 2, 3, 4, 5, 6].map((index) => (
+            <SkeletonPlaceholder.Item
+              key={index}
+              backgroundColor={colors.backgroundWhite}
+              borderRadius={moderateScale(12)}
+              padding={moderateScale(16)}
+              marginBottom={moderateScale(12)}
+              flexDirection="row"
+              alignItems="flex-start">
+              {/* Icon Skeleton */}
+              <SkeletonPlaceholder.Item
+                width={moderateScale(48)}
+                height={moderateScale(48)}
+                borderRadius={moderateScale(24)}
+                marginRight={moderateScale(12)}
+              />
+              {/* Content Skeleton */}
+              <SkeletonPlaceholder.Item flex={1}>
+                {/* Title Skeleton */}
+                <SkeletonPlaceholder.Item
+                  width="70%"
+                  height={moderateScale(16)}
+                  borderRadius={moderateScale(4)}
+                  marginBottom={moderateScale(8)}
+                />
+                {/* Description Skeleton */}
+                <SkeletonPlaceholder.Item
+                  width="90%"
+                  height={moderateScale(12)}
+                  borderRadius={moderateScale(4)}
+                  marginBottom={moderateScale(4)}
+                />
+                <SkeletonPlaceholder.Item
+                  width="60%"
+                  height={moderateScale(12)}
+                  borderRadius={moderateScale(4)}
+                />
+              </SkeletonPlaceholder.Item>
+              {/* Timestamp Skeleton */}
+              <SkeletonPlaceholder.Item
+                width={moderateScale(60)}
+                height={moderateScale(12)}
+                borderRadius={moderateScale(4)}
+              />
+            </SkeletonPlaceholder.Item>
+          ))}
+        </SkeletonPlaceholder>
+      </View>
+    );
+  };
+
+  // List empty component
+  const ListEmptyComponent = () => {
+    if (loading || refreshing) {
+      return null;
+    }
+    return (
+      <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: moderateScale(100), paddingBottom: moderateScale(50)}}>
+        <Text style={[Typography.regularMd, {color: colors.textSecondary, fontSize: moderateScale(16)}]}>
+          No notifications found
+        </Text>
+      </View>
+    );
+  };
+
+
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -293,58 +589,32 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
         <Text style={styles.headerTitle}>{t('notifications.title')}</Text>
       </View>
 
-      {/* Scrollable Content */}
-      <ScrollView
-        style={{flex: 1}}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}>
-        {/* Notifications - Each as separate card */}
-        {notifications.map((notification) => {
-          const iconName = getNotificationIcon(notification.type);
-
-          return (
-            <Pressable
-              key={notification.id}
-              style={styles.notificationCard}
-              onPress={() => handleNotificationPress(notification)}
-              activeOpacity={0.7}>
-              <View style={styles.notificationItem}>
-                {/* Icon Container */}
-                <View style={styles.iconContainer}>
-                  <Ionicons
-                    name={iconName}
-                    size={moderateScale(24)}
-                    color={colors.textPrimary}
-                  />
-                </View>
-
-                {/* Notification Content */}
-                <View style={styles.notificationContent}>
-                  <View style={styles.notificationTextContainer}>
-                    {/* Title with Unread Dot */}
-                    <View style={styles.notificationTitleRow}>
-                      <Text style={styles.notificationTitle}>
-                        {notification.title}
-                      </Text>
-                      {!notification.isRead && (
-                        <View style={styles.unreadDot} />
-                      )}
-                    </View>
-                    {/* Description */}
-                    <Text style={styles.notificationDescription}>
-                      {notification.description}
-                    </Text>
-                  </View>
-                  {/* Timestamp */}
-                  <Text style={styles.timestamp}>
-                    {notification.timestamp}
-                  </Text>
-                </View>
-              </View>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+      {/* Notifications List */}
+      {loading && !refreshing ? (
+        <ScrollView
+          style={{flex: 1}}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}>
+          {renderSkeleton()}
+        </ScrollView>
+      ) : (
+        <FlatList
+          data={notifications}
+          renderItem={renderNotificationItem}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
+          ListEmptyComponent={ListEmptyComponent}
+        />
+      )}
 
       {/* Verification Failed Bottom Sheet Modal */}
       <Modal
