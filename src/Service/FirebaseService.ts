@@ -12,6 +12,8 @@ class FirebaseService {
   private onTokenRefreshCallback: ((token: string) => void) | null = null;
   private onNotificationCallback: ((notification: any) => void) | null = null;
   private onNotificationOpenedCallback: ((notification: any) => void) | null = null;
+  private unsubscribeTokenRefresh: (() => void) | null = null;
+  private unsubscribeForeground: (() => void) | null = null;
 
   private constructor() {}
 
@@ -141,25 +143,45 @@ class FirebaseService {
 
   /**
    * Set callback for token refresh
+   * Returns unsubscribe function
    */
   onTokenRefresh(callback: (token: string) => void): () => void {
     this.onTokenRefreshCallback = callback;
-    return messaging().onTokenRefresh((token) => {
+    
+    // Unsubscribe previous listener if exists
+    if (this.unsubscribeTokenRefresh) {
+      this.unsubscribeTokenRefresh();
+    }
+    
+    // Set up new listener
+    this.unsubscribeTokenRefresh = messaging().onTokenRefresh((token) => {
       this.fcmToken = token;
       console.log('Firebase: Token refreshed:', token);
       callback(token);
     });
+    
+    return this.unsubscribeTokenRefresh;
   }
 
   /**
    * Set callback for foreground notifications
+   * Returns unsubscribe function
    */
   onMessage(callback: (notification: any) => void): () => void {
     this.onNotificationCallback = callback;
-    return messaging().onMessage(async (remoteMessage) => {
+    
+    // Unsubscribe previous listener if exists
+    if (this.unsubscribeForeground) {
+      this.unsubscribeForeground();
+    }
+    
+    // Set up new listener
+    this.unsubscribeForeground = messaging().onMessage(async (remoteMessage) => {
       console.log('Firebase: Foreground notification received:', remoteMessage);
       callback(remoteMessage);
     });
+    
+    return this.unsubscribeForeground;
   }
 
   /**
@@ -199,26 +221,73 @@ class FirebaseService {
   }
 
   /**
-   * Initialize Firebase service
+   * Clean up all listeners
    */
-  async initialize(): Promise<void> {
+  cleanup(): void {
+    if (this.unsubscribeTokenRefresh) {
+      this.unsubscribeTokenRefresh();
+      this.unsubscribeTokenRefresh = null;
+    }
+    if (this.unsubscribeForeground) {
+      this.unsubscribeForeground();
+      this.unsubscribeForeground = null;
+    }
+    this.onTokenRefreshCallback = null;
+    this.onNotificationCallback = null;
+    this.onNotificationOpenedCallback = null;
+  }
+
+  /**
+   * Initialize Firebase service
+   * Sets up all notification handlers (foreground, background, quit state)
+   */
+  async initialize(
+    onForegroundNotification?: (notification: any) => void,
+    onNotificationOpened?: (notification: any) => void,
+    onTokenRefresh?: (token: string) => void,
+  ): Promise<void> {
     try {
+      console.log('Firebase: Initializing Firebase service...');
+
       // Request permission
-      await this.requestPermission();
+      const hasPermission = await this.requestPermission();
+      if (!hasPermission) {
+        console.warn('Firebase: Notification permission not granted');
+      }
 
       // Get initial token
-      await this.getToken();
+      const token = await this.getToken();
+      if (token) {
+        console.log('Firebase: Initial FCM token obtained');
+        // You can send this token to your backend here
+      }
 
-      // Set up token refresh listener
-      this.onTokenRefresh((token) => {
-        console.log('Firebase: Token refreshed to:', token);
+      // Set up token refresh listener (always set up, but use callback if provided)
+      this.onTokenRefresh((newToken) => {
+        console.log('Firebase: Token refreshed to:', newToken);
+        if (onTokenRefresh) {
+          onTokenRefresh(newToken);
+        }
         // You can send this token to your backend here
       });
 
+      // Set up foreground notification handler
+      if (onForegroundNotification) {
+        this.onMessage(onForegroundNotification);
+      }
+
+      // Set up background/quit state notification handler
+      if (onNotificationOpened) {
+        this.onNotificationOpenedApp(onNotificationOpened);
+      }
+
       // Check if app was opened from a notification (quit state)
       await this.getInitialNotification();
+
+      console.log('Firebase: Initialization complete');
     } catch (error) {
       console.error('Firebase: Error initializing:', error);
+      throw error;
     }
   }
 }

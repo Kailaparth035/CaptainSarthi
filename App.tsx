@@ -19,43 +19,42 @@ import {StatusBar} from 'react-native';
 import {useEffect} from 'react';
 import './src/i18n'; // Initialize i18n
 import FirebaseService from './src/Service/FirebaseService';
-import messaging from '@react-native-firebase/messaging';
 
 function App() {
   useEffect(() => {
-    // Initialize Firebase
-    FirebaseService.initialize();
-
-    // Set up foreground message handler
-    const unsubscribeForeground = messaging().onMessage(async (remoteMessage) => {
-      console.log('App: Foreground notification:', remoteMessage);
-      // You can show a local notification here using react-native-push-notification
-      // or display an in-app notification
-      if (remoteMessage.notification) {
-        // Handle foreground notification display
-        console.log('App: Notification title:', remoteMessage.notification.title);
-        console.log('App: Notification body:', remoteMessage.notification.body);
-      }
-    });
-
-    // Set up background/quit state notification handler
-    messaging().onNotificationOpenedApp((remoteMessage) => {
-      console.log('App: Notification opened from background:', remoteMessage);
-      // Handle navigation or other actions when notification is opened
-    });
-
-    // Check if app was opened from a notification (quit state)
-    messaging()
-      .getInitialNotification()
-      .then((remoteMessage) => {
-        if (remoteMessage) {
-          console.log('App: Notification opened from quit state:', remoteMessage);
-          // Handle navigation or other actions when app is opened from notification
+    // Initialize Firebase with all notification handlers
+    FirebaseService.initialize(
+      // Foreground notification handler
+      async (remoteMessage) => {
+        console.log('App: Foreground notification received:', remoteMessage);
+        if (remoteMessage.notification) {
+          console.log('App: Notification title:', remoteMessage.notification.title);
+          console.log('App: Notification body:', remoteMessage.notification.body);
+          // You can show a local notification here or display an in-app notification
+          // For example, using react-native-push-notification or a custom in-app notification component
         }
-      });
+      },
+      // Background/Quit state notification handler
+      (remoteMessage) => {
+        console.log('App: Notification opened from background/quit state:', remoteMessage);
+        // Handle navigation or other actions when notification is opened
+        // You can navigate to a specific screen based on notification data
+        if (remoteMessage.data) {
+          // Example: Navigate based on notification data
+          // navigationRef.current?.navigate(remoteMessage.data.screen);
+        }
+      },
+      // Token refresh handler
+      (token) => {
+        console.log('App: FCM token refreshed:', token);
+        // Send the token to your backend server here
+        // Example: await api.updateFCMToken(token);
+      },
+    );
 
+    // Cleanup on unmount
     return () => {
-      unsubscribeForeground();
+      FirebaseService.cleanup();
     };
   }, []);
 
