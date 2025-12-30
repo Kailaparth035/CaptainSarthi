@@ -12,7 +12,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
-import {useNavigation} from '@react-navigation/native';
+import {useNavigation, useFocusEffect} from '@react-navigation/native';
 import {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -27,7 +27,7 @@ import useDeviceMetrics from '../utils/responsiveCustom';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import Button from '../components/Button';
 import SimpleBoxInput from '../components/FloatingInput';
-import {getData} from '../Service/Apimethod';
+import {getData, putData} from '../Service/Apimethod';
 import Apis from '../Service/constant';
 import {isLoggedIn, getUserRole} from '../utils/session';
 
@@ -223,6 +223,31 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
     }
   }, []);
 
+  // Mark notification as read
+  const markNotificationAsRead = useCallback(async (notificationId: string) => {
+    try {
+      const readUrl = `${Apis.FARMER_PUSH_NOTIFICATION_READ}/${notificationId}/read`;
+      console.log('[NotificationsScreen] Marking notification as read:', notificationId);
+      const response = await putData(readUrl, {});
+      console.log('[NotificationsScreen] Mark as read response:', response);
+      
+      // Update local state to mark as read
+      if (mountedRef.current) {
+        setNotifications(prev => 
+          prev.map(notif => 
+            notif.id === notificationId 
+              ? {...notif, isRead: true}
+              : notif
+          )
+        );
+      }
+      return response;
+    } catch (error) {
+      console.error('[NotificationsScreen] Error marking notification as read:', error);
+      return null;
+    }
+  }, []);
+
   // Handle pull to refresh
   const onRefresh = useCallback(() => {
     fetchNotifications(true);
@@ -240,6 +265,14 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run once on mount - fetchNotifications is stable with no dependencies
+
+  // Refresh notifications when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('[NotificationsScreen] Screen focused, refreshing notifications');
+      fetchNotifications(true);
+    }, [fetchNotifications])
+  );
 
   const styles = useMemo(
     () =>
@@ -399,7 +432,7 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
     [moderateScale, insets.top, insets.bottom],
   );
 
-  const handleNotificationPress = (notification: NotificationItem) => {
+  const handleNotificationPress = async (notification: NotificationItem) => {
     // Handle notification press - navigate to details or show modal
     if (notification.status === 'failed') {
       setSelectedNotification(notification);
@@ -408,6 +441,11 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
       setRejectionReason(notification.rejectionReason || '');
       setShowFailedModal(true);
     } else {
+      // Mark notification as read before navigating
+      if (!notification.isRead) {
+        await markNotificationAsRead(notification.id);
+      }
+      
       // Navigate based on data.type from notification data
       const dataType = notification.dataType;
       const eventId = notification.eventId;
