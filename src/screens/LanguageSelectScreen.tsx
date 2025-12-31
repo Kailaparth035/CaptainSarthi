@@ -8,7 +8,6 @@ import {
   StatusBar,
   Platform,
   ActivityIndicator,
-  Image,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
@@ -20,12 +19,11 @@ import {Typography} from '../utils/typography';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import {useLanguage} from '../contexts/LanguageContext';
 import Button from '../components/Button';
-import {saveLanguageSelected, getSession, isTermsAccepted, getUserRole, getUserData, isLoggedIn} from '../utils/session';
+import {saveLanguageSelected, getSession, isTermsAccepted, getUserRole, getUserData, isLoggedIn, isProfileCompleted} from '../utils/session';
 import {SCREEN_NAMES} from '../constants/screenNames';
 import {isFarmerRole} from '../utils/userRole';
 import {getData} from '../Service/Apimethod';
 import Apis from '../Service/constant';
-import {ImagePath} from '../assets/images';
 
 type Language = 'en' | 'gu' | 'hi';
 
@@ -123,9 +121,8 @@ export default function LanguageSelectScreen() {
           if (!termsAccepted) {
             navigation.replace(SCREEN_NAMES.Terms);
           } else {
-            // Check if profile is completed from user data
-            const userData = await getUserData();
-            const profileCompleted = userData?.user?.profile_completed === true;
+            // Check if profile is completed from AsyncStorage
+            const profileCompleted = await isProfileCompleted();
             console.log('[LanguageSelectScreen] Profile completed status:', profileCompleted);
             if (profileCompleted) {
               navigation.replace(SCREEN_NAMES.FarmerTabs);
@@ -192,9 +189,11 @@ export default function LanguageSelectScreen() {
           marginRight: moderateScale(12),
           overflow: 'hidden',
         },
-        languageIconImage: {
-          width: moderateScale(20),
-          height: moderateScale(20),
+        languageIconText: {
+          ...Typography.semiBoldMd,
+          fontSize: moderateScale(14),
+          color: colors.textPrimary,
+          textAlign: 'center',
         },
         languageInfo: {
           flex: 1,
@@ -280,13 +279,11 @@ export default function LanguageSelectScreen() {
                 }}
                 activeOpacity={language.enabled ? 0.7 : 1}
                 disabled={!language.enabled}>
-                {/* Language Icon */}
+                {/* Language Icon - Show first two letters in capital */}
                 <View style={dynamicStyles.languageIcon}>
-                  <Image
-                    source={ImagePath.language}
-                    style={dynamicStyles.languageIconImage}
-                    resizeMode="contain"
-                  />
+                  <Text style={dynamicStyles.languageIconText}>
+                    {language.name.substring(0, 2).toUpperCase()}
+                  </Text>
                 </View>
                 
                 {/* Language Name */}

@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Image,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation} from '@react-navigation/native';
@@ -20,7 +19,6 @@ import {useLanguage} from '../contexts/LanguageContext';
 import Button from '../components/Button';
 import {getData} from '../Service/Apimethod';
 import Apis from '../Service/constant';
-import {ImagePath} from '../assets/images';
 
 type Language = 'en' | 'gu' | 'hi';
 
@@ -157,9 +155,11 @@ export default function LanguageScreen() {
           marginRight: moderateScale(12),
           overflow: 'hidden',
         },
-        languageIconImage: {
-          width: moderateScale(20),
-          height: moderateScale(20),
+        languageIconText: {
+          ...Typography.semiBoldMd,
+          fontSize: moderateScale(14),
+          color: colors.textPrimary,
+          textAlign: 'center',
         },
         languageInfo: {
           flex: 1,
@@ -243,13 +243,11 @@ export default function LanguageScreen() {
                 }}
                 activeOpacity={language.enabled ? 0.7 : 1}
                 disabled={!language.enabled}>
-                {/* Language Icon */}
+                {/* Language Icon - Show first two letters in capital */}
                 <View style={dynamicStyles.languageIcon}>
-                  <Image
-                    source={ImagePath.language}
-                    style={dynamicStyles.languageIconImage}
-                    resizeMode="contain"
-                  />
+                  <Text style={dynamicStyles.languageIconText}>
+                    {language.name.substring(0, 2).toUpperCase()}
+                  </Text>
                 </View>
                 
                 {/* Language Name */}

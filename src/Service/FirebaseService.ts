@@ -248,6 +248,8 @@ class FirebaseService {
   ): Promise<void> {
     try {
       console.log('Firebase: Initializing Firebase service...');
+      // Note: Firebase app auto-initializes from native config files
+      // (google-services.json for Android, GoogleService-Info.plist for iOS)
 
       // Request permission
       const hasPermission = await this.requestPermission();

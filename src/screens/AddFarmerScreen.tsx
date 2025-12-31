@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {useNavigation, useFocusEffect} from '@react-navigation/native';
+import {useNavigation, useRoute, useFocusEffect} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import colors from '../utils/colors';
@@ -36,8 +36,9 @@ import {
   FileUploadQuestion,
   DropdownQuestion,
 } from '../components/QuestionComponents';
-import {getData, postDataWithImage} from '../Service/Apimethod';
+import {getData, postDataWithImage, putData} from '../Service/Apimethod';
 import Apis from '../Service/constant';
+import {getImageUrl} from '../utils/imageUtils';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -181,6 +182,8 @@ type TractorDetails = {
     purchaseDateError?: string;
     whoFrom?: string;
     tractorImages?: string;
+    rcFront?: string;
+    rcBack?: string;
   };
 };
 
@@ -214,9 +217,15 @@ export default function AddFarmerScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
   const navigation = useNavigation<NavigationProp>();
+  const route = useRoute();
   const {t} = useLanguage();
   const scrollViewRef = useRef<ScrollView>(null);
   const {pickImage} = useImagePicker();
+  
+  // Get route params for edit mode
+  const routeParams = route.params as {farmerId?: string; editMode?: boolean} | undefined;
+  const isEditMode = routeParams?.editMode === true;
+  const farmerId = routeParams?.farmerId;
 
   // Refs for form fields to scroll to errors
   const fieldPositions = useRef<Record<string, number>>({});
@@ -613,14 +622,134 @@ export default function AddFarmerScreen() {
     }, [])
   );
 
+  // Fetch farmer details in edit mode
+  const fetchFarmerDetailsForEdit = async () => {
+    if (!isEditMode || !farmerId) return;
+    
+    try {
+      setCategoriesLoading(true);
+      const response = await getData(Apis.DEALER_FARMERS, { clientId: farmerId });
+      
+      if (response?.status === true && response?.data) {
+        const farmerData = response.data;
+        
+        // Prefill personal details
+        setFirstName(farmerData.firstName || '');
+        setMiddleName(farmerData.middleName || '');
+        setLastName(farmerData.lastName || '');
+        
+        // Parse mobile number and country code
+        const mobile = farmerData.mobile || '';
+        if (mobile.startsWith('+91')) {
+          setCountryCode('+91');
+          setPhoneNumber(mobile.replace('+91', '').trim());
+        } else {
+          setCountryCode('+91');
+          setPhoneNumber(mobile);
+        }
+        
+        // Parse dates
+        if (farmerData.dateOfBirth) {
+          const dobDate = new Date(farmerData.dateOfBirth);
+          setDobDD(String(dobDate.getDate()).padStart(2, '0'));
+          setDobMM(String(dobDate.getMonth() + 1).padStart(2, '0'));
+          setDobYYYY(String(dobDate.getFullYear()));
+        }
+        
+        if (farmerData.dateOfMarriage) {
+          const domDate = new Date(farmerData.dateOfMarriage);
+          setDomDD(String(domDate.getDate()).padStart(2, '0'));
+          setDomMM(String(domDate.getMonth() + 1).padStart(2, '0'));
+          setDomYYYY(String(domDate.getFullYear()));
+        }
+        
+        // Prefill address
+        setHouseNumber(farmerData.houseNumber || farmerData.house_number || '');
+        setStreetName(farmerData.streetName || farmerData.street_name || '');
+        setLandmark(farmerData.landmark || '');
+        setPincode(farmerData.pincode || '');
+        
+        // Prefill location IDs (state, district, village)
+        // Note: These should be IDs, not names, for the update API
+        if (farmerData.stateId || farmerData.state_id) {
+          const stateIdValue = String(farmerData.stateId || farmerData.state_id);
+          setStateId(stateIdValue);
+          // Fetch districts when state is set
+          fetchDistricts(stateIdValue);
+        }
+        if (farmerData.districtId || farmerData.district_id) {
+          const districtIdValue = String(farmerData.districtId || farmerData.district_id);
+          setDistrictId(districtIdValue);
+          // Fetch villages when district is set (only if state was also set)
+          if (farmerData.stateId || farmerData.state_id) {
+            fetchVillages(districtIdValue);
+          }
+        }
+        if (farmerData.villageId || farmerData.village_id) {
+          setVillageId(String(farmerData.villageId || farmerData.village_id));
+        }
+        
+        // Set category and fetch questions
+        if (farmerData.categoryId) {
+          setCategory(String(farmerData.categoryId));
+          // Questions will be fetched when category is set
+        }
+        
+        // Prefill profile photo
+        if (farmerData.profileImage) {
+          const imageUrl = getImageUrl(farmerData.profileImage);
+          if (imageUrl) {
+            setProfilePhoto(imageUrl);
+          }
+        }
+        
+        // Prefill question answers if available
+        if (farmerData.questions && Array.isArray(farmerData.questions)) {
+          const answers: Record<string, any> = {};
+          farmerData.questions.forEach((q: any, index: number) => {
+            const questionKey = `question_${q.id}_${index}`;
+            if (q.answers && Array.isArray(q.answers) && q.answers.length > 0) {
+              const questionType = q.question_type?.toLowerCase() || 'textbox';
+              if (questionType === 'checkbox') {
+                answers[questionKey] = q.answers.map((a: any) => a.answer_text || a.answer);
+              } else {
+                answers[questionKey] = q.answers[0]?.answer_text || q.answers[0]?.answer || '';
+              }
+            }
+          });
+          setSubQuestionAnswers(answers);
+        }
+        
+        // Note: Tractor details are not editable in update mode per requirements
+      }
+    } catch (error) {
+      console.error('Error fetching farmer details for edit:', error);
+      showToastMessage('Failed to load farmer details. Please try again.', 'error');
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
+
+  // Fetch farmer details when in edit mode
+  useEffect(() => {
+    if (isEditMode && farmerId) {
+      fetchFarmerDetailsForEdit();
+    }
+  }, [isEditMode, farmerId]);
+
   // Fetch questions when category changes
   useEffect(() => {
     if (category) {
       fetchQuestions(category);
-      setSubQuestionAnswers({}); // Clear previous answers
+      // Don't clear answers in edit mode if they're already prefilled
+      if (!isEditMode) {
+        setSubQuestionAnswers({});
+      }
     } else {
       setQuestions([]);
-      setSubQuestionAnswers({});
+      if (!isEditMode) {
+        setSubQuestionAnswers({});
+      }
     }
   }, [category]);
 
@@ -917,9 +1046,15 @@ export default function AddFarmerScreen() {
             };
           } else {
             // Handle other image types
+            const fieldName = type === 'rc' ? 'rcImage' : type === 'rcFront' ? 'rcFront' : 'rcBack';
             return {
               ...tractor,
-              [type === 'rc' ? 'rcImage' : type === 'rcFront' ? 'rcFront' : 'rcBack']: imageUri,
+              [fieldName]: imageUri,
+              errors: {
+                ...tractor.errors,
+                // Clear error when image is uploaded
+                [fieldName]: undefined,
+              },
             };
           }
         }
@@ -1103,29 +1238,34 @@ export default function AddFarmerScreen() {
     console.log('=== VALIDATION START ===');
     const newErrors: FormErrors = {};
 
-    // Profile photo - now optional (not required)
-    console.log('Checking profile photo:', profilePhoto ? '✓ Present' : '○ Optional (not provided)');
-
-    // Category
-    console.log('Checking category:', category || '✗ Missing');
-    if (!category) {
-      newErrors.category = 'Category is required';
-      console.log('ERROR: Category is required');
+    // Profile photo - optional (not shown in edit mode)
+    if (!isEditMode) {
+      console.log('Checking profile photo:', profilePhoto ? '✓ Present' : '○ Optional (not provided)');
     }
 
-    // Sub-questions validation - ALL questions must be answered
-    console.log('=== SUB-QUESTIONS VALIDATION ===');
-    console.log('Total questions:', questions.length);
-    
-    // Use ref if available (updated immediately), otherwise fall back to state
-    const answersToCheck = Object.keys(latestSubQuestionAnswersRef.current).length > 0 
-      ? latestSubQuestionAnswersRef.current 
-      : subQuestionAnswers;
-    
-    console.log('All subQuestionAnswers keys:', Object.keys(answersToCheck));
-    console.log('All subQuestionAnswers values:', JSON.stringify(answersToCheck, null, 2));
-    
-    if (category && questions.length > 0) {
+    // Category - not required in edit mode
+    if (!isEditMode) {
+      console.log('Checking category:', category || '✗ Missing');
+      if (!category) {
+        newErrors.category = 'Category is required';
+        console.log('ERROR: Category is required');
+      }
+    }
+
+    // Sub-questions validation - ALL questions must be answered (skip in edit mode)
+    if (!isEditMode) {
+      console.log('=== SUB-QUESTIONS VALIDATION ===');
+      console.log('Total questions:', questions.length);
+      
+      // Use ref if available (updated immediately), otherwise fall back to state
+      const answersToCheck = Object.keys(latestSubQuestionAnswersRef.current).length > 0 
+        ? latestSubQuestionAnswersRef.current 
+        : subQuestionAnswers;
+      
+      console.log('All subQuestionAnswers keys:', Object.keys(answersToCheck));
+      console.log('All subQuestionAnswers values:', JSON.stringify(answersToCheck, null, 2));
+      
+      if (category && questions.length > 0) {
       const unansweredQuestions = questions.filter((question, index) => {
         const questionKey = `question_${question.id}_${index}`;
         const answer = answersToCheck[questionKey];
@@ -1195,9 +1335,10 @@ export default function AddFarmerScreen() {
         console.log(`ERROR: ${unansweredQuestions.length} out of ${questions.length} questions are unanswered`);
       } else {
         console.log('✓ All questions answered successfully');
+        }
+      } else {
+        console.log('No questions to validate (category:', category, ', questions.length:', questions.length, ')');
       }
-    } else {
-      console.log('No questions to validate (category:', category, ', questions.length:', questions.length, ')');
     }
 
     // Personal details
@@ -1359,6 +1500,25 @@ export default function AddFarmerScreen() {
         console.log('ERROR: Date of purchase is required');
       }
       
+      // Validate RC Front image (required)
+      console.log('RC Front image:', tractor.rcFront || '✗ Missing');
+      if (!tractor.rcFront || !tractor.rcFront.trim()) {
+        tractorErrorsObj.rcFront = 'RC book front image is required';
+        tractorErrors = true;
+        console.log('ERROR: RC book front image is required');
+      } else {
+        console.log('✓ RC Front image validated');
+      }
+      
+      // Validate RC Back image (required)
+      console.log('RC Back image:', tractor.rcBack || '✗ Missing');
+      if (!tractor.rcBack || !tractor.rcBack.trim()) {
+        tractorErrorsObj.rcBack = 'RC book back image is required';
+        tractorErrors = true;
+        console.log('ERROR: RC book back image is required');
+      } else {
+        console.log('✓ RC Back image validated');
+      }
       
       // console.log('Who from:', tractor.whoFrom || '✗ Missing');
       // if (!tractor.whoFrom || !tractor.whoFrom.trim()) {
@@ -1488,7 +1648,7 @@ export default function AddFarmerScreen() {
     try {
       setSubmitting(true);
 
-      // Format questions array in new format: { id, answers: [{ id, answer_text }] }
+      // Format questions array with all question details from API: { ...allQuestionDetails, answers: [{ id, answer_text }] }
       const questionArray = questions.map((question, index) => {
         const questionKey = `question_${question.id}_${index}`;
         const answer = subQuestionAnswers[questionKey];
@@ -1572,8 +1732,9 @@ export default function AddFarmerScreen() {
           }
         }
         
+        // Return all question details from API along with answers
         return {
-          id: question.id,
+          ...question, // Include all question properties from API (id, question_text, question_type, answer_options, category_id, etc.)
           answers: answers,
         };
       });
@@ -1706,28 +1867,108 @@ export default function AddFarmerScreen() {
       console.log('Submitting farmer data:', JSON.stringify(farmerData, null, 2));
       console.log('Profile photo URI:', JSON.stringify(formData));
 
+      let response;
       
-      // Call API
-      const response = await postDataWithImage(Apis.DEALER_ADD_FARMER, formData);
+      if (isEditMode && farmerId) {
+        // Edit mode: Call update API with only editable fields
+        const updateData = {
+          farmer_id: parseInt(farmerId, 10),
+          changes: {
+            first_name: firstName,
+            last_name: lastName,
+            middle_name: middleName,
+            mobile_country_code: countryCode,
+            mobile: phoneNumber.replace(/\s/g, ''),
+            date_of_birth: `${dobDD}/${dobMM}/${dobYYYY}`,
+            date_of_marriage: `${domDD}/${domMM}/${domYYYY}`,
+            house_number: houseNumber,
+            street_name: streetName,
+            state: stateId,
+            district: districtId,
+            village: villageId,
+            pincode: pincode,
+          },
+        };
+        
+        console.log('Updating farmer data:', JSON.stringify(updateData, null, 2));
+        
+        // Upload profile photo separately if it's a new image
+        if (profilePhoto && (profilePhoto.startsWith('file://') || profilePhoto.startsWith('content://'))) {
+          const profileUriParts = profilePhoto.split('.');
+          const profileFileExtension = profileUriParts.length > 1 ? profileUriParts[profileUriParts.length - 1].toLowerCase() : 'jpg';
+          const profileMimeType = profileFileExtension === 'png' ? 'image/png' : 'image/jpeg';
+          const profileFileName = `profile-photo-${Date.now()}.${profileFileExtension}`;
+          
+          const imageFormData = new FormData();
+          imageFormData.append('image', {
+            uri: profilePhoto,
+            type: profileMimeType,
+            name: profileFileName,
+          } as any);
+          
+          // Upload profile image first
+          const imageResponse = await postDataWithImage(Apis.DEALER_PROFILE_IMAGE, imageFormData);
+          if (imageResponse?.status !== true) {
+            showToastMessage('Failed to upload profile image. Please try again.', 'error');
+            setSubmitting(false);
+            return;
+          }
+        }
+        
+        // Call update API
+        response = await putData(Apis.DEALER_UPDATE_FARMER, updateData);
+      } else {
+        // Add mode: Call add API
+        response = await postDataWithImage(Apis.DEALER_ADD_FARMER, formData);
+      }
 
-      console.log('API Response:', response);
+      console.log('API Response:', JSON.stringify(response, null, 2));
 
-      if (response?.status === true) {
+      // Check if response exists and has status
+      if (response && response.status === true) {
         // Show success toast
-        showToastMessage('Sent for verification check notifications for update', 'success');
+        const successMessage = response?.message || 'Sent for verification check notifications for update';
+        showToastMessage(successMessage, 'success');
         
         // Navigate back after a short delay to allow toast to be visible
         setTimeout(() => {
           navigation.goBack();
         }, 2000);
       } else {
-        const errorMessage = response || response?.message || response?.error || 'Failed to add farmer. Please try again.';
-        showToastMessage(errorMessage);
+        // Extract error message from various possible response structures
+        let errorMessage = '';
+        if (response) {
+          // Try different possible response structures - prioritize message field
+          errorMessage = response?.message || 
+                        response?.data?.message || 
+                        response?.error?.message ||
+                        response?.error ||
+                        (typeof response === 'string' ? response : '');
+        }
+        
+        // Show error message from API response or fallback
+        const finalErrorMessage = errorMessage || 'Failed to add farmer. Please try again.';
+        console.log('Showing error toast with API message:', finalErrorMessage);
+        showToastMessage(finalErrorMessage, 'error');
       }
     } catch (error: any) {
       console.error('Error submitting farmer:', error);
-      const errorMessage = error?.response?.data?.message || error?.message || 'Failed to add farmer. Please try again.';
-      showToastMessage(errorMessage);
+      
+      // Extract error message from various possible error structures
+      let errorMessage = '';
+      if (error?.response?.data) {
+        errorMessage = error.response.data.message || 
+                      error.response.data.error?.message ||
+                      error.response.data.error ||
+                      '';
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      // Show error message from API response or fallback
+      const finalErrorMessage = errorMessage || 'Failed to add farmer. Please try again.';
+      console.log('Showing error toast with API message:', finalErrorMessage);
+      showToastMessage(finalErrorMessage, 'error');
     } finally {
       setSubmitting(false);
     }
@@ -2036,7 +2277,7 @@ export default function AddFarmerScreen() {
             color={colors.textPrimary}
           />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Add new farmer</Text>
+        <Text style={styles.headerTitle}>{isEditMode ? 'Edit farmer' : 'Add new farmer'}</Text>
       </View>
 
       <KeyboardAvoidingView
@@ -2056,49 +2297,53 @@ export default function AddFarmerScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{t('addFarmer.personalDetails')}</Text>
 
-            {/* Profile Photo */}
-            <View 
-              style={styles.profilePhotoContainer}
-              onLayout={registerFieldPosition('profilePhoto')}
-            >
-              <TouchableOpacity
-                onPress={() => handleImagePicker('profile')}
-                activeOpacity={0.7}
-              >
-                {profilePhoto ? (
-                  <View>
-                    <Image
-                      source={{ uri: profilePhoto }}
-                      style={styles.profilePhoto}
-                    />
-                    <View style={styles.cameraIcon}>
-                      <Ionicons
-                        name="camera"
-                        size={moderateScale(16)}
-                        color={colors.textWhite}
-                      />
-                    </View>
-                  </View>
-                ) : (
-                  <View style={styles.profilePhotoPlaceholder}>
-                    <Ionicons
-                      name="cloud-upload-outline"
-                      size={moderateScale(24)}
-                      color={colors.textPrimary}
-                    />
-                  </View>
+            {/* Profile Photo - Hidden in edit mode */}
+            {!isEditMode && (
+              <>
+                <View 
+                  style={styles.profilePhotoContainer}
+                  onLayout={registerFieldPosition('profilePhoto')}
+                >
+                  <TouchableOpacity
+                    onPress={() => handleImagePicker('profile')}
+                    activeOpacity={0.7}
+                  >
+                    {profilePhoto ? (
+                      <View>
+                        <Image
+                          source={{ uri: profilePhoto }}
+                          style={styles.profilePhoto}
+                        />
+                        <View style={styles.cameraIcon}>
+                          <Ionicons
+                            name="camera"
+                            size={moderateScale(16)}
+                            color={colors.textWhite}
+                          />
+                        </View>
+                      </View>
+                    ) : (
+                      <View style={styles.profilePhotoPlaceholder}>
+                        <Ionicons
+                          name="cloud-upload-outline"
+                          size={moderateScale(24)}
+                          color={colors.textPrimary}
+                        />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => handleImagePicker('profile')}
+                    activeOpacity={0.7}
+                    style={{ marginTop: moderateScale(20) }}
+                  >
+                    <Text style={styles.uploadText}>{t('addFarmer.uploadProfilePhoto')}</Text>
+                  </TouchableOpacity>
+                </View>
+                {errors.profilePhoto && (
+                  <Text style={styles.errorText}>{errors.profilePhoto}</Text>
                 )}
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => handleImagePicker('profile')}
-                activeOpacity={0.7}
-                style={{ marginTop: moderateScale(20) }}
-              >
-                <Text style={styles.uploadText}>{t('addFarmer.uploadProfilePhoto')}</Text>
-              </TouchableOpacity>
-            </View>
-            {errors.profilePhoto && (
-              <Text style={styles.errorText}>{errors.profilePhoto}</Text>
+              </>
             )}
 
             {/* Dealer Name */}
@@ -2110,43 +2355,47 @@ export default function AddFarmerScreen() {
               numberOfLinesLabel={1}
             />
 
-            {/* Category Dropdown */}
-            <View onLayout={registerFieldPosition('category')}>
-              <Dropdown
-                label={t('addFarmer.selectCategory')}
-                value={category}
-                options={categoryOptions}
-                onSelect={value => {
-                  setCategory(value);
-                  setSubQuestionAnswers({});
-                  setErrors({
-                    ...errors,
-                    category: undefined,
-                    selectedSubQuestion: undefined,
-                  });
-                }}
-                placeholder={categoriesLoading ? t('addFarmer.loadingCategories') : t('addFarmer.selectCategory')}
-                error={errors.category}
-                disabled={categoriesLoading}
-              />
-              {categoriesLoading && (
-                <View style={{marginTop: moderateScale(8), alignItems: 'center'}}>
-                  <ActivityIndicator size="small" color={colors.primary} />
-                </View>
-              )}
-            </View>
-
-            {/* Dynamic Sub-questions from API */}
-            {questionsLoading && (
-              <View style={{marginVertical: moderateScale(20), alignItems: 'center'}}>
-                <ActivityIndicator size="small" color={colors.primary} />
-                <Text style={{marginTop: moderateScale(8), fontSize: moderateScale(12), color: colors.textTertiary}}>
-                  Loading questions...
-                </Text>
+            {/* Category Dropdown - Hidden in edit mode */}
+            {!isEditMode && (
+              <View onLayout={registerFieldPosition('category')}>
+                <Dropdown
+                  label={t('addFarmer.selectCategory')}
+                  value={category}
+                  options={categoryOptions}
+                  onSelect={value => {
+                    setCategory(value);
+                    setSubQuestionAnswers({});
+                    setErrors({
+                      ...errors,
+                      category: undefined,
+                      selectedSubQuestion: undefined,
+                    });
+                  }}
+                  placeholder={categoriesLoading ? t('addFarmer.loadingCategories') : t('addFarmer.selectCategory')}
+                  error={errors.category}
+                  disabled={categoriesLoading}
+                />
+                {categoriesLoading && (
+                  <View style={{marginTop: moderateScale(8), alignItems: 'center'}}>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  </View>
+                )}
               </View>
             )}
-            
-            {category && !questionsLoading && questions.length > 0 && questions.map((question, index) => {
+
+            {/* Dynamic Sub-questions from API - Hidden in edit mode */}
+            {!isEditMode && (
+              <>
+                {questionsLoading && (
+                  <View style={{marginVertical: moderateScale(20), alignItems: 'center'}}>
+                    <ActivityIndicator size="small" color={colors.primary} />
+                    <Text style={{marginTop: moderateScale(8), fontSize: moderateScale(12), color: colors.textTertiary}}>
+                      Loading questions...
+                    </Text>
+                  </View>
+                )}
+                
+                {category && !questionsLoading && questions.length > 0 && questions.map((question, index) => {
               const questionKey = `question_${question.id}_${index}`;
               const currentAnswer = subQuestionAnswers[questionKey];
 
@@ -2181,13 +2430,14 @@ export default function AddFarmerScreen() {
                         value={
                           typeof currentAnswer === 'string' ? currentAnswer : ''
                         }
-                        onChangeText={handleAnswerChange}
+                        onChangeText={isEditMode ? () => {} : handleAnswerChange}
                         placeholder={t('addFarmer.yourAnswerHere')}
                         error={
                           errors.selectedSubQuestion && index === 0
                             ? errors.selectedSubQuestion
                             : undefined
                         }
+                        editable={!isEditMode}
                       />
                     </View>
                   );
@@ -2209,13 +2459,14 @@ export default function AddFarmerScreen() {
                           ? currentAnswer
                           : null
                       }
-                      onChange={handleAnswerChange}
+                      onChange={isEditMode ? () => {} : handleAnswerChange}
                       options={radioOptions}
                       error={
                         errors.selectedSubQuestion && index === 0
                           ? errors.selectedSubQuestion
                           : undefined
                       }
+                      disabled={isEditMode}
                     />
                   );
 
@@ -2234,13 +2485,14 @@ export default function AddFarmerScreen() {
                       selectedValues={
                         Array.isArray(currentAnswer) ? currentAnswer : []
                       }
-                      onChange={handleAnswerChange}
+                      onChange={isEditMode ? () => {} : handleAnswerChange}
                       options={checkboxOptions}
                       error={
                         errors.selectedSubQuestion && index === 0
                           ? errors.selectedSubQuestion
                           : undefined
                       }
+                      disabled={isEditMode}
                     />
                   );
 
@@ -2250,7 +2502,7 @@ export default function AddFarmerScreen() {
                     <FileUploadQuestion
                       key={questionKey}
                       question={question.question_text || ''}
-                      onUpload={(imageUri: string) => {
+                      onUpload={isEditMode ? () => {} : (imageUri: string) => {
                         handleAnswerChange(imageUri);
                       }}
                       uploadedFileName={
@@ -2286,13 +2538,14 @@ export default function AddFarmerScreen() {
                         typeof currentAnswer === 'string' ? currentAnswer : ''
                       }
                       options={dropdownOptions}
-                      onSelect={handleAnswerChange}
+                      onSelect={isEditMode ? () => {} : handleAnswerChange}
                       placeholder="Select option"
                       error={
                         errors.selectedSubQuestion && index === 0
                           ? errors.selectedSubQuestion
                           : undefined
                       }
+                      disabled={isEditMode}
                     />
                   );
 
@@ -2316,12 +2569,14 @@ export default function AddFarmerScreen() {
               }
             })}
 
-            {category && !questionsLoading && questions.length === 0 && (
-              <View style={{marginVertical: moderateScale(20), alignItems: 'center'}}>
-                <Text style={{fontSize: moderateScale(14), color: colors.textTertiary}}>
-                  No questions available for this category.
-                </Text>
-              </View>
+                {category && !questionsLoading && questions.length === 0 && (
+                  <View style={{marginVertical: moderateScale(20), alignItems: 'center'}}>
+                    <Text style={{fontSize: moderateScale(14), color: colors.textTertiary}}>
+                      No questions available for this category.
+                    </Text>
+                  </View>
+                )}
+              </>
             )}
 
             {/* Personal Info Fields */}
@@ -2561,8 +2816,8 @@ export default function AddFarmerScreen() {
             </View>
           </View>
 
-          {/* Tractor Details Section */}
-          {tractors.map((tractor, index) => (
+          {/* Tractor Details Section - Hidden in edit mode */}
+          {!isEditMode && tractors.map((tractor, index) => (
             <View key={tractor.id} style={styles.section}>
               <View style={styles.tractorHeader}>
                 <Text style={styles.tractorCountText}>
@@ -2718,6 +2973,21 @@ export default function AddFarmerScreen() {
                   tractor.rcBack ? () => handleImagePreview(tractor.id, 'rcBack', tractor.rcBack!) : undefined,
                 )}
               </View>
+              {/* RC Image Error Messages */}
+              {(tractor.errors.rcFront || tractor.errors.rcBack) && (
+                <View style={{flexDirection: 'row', marginTop: moderateScale(-8), marginBottom: moderateScale(8)}}>
+                  <View style={{flex: 1}}>
+                    {tractor.errors.rcFront && (
+                      <Text style={styles.errorText}>{tractor.errors.rcFront}</Text>
+                    )}
+                  </View>
+                  <View style={{flex: 1}}>
+                    {tractor.errors.rcBack && (
+                      <Text style={styles.errorText}>{tractor.errors.rcBack}</Text>
+                    )}
+                  </View>
+                </View>
+              )}
 
               {/* Tractor Fields */}
               <View onLayout={registerFieldPosition(`tractor_${tractor.id}_modelName`)}>
@@ -2845,7 +3115,7 @@ export default function AddFarmerScreen() {
         {/* Submit Button */}
         <View style={{padding:moderateScale(14)}}>
           <Button
-            title={t('addFarmer.sendForVerification')}
+            title={isEditMode ? 'Update details' : t('addFarmer.sendForVerification')}
             onPress={handleSubmit}
             loading={submitting}
             disabled={submitting}

@@ -24,7 +24,7 @@ import SimpleBoxInput from '../components/FloatingInput';
 import ImagePickerModal from '../components/ImagePickerModal';
 import Button from '../components/Button';
 import {SCREEN_NAMES} from '../constants/screenNames';
-import {saveProfileReviewed, getUserRole} from '../utils/session';
+import {saveProfileReviewed, getUserRole, saveProfileCompleted} from '../utils/session';
 import { ImagePath } from '../assets/images';
 import {useLanguage} from '../contexts/LanguageContext';
 import Toast, {ToastType} from '../components/Toast';
@@ -449,6 +449,9 @@ export default function ReviewProfileScreen() {
         
         // Mark profile as reviewed
         await saveProfileReviewed();
+        
+        // Mark profile as completed
+        await saveProfileCompleted(true);
         
         // Navigate to FarmerTabs after a short delay to show success message
         setTimeout(() => {

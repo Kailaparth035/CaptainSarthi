@@ -15,14 +15,16 @@ const handleApiResponse = (response) => {
 
     case 401:
       // Alert.alert('Session expired', 'Please login again.');
-      break;
+      return data; // Return data even for 401 to allow handling in components
       
-      case 404: 
-      return 
+    case 404: 
+      return data; // Return data for 404 to allow error message extraction
       // Alert.alert('Something went wrong!',data?.message);
       break;
 
     default:
+      // For other status codes, return the data so error messages can be extracted
+      return data;
       // Alert.alert('Error', `Something went wrong (Code: ${status})`);
       break;
   }
@@ -42,7 +44,15 @@ export const getData = async (fullUrl, params = {}) => {
     return handleApiResponse(response);
   } catch (error) {
     console.log('GET error:', error);
-    return null;
+    // Return error response data so error messages can be extracted
+    if (error?.response?.data) {
+      return error.response.data;
+    }
+    // If no response data, return error object with message
+    return {
+      status: false,
+      message: error?.message || 'An error occurred while processing your request'
+    };
   }
 };
 
@@ -62,7 +72,15 @@ export const postData = async (fullUrl, body = {}) => {
     return handleApiResponse(response);
   } catch (error) {
     console.log('POST error:', error);
-    return null;
+    // Return error response data so error messages can be extracted
+    if (error?.response?.data) {
+      return error.response.data;
+    }
+    // If no response data, return error object with message
+    return {
+      status: false,
+      message: error?.message || 'An error occurred while processing your request'
+    };
   }
 };
 
@@ -78,7 +96,15 @@ export const postDataWithImage = async (url, formData) => {
     return handleApiResponse(response);
   } catch (error) {
     console.log("Upload error:", error?.response?.data || error?.message);
-    return null;
+    // Return error response data so error messages can be extracted
+    if (error?.response?.data) {
+      return error.response.data;
+    }
+    // If no response data, return error object with message
+    return {
+      status: false,
+      message: error?.message || 'An error occurred while processing your request'
+    };
   }
 };
 
@@ -96,6 +122,14 @@ export const putData = async (fullUrl, body = {}) => {
     return handleApiResponse(response);
   } catch (error) {
     console.log('PUT error:', error);
-    return null;
+    // Return error response data so error messages can be extracted
+    if (error?.response?.data) {
+      return error.response.data;
+    }
+    // If no response data, return error object with message
+    return {
+      status: false,
+      message: error?.message || 'An error occurred while processing your request'
+    };
   }
 };

@@ -684,8 +684,14 @@ export default function FarmerDetailsScreen() {
           style={dynamicStyles.editButton}
           activeOpacity={0.7}
           onPress={() => {
-            // Handle edit action
-            console.log('Edit button pressed');
+            // Navigate to AddFarmerScreen in edit mode
+            const farmerId = params?.farmer_id || params?.farmerId;
+            if (farmerId) {
+              navigation.navigate(SCREEN_NAMES.AddFarmer as never, {
+                farmerId: farmerId,
+                editMode: true,
+              } as never);
+            }
           }}>
           <Text style={dynamicStyles.editButtonText}>Edit</Text>
         </TouchableOpacity>

@@ -15,7 +15,10 @@ export type FarmerStackParamList = {
     farmerInitials: string;
     fromScreen?: 'Home' | 'List';
   };
-  [SCREEN_NAMES.AddFarmer]: undefined;
+  [SCREEN_NAMES.AddFarmer]: {
+    farmerId?: string;
+    editMode?: boolean;
+  } | undefined;
 };
 
 const Stack = createNativeStackNavigator<FarmerStackParamList>();

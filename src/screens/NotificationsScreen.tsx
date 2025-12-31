@@ -10,6 +10,7 @@ import {
   Platform,
   FlatList,
   RefreshControl,
+  Image,
 } from 'react-native';
 import {NativeStackScreenProps} from '@react-navigation/native-stack';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
@@ -17,6 +18,7 @@ import {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
+import {ImagePath} from '../assets/images';
 import {RootStackParamList} from '../navigation/RootNavigator';
 import {FarmerTabParamList} from '../navigation/FarmerTabNavigator';
 import {SCREEN_NAMES} from '../constants/screenNames';
@@ -90,14 +92,17 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
     bottomBarColor: colors.backgroundLight,
   });
 
-  const getNotificationIcon = (type: string) => {
-    switch (type) {
+  const getNotificationIcon = (type: string, dataType?: string) => {
+    // Use dataType if available, otherwise fall back to type
+    const notificationType = dataType || type;
+    
+    switch (notificationType) {
       case 'event':
-        return 'calendar-outline';
+        return ImagePath.eventNotification;
       case 'story':
-        return 'time-outline';
+        return ImagePath.story;
       default:
-        return 'notifications-outline';
+        return null; // Return null for default, we'll handle it in the render
     }
   };
 
@@ -317,7 +322,7 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
         notificationCard: {
           backgroundColor: colors.backgroundWhite,
           borderRadius: moderateScale(12),
-          padding: moderateScale(16),
+          padding: moderateScale(12),
           marginBottom: moderateScale(12),
           shadowColor: colors.shadowColor,
           shadowOpacity: 0.08,
@@ -330,8 +335,8 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
           alignItems: 'flex-start',
         },
         iconContainer: {
-          width: moderateScale(48),
-          height: moderateScale(48),
+          width: moderateScale(40),
+          height: moderateScale(40),
           borderRadius: moderateScale(24),
           borderWidth: 1,
           borderColor: colors.borderLight,
@@ -492,7 +497,7 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
 
   // Render notification item
   const renderNotificationItem = ({item}: {item: NotificationItem}) => {
-    const iconName = getNotificationIcon(item.type);
+    const iconSource = getNotificationIcon(item.type, item.dataType);
 
     return (
       <Pressable
@@ -502,11 +507,22 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
         <View style={styles.notificationItem}>
           {/* Icon Container */}
           <View style={styles.iconContainer}>
-            <Ionicons
-              name={iconName}
-              size={moderateScale(24)}
-              color={colors.textPrimary}
-            />
+            {iconSource ? (
+              <Image
+                source={iconSource}
+                style={{
+                  width: moderateScale(20),
+                  height: moderateScale(20),
+                }}
+                resizeMode="contain"
+              />
+            ) : (
+              <Ionicons
+                name="notifications-outline"
+                size={moderateScale(24)}
+                color={colors.textPrimary}
+              />
+            )}
           </View>
 
           {/* Notification Content */}

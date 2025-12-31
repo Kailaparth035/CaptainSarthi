@@ -7,7 +7,7 @@ import FarmerTabNavigator from './FarmerTabNavigator';
 import LoginScreen from '../screens/LoginScreen';
 import TermsScreen from '../screens/TermsScreen';
 import {SCREEN_NAMES} from '../constants/screenNames';
-import {isLoggedIn, getSession, isTermsAccepted, getUserRole, getUserData, isLanguageSelected} from '../utils/session';
+import {isLoggedIn, getSession, isTermsAccepted, getUserRole, getUserData, isLanguageSelected, isProfileCompleted} from '../utils/session';
 import {isFarmerRole} from '../utils/userRole';
 import ReviewProfileScreen from '../screens/ReviewProfileScreen';
 import LanguageSelectScreen from '../screens/LanguageSelectScreen';
@@ -85,8 +85,8 @@ export default function RootNavigator() {
             if (!termsAccepted) {
               setInitialRoute(SCREEN_NAMES.Terms);
             } else {
-              // Check if profile is completed from user data
-              const profileCompleted = userData?.user?.profile_completed === true;
+              // Check if profile is completed from AsyncStorage
+              const profileCompleted = await isProfileCompleted();
               console.log('[RootNavigator] Profile completed status:', profileCompleted);
               if (profileCompleted) {
                 setInitialRoute(SCREEN_NAMES.FarmerTabs);

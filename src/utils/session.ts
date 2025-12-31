@@ -4,6 +4,7 @@ import { clearAuthToken } from '../Service/Apicom';
 const SESSION_KEY = '@user_session';
 const USER_DATA_KEY = '@user_data';
 const USER_ROLE_KEY = '@user_role';
+const PROFILE_COMPLETED_KEY = '@profile_completed';
 const PROFILE_REVIEWED_KEY = '@profile_reviewed';
 const TERMS_ACCEPTED_KEY = '@terms_accepted';
 const LANGUAGE_SELECTED_KEY = '@language_selected';
@@ -135,6 +136,7 @@ export const clearSession = async (): Promise<void> => {
     await AsyncStorage.removeItem(SESSION_KEY);
     await AsyncStorage.removeItem(USER_DATA_KEY);
     await AsyncStorage.removeItem(USER_ROLE_KEY);
+    await clearProfileCompleted();
     await clearProfileReviewed();
     await clearFarmerProfileData();
     // Terms acceptance is NOT cleared - it should persist across logins/logouts
@@ -190,6 +192,44 @@ export const getUserRole = async (): Promise<string | null> => {
 };
 
 /**
+ * Save profile completed status separately to AsyncStorage
+ */
+export const saveProfileCompleted = async (completed: boolean): Promise<void> => {
+  try {
+    await AsyncStorage.setItem(PROFILE_COMPLETED_KEY, completed ? 'true' : 'false');
+    console.log('Profile completed status saved to AsyncStorage:', completed);
+  } catch (error) {
+    console.error('Error saving profile completed status:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get profile completed status from AsyncStorage
+ */
+export const isProfileCompleted = async (): Promise<boolean> => {
+  try {
+    const completed = await AsyncStorage.getItem(PROFILE_COMPLETED_KEY);
+    return completed === 'true';
+  } catch (error) {
+    console.error('Error getting profile completed status:', error);
+    return false;
+  }
+};
+
+/**
+ * Clear profile completed status (on logout)
+ */
+export const clearProfileCompleted = async (): Promise<void> => {
+  try {
+    await AsyncStorage.removeItem(PROFILE_COMPLETED_KEY);
+  } catch (error) {
+    console.error('Error clearing profile completed status:', error);
+    throw error;
+  }
+};
+
+/**
  * Save complete login response (token + role + user details) to AsyncStorage
  */
 export const saveLoginResponse = async (loginResponse: {
@@ -216,9 +256,15 @@ export const saveLoginResponse = async (loginResponse: {
       await saveUserRole(loginResponse.role);
     }
     
+    // Save profile_completed separately if available
+    if (loginResponse.user?.profile_completed !== undefined) {
+      await saveProfileCompleted(loginResponse.user.profile_completed);
+    }
+    
     console.log('Login response saved to AsyncStorage:', {
       role: loginResponse.role,
       hasUser: !!loginResponse.user,
+      profileCompleted: loginResponse.user?.profile_completed,
       hasDealer: !!loginResponse.dealer,
       hasFarmer: !!loginResponse.farmer,
     });

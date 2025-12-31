@@ -90,11 +90,6 @@ export default function FarmerTabNavigator() {
         listeners={createTabPressListener(SCREEN_NAMES.Events)}
       />
       <Tab.Screen 
-        name={SCREEN_NAMES.History} 
-        component={HistoryStack}
-        listeners={createTabPressListener(SCREEN_NAMES.History)}
-      />
-      <Tab.Screen 
         name={SCREEN_NAMES.Stories} 
         component={StoriesStack}
         listeners={createTabPressListener(SCREEN_NAMES.Stories)}

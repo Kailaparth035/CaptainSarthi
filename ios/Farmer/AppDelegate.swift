@@ -3,9 +3,11 @@ import React
 import React_RCTAppDelegate
 import ReactAppDependencyProvider
 import FirebaseCore
+import FirebaseMessaging
+import UserNotifications
 
 @main
-class AppDelegate: UIResponder, UIApplicationDelegate {
+class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
   var window: UIWindow?
 
   var reactNativeDelegate: ReactNativeDelegate?
@@ -17,6 +19,22 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
   ) -> Bool {
     // Initialize Firebase
     FirebaseApp.configure()
+
+    // Request notification authorization
+    UNUserNotificationCenter.current().delegate = self
+    let authOptions: UNAuthorizationOptions = [.alert, .badge, .sound]
+    UNUserNotificationCenter.current().requestAuthorization(
+      options: authOptions,
+      completionHandler: { granted, error in
+        if let error = error {
+          print("Error requesting notification authorization: \(error.localizedDescription)")
+        } else {
+          print("Notification authorization granted: \(granted)")
+        }
+      }
+    )
+    
+    application.registerForRemoteNotifications()
 
     let delegate = ReactNativeDelegate()
     let factory = RCTReactNativeFactory(delegate: delegate)
@@ -41,8 +59,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     _ application: UIApplication,
     didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
   ) {
-    // React Native Firebase handles this automatically via messaging().setAPNSToken()
-    // This method is here for reference but React Native Firebase will handle it
+    // Set APNS token for Firebase Messaging
+    Messaging.messaging().apnsToken = deviceToken
+    print("APNS token registered with Firebase")
   }
 
   func application(
@@ -50,6 +69,34 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     didFailToRegisterForRemoteNotificationsWithError error: Error
   ) {
     print("Failed to register for remote notifications: \(error.localizedDescription)")
+  }
+  
+  // Handle notification when app is in foreground
+  func userNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    willPresent notification: UNNotification,
+    withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+  ) {
+    let userInfo = notification.request.content.userInfo
+    print("Notification received in foreground: \(userInfo)")
+    
+    // Show notification even when app is in foreground
+    if #available(iOS 14.0, *) {
+      completionHandler([[.banner, .sound, .badge]])
+    } else {
+      completionHandler([[.alert, .sound, .badge]])
+    }
+  }
+  
+  // Handle notification tap
+  func userNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    didReceive response: UNNotificationResponse,
+    withCompletionHandler completionHandler: @escaping () -> Void
+  ) {
+    let userInfo = response.notification.request.content.userInfo
+    print("Notification tapped: \(userInfo)")
+    completionHandler()
   }
 }
 

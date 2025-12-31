@@ -29,6 +29,7 @@ import {useLanguage} from '../contexts/LanguageContext';
 import {getData} from '../Service/Apimethod';
 import Apis from '../Service/constant';
 import {getImageUrl} from '../utils/imageUtils';
+import {ImagePath} from '../assets/images';
 
 // Initial summary data (will be updated from API)
 const initialSummaryData = {
@@ -990,16 +991,78 @@ export default function HomeScreen() {
               ))
             ) : (
               <View
-                style={{ padding: moderateScale(20), alignItems: "center" }}
+                style={{ 
+                  padding: moderateScale(20), 
+                  alignItems: "center",
+                  justifyContent: 'center',
+                  flex: 1,
+                  minHeight: moderateScale(250),
+                }}
               >
+                <Image
+                  source={ImagePath.nofarmerfound}
+                  style={{
+                    width: moderateScale(120),
+                    height: moderateScale(120),
+                    marginBottom: moderateScale(16),
+                  }}
+                  resizeMode="contain"
+                />
+                <Text
+                  style={[
+                    Typography.boldXl,
+                    { 
+                      color: colors.textPrimary,
+                      fontSize: moderateScale(18),
+                      marginBottom: moderateScale(8),
+                    },
+                  ]}
+                >
+                  No farmer added
+                </Text>
                 <Text
                   style={[
                     Typography.regularMd,
-                    { color: colors.textSecondary },
+                    { 
+                      color: colors.textTertiary,
+                      fontSize: moderateScale(14),
+                      textAlign: 'center',
+                      marginBottom: moderateScale(24),
+                      paddingHorizontal: moderateScale(20),
+                    },
                   ]}
                 >
-                  {t("home.noFarmers") || "No farmers found"}
+                  Looks like there are no farmers here yet. Add your first farmer to get started.
                 </Text>
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: colors.primary,
+                    paddingHorizontal: moderateScale(24),
+                    paddingVertical: moderateScale(12),
+                    borderRadius: moderateScale(25),
+                    minWidth: moderateScale(140),
+                  }}
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    // Navigate to Farmer tab and then to AddFarmer
+                    tabNavigation.navigate(SCREEN_NAMES.Farmer, {
+                      screen: SCREEN_NAMES.AddFarmer,
+                    } as any);
+                  }}
+                >
+                  <Text
+                    style={[
+                      Typography.semiBoldMd,
+                      {
+                        fontSize: moderateScale(14),
+                        color: colors.textWhite,
+                        textAlign: 'center',
+                      },
+                    ]}
+                  >
+                    Add farmer
+                  </Text>
+                </TouchableOpacity>
               </View>
             )}
           </View>

@@ -25,6 +25,22 @@ export const ImagePath = {
   language : require('../images/Language.png'),
   noEvent : require('../images/noEvent.png'),
   noStory : require('../images/noStory.png'),
+
+
+  profile: require('../images/profile.png'),
+  profileSelected : require('../images/profileSelected.png'),
+  story : require('../images/story.png'),
+  storySelected : require('../images/storySelected.png'),
+  tractorSelected : require('../images/tractorSelected.png'),
+  tractorTab : require('../images/tractorTab.png'),
+  homeSelected : require('../images/homeSelected.png'),
+  eventSelected : require('../images/eventSelected.png'),
+  home : require('../images/home.png'),  
+  eventsTab : require('../images/eventsTab.png'),  
+  eventNotification : require('../images/eventNotification.png'),
+  nofarmerfound : require('../images/nofarmerfound.png'),
+
+  
 };
 
 

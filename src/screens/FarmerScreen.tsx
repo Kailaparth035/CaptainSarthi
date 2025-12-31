@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+  import React, { useMemo, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -27,6 +27,8 @@ import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import {useLanguage} from '../contexts/LanguageContext';
 import {getData} from '../Service/Apimethod';
 import Apis from '../Service/constant';
+import {ImagePath} from '../assets/images';
+import {Image} from 'react-native';
 
 type NavigationProp = CompositeNavigationProp<
   StackNavProp<FarmerStackParamList>,
@@ -463,14 +465,41 @@ export default function FarmerScreen() {
           flex: 1,
           justifyContent: 'center',
           alignItems: 'center',
-          paddingVertical: moderateScale(60),
+          paddingVertical: moderateScale(40),
+          paddingHorizontal: moderateScale(20),
+        },
+        emptyImage: {
+          width: moderateScale(120),
+          height: moderateScale(120),
+          marginBottom: moderateScale(16),
+        },
+        emptyTitle: {
+          ...Typography.boldXl,
+          fontSize: moderateScale(18),
+          color: colors.textPrimary,
+          textAlign: 'center',
+          marginBottom: moderateScale(8),
         },
         emptyText: {
           ...Typography.regularMd,
-          fontSize: moderateScale(16),
+          fontSize: moderateScale(14),
           color: colors.textTertiary,
           textAlign: 'center',
-          marginTop: moderateScale(12),
+          marginBottom: moderateScale(24),
+          paddingHorizontal: moderateScale(20),
+        },
+        addFarmerButton: {
+          backgroundColor: colors.primary,
+          paddingHorizontal: moderateScale(24),
+          paddingVertical: moderateScale(12),
+          borderRadius: moderateScale(25),
+          minWidth: moderateScale(140),
+        },
+        addFarmerButtonText: {
+          ...Typography.semiBoldMd,
+          fontSize: moderateScale(14),
+          color: colors.textWhite,
+          textAlign: 'center',
         },
         loadingContainer: {
           flex: 1,
@@ -649,12 +678,22 @@ export default function FarmerScreen() {
           </ScrollView>
         ) : (
           <View style={[dynamicStyles.listContainer, dynamicStyles.emptyContainer]}>
-            <Ionicons
-              name="people-outline"
-              size={moderateScale(64)}
-              color={colors.textTertiary}
+            <Image
+              source={ImagePath.nofarmerfound}
+              style={dynamicStyles.emptyImage}
+              resizeMode="contain"
             />
-            <Text style={dynamicStyles.emptyText}>No farmers found</Text>
+            <Text style={dynamicStyles.emptyTitle}>No farmer added</Text>
+            <Text style={dynamicStyles.emptyText}>
+              Looks like there are no farmers here yet. Add your first farmer to get started.
+            </Text>
+            <TouchableOpacity
+              style={dynamicStyles.addFarmerButton}
+              activeOpacity={0.7}
+              onPress={() => navigation.navigate(SCREEN_NAMES.AddFarmer)}
+            >
+              <Text style={dynamicStyles.addFarmerButtonText}>Add farmer</Text>
+            </TouchableOpacity>
           </View>
         )}
       </View>
