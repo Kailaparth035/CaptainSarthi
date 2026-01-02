@@ -4,7 +4,7 @@
  */
 
 import messaging from '@react-native-firebase/messaging';
-import {Platform, PermissionsAndroid} from 'react-native';
+import {Platform, PermissionsAndroid, Alert, AppState, AppStateStatus} from 'react-native';
 
 class FirebaseService {
   private static instance: FirebaseService;
@@ -14,6 +14,11 @@ class FirebaseService {
   private onNotificationOpenedCallback: ((notification: any) => void) | null = null;
   private unsubscribeTokenRefresh: (() => void) | null = null;
   private unsubscribeForeground: (() => void) | null = null;
+  private appStateSubscription: any = null;
+  private isInitialized: boolean = false;
+  private initializationPromise: Promise<void> | null = null;
+  private retryCount: number = 0;
+  private readonly MAX_RETRIES = 3;
 
   private constructor() {}
 
@@ -107,17 +112,67 @@ class FirebaseService {
   }
 
   /**
-   * Get FCM token
+   * Get FCM token with retry logic
    */
-  async getToken(): Promise<string | null> {
+  async getToken(retry: number = 0): Promise<string | null> {
     try {
       const token = await messaging().getToken();
       this.fcmToken = token;
-      console.log('Firebase: FCM Token:', token);
+      this.retryCount = 0; // Reset retry count on success
+      console.log('Firebase: FCM Token obtained:', token);
+      console.log('Firebase: Token length:', token?.length || 0);
+      
+      if (!token) {
+        console.warn('Firebase: FCM token is null or empty');
+        // Retry if token is null and we haven't exceeded max retries
+        if (retry < this.MAX_RETRIES) {
+          console.log(`Firebase: Retrying token retrieval (attempt ${retry + 1}/${this.MAX_RETRIES})...`);
+          await new Promise<void>(resolve => setTimeout(() => resolve(), 1000 * (retry + 1))); // Exponential backoff
+          return this.getToken(retry + 1);
+        }
+      }
+      
       return token;
     } catch (error) {
       console.error('Firebase: Error getting token:', error);
+      console.error('Firebase: Error details:', JSON.stringify(error, null, 2));
+      
+      // Retry on error if we haven't exceeded max retries
+      if (retry < this.MAX_RETRIES) {
+        console.log(`Firebase: Retrying token retrieval after error (attempt ${retry + 1}/${this.MAX_RETRIES})...`);
+        await new Promise<void>(resolve => setTimeout(() => resolve(), 1000 * (retry + 1))); // Exponential backoff
+        return this.getToken(retry + 1);
+      }
+      
       return null;
+    }
+  }
+
+  /**
+   * Validate and refresh token if needed
+   */
+  async validateToken(): Promise<string | null> {
+    try {
+      const currentToken = this.fcmToken;
+      const freshToken = await messaging().getToken();
+      
+      if (!freshToken) {
+        console.warn('Firebase: Fresh token is null, attempting to get new token...');
+        return await this.getToken();
+      }
+      
+      if (currentToken !== freshToken) {
+        console.log('Firebase: Token changed, updating...');
+        this.fcmToken = freshToken;
+        if (this.onTokenRefreshCallback) {
+          this.onTokenRefreshCallback(freshToken);
+        }
+      }
+      
+      return freshToken;
+    } catch (error) {
+      console.error('Firebase: Error validating token:', error);
+      return await this.getToken();
     }
   }
 
@@ -177,8 +232,38 @@ class FirebaseService {
     
     // Set up new listener
     this.unsubscribeForeground = messaging().onMessage(async (remoteMessage) => {
-      console.log('Firebase: Foreground notification received:', remoteMessage);
-      callback(remoteMessage);
+      console.log('Firebase: Foreground notification received:', JSON.stringify(remoteMessage, null, 2));
+      
+      // Display notification to user when app is in foreground
+      if (remoteMessage.notification) {
+        const {title, body} = remoteMessage.notification;
+        
+        // Show alert for foreground notifications
+        if (Platform.OS === 'android') {
+          // On Android, notifications are automatically shown by the system
+          // but we can also show an alert for immediate visibility
+          Alert.alert(
+            title || 'Notification',
+            body || 'You have a new notification',
+            [{text: 'OK'}],
+            {cancelable: true}
+          );
+        } else {
+          // iOS handles foreground notifications via AppDelegate
+          // But we can show an alert as well
+          Alert.alert(
+            title || 'Notification',
+            body || 'You have a new notification',
+            [{text: 'OK'}],
+            {cancelable: true}
+          );
+        }
+      }
+      
+      // Call the callback
+      if (callback) {
+        callback(remoteMessage);
+      }
     });
     
     return this.unsubscribeForeground;
@@ -232,41 +317,98 @@ class FirebaseService {
       this.unsubscribeForeground();
       this.unsubscribeForeground = null;
     }
+    if (this.appStateSubscription) {
+      this.appStateSubscription.remove();
+      this.appStateSubscription = null;
+    }
     this.onTokenRefreshCallback = null;
     this.onNotificationCallback = null;
     this.onNotificationOpenedCallback = null;
+    this.isInitialized = false;
   }
 
   /**
    * Initialize Firebase service
    * Sets up all notification handlers (foreground, background, quit state)
+   * Prevents multiple simultaneous initializations
    */
   async initialize(
     onForegroundNotification?: (notification: any) => void,
     onNotificationOpened?: (notification: any) => void,
     onTokenRefresh?: (token: string) => void,
   ): Promise<void> {
+    // If already initializing, return the existing promise
+    if (this.initializationPromise) {
+      console.log('Firebase: Initialization already in progress, waiting...');
+      return this.initializationPromise;
+    }
+
+    // If already initialized, just update callbacks
+    if (this.isInitialized) {
+      console.log('Firebase: Already initialized, updating callbacks...');
+      if (onForegroundNotification) {
+        this.onMessage(onForegroundNotification);
+      }
+      if (onNotificationOpened) {
+        this.onNotificationOpenedApp(onNotificationOpened);
+      }
+      if (onTokenRefresh) {
+        this.onTokenRefresh(onTokenRefresh);
+      }
+      return Promise.resolve();
+    }
+
+    // Create initialization promise
+    this.initializationPromise = this._doInitialize(
+      onForegroundNotification,
+      onNotificationOpened,
+      onTokenRefresh
+    );
+
+    try {
+      await this.initializationPromise;
+    } finally {
+      this.initializationPromise = null;
+    }
+  }
+
+  /**
+   * Internal initialization method
+   */
+  private async _doInitialize(
+    onForegroundNotification?: (notification: any) => void,
+    onNotificationOpened?: (notification: any) => void,
+    onTokenRefresh?: (token: string) => void,
+  ): Promise<void> {
     try {
       console.log('Firebase: Initializing Firebase service...');
+      console.log('Firebase: Platform:', Platform.OS);
       // Note: Firebase app auto-initializes from native config files
       // (google-services.json for Android, GoogleService-Info.plist for iOS)
 
       // Request permission
+      console.log('Firebase: Requesting notification permissions...');
       const hasPermission = await this.requestPermission();
       if (!hasPermission) {
-        console.warn('Firebase: Notification permission not granted');
+        console.warn('Firebase: ⚠️ Notification permission not granted. Notifications may not work.');
+      } else {
+        console.log('Firebase: ✅ Notification permission granted');
       }
 
-      // Get initial token
+      // Get initial token with retry logic
+      console.log('Firebase: Getting FCM token...');
       const token = await this.getToken();
       if (token) {
-        console.log('Firebase: Initial FCM token obtained');
+        console.log('Firebase: ✅ Initial FCM token obtained successfully');
+        console.log('Firebase: 📱 Token (first 20 chars):', token.substring(0, 20) + '...');
         // You can send this token to your backend here
+      } else {
+        console.error('Firebase: ❌ Failed to obtain FCM token after retries');
       }
 
       // Set up token refresh listener (always set up, but use callback if provided)
       this.onTokenRefresh((newToken) => {
-        console.log('Firebase: Token refreshed to:', newToken);
+        console.log('Firebase: 🔄 Token refreshed to:', newToken.substring(0, 20) + '...');
         if (onTokenRefresh) {
           onTokenRefresh(newToken);
         }
@@ -275,22 +417,69 @@ class FirebaseService {
 
       // Set up foreground notification handler
       if (onForegroundNotification) {
+        console.log('Firebase: Setting up foreground notification handler...');
         this.onMessage(onForegroundNotification);
+      } else {
+        // Set up default handler even if no callback provided
+        this.onMessage((remoteMessage) => {
+          console.log('Firebase: Foreground notification (no custom handler):', remoteMessage);
+        });
       }
 
       // Set up background/quit state notification handler
       if (onNotificationOpened) {
+        console.log('Firebase: Setting up notification opened handler...');
         this.onNotificationOpenedApp(onNotificationOpened);
       }
 
       // Check if app was opened from a notification (quit state)
-      await this.getInitialNotification();
+      console.log('Firebase: Checking for initial notification...');
+      const initialNotification = await this.getInitialNotification();
+      if (initialNotification) {
+        console.log('Firebase: ✅ App was opened from a notification');
+      }
 
-      console.log('Firebase: Initialization complete');
+      // Set up app state monitoring to re-validate token when app comes to foreground
+      this.setupAppStateMonitoring();
+
+      this.isInitialized = true;
+      console.log('Firebase: ✅ Initialization complete');
+      console.log('Firebase: 📋 Setup Summary:');
+      console.log('  - Permission:', hasPermission ? '✅ Granted' : '❌ Denied');
+      console.log('  - FCM Token:', token ? '✅ Obtained' : '❌ Failed');
+      console.log('  - Foreground Handler: ✅ Set up');
+      console.log('  - Background Handler: ✅ Set up (in index.js)');
+      console.log('  - App State Monitoring: ✅ Set up');
     } catch (error) {
-      console.error('Firebase: Error initializing:', error);
+      console.error('Firebase: ❌ Error initializing:', error);
+      console.error('Firebase: Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      this.isInitialized = false;
       throw error;
     }
+  }
+
+  /**
+   * Set up app state monitoring to re-validate token when app comes to foreground
+   */
+  private setupAppStateMonitoring(): void {
+    if (this.appStateSubscription) {
+      this.appStateSubscription.remove();
+    }
+
+    let appState = AppState.currentState;
+    this.appStateSubscription = AppState.addEventListener('change', async (nextAppState: AppStateStatus) => {
+      if (appState.match(/inactive|background/) && nextAppState === 'active') {
+        // App has come to the foreground
+        console.log('Firebase: App came to foreground, validating token...');
+        try {
+          await this.validateToken();
+          console.log('Firebase: ✅ Token validated after app state change');
+        } catch (error) {
+          console.error('Firebase: Error validating token after app state change:', error);
+        }
+      }
+      appState = nextAppState;
+    });
   }
 }
 

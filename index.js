@@ -30,10 +30,25 @@ try {
 
 // Register background handler for Android
 // This handler runs in a headless JS task when the app is in the background
+// IMPORTANT: This must be registered BEFORE AppRegistry.registerComponent
 messaging().setBackgroundMessageHandler(async (remoteMessage) => {
-  console.log('Background notification received:', remoteMessage);
-  // Handle background notification here
-  // This function must return a Promise
+  console.log('Background notification received:', JSON.stringify(remoteMessage, null, 2));
+  
+  // If the notification payload contains a 'notification' field,
+  // Firebase will automatically display it. This handler is for
+  // data-only messages or custom processing.
+  
+  if (remoteMessage.notification) {
+    console.log('Background notification title:', remoteMessage.notification.title);
+    console.log('Background notification body:', remoteMessage.notification.body);
+  }
+  
+  if (remoteMessage.data) {
+    console.log('Background notification data:', remoteMessage.data);
+  }
+  
+  // Return a resolved promise to indicate successful processing
+  return Promise.resolve();
 });
 
 AppRegistry.registerComponent(appName, () => App);

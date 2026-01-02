@@ -107,6 +107,31 @@ if(NOT "${NEW_GLOB}" STREQUAL "${OLD_GLOB}")
   file(TOUCH_NOCREATE "/Users/bhumit/WorkSpace/CaptainSarthi/android/app/.cxx/Debug/19m1a6b1/x86/CMakeFiles/cmake.verify_globs")
 endif()
 
+# react_codegen_SRCS at /Users/bhumit/WorkSpace/CaptainSarthi/node_modules/react-native-image-crop-picker/android/build/generated/source/codegen/jni/CMakeLists.txt:9 (file)
+file(GLOB NEW_GLOB LIST_DIRECTORIES true "/Users/bhumit/WorkSpace/CaptainSarthi/node_modules/react-native-image-crop-picker/android/build/generated/source/codegen/jni/*.cpp")
+set(OLD_GLOB
+  "/Users/bhumit/WorkSpace/CaptainSarthi/node_modules/react-native-image-crop-picker/android/build/generated/source/codegen/jni/RNCImageCropPickerSpec-generated.cpp"
+  )
+if(NOT "${NEW_GLOB}" STREQUAL "${OLD_GLOB}")
+  message("-- GLOB mismatch!")
+  file(TOUCH_NOCREATE "/Users/bhumit/WorkSpace/CaptainSarthi/android/app/.cxx/Debug/19m1a6b1/x86/CMakeFiles/cmake.verify_globs")
+endif()
+
+# react_codegen_SRCS at /Users/bhumit/WorkSpace/CaptainSarthi/node_modules/react-native-image-crop-picker/android/build/generated/source/codegen/jni/CMakeLists.txt:9 (file)
+file(GLOB NEW_GLOB LIST_DIRECTORIES true "/Users/bhumit/WorkSpace/CaptainSarthi/node_modules/react-native-image-crop-picker/android/build/generated/source/codegen/jni/react/renderer/components/RNCImageCropPickerSpec/*.cpp")
+set(OLD_GLOB
+  "/Users/bhumit/WorkSpace/CaptainSarthi/node_modules/react-native-image-crop-picker/android/build/generated/source/codegen/jni/react/renderer/components/RNCImageCropPickerSpec/ComponentDescriptors.cpp"
+  "/Users/bhumit/WorkSpace/CaptainSarthi/node_modules/react-native-image-crop-picker/android/build/generated/source/codegen/jni/react/renderer/components/RNCImageCropPickerSpec/EventEmitters.cpp"
+  "/Users/bhumit/WorkSpace/CaptainSarthi/node_modules/react-native-image-crop-picker/android/build/generated/source/codegen/jni/react/renderer/components/RNCImageCropPickerSpec/Props.cpp"
+  "/Users/bhumit/WorkSpace/CaptainSarthi/node_modules/react-native-image-crop-picker/android/build/generated/source/codegen/jni/react/renderer/components/RNCImageCropPickerSpec/RNCImageCropPickerSpecJSI-generated.cpp"
+  "/Users/bhumit/WorkSpace/CaptainSarthi/node_modules/react-native-image-crop-picker/android/build/generated/source/codegen/jni/react/renderer/components/RNCImageCropPickerSpec/ShadowNodes.cpp"
+  "/Users/bhumit/WorkSpace/CaptainSarthi/node_modules/react-native-image-crop-picker/android/build/generated/source/codegen/jni/react/renderer/components/RNCImageCropPickerSpec/States.cpp"
+  )
+if(NOT "${NEW_GLOB}" STREQUAL "${OLD_GLOB}")
+  message("-- GLOB mismatch!")
+  file(TOUCH_NOCREATE "/Users/bhumit/WorkSpace/CaptainSarthi/android/app/.cxx/Debug/19m1a6b1/x86/CMakeFiles/cmake.verify_globs")
+endif()
+
 # react_codegen_SRCS at /Users/bhumit/WorkSpace/CaptainSarthi/node_modules/react-native-image-picker/android/build/generated/source/codegen/jni/CMakeLists.txt:9 (file)
 file(GLOB NEW_GLOB LIST_DIRECTORIES true "/Users/bhumit/WorkSpace/CaptainSarthi/node_modules/react-native-image-picker/android/build/generated/source/codegen/jni/*.cpp")
 set(OLD_GLOB

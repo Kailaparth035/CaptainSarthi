@@ -23,37 +23,62 @@ import FirebaseService from './src/Service/FirebaseService';
 function App() {
   useEffect(() => {
     // Initialize Firebase with all notification handlers
-    FirebaseService.initialize(
-      // Foreground notification handler
-      async (remoteMessage) => {
-        console.log('App: Foreground notification received:', remoteMessage);
-        if (remoteMessage.notification) {
-          console.log('App: Notification title:', remoteMessage.notification.title);
-          console.log('App: Notification body:', remoteMessage.notification.body);
-          // You can show a local notification here or display an in-app notification
-          // For example, using react-native-push-notification or a custom in-app notification component
-        }
-      },
-      // Background/Quit state notification handler
-      (remoteMessage) => {
-        console.log('App: Notification opened from background/quit state:', remoteMessage);
-        // Handle navigation or other actions when notification is opened
-        // You can navigate to a specific screen based on notification data
-        if (remoteMessage.data) {
-          // Example: Navigate based on notification data
-          // navigationRef.current?.navigate(remoteMessage.data.screen);
-        }
-      },
-      // Token refresh handler
-      (token) => {
-        console.log('App: FCM token refreshed:', token);
-        // Send the token to your backend server here
-        // Example: await api.updateFCMToken(token);
-      },
-    );
+    const initFirebase = async () => {
+      try {
+        await FirebaseService.initialize(
+          // Foreground notification handler
+          async (remoteMessage) => {
+            console.log('App: 📬 Foreground notification received');
+            console.log('App: Notification data:', JSON.stringify(remoteMessage, null, 2));
+            
+            if (remoteMessage.notification) {
+              console.log('App: 📋 Title:', remoteMessage.notification.title);
+              console.log('App: 📋 Body:', remoteMessage.notification.body);
+            }
+            
+            if (remoteMessage.data) {
+              console.log('App: 📦 Data payload:', remoteMessage.data);
+              // Handle custom data here
+            }
+          },
+          // Background/Quit state notification handler
+          (remoteMessage) => {
+            console.log('App: 🔔 Notification opened from background/quit state');
+            console.log('App: Notification data:', JSON.stringify(remoteMessage, null, 2));
+            
+            // Handle navigation or other actions when notification is opened
+            if (remoteMessage.data) {
+              console.log('App: 📦 Custom data:', remoteMessage.data);
+              // Example: Navigate based on notification data
+              // navigationRef.current?.navigate(remoteMessage.data.screen);
+            }
+          },
+          // Token refresh handler
+          (token) => {
+            console.log('App: 🔄 FCM token refreshed');
+            console.log('App: New token (first 20 chars):', token.substring(0, 20) + '...');
+            
+            // Send the token to your backend server here
+            // Example: 
+            // try {
+            //   await api.updateFCMToken(token);
+            //   console.log('App: ✅ Token sent to backend');
+            // } catch (error) {
+            //   console.error('App: ❌ Failed to send token to backend:', error);
+            // }
+          },
+        );
+        console.log('App: ✅ Firebase initialization completed successfully');
+      } catch (error) {
+        console.error('App: ❌ Firebase initialization failed:', error);
+      }
+    };
+
+    initFirebase();
 
     // Cleanup on unmount
     return () => {
+      console.log('App: Cleaning up Firebase listeners...');
       FirebaseService.cleanup();
     };
   }, []);

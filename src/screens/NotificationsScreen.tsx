@@ -538,7 +538,10 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
                 )}
               </View>
               {/* Description */}
-              <Text style={styles.notificationDescription}>
+              <Text
+              numberOfLines={1}
+              ellipsizeMode='tail'
+              style={styles.notificationDescription}>
                 {item.description}
               </Text>
             </View>
