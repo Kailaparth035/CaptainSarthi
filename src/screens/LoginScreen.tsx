@@ -481,15 +481,19 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
             if (!termsAccepted) {
               navigation.replace(SCREEN_NAMES.Terms);
             } else {
-              // Use profile_completed from API response (not AsyncStorage)
-              // If profile_completed is false, show ReviewProfile (first time login)
-              // If profile_completed is true, skip ReviewProfile and go to FarmerTabs
-              console.log('[LoginScreen] Profile completed from API response:', profileCompleted);
-              if (profileCompleted === true) {
-                // Profile is completed - skip ReviewProfile screen
+              // Check profile_completed from API response (only for farmer login)
+              // If profile_completed is false, show ReviewProfile screen
+              // If profile_completed is true, show next screen (FarmerTabs)
+              const isProfileCompleted = user?.profile_completed === true;
+              console.log('[LoginScreen] Farmer login - Profile completed from API:', isProfileCompleted, 'Raw value:', user?.profile_completed);
+              
+              if (isProfileCompleted) {
+                // Profile is completed - navigate to FarmerTabs
+                console.log('[LoginScreen] Profile completed - navigating to FarmerTabs');
                 navigation.replace(SCREEN_NAMES.FarmerTabs);
               } else {
-                // Profile not completed - show ReviewProfile screen (first time login)
+                // Profile not completed - show ReviewProfile screen
+                console.log('[LoginScreen] Profile not completed - navigating to ReviewProfile');
                 navigation.replace(SCREEN_NAMES.ReviewProfile);
               }
             }
@@ -503,13 +507,19 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
               if (!termsAccepted) {
                 navigation.replace(SCREEN_NAMES.Terms);
               } else {
-                // Use profile_completed from API response (not AsyncStorage)
-                console.log('[LoginScreen] Profile completed from API response (fallback):', profileCompleted);
-                if (profileCompleted === true) {
-                  // Profile is completed - skip ReviewProfile screen
+                // Check profile_completed from API response (only for farmer login)
+                // If profile_completed is false, show ReviewProfile screen
+                // If profile_completed is true, show next screen (FarmerTabs)
+                const isProfileCompleted = user?.profile_completed === true;
+                console.log('[LoginScreen] Farmer login (fallback) - Profile completed from API:', isProfileCompleted, 'Raw value:', user?.profile_completed);
+                
+                if (isProfileCompleted) {
+                  // Profile is completed - navigate to FarmerTabs
+                  console.log('[LoginScreen] Profile completed (fallback) - navigating to FarmerTabs');
                   navigation.replace(SCREEN_NAMES.FarmerTabs);
                 } else {
-                  // Profile not completed - show ReviewProfile screen (first time login)
+                  // Profile not completed - show ReviewProfile screen
+                  console.log('[LoginScreen] Profile not completed (fallback) - navigating to ReviewProfile');
                   navigation.replace(SCREEN_NAMES.ReviewProfile);
                 }
               }

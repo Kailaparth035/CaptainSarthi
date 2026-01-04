@@ -64,8 +64,25 @@ export default function ReviewProfileScreen() {
   const [domMM, setDomMM] = useState('');
   const [domYYYY, setDomYYYY] = useState('');
 
-  // Tractor details
+  // Tractor details - store array of tractors
   const [tractorCount, setTractorCount] = useState(1);
+  const [tractors, setTractors] = useState<Array<{
+    tractorId: string;
+    tractorImages: string[];
+    rcFrontImage: string | null;
+    rcBackImage: string | null;
+    modelName: string;
+    vehicleNo: string;
+    ownerName: string;
+    chassisNo: string;
+    engineNo: string;
+    tractorMobileNo: string;
+    dateOfInvoice: string;
+    dateOfRegistration: string;
+    whoDrives: string;
+  }>>([]);
+  
+  // Keep old state variables for backward compatibility (will use first tractor for single display)
   const [tractorImages, setTractorImages] = useState<string[]>([]);
   const [rcFrontImage, setRcFrontImage] = useState<string | null>(null);
   const [rcBackImage, setRcBackImage] = useState<string | null>(null);
@@ -169,80 +186,126 @@ export default function ReviewProfileScreen() {
             }
           }
           
-          // Tractor details - get first tractor from tractor_list
+          // Tractor details - process all tractors from tractor_list
           if (tractorDetails.tractor_list && Array.isArray(tractorDetails.tractor_list) && tractorDetails.tractor_list.length > 0) {
-            const firstTractor = tractorDetails.tractor_list[0];
-            setTractorCount(tractorDetails.tractor_count || tractorDetails.tractor_list.length);
+            const tractorCountValue = tractorDetails.tractor_count || tractorDetails.tractor_list.length;
+            setTractorCount(tractorCountValue);
             
-            // Tractor images from tractor_images_url array
-            const tractorImagesArray: string[] = [];
-            if (firstTractor.tractor_images_url && Array.isArray(firstTractor.tractor_images_url)) {
-              firstTractor.tractor_images_url.forEach((imageUrl: string) => {
-                const fullImageUrl = getImageUrl(imageUrl);
-                if (fullImageUrl) {
-                  tractorImagesArray.push(fullImageUrl);
-                }
+            // Process all tractors from the API response
+            const processedTractors = tractorDetails.tractor_list.map((tractor: any, index: number) => {
+              console.log(`[ReviewProfileScreen] Processing tractor ${index + 1}:`, {
+                tractor_id: tractor.tractor_id,
+                rcbook_front: tractor.rcbook_front,
+                rcbook_back: tractor.rcbook_back,
+                vehicle_no: tractor.vehicle_no,
               });
-            } else if (firstTractor.tractor_image_url) {
-              // Fallback to single tractor_image_url if tractor_images_url is not available
-              const tractorImageUrl = getImageUrl(firstTractor.tractor_image_url);
-              if (tractorImageUrl) {
-                tractorImagesArray.push(tractorImageUrl);
+              
+              // Tractor images from tractor_images_url array
+              const tractorImagesArray: string[] = [];
+              if (tractor.tractor_images_url && Array.isArray(tractor.tractor_images_url)) {
+                tractor.tractor_images_url.forEach((imageUrl: string) => {
+                  const fullImageUrl = getImageUrl(imageUrl);
+                  if (fullImageUrl) {
+                    tractorImagesArray.push(fullImageUrl);
+                  }
+                });
+              } else if (tractor.tractor_image_url) {
+                // Fallback to single tractor_image_url if tractor_images_url is not available
+                const tractorImageUrl = getImageUrl(tractor.tractor_image_url);
+                if (tractorImageUrl) {
+                  tractorImagesArray.push(tractorImageUrl);
+                }
               }
-            }
-            setTractorImages(tractorImagesArray);
+              
+              // RC book images - process each tractor's RC images separately
+              let rcFrontUrl: string | null = null;
+              let rcBackUrl: string | null = null;
+              
+              // Get RC front image for this specific tractor
+              if (tractor.rcbook_front) {
+                const url = getImageUrl(tractor.rcbook_front);
+                if (url) {
+                  rcFrontUrl = url;
+                  console.log(`[ReviewProfileScreen] Tractor ${index + 1} RC Front URL:`, url);
+                }
+              }
+              
+              // Get RC back image for this specific tractor
+              if (tractor.rcbook_back) {
+                const url = getImageUrl(tractor.rcbook_back);
+                if (url) {
+                  rcBackUrl = url;
+                  console.log(`[ReviewProfileScreen] Tractor ${index + 1} RC Back URL:`, url);
+                }
+              }
+              
+              // Use display_invoice_date if available (already formatted), otherwise use date_of_invoice
+              let invoiceDate = '';
+              if (tractor.display_invoice_date) {
+                invoiceDate = tractor.display_invoice_date;
+              } else if (tractor.date_of_invoice) {
+                invoiceDate = tractor.date_of_invoice;
+              }
+              
+              // Use display_registration_date if available (already formatted), otherwise use date_of_registration
+              let registrationDate = '';
+              if (tractor.display_registration_date) {
+                registrationDate = tractor.display_registration_date;
+              } else if (tractor.date_of_registration) {
+                registrationDate = tractor.date_of_registration;
+              }
+              
+              const processedTractor = {
+                tractorId: tractor.tractor_id || `tractor-${index}`,
+                tractorImages: tractorImagesArray,
+                rcFrontImage: rcFrontUrl,
+                rcBackImage: rcBackUrl,
+                modelName: tractor.model_name || '',
+                vehicleNo: tractor.vehicle_no || '',
+                ownerName: tractor.owner_name || '',
+                chassisNo: tractor.chassis_no || '',
+                engineNo: tractor.engine_no || '',
+                tractorMobileNo: tractor.mobile_no || '',
+                dateOfInvoice: invoiceDate,
+                dateOfRegistration: registrationDate,
+                whoDrives: tractor.who_drives || '',
+              };
+              
+              console.log(`[ReviewProfileScreen] Processed tractor ${index + 1}:`, {
+                tractorId: processedTractor.tractorId,
+                vehicleNo: processedTractor.vehicleNo,
+                rcFrontImage: processedTractor.rcFrontImage?.substring(0, 50) + '...',
+                rcBackImage: processedTractor.rcBackImage?.substring(0, 50) + '...',
+              });
+              
+              return processedTractor;
+            });
             
-            // RC book images
-            if (firstTractor.rcbook_front) {
-              const rcFrontUrl = getImageUrl(firstTractor.rcbook_front);
-              if (rcFrontUrl) {
-                setRcFrontImage(rcFrontUrl);
-              }
-            }
-            if (firstTractor.rcbook_back) {
-              const rcBackUrl = getImageUrl(firstTractor.rcbook_back);
-              if (rcBackUrl) {
-                setRcBackImage(rcBackUrl);
-              }
-            }
+            console.log('[ReviewProfileScreen] All processed tractors:', processedTractors.map(t => ({
+              id: t.tractorId,
+              vehicleNo: t.vehicleNo,
+              hasRcFront: !!t.rcFrontImage,
+              hasRcBack: !!t.rcBackImage,
+            })));
             
-            if (firstTractor.model_name) {
-              setModelName(firstTractor.model_name);
-            }
-            if (firstTractor.vehicle_no) {
-              setVehicleNo(firstTractor.vehicle_no);
-            }
-            if (firstTractor.owner_name) {
-              setOwnerName(firstTractor.owner_name);
-            }
-            if (firstTractor.chassis_no) {
-              setChassisNo(firstTractor.chassis_no);
-            }
-            if (firstTractor.engine_no) {
-              setEngineNo(firstTractor.engine_no);
-            }
-            if (firstTractor.mobile_no) {
-              setTractorMobileNo(firstTractor.mobile_no);
-            }
-            // Use display_invoice_date if available (already formatted), otherwise use date_of_invoice
-            if (firstTractor.display_invoice_date) {
-              setDateOfInvoice(firstTractor.display_invoice_date);
-            } else if (firstTractor.date_of_invoice) {
-              setDateOfInvoice(firstTractor.date_of_invoice);
-            } else {
-              setDateOfInvoice('');
-            }
-            // Use display_registration_date if available (already formatted), otherwise use date_of_registration
-            // If display_registration_date is null, show empty string
-            if (firstTractor.display_registration_date) {
-              setDateOfRegistration(firstTractor.display_registration_date);
-            } else if (firstTractor.date_of_registration) {
-              setDateOfRegistration(firstTractor.date_of_registration);
-            } else {
-              setDateOfRegistration('');
-            }
-            if (firstTractor.who_drives) {
-              setWhoDrives(firstTractor.who_drives);
+            // Store all tractors
+            setTractors(processedTractors);
+            
+            // Set first tractor data for backward compatibility (used in single display)
+            if (processedTractors.length > 0) {
+              const firstTractor = processedTractors[0];
+              setTractorImages(firstTractor.tractorImages);
+              setRcFrontImage(firstTractor.rcFrontImage);
+              setRcBackImage(firstTractor.rcBackImage);
+              setModelName(firstTractor.modelName);
+              setVehicleNo(firstTractor.vehicleNo);
+              setOwnerName(firstTractor.ownerName);
+              setChassisNo(firstTractor.chassisNo);
+              setEngineNo(firstTractor.engineNo);
+              setTractorMobileNo(firstTractor.tractorMobileNo);
+              setDateOfInvoice(firstTractor.dateOfInvoice);
+              setDateOfRegistration(firstTractor.dateOfRegistration);
+              setWhoDrives(firstTractor.whoDrives);
             }
           }
         } else {
@@ -837,190 +900,218 @@ export default function ReviewProfileScreen() {
           </View>
         </View>
 
-        {/* Tractor Details Section */}
-        <View style={dynamicStyles.card}>
-          <View style={dynamicStyles.tractorHeader}>
-            <Text style={dynamicStyles.sectionTitle}>{t('farmerProfile.tractorDetails')}</Text>
-            <Text style={dynamicStyles.tractorCount}>
-              {t('farmerProfile.tractorCount')}: {tractorCount} of 1
-            </Text>
-          </View>
+        {/* Tractor Details Section - Show all tractors */}
+        {tractors.map((tractor, tractorIndex) => {
+          console.log(`[ReviewProfileScreen] Rendering tractor ${tractorIndex + 1}:`, {
+            tractorId: tractor.tractorId,
+            vehicleNo: tractor.vehicleNo,
+            rcFrontImage: tractor.rcFrontImage?.substring(0, 50) + '...',
+            rcBackImage: tractor.rcBackImage?.substring(0, 50) + '...',
+          });
+          
+          return (
+          <View key={`tractor-${tractor.tractorId}-${tractorIndex}`} style={dynamicStyles.card}>
+            <View style={dynamicStyles.tractorHeader}>
+              <Text style={dynamicStyles.sectionTitle}>
+                {t('farmerProfile.tractorDetails')} {tractors.length > 1 ? `(${tractorIndex + 1})` : ''}
+              </Text>
+              {tractorIndex === 0 && (
+                <Text style={dynamicStyles.tractorCount}>
+                  {t('farmerProfile.tractorCount')}: {tractorCount}
+                </Text>
+              )}
+            </View>
 
-          {/* Tractor Images */}
-          {tractorImages.length > 0 ? (
-            tractorImages.length === 1 ? (
-              <TouchableOpacity
-                style={dynamicStyles.tractorImageSingle}
-                onPress={() => handleImagePress(tractorImages, 0)}
-                activeOpacity={0.9}>
+            {/* Tractor Images */}
+            {tractor.tractorImages.length > 0 ? (
+              tractor.tractorImages.length === 1 ? (
+                <TouchableOpacity
+                  style={dynamicStyles.tractorImageSingle}
+                  onPress={() => handleImagePress(tractor.tractorImages, 0)}
+                  activeOpacity={0.9}>
+                  <Image
+                    source={{uri: tractor.tractorImages[0]}}
+                    style={{
+                      width: '100%',
+                      height: moderateScale(200),
+                    }}
+                    resizeMode="contain"
+                    onError={(error) => {
+                      console.error('[ReviewProfileScreen] Error loading tractor image:', error);
+                    }}
+                  />
+                </TouchableOpacity>
+              ) : (
+                <View style={dynamicStyles.tractorImageRow}>
+                  {tractor.tractorImages.slice(0, 2).map((imageUri, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={dynamicStyles.tractorImageHalf}
+                      onPress={() => handleImagePress(tractor.tractorImages, index)}
+                      activeOpacity={0.9}>
+                      <Image
+                        source={{uri: imageUri}}
+                        style={{
+                          width: '100%',
+                          height: moderateScale(200),
+                        }}
+                        resizeMode="contain"
+                        onError={(error) => {
+                          console.error('[ReviewProfileScreen] Error loading tractor image:', error);
+                        }}
+                      />
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )
+            ) : (
+              <View style={dynamicStyles.tractorImageSingle}>
                 <Image
-                  source={{uri: tractorImages[0]}}
+                  source={ImagePath.farmerTractor}
                   style={{
                     width: '100%',
                     height: moderateScale(200),
                   }}
                   resizeMode="contain"
-                  onError={(error) => {
-                    console.error('[ReviewProfileScreen] Error loading tractor image:', error);
-                  }}
                 />
-              </TouchableOpacity>
-            ) : (
-              <View style={dynamicStyles.tractorImageRow}>
-                {tractorImages.slice(0, 2).map((imageUri, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    style={dynamicStyles.tractorImageHalf}
-                    onPress={() => handleImagePress(tractorImages, index)}
-                    activeOpacity={0.9}>
-                    <Image
-                      source={{uri: imageUri}}
-                      style={{
-                        width: '100%',
-                        height: moderateScale(200),
-                      }}
-                      resizeMode="contain"
-                      onError={(error) => {
-                        console.error('[ReviewProfileScreen] Error loading tractor image:', error);
-                      }}
-                    />
-                  </TouchableOpacity>
-                ))}
               </View>
-            )
-          ) : (
-            <View style={dynamicStyles.tractorImageSingle}>
-              <Image
-                source={ImagePath.farmerTractor}
-                style={{
-                  width: '100%',
-                  height: moderateScale(200),
-                }}
-                resizeMode="contain"
-              />
-            </View>
-          )}
+            )}
 
-          {/* RC Book Images */}
-          {(rcFrontImage || rcBackImage) && (
-            <>
-              {rcFrontImage && rcBackImage ? (
-                <View style={dynamicStyles.rcImageRow}>
+            {/* RC Book Images */}
+            {(tractor.rcFrontImage || tractor.rcBackImage) && (
+              <>
+                {tractor.rcFrontImage && tractor.rcBackImage ? (
+                  <View style={dynamicStyles.rcImageRow}>
+                    <TouchableOpacity
+                      key={`rc-front-${tractor.tractorId}-${tractorIndex}`}
+                      style={dynamicStyles.rcImageHalf}
+                      onPress={() => {
+                        const rcImages = [tractor.rcFrontImage, tractor.rcBackImage].filter(Boolean) as string[];
+                        handleImagePress(rcImages, 0);
+                      }}
+                      activeOpacity={0.9}>
+                      <Image
+                        key={`rc-front-img-${tractor.tractorId}-${tractorIndex}`}
+                        source={{uri: tractor.rcFrontImage}}
+                        style={{
+                          width: '100%',
+                          height: moderateScale(200),
+                        }}
+                        resizeMode="contain"
+                        onError={(error) => {
+                          console.error(`[ReviewProfileScreen] Error loading RC front image for tractor ${tractorIndex + 1} (${tractor.vehicleNo}):`, error);
+                        }}
+                        onLoad={() => {
+                          console.log(`[ReviewProfileScreen] Successfully loaded RC front image for tractor ${tractorIndex + 1} (${tractor.vehicleNo})`);
+                        }}
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      key={`rc-back-${tractor.tractorId}-${tractorIndex}`}
+                      style={dynamicStyles.rcImageHalf}
+                      onPress={() => {
+                        const rcImages = [tractor.rcFrontImage, tractor.rcBackImage].filter(Boolean) as string[];
+                        handleImagePress(rcImages, 1);
+                      }}
+                      activeOpacity={0.9}>
+                      <Image
+                        key={`rc-back-img-${tractor.tractorId}-${tractorIndex}`}
+                        source={{uri: tractor.rcBackImage}}
+                        style={{
+                          width: '100%',
+                          height: moderateScale(200),
+                        }}
+                        resizeMode="contain"
+                        onError={(error) => {
+                          console.error(`[ReviewProfileScreen] Error loading RC back image for tractor ${tractorIndex + 1}:`, error);
+                        }}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                ) : (
                   <TouchableOpacity
-                    style={dynamicStyles.rcImageHalf}
+                    key={`rc-single-${tractor.tractorId}-${tractorIndex}`}
+                    style={dynamicStyles.rcImageSingle}
                     onPress={() => {
-                      const rcImages = [rcFrontImage, rcBackImage].filter(Boolean) as string[];
+                      const rcImages = [tractor.rcFrontImage, tractor.rcBackImage].filter(Boolean) as string[];
                       handleImagePress(rcImages, 0);
                     }}
                     activeOpacity={0.9}>
-                    <Image
-                      source={{uri: rcFrontImage}}
-                      style={{
-                        width: '100%',
-                        height: moderateScale(200),
-                      }}
-                      resizeMode="contain"
-                      onError={(error) => {
-                        console.error('[ReviewProfileScreen] Error loading RC front image:', error);
-                      }}
-                    />
+                    {tractor.rcFrontImage ? (
+                      <Image
+                        key={`rc-front-single-img-${tractor.tractorId}-${tractorIndex}`}
+                        source={{uri: tractor.rcFrontImage}}
+                        style={{
+                          width: '100%',
+                          height: moderateScale(200),
+                        }}
+                        resizeMode="contain"
+                        onError={(error) => {
+                          console.error(`[ReviewProfileScreen] Error loading RC front image for tractor ${tractorIndex + 1} (${tractor.vehicleNo}):`, error);
+                        }}
+                        onLoad={() => {
+                          console.log(`[ReviewProfileScreen] Successfully loaded RC front image for tractor ${tractorIndex + 1} (${tractor.vehicleNo})`);
+                        }}
+                      />
+                    ) : tractor.rcBackImage ? (
+                      <Image
+                        key={`rc-back-single-img-${tractor.tractorId}-${tractorIndex}`}
+                        source={{uri: tractor.rcBackImage}}
+                        style={{
+                          width: '100%',
+                          height: moderateScale(200),
+                        }}
+                        resizeMode="contain"
+                        onError={(error) => {
+                          console.error(`[ReviewProfileScreen] Error loading RC back image for tractor ${tractorIndex + 1}:`, error);
+                        }}
+                      />
+                    ) : null}
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    style={dynamicStyles.rcImageHalf}
-                    onPress={() => {
-                      const rcImages = [rcFrontImage, rcBackImage].filter(Boolean) as string[];
-                      handleImagePress(rcImages, 1);
-                    }}
-                    activeOpacity={0.9}>
-                    <Image
-                      source={{uri: rcBackImage}}
-                      style={{
-                        width: '100%',
-                        height: moderateScale(200),
-                      }}
-                      resizeMode="contain"
-                      onError={(error) => {
-                        console.error('[ReviewProfileScreen] Error loading RC back image:', error);
-                      }}
-                    />
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <TouchableOpacity
-                  style={dynamicStyles.rcImageSingle}
-                  onPress={() => {
-                    const rcImages = [rcFrontImage, rcBackImage].filter(Boolean) as string[];
-                    handleImagePress(rcImages, 0);
-                  }}
-                  activeOpacity={0.9}>
-                  {rcFrontImage ? (
-                    <Image
-                      source={{uri: rcFrontImage}}
-                      style={{
-                        width: '100%',
-                        height: moderateScale(200),
-                      }}
-                      resizeMode="contain"
-                      onError={(error) => {
-                        console.error('[ReviewProfileScreen] Error loading RC front image:', error);
-                      }}
-                    />
-                  ) : rcBackImage ? (
-                    <Image
-                      source={{uri: rcBackImage}}
-                      style={{
-                        width: '100%',
-                        height: moderateScale(200),
-                      }}
-                      resizeMode="contain"
-                      onError={(error) => {
-                        console.error('[ReviewProfileScreen] Error loading RC back image:', error);
-                      }}
-                    />
-                  ) : null}
-                </TouchableOpacity>
-              )}
-            </>
-          )}
+                )}
+              </>
+            )}
 
-          {/* Tractor Details */}
-          <View style={dynamicStyles.detailRow}>
-            <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.modelName')}:</Text>
-            <Text style={dynamicStyles.detailValue}>{modelName}</Text>
+            {/* Tractor Details */}
+            <View style={dynamicStyles.detailRow}>
+              <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.modelName')}:</Text>
+              <Text style={dynamicStyles.detailValue}>{tractor.modelName}</Text>
+            </View>
+            <View style={dynamicStyles.detailRow}>
+              <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.vehicleNo')}:</Text>
+              <Text style={dynamicStyles.detailValue}>{tractor.vehicleNo}</Text>
+            </View>
+            <View style={dynamicStyles.detailRow}>
+              <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.ownerName')}:</Text>
+              <Text style={dynamicStyles.detailValue}>{tractor.ownerName}</Text>
+            </View>
+            <View style={dynamicStyles.detailRow}>
+              <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.chassisNo')}:</Text>
+              <Text style={dynamicStyles.detailValue}>{tractor.chassisNo}</Text>
+            </View>
+            <View style={dynamicStyles.detailRow}>
+              <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.engineNo')}:</Text>
+              <Text style={dynamicStyles.detailValue}>{tractor.engineNo}</Text>
+            </View>
+            <View style={dynamicStyles.detailRow}>
+              <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.mobileNo')}:</Text>
+              <Text style={dynamicStyles.detailValue}>{tractor.tractorMobileNo}</Text>
+            </View>
+            <View style={dynamicStyles.detailRow}>
+              <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.dateOfInvoice')}:</Text>
+              <Text style={dynamicStyles.detailValue}>{tractor.dateOfInvoice}</Text>
+            </View>
+            <View style={dynamicStyles.detailRow}>
+              <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.dateOfRegistration')}:</Text>
+              <Text style={dynamicStyles.detailValue}>{tractor.dateOfRegistration}</Text>
+            </View>
+            <View style={[dynamicStyles.detailRow, {borderBottomWidth: 0}]}>
+              <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.whoDrives')}:</Text>
+              <Text style={dynamicStyles.detailValue}>{tractor.whoDrives}</Text>
+            </View>
           </View>
-          <View style={dynamicStyles.detailRow}>
-            <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.vehicleNo')}:</Text>
-            <Text style={dynamicStyles.detailValue}>{vehicleNo}</Text>
-          </View>
-          <View style={dynamicStyles.detailRow}>
-            <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.ownerName')}:</Text>
-            <Text style={dynamicStyles.detailValue}>{ownerName}</Text>
-          </View>
-          <View style={dynamicStyles.detailRow}>
-            <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.chassisNo')}:</Text>
-            <Text style={dynamicStyles.detailValue}>{chassisNo}</Text>
-          </View>
-          <View style={dynamicStyles.detailRow}>
-            <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.engineNo')}:</Text>
-            <Text style={dynamicStyles.detailValue}>{engineNo}</Text>
-          </View>
-          <View style={dynamicStyles.detailRow}>
-            <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.mobileNo')}:</Text>
-            <Text style={dynamicStyles.detailValue}>{tractorMobileNo}</Text>
-          </View>
-          <View style={dynamicStyles.detailRow}>
-            <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.dateOfInvoice')}:</Text>
-            <Text style={dynamicStyles.detailValue}>{dateOfInvoice}</Text>
-          </View>
-          <View style={dynamicStyles.detailRow}>
-            <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.dateOfRegistration')}:</Text>
-            <Text style={dynamicStyles.detailValue}>{dateOfRegistration}</Text>
-          </View>
-          <View style={[dynamicStyles.detailRow, {borderBottomWidth: 0}]}>
-            <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.whoDrives')}:</Text>
-            <Text style={dynamicStyles.detailValue}>{whoDrives}</Text>
-          </View>
-        </View>
+          );
+        })}
 
         {/* Continue Button */}
         <Button
