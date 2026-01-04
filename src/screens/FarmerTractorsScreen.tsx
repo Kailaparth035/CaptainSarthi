@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Image,
   RefreshControl,
+  ImageBackground,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
@@ -22,6 +23,7 @@ import {useLanguage} from '../contexts/LanguageContext';
 import {getData} from '../Service/Apimethod';
 import Apis from '../Service/constant';
 import {getImageUrl} from '../utils/imageUtils';
+import { ImagePath } from '../assets/images';
 
 // Tractor Thumbnail Component
 const TractorThumbnail = ({
@@ -250,11 +252,11 @@ export default function FarmerTractorsScreen() {
           paddingVertical: moderateScale(60),
         },
         emptyText: {
-          ...Typography.regularMd,
-          fontSize: moderateScale(16),
+          ...Typography.bold,
+          fontSize: moderateScale(20),
           color: colors.textTertiary,
           textAlign: 'center',
-          marginTop: moderateScale(12),
+          marginTop: moderateScale(15),
         },
         loadingContainer: {
           flex: 1,
@@ -270,7 +272,7 @@ export default function FarmerTractorsScreen() {
     <View style={[dynamicStyles.container]}>
       {/* Header */}
       <View style={dynamicStyles.header}>
-        <Text style={dynamicStyles.headerTitle}>{t('tractors.title')}</Text>
+        <Text style={dynamicStyles.headerTitle}>{t("tractors.title")}</Text>
       </View>
 
       {/* Tractors List */}
@@ -282,29 +284,36 @@ export default function FarmerTractorsScreen() {
         }}
       >
         {loadingTractors ? (
-          <View style={[dynamicStyles.listContainer, dynamicStyles.loadingContainer]}>
+          <View
+            style={[
+              dynamicStyles.listContainer,
+              dynamicStyles.loadingContainer,
+            ]}
+          >
             <ActivityIndicator size="large" color={colors.primary} />
           </View>
         ) : tractors.length > 0 ? (
           <FlatList
             data={tractors}
             keyExtractor={(item) => item.id}
-            renderItem={({item: tractor, index}) => (
+            renderItem={({ item: tractor, index }) => (
               <TouchableOpacity
                 style={[
                   dynamicStyles.listItem,
-                  index !== tractors.length - 1 &&
-                    dynamicStyles.listItemBorder,
+                  index !== tractors.length - 1 && dynamicStyles.listItemBorder,
                 ]}
                 activeOpacity={0.7}
                 onPress={() => {
-                  (navigation as any).navigate(SCREEN_NAMES.FarmerTractorDetails, {
-                    tractorId: tractor.id,
-                    tractorModel: tractor.model,
-                    tractorOwner: tractor.owner,
-                    tractorColor: tractor.color,
-                    fromScreen: 'List',
-                  });
+                  (navigation as any).navigate(
+                    SCREEN_NAMES.FarmerTractorDetails,
+                    {
+                      tractorId: tractor.id,
+                      tractorModel: tractor.model,
+                      tractorOwner: tractor.owner,
+                      tractorColor: tractor.color,
+                      fromScreen: "List",
+                    }
+                  );
                 }}
               >
                 <TractorThumbnail
@@ -314,7 +323,9 @@ export default function FarmerTractorsScreen() {
                   imageUrl={tractor.main_image}
                 />
                 <View style={dynamicStyles.listItemContent}>
-                  <Text style={dynamicStyles.listItemName}>{tractor.model}</Text>
+                  <Text style={dynamicStyles.listItemName}>
+                    {tractor.model}
+                  </Text>
                   <Text style={dynamicStyles.listItemSubtext}>
                     {tractor.owner}
                   </Text>
@@ -338,12 +349,25 @@ export default function FarmerTractorsScreen() {
             }
           />
         ) : (
-          <View style={[dynamicStyles.listContainer, dynamicStyles.emptyContainer]}>
-            <MaterialCommunityIcons
-              name="tractor"
-              size={moderateScale(64)}
-              color={colors.textTertiary}
-            />
+          <View
+            style={[dynamicStyles.listContainer, dynamicStyles.emptyContainer]}
+          >
+            <ImageBackground
+              source={ImagePath.noItemBgColor}
+              style={{
+                width: moderateScale(250),
+                height: moderateScale(221),
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {" "}
+              <MaterialCommunityIcons
+                name="tractor"
+                size={moderateScale(80)}
+                color={colors.primary}
+              />
+            </ImageBackground>
             <Text style={dynamicStyles.emptyText}>No tractors found</Text>
           </View>
         )}

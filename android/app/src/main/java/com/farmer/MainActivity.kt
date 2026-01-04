@@ -56,15 +56,17 @@ class MainActivity : ReactActivity() {
     // Get the root view
     val rootView = window.decorView.rootView as? ViewGroup
     
-    // Create ImageView with splash screen image
+    // Create ImageView with splash screen (now includes white background)
     splashOverlay = ImageView(this).apply {
       layoutParams = ViewGroup.LayoutParams(
         ViewGroup.LayoutParams.MATCH_PARENT,
         ViewGroup.LayoutParams.MATCH_PARENT
       )
       scaleType = ImageView.ScaleType.CENTER_CROP
-      // Set splash screen image directly
-      setImageResource(R.drawable.splash_screen)
+      // Use bootsplash.xml which has white background + splash image
+      setImageResource(R.drawable.bootsplash)
+      // Set white background color as fallback
+      setBackgroundColor(0xFFFFFFFF.toInt()) // White background
     }
     
     // Add overlay to root view (on top of everything)

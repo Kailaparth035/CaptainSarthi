@@ -22,6 +22,7 @@ import {pickAndCropImageFromCamera, pickAndCropImageFromGallery} from '../utils/
 import {RootStackParamList} from '../navigation/RootNavigator';
 import SimpleBoxInput from '../components/FloatingInput';
 import ImagePickerModal from '../components/ImagePickerModal';
+import ImagePreviewModal, {ImageItem} from '../components/ImagePreviewModal';
 import Button from '../components/Button';
 import {SCREEN_NAMES} from '../constants/screenNames';
 import {saveProfileReviewed, getUserRole, saveProfileCompleted} from '../utils/session';
@@ -41,6 +42,9 @@ export default function ReviewProfileScreen() {
   const navigation = useNavigation<NavigationProp>();
   const {pickImage} = useImagePicker();
   const [imagePickerVisible, setImagePickerVisible] = useState(false);
+  const [previewModalVisible, setPreviewModalVisible] = useState(false);
+  const [previewImages, setPreviewImages] = useState<ImageItem[]>([]);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [isFarmer, setIsFarmer] = useState(true); // Default to true since ReviewProfile is for farmers
 
   // Profile photo
@@ -62,7 +66,9 @@ export default function ReviewProfileScreen() {
 
   // Tractor details
   const [tractorCount, setTractorCount] = useState(1);
-  const [tractorImage, setTractorImage] = useState<string | null>(null);
+  const [tractorImages, setTractorImages] = useState<string[]>([]);
+  const [rcFrontImage, setRcFrontImage] = useState<string | null>(null);
+  const [rcBackImage, setRcBackImage] = useState<string | null>(null);
   const [modelName, setModelName] = useState('');
   const [vehicleNo, setVehicleNo] = useState('');
   const [ownerName, setOwnerName] = useState('');
@@ -168,11 +174,35 @@ export default function ReviewProfileScreen() {
             const firstTractor = tractorDetails.tractor_list[0];
             setTractorCount(tractorDetails.tractor_count || tractorDetails.tractor_list.length);
             
-            // Tractor image
-            if (firstTractor.tractor_image_url) {
+            // Tractor images from tractor_images_url array
+            const tractorImagesArray: string[] = [];
+            if (firstTractor.tractor_images_url && Array.isArray(firstTractor.tractor_images_url)) {
+              firstTractor.tractor_images_url.forEach((imageUrl: string) => {
+                const fullImageUrl = getImageUrl(imageUrl);
+                if (fullImageUrl) {
+                  tractorImagesArray.push(fullImageUrl);
+                }
+              });
+            } else if (firstTractor.tractor_image_url) {
+              // Fallback to single tractor_image_url if tractor_images_url is not available
               const tractorImageUrl = getImageUrl(firstTractor.tractor_image_url);
               if (tractorImageUrl) {
-                setTractorImage(tractorImageUrl);
+                tractorImagesArray.push(tractorImageUrl);
+              }
+            }
+            setTractorImages(tractorImagesArray);
+            
+            // RC book images
+            if (firstTractor.rcbook_front) {
+              const rcFrontUrl = getImageUrl(firstTractor.rcbook_front);
+              if (rcFrontUrl) {
+                setRcFrontImage(rcFrontUrl);
+              }
+            }
+            if (firstTractor.rcbook_back) {
+              const rcBackUrl = getImageUrl(firstTractor.rcbook_back);
+              if (rcBackUrl) {
+                setRcBackImage(rcBackUrl);
               }
             }
             
@@ -248,6 +278,22 @@ export default function ReviewProfileScreen() {
     setShowToast(false);
   };
 
+  // Handle image press to open preview modal
+  const handleImagePress = (images: string[], index: number) => {
+    const imageItems: ImageItem[] = images.map((uri, idx) => ({
+      id: `img-${idx}`,
+      uri: uri,
+      placeholder: `Image ${idx + 1}`,
+    }));
+    setPreviewImages(imageItems);
+    setSelectedImageIndex(index);
+    setPreviewModalVisible(true);
+  };
+
+  const handleClosePreviewModal = () => {
+    setPreviewModalVisible(false);
+  };
+
   const handleImagePicker = (type: 'profile' | 'tractor') => {
     setCurrentImageType(type);
     setImagePickerVisible(true);
@@ -275,10 +321,10 @@ export default function ReviewProfileScreen() {
       }
       
       if (imageUri) {
+        // Only handle profile images in ReviewProfileScreen
+        // Tractor images are read-only from API
         if (currentImageType === 'profile') {
           setProfilePhoto(imageUri);
-        } else {
-          setTractorImage(imageUri);
         }
       }
       setImagePickerVisible(false);
@@ -306,18 +352,13 @@ export default function ReviewProfileScreen() {
           compressImageQuality: 0.8,
           freeStyleCropEnabled: false,
         });
-      } else {
-        // Use regular picker for tractor images
-        imageUri = await pickImage('gallery', {
-          onError: (message) => showToastMessage(message),
-        });
       }
       
       if (imageUri) {
+        // Only handle profile images in ReviewProfileScreen
+        // Tractor images are read-only from API
         if (currentImageType === 'profile') {
           setProfilePhoto(imageUri);
-        } else {
-          setTractorImage(imageUri);
         }
       }
       setImagePickerVisible(false);
@@ -575,6 +616,52 @@ export default function ReviewProfileScreen() {
           backgroundColor: colors.backgroundGray,
           marginBottom: moderateScale(16),
         },
+        tractorImageRow: {
+          flexDirection: 'row',
+          gap: moderateScale(12),
+          // marginBottom: moderateScale(16),
+          width: '100%',
+        },
+        tractorImageSingle: {
+          width: '100%',
+          height: moderateScale(180),
+          borderRadius: moderateScale(8),
+          // backgroundColor: colors.backgroundGray,
+          overflow: 'hidden',
+          // marginBottom: moderateScale(16),
+        },
+        tractorImageHalf: {
+          flex: 1,
+          height: moderateScale(180),
+          borderRadius: moderateScale(8),
+          // backgroundColor: colors.backgroundGray,
+          overflow: 'hidden',
+        },
+        imageTouchable: {
+          width: '100%',
+          height: '100%',
+        },
+        rcImageRow: {
+          flexDirection: 'row',
+          gap: moderateScale(12),
+          // marginBottom: moderateScale(16),
+          width: '100%',
+        },
+        rcImageSingle: {
+          width: '100%',
+          height: moderateScale(180),
+          borderRadius: moderateScale(8),
+          // backgroundColor: colors.backgroundGray,
+          overflow: 'hidden',
+          marginBottom: moderateScale(16),
+        },
+        rcImageHalf: {
+          flex: 1,
+          height: moderateScale(180),
+          borderRadius: moderateScale(8),
+          // backgroundColor: colors.backgroundGray,
+          overflow: 'hidden',
+        },
         detailRow: {
           flexDirection: 'row',
           justifyContent: 'space-between',
@@ -759,33 +846,142 @@ export default function ReviewProfileScreen() {
             </Text>
           </View>
 
-          {/* Tractor Image */}
-          <TouchableOpacity
-            onPress={() => handleImagePicker('tractor')}
-            activeOpacity={0.7}>
-            {/* {tractorImage ? ( */}
+          {/* Tractor Images */}
+          {tractorImages.length > 0 ? (
+            tractorImages.length === 1 ? (
+              <TouchableOpacity
+                style={dynamicStyles.tractorImageSingle}
+                onPress={() => handleImagePress(tractorImages, 0)}
+                activeOpacity={0.9}>
+                <Image
+                  source={{uri: tractorImages[0]}}
+                  style={{
+                    width: '100%',
+                    height: moderateScale(200),
+                  }}
+                  resizeMode="contain"
+                  onError={(error) => {
+                    console.error('[ReviewProfileScreen] Error loading tractor image:', error);
+                  }}
+                />
+              </TouchableOpacity>
+            ) : (
+              <View style={dynamicStyles.tractorImageRow}>
+                {tractorImages.slice(0, 2).map((imageUri, index) => (
+                  <TouchableOpacity
+                    key={index}
+                    style={dynamicStyles.tractorImageHalf}
+                    onPress={() => handleImagePress(tractorImages, index)}
+                    activeOpacity={0.9}>
+                    <Image
+                      source={{uri: imageUri}}
+                      style={{
+                        width: '100%',
+                        height: moderateScale(200),
+                      }}
+                      resizeMode="contain"
+                      onError={(error) => {
+                        console.error('[ReviewProfileScreen] Error loading tractor image:', error);
+                      }}
+                    />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )
+          ) : (
+            <View style={dynamicStyles.tractorImageSingle}>
               <Image
                 source={ImagePath.farmerTractor}
-                style={dynamicStyles.tractorImage}
-                resizeMode="cover"
+                style={{
+                  width: '100%',
+                  height: moderateScale(200),
+                }}
+                resizeMode="contain"
               />
-            {/* ) : ( */}
-              {/* <View style={dynamicStyles.tractorImage}>
-                <View
-                  style={{
-                    flex: 1,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}>
-                  <Ionicons
-                    name="image-outline"
-                    size={moderateScale(40)}
-                    color={colors.textTertiary}
-                  />
+            </View>
+          )}
+
+          {/* RC Book Images */}
+          {(rcFrontImage || rcBackImage) && (
+            <>
+              {rcFrontImage && rcBackImage ? (
+                <View style={dynamicStyles.rcImageRow}>
+                  <TouchableOpacity
+                    style={dynamicStyles.rcImageHalf}
+                    onPress={() => {
+                      const rcImages = [rcFrontImage, rcBackImage].filter(Boolean) as string[];
+                      handleImagePress(rcImages, 0);
+                    }}
+                    activeOpacity={0.9}>
+                    <Image
+                      source={{uri: rcFrontImage}}
+                      style={{
+                        width: '100%',
+                        height: moderateScale(200),
+                      }}
+                      resizeMode="contain"
+                      onError={(error) => {
+                        console.error('[ReviewProfileScreen] Error loading RC front image:', error);
+                      }}
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={dynamicStyles.rcImageHalf}
+                    onPress={() => {
+                      const rcImages = [rcFrontImage, rcBackImage].filter(Boolean) as string[];
+                      handleImagePress(rcImages, 1);
+                    }}
+                    activeOpacity={0.9}>
+                    <Image
+                      source={{uri: rcBackImage}}
+                      style={{
+                        width: '100%',
+                        height: moderateScale(200),
+                      }}
+                      resizeMode="contain"
+                      onError={(error) => {
+                        console.error('[ReviewProfileScreen] Error loading RC back image:', error);
+                      }}
+                    />
+                  </TouchableOpacity>
                 </View>
-              </View>
-            )} */}
-          </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={dynamicStyles.rcImageSingle}
+                  onPress={() => {
+                    const rcImages = [rcFrontImage, rcBackImage].filter(Boolean) as string[];
+                    handleImagePress(rcImages, 0);
+                  }}
+                  activeOpacity={0.9}>
+                  {rcFrontImage ? (
+                    <Image
+                      source={{uri: rcFrontImage}}
+                      style={{
+                        width: '100%',
+                        height: moderateScale(200),
+                      }}
+                      resizeMode="contain"
+                      onError={(error) => {
+                        console.error('[ReviewProfileScreen] Error loading RC front image:', error);
+                      }}
+                    />
+                  ) : rcBackImage ? (
+                    <Image
+                      source={{uri: rcBackImage}}
+                      style={{
+                        width: '100%',
+                        height: moderateScale(200),
+                      }}
+                      resizeMode="contain"
+                      onError={(error) => {
+                        console.error('[ReviewProfileScreen] Error loading RC back image:', error);
+                      }}
+                    />
+                  ) : null}
+                </TouchableOpacity>
+              )}
+            </>
+          )}
 
           {/* Tractor Details */}
           <View style={dynamicStyles.detailRow}>
@@ -841,6 +1037,15 @@ export default function ReviewProfileScreen() {
         onClose={() => setImagePickerVisible(false)}
         onCameraPress={handleCameraPress}
         onGalleryPress={handleGalleryPress}
+      />
+
+      {/* Image Preview Modal - without Replace button */}
+      <ImagePreviewModal
+        visible={previewModalVisible}
+        images={previewImages}
+        initialIndex={selectedImageIndex}
+        onClose={handleClosePreviewModal}
+        // Don't pass onReplaceImage to hide the Replace button
       />
 
       {/* Toast Notification */}

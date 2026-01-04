@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Image,
   RefreshControl,
+  ImageBackground,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
@@ -24,6 +25,7 @@ import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import {getData} from '../Service/Apimethod';
 import Apis from '../Service/constant';
 import {getImageUrl} from '../utils/imageUtils';
+import { ImagePath } from '../assets/images';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -253,12 +255,12 @@ export default function TractorsScreen() {
           alignItems: 'center',
           paddingVertical: moderateScale(60),
         },
-        emptyText: {
-          ...Typography.regularMd,
-          fontSize: moderateScale(16),
+         emptyText: {
+          ...Typography.bold,
+          fontSize: moderateScale(20),
           color: colors.textTertiary,
           textAlign: 'center',
-          marginTop: moderateScale(12),
+          marginTop: moderateScale(15),
         },
         loadingContainer: {
           flex: 1,
@@ -361,58 +363,72 @@ export default function TractorsScreen() {
             ) : (
               <>
                 {tractors.map((tractor, index) => (
-              <TouchableOpacity
-                key={tractor.id}
-                style={[
-                  dynamicStyles.listItem,
-                  index !== tractors.length - 1 &&
-                    dynamicStyles.listItemBorder,
-                ]}
-                activeOpacity={0.7}
-                onPress={() => {
-                  navigation.navigate(SCREEN_NAMES.TractorDetails, {
-                    tractorId: tractor.id,
-                    tractorModel: tractor.model,
-                    tractorOwner: tractor.owner,
-                    tractorColor: tractor.color,
-                    fromScreen: 'List',
-                  });
-                }}
-              >
-                <TractorThumbnail
-                  color={tractor.color}
-                  moderateScale={moderateScale}
-                  size={moderateScale(40)}
-                  imageUrl={tractor.main_image}
-                />
-                <View style={dynamicStyles.listItemContent}>
-                  <Text style={dynamicStyles.listItemName}>{tractor.model}</Text>
-                  <Text style={dynamicStyles.listItemSubtext}>
-                    {tractor.owner}
-                  </Text>
-                </View>
-                <Ionicons
-                  name="chevron-forward"
-                  size={moderateScale(18)}
-                  color={colors.textTertiary}
-                />
-              </TouchableOpacity>
+                  <TouchableOpacity
+                    key={tractor.id}
+                    style={[
+                      dynamicStyles.listItem,
+                      index !== tractors.length - 1 &&
+                        dynamicStyles.listItemBorder,
+                    ]}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      navigation.navigate(SCREEN_NAMES.TractorDetails, {
+                        tractorId: tractor.id,
+                        tractorModel: tractor.model,
+                        tractorOwner: tractor.owner,
+                        tractorColor: tractor.color,
+                        fromScreen: "List",
+                      });
+                    }}
+                  >
+                    <TractorThumbnail
+                      color={tractor.color}
+                      moderateScale={moderateScale}
+                      size={moderateScale(40)}
+                      imageUrl={tractor.main_image}
+                    />
+                    <View style={dynamicStyles.listItemContent}>
+                      <Text style={dynamicStyles.listItemName}>
+                        {tractor.model}
+                      </Text>
+                      <Text style={dynamicStyles.listItemSubtext}>
+                        {tractor.owner}
+                      </Text>
+                    </View>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={moderateScale(18)}
+                      color={colors.textTertiary}
+                    />
+                  </TouchableOpacity>
                 ))}
               </>
             )}
           </ScrollView>
         ) : (
-          <View style={[dynamicStyles.listContainer, dynamicStyles.emptyContainer]}>
-            <MaterialCommunityIcons
-              name="tractor"
-              size={moderateScale(64)}
-              color={colors.textTertiary}
-            />
+          <View
+            style={[dynamicStyles.listContainer, dynamicStyles.emptyContainer]}
+          >
+            <ImageBackground
+              source={ImagePath.noItemBgColor}
+              style={{
+                width: moderateScale(250),
+                height: moderateScale(221),
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {" "}
+              <MaterialCommunityIcons
+                name="tractor"
+                size={moderateScale(80)}
+                color={colors.primary}
+              />
+            </ImageBackground>
             <Text style={dynamicStyles.emptyText}>No tractors found</Text>
           </View>
         )}
       </View>
-
     </View>
   );
 }

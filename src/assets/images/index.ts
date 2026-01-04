@@ -39,6 +39,8 @@ export const ImagePath = {
   eventsTab : require('../images/eventsTab.png'),  
   eventNotification : require('../images/eventNotification.png'),
   nofarmerfound : require('../images/nofarmerfound.png'),
+  noItemBgColor : require('../images/noItemBgColor.png'),
+  
 
   
 };

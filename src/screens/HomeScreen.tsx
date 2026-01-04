@@ -285,7 +285,7 @@ export default function HomeScreen() {
               gallery_images: (tractor.gallery_images || []).map((img: string) => getImageUrl(img)).filter(Boolean),
             };
           });
-          setTractors(transformedTractors);
+          setTractors(transformedTractors?.slice(0,5));
         } else {
           setTractors([]);
         }
@@ -309,7 +309,7 @@ export default function HomeScreen() {
             gallery_images: (tractor.gallery_images || []).map((img: string) => getImageUrl(img)).filter(Boolean),
           };
         });
-        setTractors(transformedTractors);
+        setTractors(transformedTractors?.slice(0,5));
         console.log('Transformed tractors:', transformedTractors.length);
       } else {
         // No data or unexpected response format
@@ -425,7 +425,7 @@ export default function HomeScreen() {
 
   // Get first 4 farmers for home screen
   const displayedFarmers = useMemo(() => {
-    return farmers.slice(0, 4);
+    return farmers.slice(0, 5);
   }, [farmers]);
 
   // Check if initial loading (both farmers and tractors loading)

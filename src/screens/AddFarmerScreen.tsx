@@ -226,12 +226,18 @@ export default function AddFarmerScreen() {
   const routeParams = route.params as {farmerId?: string; editMode?: boolean} | undefined;
   const isEditMode = routeParams?.editMode === true;
   const farmerId = routeParams?.farmerId;
+  console.log("routeParams ::",farmerId);
+  
+  // Store the numeric ID from API response for update API
+  const [farmerNumericId, setFarmerNumericId] = useState<number | null>(null);
+
 
   // Refs for form fields to scroll to errors
   const fieldPositions = useRef<Record<string, number>>({});
   const latestErrorsRef = useRef<FormErrors>({});
   const latestTractorsRef = useRef<TractorDetails[]>([]);
   const latestSubQuestionAnswersRef = useRef<Record<string, any>>({});
+  const isPrefillingLocationRef = useRef<boolean>(false);
   
   // Refs for date input fields (auto-focus)
   const dobDDRef = useRef<any>(null);
@@ -534,8 +540,11 @@ export default function AddFarmerScreen() {
     fetchStates();
   }, []);
 
-  // Fetch districts when state changes
+  // Fetch districts when state changes (skip during edit mode prefilling)
   useEffect(() => {
+    if (isPrefillingLocationRef.current) {
+      return; // Skip during prefilling
+    }
     if (stateId) {
       fetchDistricts(stateId);
     } else {
@@ -546,8 +555,11 @@ export default function AddFarmerScreen() {
     }
   }, [stateId]);
 
-  // Fetch villages when district changes
+  // Fetch villages when district changes (skip during edit mode prefilling)
   useEffect(() => {
+    if (isPrefillingLocationRef.current) {
+      return; // Skip during prefilling
+    }
     if (districtId) {
       fetchVillages(districtId);
     } else {
@@ -629,9 +641,35 @@ export default function AddFarmerScreen() {
     try {
       setCategoriesLoading(true);
       const response = await getData(Apis.DEALER_FARMERS, { clientId: farmerId });
+      console.log("response ::",response);
       
       if (response?.status === true && response?.data) {
         const farmerData = response.data;
+        
+        // Extract and store numeric ID for update API
+        // The API might return id, farmer_id, or we need to extract from farmerId or forms array
+        let numericId = farmerData.id || 
+                       farmerData.farmer_id || 
+                       (farmerData.farmerId && typeof farmerData.farmerId === 'number' ? farmerData.farmerId : null) ||
+                       (farmerData.farmerId && typeof farmerData.farmerId === 'string' && !isNaN(parseInt(farmerData.farmerId)) ? parseInt(farmerData.farmerId) : null);
+        
+        // If not found in main data, check forms array for farmer_id
+        if (!numericId && farmerData.forms && Array.isArray(farmerData.forms) && farmerData.forms.length > 0) {
+          numericId = farmerData.forms[0]?.farmer_id || null;
+        }
+        
+        if (numericId) {
+          setFarmerNumericId(numericId);
+          console.log("Stored farmer numeric ID for update API:", numericId);
+        } else {
+          console.warn("Could not extract numeric ID from farmer data. Using farmerId as fallback.");
+          // Try to parse farmerId if it's numeric
+          if (farmerId && !isNaN(parseInt(farmerId))) {
+            setFarmerNumericId(parseInt(farmerId));
+          } else {
+            console.error("No valid numeric ID found. Update API may fail.");
+          }
+        }
         
         // Prefill personal details
         setFirstName(farmerData.firstName || '');
@@ -670,28 +708,107 @@ export default function AddFarmerScreen() {
         setPincode(farmerData.pincode || '');
         
         // Prefill location IDs (state, district, village)
-        // Note: These should be IDs, not names, for the update API
-        if (farmerData.stateId || farmerData.state_id) {
-          const stateIdValue = String(farmerData.stateId || farmerData.state_id);
-          setStateId(stateIdValue);
-          // Fetch districts when state is set
-          fetchDistricts(stateIdValue);
-        }
-        if (farmerData.districtId || farmerData.district_id) {
-          const districtIdValue = String(farmerData.districtId || farmerData.district_id);
-          setDistrictId(districtIdValue);
-          // Fetch villages when district is set (only if state was also set)
-          if (farmerData.stateId || farmerData.state_id) {
-            fetchVillages(districtIdValue);
+        // API returns: state, district, village (not stateId, districtId, villageId)
+        const stateValue = farmerData.state || farmerData.stateId || farmerData.state_id;
+        const districtValue = farmerData.district || farmerData.districtId || farmerData.district_id;
+        const villageValue = farmerData.village || farmerData.villageId || farmerData.village_id;
+        console.log("stateValue ::",stateValue,districtValue,villageValue);
+        
+        // Set flag to prevent useEffect hooks from interfering
+        isPrefillingLocationRef.current = true;
+        
+        // First, ensure states are loaded
+        let currentStatesList = states;
+        if (currentStatesList.length === 0) {
+          try {
+            setStatesLoading(true);
+            const statesResponse = await getData(Apis.GET_STATES, {});
+            if (statesResponse?.status === true && statesResponse?.data) {
+              currentStatesList = statesResponse.data.map((item: {id: number; name: string}) => ({
+                label: item.name,
+                value: item.id.toString(),
+              }));
+              setStates(currentStatesList);
+            }
+          } catch (error) {
+            console.error('Error fetching states for edit mode:', error);
+          } finally {
+            setStatesLoading(false);
           }
         }
-        if (farmerData.villageId || farmerData.village_id) {
-          setVillageId(String(farmerData.villageId || farmerData.village_id));
+        
+        // Match state value from API response with states list
+        if (stateValue !== undefined && stateValue !== null) {
+          const stateIdStr = String(stateValue);
+          console.log("stateIdStr ::",stateIdStr);
+          
+          // Fetch districts for the selected state
+          try {
+            setDistrictsLoading(true);
+            const districtsResponse = await getData(`${Apis.GET_DISTRICTS}/${stateIdStr}`, {});
+            console.log("districtsResponse ::",districtsResponse);
+            
+            if (districtsResponse?.status === true && districtsResponse?.data) {
+              const districtsList = districtsResponse.data.map((item: {id: number; name: string}) => ({
+                label: item.name,
+                value: item.id.toString(),
+              }));
+              setDistricts(districtsList);
+              
+              // Match district value from API response
+              if (districtValue !== undefined && districtValue !== null) {
+                const districtIdStr = String(districtValue);
+                console.log("districtIdStr ::",districtIdStr);
+                
+                // Fetch villages for the selected district
+                try {
+                  setVillagesLoading(true);
+                  const villagesResponse = await getData(`${Apis.GET_VILLAGES}/${districtIdStr}`, {});
+                  console.log("villagesResponse ::",villagesResponse);
+                  
+                  if (villagesResponse?.status === true && villagesResponse?.data) {
+                    const villagesList = villagesResponse.data.map((item: {id: number; name: string}) => ({
+                      label: item.name,
+                      value: item.id.toString(),
+                    }));
+                    setVillages(villagesList);
+                    
+                    // Match village value from API response
+                    if (villageValue !== undefined && villageValue !== null) {
+                      const villageIdStr = String(villageValue);
+                      console.log("villageIdStr ::",villageIdStr);
+                      setVillageId(villageIdStr);
+                    }
+                  }
+                } catch (error) {
+                  console.error('Error fetching villages for edit mode:', error);
+                } finally {
+                  setVillagesLoading(false);
+                }
+                
+                // Set district ID after villages are loaded
+                setDistrictId(districtIdStr);
+              }
+            }
+            
+            // Set state ID after districts are loaded
+            setStateId(stateIdStr);
+          } catch (error) {
+            console.error('Error fetching districts for edit mode:', error);
+          } finally {
+            setDistrictsLoading(false);
+          }
         }
         
+        // Reset flag after prefilling is complete
+        // Use setTimeout to ensure all state updates are processed first
+        setTimeout(() => {
+          isPrefillingLocationRef.current = false;
+        }, 1000);
+        
         // Set category and fetch questions
-        if (farmerData.categoryId) {
-          setCategory(String(farmerData.categoryId));
+        if (farmerData.categoryId || farmerData.category) {
+          setCategory(String(farmerData.categoryId || farmerData.category));
           // Questions will be fetched when category is set
         }
         
@@ -704,7 +821,24 @@ export default function AddFarmerScreen() {
         }
         
         // Prefill question answers if available
-        if (farmerData.questions && Array.isArray(farmerData.questions)) {
+        if (farmerData.forms && Array.isArray(farmerData.forms) && farmerData.forms.length > 0) {
+          const formData = farmerData.forms[0]?.form_data;
+          if (formData?.questions && Array.isArray(formData.questions)) {
+            const answers: Record<string, any> = {};
+            formData.questions.forEach((q: any, index: number) => {
+              const questionKey = `question_${q.id}_${index}`;
+              if (q.answers && Array.isArray(q.answers) && q.answers.length > 0) {
+                const questionType = q.question_type?.toLowerCase() || 'textbox';
+                if (questionType === 'checkbox') {
+                  answers[questionKey] = q.answers.map((a: any) => a.answer_text || a.answer);
+                } else {
+                  answers[questionKey] = q.answers[0]?.answer_text || q.answers[0]?.answer || '';
+                }
+              }
+            });
+            setSubQuestionAnswers(answers);
+          }
+        } else if (farmerData.questions && Array.isArray(farmerData.questions)) {
           const answers: Record<string, any> = {};
           farmerData.questions.forEach((q: any, index: number) => {
             const questionKey = `question_${q.id}_${index}`;
@@ -1567,6 +1701,213 @@ export default function AddFarmerScreen() {
     return isValid;
   };
 
+  // Handle update farmer in edit mode
+  const handleUpdateFarmer = async () => {
+    if (!isEditMode || !farmerId) {
+      console.error('handleUpdateFarmer called but not in edit mode or farmerId missing');
+      return;
+    }
+    
+    // Use numeric ID if available, otherwise try to parse farmerId
+    const updateId = farmerNumericId || (farmerId && !isNaN(parseInt(farmerId)) ? parseInt(farmerId) : null);
+    
+    if (!updateId) {
+      console.error('No valid numeric ID available for update API');
+      showToastMessage('Invalid farmer ID. Please try again.', 'error');
+      return;
+    }
+    
+    console.log('Using farmer ID for update:', updateId);
+
+    // Small delay to ensure all state updates are complete before validation
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Validate form for edit mode (skip tractor validation)
+    const newErrors: FormErrors = {};
+
+    // Personal details validation
+    if (!firstName || !firstName.trim()) {
+      newErrors.firstName = 'First name is required';
+    }
+    if (!lastName || !lastName.trim()) {
+      newErrors.lastName = 'Last name is required';
+    }
+    if (!countryCode || !countryCode.trim()) {
+      newErrors.countryCode = 'Country code is required';
+    }
+    if (!phoneNumber || !phoneNumber.trim()) {
+      newErrors.phoneNumber = 'Phone number is required';
+    }
+    if (!dobDD || !dobDD.trim() || !dobMM || !dobMM.trim() || !dobYYYY || !dobYYYY.trim()) {
+      newErrors.dobDD = 'Date of birth is required';
+    }
+    if (!domDD || !domDD.trim() || !domMM || !domMM.trim() || !domYYYY || !domYYYY.trim()) {
+      newErrors.domDD = 'Date of marriage is required';
+    }
+
+    // Address validation
+    if (!houseNumber || !houseNumber.trim()) {
+      newErrors.houseNumber = 'House number is required';
+    }
+    if (!streetName || !streetName.trim()) {
+      newErrors.streetName = 'Street name is required';
+    }
+    if (!stateId || !stateId.trim()) {
+      newErrors.state = 'State is required';
+    }
+    if (!districtId || !districtId.trim()) {
+      newErrors.district = 'District is required';
+    }
+    if (!villageId || !villageId.trim()) {
+      newErrors.village = 'Village is required';
+    }
+    if (!pincode || !pincode.trim()) {
+      newErrors.pincode = 'Pincode is required';
+    }
+
+    setErrors(newErrors);
+    latestErrorsRef.current = newErrors;
+
+    const hasFormErrors = Object.keys(newErrors).length > 0;
+    
+    if (hasFormErrors) {
+      // Scroll to first error field
+      setTimeout(() => {
+        const currentErrors = latestErrorsRef.current;
+        const errorFieldOrder = [
+          'firstName',
+          'lastName',
+          'countryCode',
+          'phoneNumber',
+          'dobDD',
+          'domDD',
+          'houseNumber',
+          'streetName',
+          'village',
+          'district',
+          'state',
+          'pincode',
+        ];
+        
+        for (const fieldName of errorFieldOrder) {
+          if (currentErrors[fieldName as keyof FormErrors]) {
+            const firstErrorY = fieldPositions.current[fieldName] || 0;
+            if (firstErrorY > 0) {
+              scrollViewRef.current?.scrollTo({
+                y: Math.max(0, firstErrorY - 100),
+                animated: true,
+              });
+            }
+            break;
+          }
+        }
+      }, 300);
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+
+      // Prepare update data
+      const updateData = {
+        farmer_id: updateId,
+        changes: {
+          first_name: firstName,
+          last_name: lastName,
+          middle_name: middleName,
+          mobile_country_code: countryCode,
+          mobile: phoneNumber.replace(/\s/g, ''),
+          date_of_birth: `${dobDD}/${dobMM}/${dobYYYY}`,
+          date_of_marriage: `${domDD}/${domMM}/${domYYYY}`,
+          house_number: houseNumber,
+          street_name: streetName,
+          landmark: landmark,
+          state: stateId,
+          district: districtId,
+          village: villageId,
+          pincode: pincode,
+        },
+      };
+      
+      console.log('Updating farmer data:', JSON.stringify(updateData, null, 2));
+      
+      // Upload profile photo separately if it's a new image
+      if (profilePhoto && (profilePhoto.startsWith('file://') || profilePhoto.startsWith('content://'))) {
+        const profileUriParts = profilePhoto.split('.');
+        const profileFileExtension = profileUriParts.length > 1 ? profileUriParts[profileUriParts.length - 1].toLowerCase() : 'jpg';
+        const profileMimeType = profileFileExtension === 'png' ? 'image/png' : 'image/jpeg';
+        const profileFileName = `profile-photo-${Date.now()}.${profileFileExtension}`;
+        
+        const imageFormData = new FormData();
+        imageFormData.append('image', {
+          uri: profilePhoto,
+          type: profileMimeType,
+          name: profileFileName,
+        } as any);
+        
+        // Upload profile image first
+        const imageResponse = await postDataWithImage(Apis.DEALER_PROFILE_IMAGE, imageFormData);
+        if (imageResponse?.status !== true) {
+          showToastMessage('Failed to upload profile image. Please try again.', 'error');
+          setSubmitting(false);
+          return;
+        }
+      }
+      
+      // Call update API
+      const response = await putData(Apis.DEALER_UPDATE_FARMER, updateData);
+      
+      console.log('Update API Response:', JSON.stringify(response, null, 2));
+
+      // Check if response exists and has status
+      if (response && response.status === true) {
+        // Show success toast
+        const successMessage = response?.message || 'Update request sent for verification. Check notifications for update.';
+        showToastMessage(successMessage, 'success');
+        
+        // Navigate back after a short delay to allow toast to be visible
+        setTimeout(() => {
+          navigation.goBack();
+        }, 2000);
+      } else {
+        // Extract error message from various possible response structures
+        let errorMessage = '';
+        if (response) {
+          errorMessage = response?.message || 
+                        response?.data?.message || 
+                        response?.error?.message ||
+                        response?.error ||
+                        (typeof response === 'string' ? response : '');
+        }
+        
+        // Show error message from API response or fallback
+        const finalErrorMessage = errorMessage || 'Failed to update farmer. Please try again.';
+        console.log('Showing error toast with API message:', finalErrorMessage);
+        showToastMessage(finalErrorMessage, 'error');
+      }
+    } catch (error: any) {
+      console.error('Error updating farmer:', error);
+      
+      // Extract error message from various possible error structures
+      let errorMessage = '';
+      if (error?.response?.data) {
+        errorMessage = error.response.data.message || 
+                      error.response.data.error?.message ||
+                      error.response.data.error ||
+                      '';
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      // Show error message from API response or fallback
+      const finalErrorMessage = errorMessage || 'Failed to update farmer. Please try again.';
+      console.log('Showing error toast with API message:', finalErrorMessage);
+      showToastMessage(finalErrorMessage, 'error');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleSubmit = async () => {
     // Small delay to ensure all state updates are complete before validation
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -1753,6 +2094,7 @@ export default function AddFarmerScreen() {
         registration_month: tractor.purchaseDateMM, // Use purchase date for registration
         registration_year: tractor.purchaseDateYYYY, // Use purchase date for registration
         who_drives: tractor.whoFrom,
+        owner_name:tractor.ownerName,
       }));
 
       // Get names from selected IDs
@@ -1867,60 +2209,8 @@ export default function AddFarmerScreen() {
       console.log('Submitting farmer data:', JSON.stringify(farmerData, null, 2));
       console.log('Profile photo URI:', JSON.stringify(formData));
 
-      let response;
-      
-      if (isEditMode && farmerId) {
-        // Edit mode: Call update API with only editable fields
-        const updateData = {
-          farmer_id: parseInt(farmerId, 10),
-          changes: {
-            first_name: firstName,
-            last_name: lastName,
-            middle_name: middleName,
-            mobile_country_code: countryCode,
-            mobile: phoneNumber.replace(/\s/g, ''),
-            date_of_birth: `${dobDD}/${dobMM}/${dobYYYY}`,
-            date_of_marriage: `${domDD}/${domMM}/${domYYYY}`,
-            house_number: houseNumber,
-            street_name: streetName,
-            state: stateId,
-            district: districtId,
-            village: villageId,
-            pincode: pincode,
-          },
-        };
-        
-        console.log('Updating farmer data:', JSON.stringify(updateData, null, 2));
-        
-        // Upload profile photo separately if it's a new image
-        if (profilePhoto && (profilePhoto.startsWith('file://') || profilePhoto.startsWith('content://'))) {
-          const profileUriParts = profilePhoto.split('.');
-          const profileFileExtension = profileUriParts.length > 1 ? profileUriParts[profileUriParts.length - 1].toLowerCase() : 'jpg';
-          const profileMimeType = profileFileExtension === 'png' ? 'image/png' : 'image/jpeg';
-          const profileFileName = `profile-photo-${Date.now()}.${profileFileExtension}`;
-          
-          const imageFormData = new FormData();
-          imageFormData.append('image', {
-            uri: profilePhoto,
-            type: profileMimeType,
-            name: profileFileName,
-          } as any);
-          
-          // Upload profile image first
-          const imageResponse = await postDataWithImage(Apis.DEALER_PROFILE_IMAGE, imageFormData);
-          if (imageResponse?.status !== true) {
-            showToastMessage('Failed to upload profile image. Please try again.', 'error');
-            setSubmitting(false);
-            return;
-          }
-        }
-        
-        // Call update API
-        response = await putData(Apis.DEALER_UPDATE_FARMER, updateData);
-      } else {
-        // Add mode: Call add API
-        response = await postDataWithImage(Apis.DEALER_ADD_FARMER, formData);
-      }
+      // Add mode: Call add API
+      const response = await postDataWithImage(Apis.DEALER_ADD_FARMER, formData);
 
       console.log('API Response:', JSON.stringify(response, null, 2));
 
@@ -3115,8 +3405,8 @@ export default function AddFarmerScreen() {
         {/* Submit Button */}
         <View style={{padding:moderateScale(14)}}>
           <Button
-            title={isEditMode ? 'Update details' : t('addFarmer.sendForVerification')}
-            onPress={handleSubmit}
+            title={isEditMode ? 'Update for verification' : t('addFarmer.sendForVerification')}
+            onPress={isEditMode ? handleUpdateFarmer : handleSubmit}
             loading={submitting}
             disabled={submitting}
           />

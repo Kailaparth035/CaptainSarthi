@@ -254,8 +254,11 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
       // Use common send-otp API for both dealer and farmer
       const response = await postData(Apis.SEND_OTP, bodyData);
 
-      // Check if response exists and is successful (status 200 means success)
-      if (response && (response?.success === true || response?.status === true || response?.status === 200 || response?.message)) {
+      // Strictly check if response is successful - only proceed if success is true or status is true
+      const isSuccess = response && (response?.success === true || response?.status === true);
+      
+      if (isSuccess) {
+        // Only execute these processes if success is true
         setGetOtpLoading(false);
         setOtpRequested(true);
         setTimer(30);
@@ -278,9 +281,13 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           otpInputRef.current?.focus();
         }, 100);
       } else {
+        // If success is false, don't execute any further process
         console.log('Send OTP failed response:', response);
         
         setGetOtpLoading(false);
+        // Don't set otpRequested - keep it false so timer doesn't start
+        // Don't start timer
+        // Don't enable login button
         const errorMsg = response?.message || 'Failed to send OTP. Please try again.';
         showToastMessage(errorMsg, 'error');
         setErrors({ ...errors, dealerId: errorMsg });
@@ -311,8 +318,11 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
       // Use common send-otp API for both dealer and farmer
       const response = await postData(Apis.SEND_OTP, bodyData);
 
-      // Check if response exists and is successful (status 200 means success)
-      if (response && (response?.success === true || response?.status === true || response?.status === 200 || response?.message)) {
+      // Strictly check if response is successful - only proceed if success is true or status is true
+      const isSuccess = response && (response?.success === true || response?.status === true);
+      
+      if (isSuccess) {
+        // Only start timer if success is true
         setGetOtpLoading(false);
         setTimer(30);
         setCanResend(false);
@@ -329,6 +339,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
         }
         showToastMessage(message, 'success');
       } else {
+        // If success is false, don't start timer
         setGetOtpLoading(false);
         const errorMsg = response?.message || 'Failed to resend OTP. Please try again.';
         showToastMessage(errorMsg, 'error');
@@ -375,9 +386,13 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
         // Extract token, role, user, dealer, and farmer data from response
         const token = response?.token;
         let role = response?.role; // "farmer" or "dealer"
-        const user = response?.user; // { id, name, phone }
+        const user = response?.user; // { id, name, phone, profile_completed }
         const dealer = response?.dealer;
         const farmer = response?.farmer;
+        
+        // Extract profile_completed from API response (inside user object)
+        const profileCompleted = user?.profile_completed ?? false;
+        console.log('[LoginScreen] Profile completed from API:', profileCompleted);
         
         // If role is not in response, determine from mobile number (fallback)
         if (!role) {
@@ -385,7 +400,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           console.log('[LoginScreen] Role not in response, using mobile number fallback:', role);
         }
         
-        console.log('[LoginScreen] Login successful - Role:', role, 'Token:', token ? 'Present' : 'Missing');
+        console.log('[LoginScreen] Login successful - Role:', role, 'Token:', token ? 'Present' : 'Missing', 'Profile Completed:', profileCompleted);
         
         // Save auth token if provided
         if (token) {
@@ -466,12 +481,15 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
             if (!termsAccepted) {
               navigation.replace(SCREEN_NAMES.Terms);
             } else {
-              // Check if profile is completed from AsyncStorage
-              const profileCompleted = await isProfileCompleted();
-              console.log('[LoginScreen] Profile completed status:', profileCompleted);
-              if (profileCompleted) {
+              // Use profile_completed from API response (not AsyncStorage)
+              // If profile_completed is false, show ReviewProfile (first time login)
+              // If profile_completed is true, skip ReviewProfile and go to FarmerTabs
+              console.log('[LoginScreen] Profile completed from API response:', profileCompleted);
+              if (profileCompleted === true) {
+                // Profile is completed - skip ReviewProfile screen
                 navigation.replace(SCREEN_NAMES.FarmerTabs);
               } else {
+                // Profile not completed - show ReviewProfile screen (first time login)
                 navigation.replace(SCREEN_NAMES.ReviewProfile);
               }
             }
@@ -485,12 +503,13 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
               if (!termsAccepted) {
                 navigation.replace(SCREEN_NAMES.Terms);
               } else {
-                // Check if profile is completed from AsyncStorage
-                const profileCompleted = await isProfileCompleted();
-                console.log('[LoginScreen] Profile completed status (fallback):', profileCompleted);
-                if (profileCompleted) {
+                // Use profile_completed from API response (not AsyncStorage)
+                console.log('[LoginScreen] Profile completed from API response (fallback):', profileCompleted);
+                if (profileCompleted === true) {
+                  // Profile is completed - skip ReviewProfile screen
                   navigation.replace(SCREEN_NAMES.FarmerTabs);
                 } else {
+                  // Profile not completed - show ReviewProfile screen (first time login)
                   navigation.replace(SCREEN_NAMES.ReviewProfile);
                 }
               }
@@ -632,7 +651,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
               textStyle={styles.loginButtonText}
               disabled={
                 otpRequested
-                  ? !isValidOtp() || loading
+                  ? !isValidOtp() || loading || getOtpLoading
                   : !isValidMobileNumber() || getOtpLoading
               }
             />
