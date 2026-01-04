@@ -2094,7 +2094,7 @@ export default function AddFarmerScreen() {
         registration_month: tractor.purchaseDateMM, // Use purchase date for registration
         registration_year: tractor.purchaseDateYYYY, // Use purchase date for registration
         who_drives: tractor.whoFrom,
-        owner_name:tractor.ownerName,
+        owner_name: tractor.ownerName || '', // Ensure owner_name is always passed, use empty string if not provided
       }));
 
       // Get names from selected IDs
@@ -2207,6 +2207,7 @@ export default function AddFarmerScreen() {
       });
 
       console.log('Submitting farmer data:', JSON.stringify(farmerData, null, 2));
+      console.log('Tractor details with owner names:', JSON.stringify(tractorDetailsArray.map(t => ({ model: t.model_name, owner_name: t.owner_name })), null, 2));
       console.log('Profile photo URI:', JSON.stringify(formData));
 
       // Add mode: Call add API
