@@ -8,8 +8,8 @@
 
     <!-- BootSplash Theme - Shows splash screen on launch -->
     <style name="BootTheme" parent="AppTheme">
-        <!-- Splash screen background - directly use splash_screen.png -->
-        <item name="android:windowBackground">@drawable/splash_screen</item>
+        <!-- Splash screen background - use bootsplash.xml which has white background + splash image -->
+        <item name="android:windowBackground">@drawable/bootsplash</item>
         <item name="android:windowNoTitle">true</item>
         <item name="android:windowActionBar">false</item>
         <item name="android:windowFullscreen">false</item>
