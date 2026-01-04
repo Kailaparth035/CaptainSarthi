@@ -26,6 +26,7 @@ import Apis from '../Service/constant';
 import {getImageUrl} from '../utils/imageUtils';
 import {getFarmerProfileData} from '../utils/session';
 import {useLanguage} from '../contexts/LanguageContext';
+import {isYouTubeUrl, getYouTubeThumbnailUrl} from '../utils/youtubeUtils';
 
 // Helper function to format date
 const formatDate = (dateString: string): string => {
@@ -64,9 +65,25 @@ export default function EventsScreen() {
     
     // Transform API events to match UI structure
     return eventsArray.map((event: any) => {
-      const imageUrl = event.image_url ? getImageUrl(event.image_url) : null;
-      // Use ImagePath as fallback if no image URL
-      const imageUri = imageUrl ? {uri: imageUrl} : ImagePath.eventImage;
+      // Check for video URL - prioritize YouTube thumbnail if video is YouTube
+      let videoUrl = '';
+      if (event.media?.cover_video?.video_url) {
+        videoUrl = event.media.cover_video.video_url;
+      } else if (event.video_url || event.videoUrl) {
+        videoUrl = event.video_url || event.videoUrl;
+      }
+      
+      // Use YouTube thumbnail if video is YouTube, otherwise use image_url
+      let imageUrl = null;
+      if (videoUrl && isYouTubeUrl(videoUrl)) {
+        const youtubeThumbnail = getYouTubeThumbnailUrl(videoUrl, 'maxresdefault');
+        imageUrl = youtubeThumbnail;
+      } else if (event.image_url) {
+        imageUrl = getImageUrl(event.image_url);
+      }
+      
+      // Only use default thumbnail if no video URL or image URL
+      const imageUri = imageUrl ? {uri: imageUrl} : (videoUrl ? undefined : ImagePath.eventImage);
       
       // Handle language-specific title
       // Check if languages array exists and find matching language
@@ -543,13 +560,7 @@ export default function EventsScreen() {
                   style={dynamicStyles.eventImagePlaceholder}
                   resizeMode="cover"
                 />
-              ) : (
-                <View style={dynamicStyles.eventImagePlaceholder}>
-                  <Text style={dynamicStyles.eventImagePlaceholderText}>
-                    Event Image
-                  </Text>
-                </View>
-              )}
+              ) : null}
             </View>
 
             {/* Event Content */}

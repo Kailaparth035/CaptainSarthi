@@ -35,6 +35,7 @@ import {useLanguage} from '../contexts/LanguageContext';
 import {getData} from '../Service/Apimethod';
 import Apis, {API_BASE_URL} from '../Service/constant';
 import {getImageUrl} from '../utils/imageUtils';
+import {isYouTubeUrl, getYouTubeThumbnailUrl} from '../utils/youtubeUtils';
 
 type EventDetailsRouteParams = {
   eventId: string;
@@ -125,14 +126,19 @@ export default function EventDetailsScreen() {
           videoUrl = eventData.video_url || eventData.videoUrl;
         }
         
-        // Handle thumbnail from media.cover_video.thumbnail_url
+        // Handle thumbnail - prioritize YouTube thumbnail if video is YouTube
         let thumbnailUrl = null;
-        if (eventData.media?.cover_video?.thumbnail_url) {
+        if (videoUrl && isYouTubeUrl(videoUrl)) {
+          // Use YouTube thumbnail for YouTube videos
+          const youtubeThumbnail = getYouTubeThumbnailUrl(videoUrl, 'maxresdefault');
+          thumbnailUrl = youtubeThumbnail;
+        } else if (eventData.media?.cover_video?.thumbnail_url) {
           thumbnailUrl = getImageUrl(eventData.media.cover_video.thumbnail_url);
         } else if (eventData.image_url) {
           thumbnailUrl = getImageUrl(eventData.image_url);
         }
-        const thumbnailUri = thumbnailUrl ? {uri: thumbnailUrl} : ImagePath.eventImage;
+        // Only use default thumbnail if no video URL or if video is not YouTube
+        const thumbnailUri = thumbnailUrl ? {uri: thumbnailUrl} : (videoUrl ? undefined : ImagePath.eventImage);
         
         // Handle location
         let location = 'Location not specified';

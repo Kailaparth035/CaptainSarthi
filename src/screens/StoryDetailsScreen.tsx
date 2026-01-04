@@ -30,6 +30,7 @@ import {getData} from '../Service/Apimethod';
 import Apis, {API_BASE_URL} from '../Service/constant';
 import {getImageUrl} from '../utils/imageUtils';
 import {useLanguage} from '../contexts/LanguageContext';
+import {isYouTubeUrl, getYouTubeThumbnailUrl} from '../utils/youtubeUtils';
 
 type StoryDetailsRouteParams = {
   storyId: string;
@@ -134,14 +135,19 @@ export default function StoryDetailsScreen() {
           videoUrl = storyData.video_url || storyData.videoUrl;
         }
         
-        // Handle thumbnail from media.cover_video.thumbnail_url
+        // Handle thumbnail - prioritize YouTube thumbnail if video is YouTube
         let thumbnailUrl = null;
-        if (storyData.media?.cover_video?.thumbnail_url) {
+        if (videoUrl && isYouTubeUrl(videoUrl)) {
+          // Use YouTube thumbnail for YouTube videos
+          const youtubeThumbnail = getYouTubeThumbnailUrl(videoUrl, 'maxresdefault');
+          thumbnailUrl = youtubeThumbnail;
+        } else if (storyData.media?.cover_video?.thumbnail_url) {
           thumbnailUrl = getImageUrl(storyData.media.cover_video.thumbnail_url);
         } else if (storyData.image_url) {
           thumbnailUrl = getImageUrl(storyData.image_url);
         }
-        const thumbnailUri = thumbnailUrl ? {uri: thumbnailUrl} : ImagePath.eventImage;
+        // Only use default thumbnail if no video URL or if video is not YouTube
+        const thumbnailUri = thumbnailUrl ? {uri: thumbnailUrl} : (videoUrl ? undefined : ImagePath.eventImage);
         
         // Handle date - use display_datetime or display_date
         const date = storyData.display_datetime || storyData.display_date || storyData.story_date || storyData.date || '';

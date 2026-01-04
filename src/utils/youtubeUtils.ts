@@ -57,3 +57,25 @@ export const getYouTubeEmbedUrl = (videoId: string): string => {
   return `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1`;
 };
 
+/**
+ * Get YouTube thumbnail URL from video ID or URL
+ * Quality options: maxresdefault (best), hqdefault (high), mqdefault (medium), sddefault (standard)
+ */
+export const getYouTubeThumbnailUrl = (
+  videoIdOrUrl: string | null | undefined,
+  quality: 'maxresdefault' | 'hqdefault' | 'mqdefault' | 'sddefault' = 'maxresdefault'
+): string | null => {
+  if (!videoIdOrUrl || typeof videoIdOrUrl !== 'string') {
+    return null;
+  }
+
+  // Extract video ID if URL is provided
+  const videoId = extractYouTubeVideoId(videoIdOrUrl) || videoIdOrUrl;
+  
+  if (!videoId || videoId.length !== 11) {
+    return null;
+  }
+
+  return `https://img.youtube.com/vi/${videoId}/${quality}.jpg`;
+};
+

@@ -30,6 +30,7 @@ import {getData} from '../Service/Apimethod';
 import Apis, {API_BASE_URL} from '../Service/constant';
 import {getImageUrl} from '../utils/imageUtils';
 import {saveFarmerProfileData, FarmerProfileData} from '../utils/session';
+import {isYouTubeUrl, getYouTubeThumbnailUrl} from '../utils/youtubeUtils';
 
 const screenWidth = Dimensions.get('window').width;
 const screenHeight = Dimensions.get('window').height;
@@ -227,14 +228,29 @@ export default function FarmerHomeScreen() {
         
         // Transform top videos for carousel
         if (dashboardData.top_videos && Array.isArray(dashboardData.top_videos.list)) {
-          const videos = dashboardData.top_videos.list.map((video: any, index: number) => ({
-            id: video.video_id || `video_${index}`,
-            type: 'video',
-            thumbnailSource: ImagePath.farmerTractor, // Fallback
-            thumbnailUri: video.image_url ? getImageUrl(video.image_url) : null,
-            videoUri: video.video_url || '',
-            title: video.title || '',
-          }));
+          const videos = dashboardData.top_videos.list.map((video: any, index: number) => {
+            const videoUrl = video.video_url || '';
+            
+            // Use YouTube thumbnail if video is YouTube, otherwise use image_url
+            let thumbnailUri = null;
+            if (videoUrl && isYouTubeUrl(videoUrl)) {
+              thumbnailUri = getYouTubeThumbnailUrl(videoUrl, 'maxresdefault');
+            } else if (video.image_url) {
+              thumbnailUri = getImageUrl(video.image_url);
+            }
+            
+            // Only use default thumbnail if no video URL or image URL
+            const thumbnailSource = thumbnailUri ? undefined : (videoUrl ? undefined : ImagePath.farmerTractor);
+            
+            return {
+              id: video.video_id || `video_${index}`,
+              type: 'video',
+              thumbnailSource: thumbnailSource,
+              thumbnailUri: thumbnailUri,
+              videoUri: videoUrl,
+              title: video.title || '',
+            };
+          });
           setCarouselItems(videos.length > 0 ? videos : []);
         } else {
           // Fallback to default carousel if no videos
@@ -251,12 +267,34 @@ export default function FarmerHomeScreen() {
         
         // Transform recent events
         if (dashboardData.recent_events && Array.isArray(dashboardData.recent_events.list)) {
-          const events = dashboardData.recent_events.list.map((event: any) => ({
-            id: event.event_id || event.id,
-            thumbnail: event.image_url ? {uri: getImageUrl(event.image_url)} : ImagePath.farmerTractor,
-            title: event.title || '',
-            date: formatDate(event.publish_date || event.event_date || ''),
-          }));
+          const events = dashboardData.recent_events.list.map((event: any) => {
+            // Check for video URL - prioritize YouTube thumbnail if video is YouTube
+            let videoUrl = '';
+            if (event.media?.cover_video?.video_url) {
+              videoUrl = event.media.cover_video.video_url;
+            } else if (event.video_url || event.videoUrl) {
+              videoUrl = event.video_url || event.videoUrl;
+            }
+            
+            // Use YouTube thumbnail if video is YouTube, otherwise use image_url
+            let imageUrl = null;
+            if (videoUrl && isYouTubeUrl(videoUrl)) {
+              const youtubeThumbnail = getYouTubeThumbnailUrl(videoUrl, 'maxresdefault');
+              imageUrl = youtubeThumbnail;
+            } else if (event.image_url) {
+              imageUrl = getImageUrl(event.image_url);
+            }
+            
+            // Only use default thumbnail if no video URL or image URL
+            const thumbnail = imageUrl ? {uri: imageUrl} : (videoUrl ? undefined : ImagePath.farmerTractor);
+            
+            return {
+              id: event.event_id || event.id,
+              thumbnail: thumbnail,
+              title: event.title || '',
+              date: formatDate(event.publish_date || event.event_date || ''),
+            };
+          });
           setRecentEvents(events);
         } else {
           setRecentEvents([]);
@@ -264,12 +302,34 @@ export default function FarmerHomeScreen() {
         
         // Transform recent stories
         if (dashboardData.recent_stories && Array.isArray(dashboardData.recent_stories.list)) {
-          const stories = dashboardData.recent_stories.list.map((story: any) => ({
-            id: story.story_id || story.id,
-            thumbnail: story.image_url ? {uri: getImageUrl(story.image_url)} : ImagePath.farmerTractor,
-            title: story.title || '',
-            date: formatDate(story.publish_date || ''),
-          }));
+          const stories = dashboardData.recent_stories.list.map((story: any) => {
+            // Check for video URL - prioritize YouTube thumbnail if video is YouTube
+            let videoUrl = '';
+            if (story.media?.cover_video?.video_url) {
+              videoUrl = story.media.cover_video.video_url;
+            } else if (story.video_url || story.videoUrl) {
+              videoUrl = story.video_url || story.videoUrl;
+            }
+            
+            // Use YouTube thumbnail if video is YouTube, otherwise use image_url
+            let imageUrl = null;
+            if (videoUrl && isYouTubeUrl(videoUrl)) {
+              const youtubeThumbnail = getYouTubeThumbnailUrl(videoUrl, 'maxresdefault');
+              imageUrl = youtubeThumbnail;
+            } else if (story.image_url) {
+              imageUrl = getImageUrl(story.image_url);
+            }
+            
+            // Only use default thumbnail if no video URL or image URL
+            const thumbnail = imageUrl ? {uri: imageUrl} : (videoUrl ? undefined : ImagePath.farmerTractor);
+            
+            return {
+              id: story.story_id || story.id,
+              thumbnail: thumbnail,
+              title: story.title || '',
+              date: formatDate(story.publish_date || ''),
+            };
+          });
           setRecentStories(stories);
         } else {
           setRecentStories([]);
@@ -633,11 +693,13 @@ export default function FarmerHomeScreen() {
           },
         } as any);
       }}>
-      <Image
-        source={item.thumbnail}
-        style={dynamicStyles.eventThumbnail}
-        resizeMode="cover"
-      />
+      {item.thumbnail ? (
+        <Image
+          source={item.thumbnail}
+          style={dynamicStyles.eventThumbnail}
+          resizeMode="cover"
+        />
+      ) : null}
       <View style={dynamicStyles.eventContent}>
         <Text 
           style={dynamicStyles.eventTitle} 
@@ -673,11 +735,13 @@ export default function FarmerHomeScreen() {
           },
         } as any);
       }}>
-      <Image
-        source={item.thumbnail}
-        style={dynamicStyles.eventThumbnail}
-        resizeMode="cover"
-      />
+      {item.thumbnail ? (
+        <Image
+          source={item.thumbnail}
+          style={dynamicStyles.eventThumbnail}
+          resizeMode="cover"
+        />
+      ) : null}
       <View style={dynamicStyles.eventContent}>
         <Text 
           style={dynamicStyles.eventTitle} 

@@ -26,6 +26,7 @@ import Apis from '../Service/constant';
 import {getImageUrl} from '../utils/imageUtils';
 import {getFarmerProfileData} from '../utils/session';
 import {useLanguage} from '../contexts/LanguageContext';
+import {isYouTubeUrl, getYouTubeThumbnailUrl} from '../utils/youtubeUtils';
 
 // Helper function to format date
 const formatDate = (dateString: string): string => {
@@ -64,8 +65,25 @@ export default function StoriesScreen() {
     
     // Transform API stories to match UI structure
     return storiesArray.map((story: any) => {
-      const imageUrl = story.image_url ? getImageUrl(story.image_url) : null;
-      const bannerImage = imageUrl ? {uri: imageUrl} : ImagePath.storycard;
+      // Check for video URL - prioritize YouTube thumbnail if video is YouTube
+      let videoUrl = '';
+      if (story.media?.cover_video?.video_url) {
+        videoUrl = story.media.cover_video.video_url;
+      } else if (story.video_url || story.videoUrl) {
+        videoUrl = story.video_url || story.videoUrl;
+      }
+      
+      // Use YouTube thumbnail if video is YouTube, otherwise use image_url
+      let imageUrl = null;
+      if (videoUrl && isYouTubeUrl(videoUrl)) {
+        const youtubeThumbnail = getYouTubeThumbnailUrl(videoUrl, 'maxresdefault');
+        imageUrl = youtubeThumbnail;
+      } else if (story.image_url) {
+        imageUrl = getImageUrl(story.image_url);
+      }
+      
+      // Only use default thumbnail if no video URL or image URL
+      const bannerImage = imageUrl ? {uri: imageUrl} : (videoUrl ? undefined : ImagePath.storycard);
       
       // Handle language-specific title
       // Check if languages array exists and find matching language
@@ -406,14 +424,16 @@ export default function StoriesScreen() {
         }}>
         {/* Banner Section */}
         <View style={dynamicStyles.bannerContainer}>
-          <Image
-            source={
-              typeof story.bannerImage === 'object' && story.bannerImage?.uri
-                ? {uri: story.bannerImage.uri}
-                : story.bannerImage || ImagePath.storycard
-            }
-            style={{height: moderateScale(170), width: '100%', resizeMode: 'cover'}}
-          />
+          {story.bannerImage ? (
+            <Image
+              source={
+                typeof story.bannerImage === 'object' && story.bannerImage?.uri
+                  ? {uri: story.bannerImage.uri}
+                  : story.bannerImage
+              }
+              style={{height: moderateScale(170), width: '100%', resizeMode: 'cover'}}
+            />
+          ) : null}
         </View>
 
         {/* Story Content */}
