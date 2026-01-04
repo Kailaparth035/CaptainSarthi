@@ -24,7 +24,7 @@ import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import VideoPlayer from '../components/VideoPlayer';
 import {SCREEN_NAMES} from '../constants/screenNames';
 import {ImagePath} from '../assets/images';
-import {Platform, ActivityIndicator} from 'react-native';
+import {Platform, ActivityIndicator, Linking} from 'react-native';
 import {useLanguage} from '../contexts/LanguageContext';
 import {getData} from '../Service/Apimethod';
 import Apis, {API_BASE_URL} from '../Service/constant';
@@ -61,15 +61,18 @@ export default function FarmerHomeScreen() {
   const [currentCarouselIndex, setCurrentCarouselIndex] = useState(0);
   const carouselRef = useRef<FlatList>(null);
   const autoSlideTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const announcementCarouselRef = useRef<FlatList>(null);
   
   // API data states
   const [carouselItems, setCarouselItems] = useState<any[]>([]);
   const [recentEvents, setRecentEvents] = useState<any[]>([]);
   const [recentStories, setRecentStories] = useState<any[]>([]);
+  const [recentAnnouncements, setRecentAnnouncements] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [farmerName, setFarmerName] = useState<string>('');
   const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [announcementIndex, setAnnouncementIndex] = useState(0);
 
   // Membership services with translations
   const membershipServices = useMemo(() => [
@@ -334,12 +337,60 @@ export default function FarmerHomeScreen() {
         } else {
           setRecentStories([]);
         }
+        
+        // Transform recent announcements
+        if (dashboardData.recent_announcements && Array.isArray(dashboardData.recent_announcements.list)) {
+          const announcements = dashboardData.recent_announcements.list.map((announcement: any) => {
+            // Check for video URL - check direct field first, then nested structure
+            let videoUrl = '';
+            if (announcement.video_url || announcement.videoUrl) {
+              videoUrl = announcement.video_url || announcement.videoUrl;
+            } else if (announcement.media?.cover_video?.video_url) {
+              videoUrl = announcement.media.cover_video.video_url;
+            }
+            
+            // Check for link URL
+            const linkUrl = announcement.link_url || announcement.link || announcement.url || '';
+            
+            // Use image_url as thumbnail (priority), if no image_url and video is YouTube, use YouTube thumbnail
+            let imageUrl = null;
+            if (announcement.image_url) {
+              // Priority: Use image_url as thumbnail
+              imageUrl = getImageUrl(announcement.image_url);
+            } else if (videoUrl && isYouTubeUrl(videoUrl)) {
+              // Fallback: Use YouTube thumbnail if no image_url
+              const youtubeThumbnail = getYouTubeThumbnailUrl(videoUrl, 'maxresdefault');
+              imageUrl = youtubeThumbnail;
+            }
+            
+            console.log('[FarmerHomeScreen] Announcement transformed:', {
+              id: announcement.announcement_id,
+              title: announcement.title,
+              videoUrl: videoUrl,
+              imageUrl: imageUrl,
+              hasImage: !!announcement.image_url,
+            });
+            
+            return {
+              id: announcement.announcement_id || announcement.id || String(Math.random()),
+              title: announcement.title || '',
+              imageUrl: imageUrl,
+              videoUrl: videoUrl,
+              linkUrl: linkUrl,
+              description: announcement.description || '',
+            };
+          });
+          setRecentAnnouncements(announcements);
+        } else {
+          setRecentAnnouncements([]);
+        }
       } else {
         console.warn('[FarmerHomeScreen] Unexpected API response format:', response);
         // Set empty arrays on error
         setCarouselItems([]);
         setRecentEvents([]);
         setRecentStories([]);
+        setRecentAnnouncements([]);
       }
     } catch (error) {
       console.error('[FarmerHomeScreen] Error fetching dashboard data:', error);
@@ -347,6 +398,7 @@ export default function FarmerHomeScreen() {
       setCarouselItems([]);
       setRecentEvents([]);
       setRecentStories([]);
+      setRecentAnnouncements([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -369,6 +421,84 @@ export default function FarmerHomeScreen() {
     fetchFarmerProfile();
     fetchUnreadCount();
   }, [fetchDashboardData]);
+
+  // Auto slide functionality for announcements
+  const announcementAutoSlideTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  
+  const startAnnouncementAutoSlide = () => {
+    if (announcementAutoSlideTimerRef.current) {
+      clearInterval(announcementAutoSlideTimerRef.current);
+    }
+    
+    if (recentAnnouncements.length > 1) {
+      announcementAutoSlideTimerRef.current = setInterval(() => {
+        setAnnouncementIndex((prevIndex) => {
+          return (prevIndex + 1) % recentAnnouncements.length;
+        });
+      }, 3000); // Change slide every 3 seconds
+    }
+  };
+
+  const stopAnnouncementAutoSlide = () => {
+    if (announcementAutoSlideTimerRef.current) {
+      clearInterval(announcementAutoSlideTimerRef.current);
+      announcementAutoSlideTimerRef.current = null;
+    }
+  };
+
+  // Start auto slide when announcements are available
+  useEffect(() => {
+    if (recentAnnouncements.length > 1) {
+      startAnnouncementAutoSlide();
+    } else {
+      stopAnnouncementAutoSlide();
+      setAnnouncementIndex(0);
+    }
+    return () => {
+      stopAnnouncementAutoSlide();
+    };
+  }, [recentAnnouncements.length]);
+
+  // Update announcements carousel when index changes
+  useEffect(() => {
+    if (recentAnnouncements.length > 0 && announcementCarouselRef.current) {
+      try {
+        announcementCarouselRef.current.scrollToIndex({
+          index: announcementIndex,
+          animated: true,
+        });
+      } catch (error) {
+        console.error('[FarmerHomeScreen] Error scrolling announcements to index:', error);
+        // Fallback to scrollToOffset if scrollToIndex fails
+        const itemWidth = screenWidth;
+        announcementCarouselRef.current.scrollToOffset({
+          offset: announcementIndex * itemWidth,
+          animated: true,
+        });
+      }
+    }
+  }, [announcementIndex, recentAnnouncements.length]);
+
+  // Handle announcement press - open link or video
+  const handleAnnouncementPress = async (announcement: any) => {
+    // Priority: linkUrl first, then videoUrl
+    const linkUrl = announcement.linkUrl || announcement.videoUrl || '';
+    if (linkUrl) {
+      try {
+        const canOpen = await Linking.canOpenURL(linkUrl);
+        if (canOpen) {
+          await Linking.openURL(linkUrl);
+          console.log('[FarmerHomeScreen] Opened announcement link:', linkUrl);
+        } else {
+          console.log('[FarmerHomeScreen] Cannot open URL:', linkUrl);
+        }
+      } catch (error) {
+        console.error('[FarmerHomeScreen] Error opening URL:', error);
+      }
+    } else {
+      console.log('[FarmerHomeScreen] No link or video URL for announcement:', announcement.id);
+    }
+  };
 
   // Auto slide functionality
   const startAutoSlide = () => {
@@ -563,6 +693,48 @@ export default function FarmerHomeScreen() {
           ...Typography.semiBoldMd,
           fontSize: moderateScale(14),
           color: colors.primary,
+        },
+        announcementsContainer: {
+          marginHorizontal: moderateScale(16),
+          marginBottom: moderateScale(16),
+          borderRadius: moderateScale(12),
+          overflow: 'hidden',
+          backgroundColor: colors.white,
+        },
+        announcementsCarousel: {
+          width: screenWidth - moderateScale(32),
+          height: moderateScale(200),
+        },
+        announcementItem: {
+          width: screenWidth - moderateScale(32),
+          height: moderateScale(200),
+        },
+        announcementImage: {
+          width: '100%',
+          height: '100%',
+          resizeMode: 'cover',
+        },
+        announcementPagination: {
+          position: 'absolute',
+          bottom: moderateScale(12),
+          left: 0,
+          right: 0,
+          flexDirection: 'row',
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        announcementDot: {
+          width: moderateScale(8),
+          height: moderateScale(8),
+          borderRadius: moderateScale(4),
+          backgroundColor: colors.textWhite,
+          marginHorizontal: moderateScale(4),
+          opacity: 0.5,
+        },
+        announcementDotActive: {
+          width: moderateScale(24),
+          backgroundColor: colors.primary,
+          opacity: 1,
         },
         eventSliderContainer: {
           backgroundColor: colors.white,
@@ -1075,8 +1247,99 @@ export default function FarmerHomeScreen() {
             renderSkeletonContent()
           ) : (
             <>
-              {/* Full Screen Video/Image Carousel */}
-          {carouselItems.length > 0 && (
+              {/* Top Carousel - Show Announcements first (priority), then Videos */}
+          {recentAnnouncements.length > 0 ? (
+            <View style={dynamicStyles.carouselContainer}>
+              <View style={dynamicStyles.carouselWrapper}>
+                <FlatList
+                  ref={announcementCarouselRef}
+                  data={recentAnnouncements}
+                  renderItem={({item: announcement}) => {
+                    // If announcement has video, use VideoPlayer component with image as thumbnail
+                    // This shows both: image as thumbnail + play button for video
+                    if (announcement.videoUrl) {
+                      console.log('[FarmerHomeScreen] Rendering announcement with video:', {
+                        id: announcement.id,
+                        hasImage: !!announcement.imageUrl,
+                        imageUrl: announcement.imageUrl,
+                        videoUrl: announcement.videoUrl,
+                      });
+                      return (
+                        <View style={dynamicStyles.carouselItem}>
+                          <VideoPlayer
+                            thumbnailUri={announcement.imageUrl || undefined}
+                            thumbnailSource={announcement.imageUrl ? undefined : ImagePath.farmerTractor}
+                            videoUri={announcement.videoUrl}
+                            title={announcement.title}
+                            containerStyle={dynamicStyles.carouselItem}
+                          />
+                        </View>
+                      );
+                    }
+                    // If only image (no video), show image with optional link handling
+                    return (
+                      <TouchableOpacity
+                        style={dynamicStyles.carouselItem}
+                        activeOpacity={0.9}
+                        onPress={() => handleAnnouncementPress(announcement)}>
+                        {announcement.imageUrl ? (
+                          <Image
+                            source={{uri: announcement.imageUrl}}
+                            style={dynamicStyles.carouselImage}
+                            resizeMode="cover"
+                          />
+                        ) : (
+                          <View style={[dynamicStyles.carouselItem, {backgroundColor: colors.backgroundGray, justifyContent: 'center', alignItems: 'center'}]}>
+                            <Text style={[Typography.regularMd, {color: colors.textSecondary, fontSize: moderateScale(14)}]}>
+                              {announcement.title}
+                            </Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  }}
+                  keyExtractor={(item) => item.id}
+                  horizontal
+                  pagingEnabled
+                  showsHorizontalScrollIndicator={false}
+                  scrollEnabled={recentAnnouncements.length > 1}
+                  snapToInterval={screenWidth - moderateScale(32) - moderateScale(20)}
+                  snapToAlignment="center"
+                  decelerationRate="fast"
+                  onMomentumScrollEnd={(event) => {
+                    const scrollPosition = event.nativeEvent.contentOffset.x;
+                    const itemWidth = screenWidth - moderateScale(32) - moderateScale(20);
+                    const index = Math.round(scrollPosition / itemWidth);
+                    if (index >= 0 && index < recentAnnouncements.length) {
+                      setAnnouncementIndex(index);
+                    }
+                  }}
+                  getItemLayout={(data, index) => {
+                    const itemWidth = screenWidth - moderateScale(32) - moderateScale(20);
+                    return {
+                      length: itemWidth,
+                      offset: itemWidth * index,
+                      index,
+                    };
+                  }}
+                />
+              </View>
+              {/* Pagination Dots */}
+              {recentAnnouncements.length > 1 && (
+                <View style={dynamicStyles.paginationContainer}>
+                  {recentAnnouncements.map((_, index) => (
+                    <View
+                      key={index}
+                      style={[
+                        dynamicStyles.paginationDot,
+                        index === announcementIndex && dynamicStyles.paginationDotActive,
+                      ]}
+                    />
+                  ))}
+                </View>
+              )}
+            </View>
+          ) : carouselItems.length > 0 ? (
             <View style={dynamicStyles.carouselContainer}>
               <View style={dynamicStyles.carouselWrapper}>
                 <FlatList
@@ -1141,7 +1404,7 @@ export default function FarmerHomeScreen() {
                 ))}
               </View>
             </View>
-          )}
+          ) : null}
 
           {/* Recent Events Section */}
           <View style={dynamicStyles.eventSliderContainer}>

@@ -234,6 +234,10 @@ export default function FarmerProfileDetailsScreen() {
           rcFrontImage: string | null;
           rcBackImage: string | null;
         }> = [];
+        
+        // Log tractor details structure for debugging
+        console.log('[FarmerProfileDetailsScreen] Tractor details from API:', JSON.stringify(tractorDetails, null, 2));
+        
         if (tractorDetails.tractor_list && Array.isArray(tractorDetails.tractor_list)) {
           tractorDetails.tractor_list.forEach((tractor: any, index: number) => {
             // Tractor images from tractor_images_url array
@@ -284,11 +288,27 @@ export default function FarmerProfileDetailsScreen() {
               ? formatDate(tractor.date_of_registration)
               : '';
             
+            // Extract owner name - check multiple possible field names
+            const ownerName = tractor.owner_name || 
+                             tractor.ownerName || 
+                             tractor.owner || 
+                             '';
+            
+            // Log tractor data for debugging
+            console.log('[FarmerProfileDetailsScreen] Tractor data:', {
+              tractor_id: tractor.tractor_id,
+              model_name: tractor.model_name,
+              owner_name: tractor.owner_name,
+              ownerName: tractor.ownerName,
+              owner: tractor.owner,
+              extracted_ownerName: ownerName,
+            });
+            
             tractors.push({
               id: tractor.tractor_id || String(index + 1),
               model: tractor.model_name || '',
               vehicleNo: tractor.vehicle_no || '',
-              ownerName: tractor.owner_name || '',
+              ownerName: ownerName,
               chassisNo: tractor.chassis_no || '',
               engineNo: tractor.engine_no || '',
               mobile: tractor.mobile_no ? `+91 ${tractor.mobile_no}` : '',
