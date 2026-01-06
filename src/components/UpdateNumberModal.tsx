@@ -19,13 +19,16 @@ import {Typography} from '../utils/typography';
 import FloatingInput from './FloatingInput';
 import {postData} from '../Service/Apimethod';
 import Apis from '../Service/constant';
-import Toast, {ToastType} from './Toast';
+import {useLanguage} from '../contexts/LanguageContext';
+
+export type ToastType = 'success' | 'error' | 'info';
 
 type UpdateNumberModalProps = {
   visible: boolean;
   onClose: () => void;
   existingNumber: string;
   onSendRequest?: (newNumber: string) => void;
+  onComplete?: (message: string, type: ToastType) => void;
 };
 
 export default function UpdateNumberModal({
@@ -33,15 +36,14 @@ export default function UpdateNumberModal({
   onClose,
   existingNumber,
   onSendRequest,
+  onComplete,
 }: UpdateNumberModalProps) {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
+  const {t} = useLanguage();
   const [newNumber, setNewNumber] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showToast, setShowToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
-  const [toastType, setToastType] = useState<ToastType>('success');
 
   // Debug: Log when visible prop changes
   useEffect(() => {
@@ -52,7 +54,6 @@ export default function UpdateNumberModal({
     if (visible) {
       setNewNumber('');
       setError('');
-      setShowToast(false);
     }
   }, [visible, existingNumber]);
 
@@ -73,38 +74,22 @@ export default function UpdateNumberModal({
     return trimmed.length === 10 && /^\d+$/.test(trimmed);
   }, [newNumber]);
 
-  const showToastMessage = (message: string, type: ToastType = 'success') => {
-    console.log('[UpdateNumberModal] showToastMessage called:', {message, type});
-    // Set message and type first
-    setToastMessage(message);
-    setToastType(type);
-    // Then show toast - use setTimeout to ensure state updates properly
-    setTimeout(() => {
-      setShowToast(true);
-      console.log('[UpdateNumberModal] Toast state set to visible:', message);
-    }, 50);
-  };
-
-  const hideToast = () => {
-    setShowToast(false);
-  };
-
   const handleSendRequest = async () => {
     // Validate that new number is exactly 10 digits (same as login screen validation)
     if (!newNumber.trim()) {
-      setError('Please enter mobile number');
+      setError(t('updateNumberModal.pleaseEnterMobileNumber'));
       return;
     }
     
     if (newNumber.trim().length !== 10) {
-      setError('Please enter a valid mobile number');
+      setError(t('updateNumberModal.pleaseEnterValidMobileNumber'));
       return;
     }
 
     // Check if new number is different from existing number
     const existingDigits = (existingNumber || '').replace(/\D/g, '');
     if (newNumber === existingDigits) {
-      setError('New number must be different from existing number');
+      setError(t('updateNumberModal.newNumberMustBeDifferent'));
       return;
     }
 
@@ -124,34 +109,57 @@ export default function UpdateNumberModal({
       console.log('[UpdateNumberModal] API Response:', response);
 
       if (response?.status === true) {
-        // Show success message
+        // Success message
         const successMessage = response?.message || 'Mobile number update request submitted successfully. Waiting for Admin approval.';
-        console.log('[UpdateNumberModal] Showing success toast:', successMessage);
-        showToastMessage(successMessage, 'success');
+        console.log('[UpdateNumberModal] Success:', successMessage);
         
         // Call the callback if provided
         if (onSendRequest) {
           onSendRequest(newNumber.trim());
         }
         
-        // Reset form and close modal after a short delay
-        setTimeout(() => {
-          setNewNumber('');
-          setError('');
-          onClose();
-        }, 2000); // Increased delay to ensure toast is visible
+        // Close modal first
+        setNewNumber('');
+        setError('');
+        onClose();
+        
+        // Then notify parent to show toast
+        if (onComplete) {
+          // Use setTimeout to ensure modal closes before showing toast
+          setTimeout(() => {
+            onComplete(successMessage, 'success');
+          }, 300);
+        }
       } else {
-        // Show error message from API
+        // Error message from API
         const errorMessage = response?.message || 'Failed to submit mobile number update request. Please try again.';
-        console.log('[UpdateNumberModal] Showing error toast:', errorMessage);
-        showToastMessage(errorMessage, 'error');
+        console.log('[UpdateNumberModal] Error:', errorMessage);
+        
+        // Close modal first
+        onClose();
+        
+        // Then notify parent to show toast
+        if (onComplete) {
+          setTimeout(() => {
+            onComplete(errorMessage, 'error');
+          }, 300);
+        }
       }
     } catch (error: any) {
       console.error('[UpdateNumberModal] Mobile update error:', error);
-      // Show error message
+      // Error message
       const errorMessage = error?.response?.data?.message || error?.message || 'Failed to submit mobile number update request. Please try again.';
-      console.log('[UpdateNumberModal] Showing error toast:', errorMessage);
-      showToastMessage(errorMessage, 'error');
+      console.log('[UpdateNumberModal] Error:', errorMessage);
+      
+      // Close modal first
+      onClose();
+      
+      // Then notify parent to show toast
+      if (onComplete) {
+        setTimeout(() => {
+          onComplete(errorMessage, 'error');
+        }, 300);
+      }
     } finally {
       setLoading(false);
     }
@@ -251,15 +259,6 @@ export default function UpdateNumberModal({
       onRequestClose={onClose}
       statusBarTranslucent={true}>
       <View style={styles.modal}>
-        {/* Toast Notification - Rendered at top level for proper z-index */}
-        <Toast
-          visible={showToast}
-          message={toastMessage}
-          type={toastType}
-          duration={3000}
-          onClose={hideToast}
-        />
-        
         <KeyboardAvoidingView
           style={{flex: 1}}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -277,7 +276,7 @@ export default function UpdateNumberModal({
                 nestedScrollEnabled={true}>
                 {/* Header */}
                 <View style={styles.header}>
-                  <Text style={styles.title}>Update number</Text>
+                  <Text style={styles.title}>{t('updateNumberModal.title')}</Text>
                   <TouchableOpacity
                     style={styles.closeButton}
                     onPress={onClose}
@@ -292,14 +291,13 @@ export default function UpdateNumberModal({
 
                 {/* Description */}
                 <Text style={styles.description}>
-                  A request will be sent to the dealer to update the number. The dealer
-                  may contact you for OTP verification.
+                  {t('updateNumberModal.description')}
                 </Text>
 
                 {/* Existing Number Input */}
                 <View style={styles.inputContainer}>
                   <FloatingInput
-                    label="Existing number"
+                    label={t('updateNumberModal.existingNumber')}
                     value={(existingNumber || '').replace(/\D/g, '')}
                     onChangeText={() => {}}
                     editable={false}
@@ -311,10 +309,10 @@ export default function UpdateNumberModal({
                 {/* New Number Input */}
                 <View style={styles.inputContainer}>
                   <FloatingInput
-                    label="New number"
+                    label={t('updateNumberModal.newNumber')}
                     value={newNumber}
                     onChangeText={handleNumberChange}
-                    placeholder="Enter mobile number"
+                    placeholder={t('updateNumberModal.enterMobileNumber')}
                     keyboardType="number-pad"
                     maxLength={10}
                     numberOfLinesLabel={1}
@@ -334,7 +332,7 @@ export default function UpdateNumberModal({
                   {loading ? (
                     <ActivityIndicator color={colors.textWhite} size="small" />
                   ) : (
-                    <Text style={styles.sendButtonText}>Send request</Text>
+                    <Text style={styles.sendButtonText}>{t('updateNumberModal.sendRequest')}</Text>
                   )}
                 </TouchableOpacity>
               </ScrollView>

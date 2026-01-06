@@ -29,6 +29,7 @@ type SearchableDropdownProps = {
   error?: string;
   containerStyle?: any;
   loading?: boolean;
+  required?: boolean;
 };
 
 export default function SearchableDropdown({
@@ -40,6 +41,7 @@ export default function SearchableDropdown({
   error,
   containerStyle,
   loading = false,
+  required = false,
 }: SearchableDropdownProps) {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
@@ -96,6 +98,11 @@ export default function SearchableDropdown({
             : isFocused
             ? colors.primary
             : colors.text_light,
+          fontFamily: FontFamily.Medium,
+        },
+        requiredAsterisk: {
+          color: colors.statusError,
+          fontSize: moderateScale(12),
           fontFamily: FontFamily.Medium,
         },
         selectedText: {
@@ -209,7 +216,10 @@ export default function SearchableDropdown({
         onPress={handleOpen}
         activeOpacity={0.7}>
         <View style={styles.labelBox}>
-          <Text style={styles.labelText}>{label}</Text>
+          <Text style={styles.labelText}>
+            {label}
+            {required && <Text style={styles.requiredAsterisk}> *</Text>}
+          </Text>
         </View>
         <Text
           style={selectedOption ? styles.selectedText : styles.placeholderText}>
@@ -235,7 +245,10 @@ export default function SearchableDropdown({
             onPress={e => e.stopPropagation()}
             activeOpacity={1}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{label}</Text>
+              <Text style={styles.modalTitle}>
+                {label}
+                {required && <Text style={{color: colors.statusError}}> *</Text>}
+              </Text>
               <View style={styles.searchContainer}>
                 <Ionicons
                   name="search"

@@ -30,7 +30,9 @@ import {getData} from '../Service/Apimethod';
 import Apis, {API_BASE_URL} from '../Service/constant';
 import {getImageUrl} from '../utils/imageUtils';
 import {useLanguage} from '../contexts/LanguageContext';
-import {isYouTubeUrl, getYouTubeThumbnailUrl} from '../utils/youtubeUtils';
+import {isYouTubeUrl, getYouTubeThumbnailUrl, extractYouTubeVideoId} from '../utils/youtubeUtils';
+import YoutubePlayer from 'react-native-youtube-iframe';
+import {Modal, Pressable} from 'react-native';
 
 type StoryDetailsRouteParams = {
   storyId: string;
@@ -75,6 +77,8 @@ export default function StoryDetailsScreen() {
   const {currentLanguage} = useLanguage();
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [showVideoModal, setShowVideoModal] = useState(false);
+  const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [storyDetails, setStoryDetails] = useState<any>(null);
@@ -387,8 +391,33 @@ export default function StoryDetailsScreen() {
           color: colors.textPrimary,
           lineHeight: moderateScale(22),
         },
+        videoModalOverlay: {
+          flex: 1,
+          backgroundColor: 'rgba(0, 0, 0, 0.9)',
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        videoModalContainer: {
+          width: screenWidth,
+          bottom: moderateScale(30),
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        videoModalCloseButton: {
+          position: 'absolute',
+          top: insets.top + moderateScale(12),
+          right: moderateScale(20),
+          width: moderateScale(40),
+          height: moderateScale(40),
+          borderRadius: moderateScale(20),
+          backgroundColor: 'rgba(255, 255, 255, 0.3)',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          elevation: 10,
+        },
       }),
-    [moderateScale, insets],
+    [moderateScale, insets, screenWidth, screenHeight],
   );
 
   // Prepare images for preview modal
@@ -444,6 +473,7 @@ export default function StoryDetailsScreen() {
 
   const {currentConfig} = useStatusBar();
   const screenWidth = Dimensions.get('window').width;
+  const screenHeight = Dimensions.get('window').height;
 
   // Skeleton component matching the exact design
   const renderSkeleton = () => {
@@ -651,20 +681,50 @@ export default function StoryDetailsScreen() {
         {/* Video Player Section */}
         {/* <View style={dynamicStyles.card}> */}
           <View style={dynamicStyles.videoContainer}>
-            <VideoPlayer
-              thumbnailUri={
-                typeof storyDetails.thumbnailUri === 'object' && storyDetails.thumbnailUri?.uri
-                  ? storyDetails.thumbnailUri.uri
-                  : undefined
-              }
-              thumbnailSource={
-                typeof storyDetails.thumbnailUri === 'number'
-                  ? storyDetails.thumbnailUri
-                  : undefined
-              }
-              videoUri={storyDetails.videoUri}
-              title={storyDetails.title}
-            />
+            {storyDetails.videoUri && isYouTubeUrl(storyDetails.videoUri) ? (
+              // YouTube video - show thumbnail with play button, open modal on tap
+              <TouchableOpacity
+                style={{width: '100%', height: '100%'}}
+                activeOpacity={0.9}
+                onPress={() => {
+                  const videoId = extractYouTubeVideoId(storyDetails.videoUri);
+                  if (videoId) {
+                    setSelectedVideoId(videoId);
+                    setShowVideoModal(true);
+                  }
+                }}>
+                {typeof storyDetails.thumbnailUri === 'object' && storyDetails.thumbnailUri?.uri ? (
+                  <Image
+                    source={{uri: storyDetails.thumbnailUri.uri}}
+                    style={{width: '100%', height: '100%', borderRadius: moderateScale(10)}}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={{width: '100%', height: '100%', backgroundColor: colors.backgroundGray, borderRadius: moderateScale(10), justifyContent: 'center', alignItems: 'center'}}>
+                    <Ionicons name="play-circle" size={moderateScale(60)} color={colors.textWhite} />
+                  </View>
+                )}
+                <View style={{position: 'absolute', top: '50%', left: '50%', transform: [{translateX: -moderateScale(30)}, {translateY: -moderateScale(30)}]}}>
+                  <Ionicons name="play-circle" size={moderateScale(60)} color={colors.textWhite} style={{opacity: 0.9}} />
+                </View>
+              </TouchableOpacity>
+            ) : (
+              // Non-YouTube video - use VideoPlayer component
+              <VideoPlayer
+                thumbnailUri={
+                  typeof storyDetails.thumbnailUri === 'object' && storyDetails.thumbnailUri?.uri
+                    ? storyDetails.thumbnailUri.uri
+                    : undefined
+                }
+                thumbnailSource={
+                  typeof storyDetails.thumbnailUri === 'number'
+                    ? storyDetails.thumbnailUri
+                    : undefined
+                }
+                videoUri={storyDetails.videoUri}
+                title={storyDetails.title}
+              />
+            )}
           </View>
 
           {/* Thumbnails Grid - Left: Full height, Right: 2 stacked */}
@@ -769,6 +829,60 @@ export default function StoryDetailsScreen() {
         onClose={handleCloseModal}
         // onReplaceImage={handleReplaceImage}
       />
+
+      {/* YouTube Video Modal */}
+      <Modal
+        visible={showVideoModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setShowVideoModal(false);
+          setSelectedVideoId(null);
+        }}>
+        <Pressable
+          style={dynamicStyles.videoModalOverlay}
+          onPress={() => {
+            setShowVideoModal(false);
+            setSelectedVideoId(null);
+          }}>
+          <Pressable
+            style={dynamicStyles.videoModalContainer}
+            onPress={(e) => e.stopPropagation()}>
+            {selectedVideoId && (
+              <View style={{width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center'}}>
+                <View style={{top: moderateScale(150)}}>
+                  <YoutubePlayer
+                    height={screenHeight * 0.6}
+                    width={screenWidth}
+                    play={true}
+                    videoId={selectedVideoId}
+                    initialPlayerParams={{
+                      controls: true,
+                      modestbranding: false,
+                      rel: false,
+                      showinfo: false,
+                      fs: true,
+                    }}
+                  />
+                </View>
+                <TouchableOpacity
+                  style={dynamicStyles.videoModalCloseButton}
+                  onPress={() => {
+                    setShowVideoModal(false);
+                    setSelectedVideoId(null);
+                  }}
+                  activeOpacity={0.7}>
+                  <Ionicons
+                    name="close"
+                    size={moderateScale(24)}
+                    color={colors.textWhite}
+                  />
+                </TouchableOpacity>
+              </View>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }

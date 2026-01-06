@@ -152,9 +152,7 @@ export default function FarmerBottomTabBar({
     marginHorizontal: moderateScale(5),
   },
   pillLabel: {
-    ...Typography.mediumSm,
-    marginTop:moderateScale(2),
-    fontSize: moderateScale(12),
+   ...Typography.semiBoldMd,
   },
   iconOnly: {
     alignItems: 'center',
@@ -173,8 +171,12 @@ export default function FarmerBottomTabBar({
         },
       ]}>
       <View style={styles.container}>
-        {state.routes.map((route, index) => {
-          const isFocused = state.index === index;
+        {state.routes
+          .filter((route) => route.name !== SCREEN_NAMES.Profile) // Filter out Profile tab
+          .map((route, index) => {
+          // Adjust focused index after filtering
+          const originalIndex = state.routes.findIndex((r) => r.key === route.key);
+          const isFocused = state.index === originalIndex;
           const {options} = descriptors[route.key];
 
           const onPress = () => {
@@ -201,13 +203,13 @@ export default function FarmerBottomTabBar({
           const icon = getIconForRoute(route.name, {
             focused: isFocused,
             color,
-            size: moderateScale(16),
+            size: moderateScale(22),
           });
 
            const iconOnly = getIconForRoute(route.name, {
             focused: isFocused,
             color,
-            size: moderateScale(20),
+            size: moderateScale(22),
           });
 
           // Active tab shows pill with label; others show icon-only

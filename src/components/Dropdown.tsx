@@ -28,6 +28,7 @@ type DropdownProps = {
   placeholder?: string;
   error?: string;
   containerStyle?: any;
+  required?: boolean;
 };
 
 export default function Dropdown({
@@ -38,6 +39,7 @@ export default function Dropdown({
   placeholder = 'Select option',
   error,
   containerStyle,
+  required = false,
 }: DropdownProps) {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
@@ -82,6 +84,11 @@ export default function Dropdown({
             : isFocused
             ? colors.primary
             : colors.text_light,
+          fontFamily: FontFamily.Medium,
+        },
+        requiredAsterisk: {
+          color: colors.statusError,
+          fontSize: moderateScale(12),
           fontFamily: FontFamily.Medium,
         },
         selectedText: {
@@ -157,7 +164,10 @@ export default function Dropdown({
         }}
         activeOpacity={0.7}>
         <View style={styles.labelBox}>
-          <Text style={styles.labelText}>{label}</Text>
+          <Text style={styles.labelText}>
+            {label}
+            {required && <Text style={styles.requiredAsterisk}> *</Text>}
+          </Text>
         </View>
         <Text
           style={selectedOption ? styles.selectedText : styles.placeholderText}>
@@ -192,7 +202,10 @@ export default function Dropdown({
             onPress={e => e.stopPropagation()}
             activeOpacity={1}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{label}</Text>
+              <Text style={styles.modalTitle}>
+                {label}
+                {required && <Text style={{color: colors.statusError}}> *</Text>}
+              </Text>
             </View>
             <FlatList
               data={options}

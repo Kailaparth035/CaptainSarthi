@@ -200,6 +200,17 @@
     "marriage": "marriage",
     "continue": "Continue"
   },
+  "updateNumberModal": {
+    "title": "Update number",
+    "description": "A request will be sent to the dealer to update the number. The dealer may contact you for OTP verification.",
+    "existingNumber": "Existing number",
+    "newNumber": "New number",
+    "enterMobileNumber": "Enter mobile number",
+    "sendRequest": "Send request",
+    "pleaseEnterMobileNumber": "Please enter mobile number",
+    "pleaseEnterValidMobileNumber": "Please enter a valid mobile number",
+    "newNumberMustBeDifferent": "New number must be different from existing number"
+  },
   "addFarmer": {
     "title": "Add Farmer",
     "personalDetails": "Personal details",

@@ -465,8 +465,12 @@ export default function FarmerProfileScreen() {
     // Handle send request logic here
     console.log('Sending request to update number to:', newNumber);
     // You can add API call here to send the request
-    setUpdateNumberModalVisible(false);
-    // Optionally show a success message
+  };
+
+  const handleUpdateNumberComplete = (message: string, type: ToastType) => {
+    console.log('[FarmerProfileScreen] Update number complete:', {message, type});
+    // Show toast message on main screen
+    showToastMessage(message, type);
   };
 
   useDynamicStatusBar({
@@ -655,6 +659,7 @@ export default function FarmerProfileScreen() {
         }}
         existingNumber={userData.phone || ''}
         onSendRequest={handleSendRequest}
+        onComplete={handleUpdateNumberComplete}
       />
 
       {/* Image Picker Modal */}

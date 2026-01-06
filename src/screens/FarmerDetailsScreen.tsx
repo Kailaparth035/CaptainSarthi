@@ -165,6 +165,8 @@ export default function FarmerDetailsScreen() {
       // Handle API response structure: { status: true, data: {...} }
       if (response?.status === true && response?.data) {
         const farmerData = response.data;
+        console.log("farmerData ::",farmerData);
+        
         
         // Combine firstName, middleName, lastName
         const nameParts = [
@@ -211,18 +213,24 @@ export default function FarmerDetailsScreen() {
         
         // Transform API response to match expected format
         setFarmerDetails({
-          id: farmerData.farmerId || params?.farmerId || '',
-          farmer_id: farmerData.farmerId || '',
-          firstName: farmerData.firstName || '',
-          middleName: farmerData.middleName || '',
-          lastName: farmerData.lastName || '',
+          id: farmerData.farmerId || params?.farmerId || "",
+          farmer_id: farmerData.farmerId || "",
+          firstName: farmerData.firstName || "",
+          middleName: farmerData.middleName || "",
+          lastName: farmerData.lastName || "",
           fullName: fullName,
-          mobile: farmerData.mobile || '',
-          dateOfBirth: formatDate(farmerData.dateOfBirth) || '',
-          dateOfMarriage: formatDate(farmerData.dateOfMarriage) || '',
-          dealershipName: farmerData.dealershipName || '',
+          mobile: farmerData.mobile || "",
+          dateOfBirth: formatDate(farmerData.dateOfBirth) || "",
+          dateOfMarriage: formatDate(farmerData.dateOfMarriage) || "",
+          dealershipName: farmerData.dealershipName || "",
           profileImage: getImageUrl(farmerData.profileImage),
           tractors: transformedTractors,
+          addressData:
+            farmerData?.house_number + " " +
+            farmerData?.street_name + " " +
+            farmerData?.landmark + " " +
+            farmerData?.landmark + " " +
+            farmerData?.pincode,
         });
       } else {
         // API didn't return expected structure
@@ -775,12 +783,36 @@ export default function FarmerDetailsScreen() {
             value={farmerDetails.dateOfMarriage}
             moderateScale={moderateScale}
           />
-          <InfoRow
-            label="Dealership name"
-            value={dealershipName || farmerDetails.dealershipName || 'N/A'}            
-            moderateScale={moderateScale}
-            isShowBorderBottom={false}
-          />
+          {/* Address Section - Display below title */}
+          <View
+            style={{
+              paddingVertical: moderateScale(12),
+              borderBottomWidth: 0,
+            }}>
+            <Text
+              style={[
+                Typography.regularMd,
+                {
+                  fontSize: moderateScale(14),
+                  color: colors.textTertiary,
+                  marginBottom: moderateScale(8),
+                },
+              ]}>
+              Farmer address
+            </Text>
+            <Text
+              style={[
+                Typography.regularMd,
+                {
+                  fontSize: moderateScale(14),
+                  color: colors.textPrimary,
+                  lineHeight: moderateScale(20),
+                },
+              ]}
+              numberOfLines={0}>
+              {farmerDetails?.addressData || 'N/A'}
+            </Text>
+          </View>
         </View>
 
         {/* Tractor Details Card */}
@@ -1015,8 +1047,7 @@ export default function FarmerDetailsScreen() {
               <InfoRow
                 label="Chassis no."
                 value={tractor.chassisNo}
-                moderateScale={moderateScale}
-                valueUnderlined={true}
+                moderateScale={moderateScale}                
               />
               <InfoRow
                 label="Vehicle no."

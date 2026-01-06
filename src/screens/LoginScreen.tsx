@@ -420,37 +420,40 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
         // Save session to AsyncStorage
         await saveSession(mobileNumber);
         
-        // Register FCM token after successful login (only for farmers)
-        if (role === 'farmer') {
-          try {
-            // Get FCM device token
-            const deviceToken = await FirebaseService.getToken();
+        // Register FCM token after successful login (for both farmers and dealers)
+        try {
+          // Get FCM device token
+          const deviceToken = await FirebaseService.getToken();
+          
+          if (deviceToken) {
+            // Determine device type based on platform
+            const deviceType = Platform.OS === 'android' ? 'android' : 'ios';
             
-            if (deviceToken) {
-              // Determine device type based on platform
-              const deviceType = Platform.OS === 'android' ? 'android' : 'ios';
-              
-              // Prepare request body
-              const fcmBodyData = {
-                device_token: deviceToken,
-                device_type: deviceType,
-              };
-              
-              // Call FCM register API
-              const fcmResponse = await postData(Apis.FARMER_FCM_REGISTER, fcmBodyData);
-              
-              if (fcmResponse) {
-                console.log('[LoginScreen] FCM token registered successfully after login:', fcmResponse);
-              } else {
-                console.log('[LoginScreen] FCM token registration failed or no response');
-              }
-            } else {
-              console.log('[LoginScreen] FCM token not available');
+            // Prepare request body
+            const fcmBodyData = {
+              device_token: deviceToken,
+              device_type: deviceType,
+            };
+            
+            // Call appropriate FCM register API based on role
+            let fcmResponse;
+            if (role === 'farmer') {
+              fcmResponse = await postData(Apis.FARMER_FCM_REGISTER, fcmBodyData);
+              console.log('[LoginScreen] Farmer FCM token registered successfully after login:', fcmResponse);
+            } else if (role === 'dealer') {
+              fcmResponse = await postData(Apis.DEALER_FCM_REGISTER, fcmBodyData);
+              console.log('[LoginScreen] Dealer FCM token registered successfully after login:', fcmResponse);
             }
-          } catch (fcmError) {
-            console.error('[LoginScreen] Error registering FCM token after login:', fcmError);
-            // Silently fail - don't block login if FCM registration fails
+            
+            if (!fcmResponse) {
+              console.log('[LoginScreen] FCM token registration failed or no response');
+            }
+          } else {
+            console.log('[LoginScreen] FCM token not available');
           }
+        } catch (fcmError) {
+          console.error('[LoginScreen] Error registering FCM token after login:', fcmError);
+          // Silently fail - don't block login if FCM registration fails
         }
         
         setLoading(false);

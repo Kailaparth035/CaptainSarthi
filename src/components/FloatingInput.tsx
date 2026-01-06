@@ -19,7 +19,8 @@ interface SimpleBoxInputProps extends TextInputProps {
   onChangeText: (text: string) => void;
   containerStyle?: StyleProp<ViewStyle>;
   error?: string;
-  numberOfLinesLabel:number
+  numberOfLinesLabel:number;
+  required?: boolean;
 }
 
 const SimpleBoxInput = forwardRef<TextInput, SimpleBoxInputProps>(
@@ -33,6 +34,7 @@ const SimpleBoxInput = forwardRef<TextInput, SimpleBoxInputProps>(
       containerStyle,
       error,
       numberOfLinesLabel = 10,
+      required = false,
       ...props
     },
     ref,
@@ -67,6 +69,11 @@ const SimpleBoxInput = forwardRef<TextInput, SimpleBoxInputProps>(
         color: isFocused && isEditable ? colors.primary : colors.text_light,
         fontFamily: FontFamily.Medium,
       },
+      requiredAsterisk: {
+        color: colors.statusError,
+        fontSize: moderateScale(12),
+        fontFamily: FontFamily.Medium,
+      },
       textInput: {
         fontSize: moderateScale(14),
         color: isEditable ? colors.black : colors.textSecondary,        
@@ -83,7 +90,10 @@ const SimpleBoxInput = forwardRef<TextInput, SimpleBoxInputProps>(
         <View style={styles.inputWrapper}>
           {/* STATIC LABEL INSIDE BOX BORDER */}
           <View style={styles.labelBox}>
-            <Text style={styles.labelText} numberOfLines={numberOfLinesLabel}>{label}</Text>
+            <Text style={styles.labelText} numberOfLines={numberOfLinesLabel}>
+              {label}
+              {required && <Text style={styles.requiredAsterisk}> *</Text>}
+            </Text>
           </View>
 
           {/* INPUT FIELD */}

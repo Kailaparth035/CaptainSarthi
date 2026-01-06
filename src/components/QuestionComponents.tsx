@@ -22,6 +22,8 @@ type TextInputQuestionProps = {
   onChangeText: (text: string) => void;
   placeholder?: string;
   error?: string;
+  required?: boolean;
+  editable?: boolean;
 };
 
 export function TextInputQuestion({
@@ -30,6 +32,8 @@ export function TextInputQuestion({
   onChangeText,
   placeholder = 'Your answer here',
   error,
+  required = false,
+  editable = true,
 }: TextInputQuestionProps) {
   const {moderateScale} = useDeviceMetrics();
 
@@ -45,19 +49,29 @@ export function TextInputQuestion({
           color: colors.textPrimary,
           marginBottom: moderateScale(8),
         },
+        requiredAsterisk: {
+          color: colors.statusError,
+          fontSize: moderateScale(14),
+        },
       }),
     [moderateScale],
   );
 
   return (
     <View style={styles.container}>
-      <Text style={styles.questionText}>{question}</Text>
+      <Text style={styles.questionText}>
+        {question}
+        {required && <Text style={styles.requiredAsterisk}> *</Text>}
+      </Text>
       <SimpleBoxInput
         label="Answer"
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
         error={error}
+        required={required}
+        numberOfLinesLabel={1}
+        editable={editable}
       />
     </View>
   );
@@ -70,6 +84,8 @@ type RadioButtonQuestionProps = {
   onChange: (value: string) => void;
   options?: string[];
   error?: string;
+  required?: boolean;
+  disabled?: boolean;
 };
 
 export function RadioButtonQuestion({
@@ -78,6 +94,8 @@ export function RadioButtonQuestion({
   onChange,
   options = ['Yes', 'No'],
   error,
+  required = false,
+  disabled = false,
 }: RadioButtonQuestionProps) {
   const {moderateScale} = useDeviceMetrics();
 
@@ -92,6 +110,10 @@ export function RadioButtonQuestion({
           fontSize: moderateScale(14),
           color: colors.textPrimary,
           marginBottom: moderateScale(12),
+        },
+        requiredAsterisk: {
+          color: colors.statusError,
+          fontSize: moderateScale(14),
         },
         optionsContainer: {
           flexDirection: 'row',
@@ -153,7 +175,10 @@ export function RadioButtonQuestion({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.questionText}>{question}</Text>
+      <Text style={styles.questionText}>
+        {question}
+        {required && <Text style={styles.requiredAsterisk}> *</Text>}
+      </Text>
       <View style={styles.optionsContainer}>
         {options.map(option => {
           const isSelected = value === option;
@@ -164,8 +189,9 @@ export function RadioButtonQuestion({
                 styles.optionButton,
                 isSelected && styles.selectedOptionButton,
               ]}
-              onPress={() => onChange(option)}
-              activeOpacity={0.7}>
+              onPress={() => !disabled && onChange(option)}
+              activeOpacity={0.7}
+              disabled={disabled}>
               <Text style={styles.optionText}>{option}</Text>
               <View
                 style={[
@@ -192,6 +218,8 @@ type CheckboxQuestionProps = {
   onChange: (values: string[]) => void;
   options: string[];
   error?: string;
+  required?: boolean;
+  disabled?: boolean;
 };
 
 export function CheckboxQuestion({
@@ -200,6 +228,8 @@ export function CheckboxQuestion({
   onChange,
   options,
   error,
+  required = false,
+  disabled = false,
 }: CheckboxQuestionProps) {
   const {moderateScale} = useDeviceMetrics();
 
@@ -214,6 +244,10 @@ export function CheckboxQuestion({
           fontSize: moderateScale(14),
           color: colors.textPrimary,
           marginBottom: moderateScale(12),
+        },
+        requiredAsterisk: {
+          color: colors.statusError,
+          fontSize: moderateScale(14),
         },
         optionButton: {
           flexDirection: 'row',
@@ -270,7 +304,10 @@ export function CheckboxQuestion({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.questionText}>{question}</Text>
+      <Text style={styles.questionText}>
+        {question}
+        {required && <Text style={styles.requiredAsterisk}> *</Text>}
+      </Text>
       {options.map(option => {
         const isSelected = selectedValues.includes(option);
         return (
@@ -280,8 +317,9 @@ export function CheckboxQuestion({
               styles.optionButton,
               isSelected && styles.selectedOptionButton,
             ]}
-            onPress={() => handleToggle(option)}
-            activeOpacity={0.7}>
+            onPress={() => !disabled && handleToggle(option)}
+            activeOpacity={0.7}
+            disabled={disabled}>
             <Text style={styles.optionText}>{option}</Text>
             <View
               style={[
@@ -311,6 +349,7 @@ type FileUploadQuestionProps = {
   uploadedFileName?: string;
   error?: string;
   onError?: (message: string) => void;
+  required?: boolean;
 };
 
 export function FileUploadQuestion({
@@ -319,6 +358,7 @@ export function FileUploadQuestion({
   uploadedFileName,
   error,
   onError,
+  required = false,
 }: FileUploadQuestionProps) {
   const {moderateScale} = useDeviceMetrics();
   const {pickImage} = useImagePicker();
@@ -376,6 +416,10 @@ export function FileUploadQuestion({
           color: colors.textPrimary,
           marginBottom: moderateScale(12),
         },
+        requiredAsterisk: {
+          color: colors.statusError,
+          fontSize: moderateScale(14),
+        },
         uploadBox: {
           width: '100%',
           minHeight: moderateScale(120),
@@ -419,7 +463,10 @@ export function FileUploadQuestion({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.questionText}>{question}</Text>
+      <Text style={styles.questionText}>
+        {question}
+        {required && <Text style={styles.requiredAsterisk}> *</Text>}
+      </Text>
       <TouchableOpacity
         style={styles.uploadBox}
         onPress={() => setImagePickerVisible(true)}
@@ -456,6 +503,8 @@ type DropdownQuestionProps = {
   onSelect: (value: string) => void;
   placeholder?: string;
   error?: string;
+  required?: boolean;
+  disabled?: boolean;
 };
 
 export function DropdownQuestion({
@@ -466,6 +515,8 @@ export function DropdownQuestion({
   onSelect,
   placeholder = 'Select option',
   error,
+  required = false,
+  disabled = false,
 }: DropdownQuestionProps) {
   const {moderateScale} = useDeviceMetrics();
 
@@ -481,13 +532,20 @@ export function DropdownQuestion({
           color: colors.textPrimary,
           marginBottom: moderateScale(8),
         },
+        requiredAsterisk: {
+          color: colors.statusError,
+          fontSize: moderateScale(14),
+        },
       }),
     [moderateScale],
   );
 
   return (
     <View style={styles.container}>
-      <Text style={styles.questionText}>{question}</Text>
+      <Text style={styles.questionText}>
+        {question}
+        {required && <Text style={styles.requiredAsterisk}> *</Text>}
+      </Text>
       <Dropdown
         label={label}
         value={value}
@@ -495,6 +553,7 @@ export function DropdownQuestion({
         onSelect={onSelect}
         placeholder={placeholder}
         error={error}
+        required={required}
       />
     </View>
   );

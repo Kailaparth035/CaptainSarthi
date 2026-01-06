@@ -29,7 +29,7 @@ import {saveProfileReviewed, getUserRole, saveProfileCompleted} from '../utils/s
 import { ImagePath } from '../assets/images';
 import {useLanguage} from '../contexts/LanguageContext';
 import Toast, {ToastType} from '../components/Toast';
-import {getData, putData, postDataWithImage} from '../Service/Apimethod';
+import {getData, putData, postDataWithImage, postData} from '../Service/Apimethod';
 import Apis from '../Service/constant';
 import {getImageUrl} from '../utils/imageUtils';
 
@@ -543,7 +543,7 @@ export default function ReviewProfileScreen() {
       console.log('[ReviewProfileScreen] Updating farmer profile:', updateData);
 
       // Call PUT API to update farmer profile
-      const response = await putData(Apis.FARMER_PROFILE, updateData);
+      const response = await postData(Apis.FARMER_PROFILE_UPDATE, updateData);
 
       if (response?.status === true) {
         console.log('[ReviewProfileScreen] Profile updated successfully:', response);
@@ -1086,27 +1086,27 @@ export default function ReviewProfileScreen() {
               <Text style={dynamicStyles.detailValue}>{tractor.ownerName}</Text>
             </View>
             <View style={dynamicStyles.detailRow}>
-              <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.chassisNo')}:</Text>
+              <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.chassisNo')}</Text>
               <Text style={dynamicStyles.detailValue}>{tractor.chassisNo}</Text>
             </View>
             <View style={dynamicStyles.detailRow}>
-              <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.engineNo')}:</Text>
+              <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.engineNo')}</Text>
               <Text style={dynamicStyles.detailValue}>{tractor.engineNo}</Text>
             </View>
             <View style={dynamicStyles.detailRow}>
-              <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.mobileNo')}:</Text>
+              <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.mobileNo')}</Text>
               <Text style={dynamicStyles.detailValue}>{tractor.tractorMobileNo}</Text>
             </View>
             <View style={dynamicStyles.detailRow}>
-              <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.dateOfInvoice')}:</Text>
+              <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.dateOfInvoice')}</Text>
               <Text style={dynamicStyles.detailValue}>{tractor.dateOfInvoice}</Text>
             </View>
             <View style={dynamicStyles.detailRow}>
-              <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.dateOfRegistration')}:</Text>
+              <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.dateOfRegistration')}</Text>
               <Text style={dynamicStyles.detailValue}>{tractor.dateOfRegistration}</Text>
             </View>
             <View style={[dynamicStyles.detailRow, {borderBottomWidth: 0}]}>
-              <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.whoDrives')}:</Text>
+              <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.whoDrives')}</Text>
               <Text style={dynamicStyles.detailValue}>{tractor.whoDrives}</Text>
             </View>
           </View>

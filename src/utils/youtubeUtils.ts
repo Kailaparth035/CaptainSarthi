@@ -5,6 +5,7 @@
  * - https://youtu.be/VIDEO_ID
  * - https://www.youtube.com/embed/VIDEO_ID
  * - https://m.youtube.com/watch?v=VIDEO_ID
+ * - https://www.youtube.com/shorts/VIDEO_ID
  */
 export const extractYouTubeVideoId = (url: string | null | undefined): string | null => {
   if (!url || typeof url !== 'string') {
@@ -19,19 +20,25 @@ export const extractYouTubeVideoId = (url: string | null | undefined): string | 
     return cleanUrl;
   }
 
-  // Pattern 1: https://www.youtube.com/watch?v=VIDEO_ID
+  // Pattern 1: https://www.youtube.com/shorts/VIDEO_ID (YouTube Shorts)
+  const shortsMatch = cleanUrl.match(/youtube\.com\/shorts\/([^&\n?#\/]+)/);
+  if (shortsMatch && shortsMatch[1]) {
+    return shortsMatch[1];
+  }
+
+  // Pattern 2: https://www.youtube.com/watch?v=VIDEO_ID
   const watchMatch = cleanUrl.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/);
   if (watchMatch && watchMatch[1]) {
     return watchMatch[1];
   }
 
-  // Pattern 2: https://youtu.be/VIDEO_ID
+  // Pattern 3: https://youtu.be/VIDEO_ID
   const shortMatch = cleanUrl.match(/youtu\.be\/([^&\n?#]+)/);
   if (shortMatch && shortMatch[1]) {
     return shortMatch[1];
   }
 
-  // Pattern 3: https://www.youtube.com/embed/VIDEO_ID
+  // Pattern 4: https://www.youtube.com/embed/VIDEO_ID
   const embedMatch = cleanUrl.match(/youtube\.com\/embed\/([^&\n?#]+)/);
   if (embedMatch && embedMatch[1]) {
     return embedMatch[1];

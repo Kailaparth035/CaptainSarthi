@@ -9,6 +9,8 @@ import {
   FlatList,
   Dimensions,
   RefreshControl,
+  Modal,
+  Pressable,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation, CommonActions, useFocusEffect} from '@react-navigation/native';
@@ -30,7 +32,8 @@ import {getData} from '../Service/Apimethod';
 import Apis, {API_BASE_URL} from '../Service/constant';
 import {getImageUrl} from '../utils/imageUtils';
 import {saveFarmerProfileData, FarmerProfileData} from '../utils/session';
-import {isYouTubeUrl, getYouTubeThumbnailUrl} from '../utils/youtubeUtils';
+import {isYouTubeUrl, getYouTubeThumbnailUrl, extractYouTubeVideoId} from '../utils/youtubeUtils';
+import YoutubePlayer from 'react-native-youtube-iframe';
 
 const screenWidth = Dimensions.get('window').width;
 const screenHeight = Dimensions.get('window').height;
@@ -73,6 +76,10 @@ export default function FarmerHomeScreen() {
   const [farmerName, setFarmerName] = useState<string>('');
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [announcementIndex, setAnnouncementIndex] = useState(0);
+  const [showVideoModal, setShowVideoModal] = useState(false);
+  const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
 
   // Membership services with translations
   const membershipServices = useMemo(() => [
@@ -352,15 +359,15 @@ export default function FarmerHomeScreen() {
             // Check for link URL
             const linkUrl = announcement.link_url || announcement.link || announcement.url || '';
             
-            // Use image_url as thumbnail (priority), if no image_url and video is YouTube, use YouTube thumbnail
+            // For thumbnail: if video_url is YouTube, use YouTube thumbnail directly; otherwise use image_url
             let imageUrl = null;
-            if (announcement.image_url) {
-              // Priority: Use image_url as thumbnail
-              imageUrl = getImageUrl(announcement.image_url);
-            } else if (videoUrl && isYouTubeUrl(videoUrl)) {
-              // Fallback: Use YouTube thumbnail if no image_url
+            if (videoUrl && isYouTubeUrl(videoUrl)) {
+              // Use YouTube thumbnail directly for YouTube videos
               const youtubeThumbnail = getYouTubeThumbnailUrl(videoUrl, 'maxresdefault');
               imageUrl = youtubeThumbnail;
+            } else if (announcement.image_url) {
+              // Use image_url as thumbnail for non-YouTube videos or images
+              imageUrl = getImageUrl(announcement.image_url);
             }
             
             console.log('[FarmerHomeScreen] Announcement transformed:', {
@@ -435,7 +442,7 @@ export default function FarmerHomeScreen() {
         setAnnouncementIndex((prevIndex) => {
           return (prevIndex + 1) % recentAnnouncements.length;
         });
-      }, 3000); // Change slide every 3 seconds
+      }, 6000); // Change slide every 6 seconds (increased from 3 seconds)
     }
   };
 
@@ -819,8 +826,74 @@ export default function FarmerHomeScreen() {
           fontSize: moderateScale(12),
           color: colors.textSecondary,
         },
+        videoModalOverlay: {
+          flex: 1,
+          backgroundColor: 'rgba(0, 0, 0, 0.9)',
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        videoModalContainer: {
+          width: screenWidth,
+          bottom:moderateScale(30),          
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        videoModalCloseButton: {
+          position: 'absolute',
+          top: insets.top + moderateScale(12),
+          right: moderateScale(20),
+          width: moderateScale(40),
+          height: moderateScale(40),
+          borderRadius: moderateScale(20),
+          backgroundColor: 'rgba(255, 255, 255, 0.3)',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          elevation: 10,
+        },
+        imageModalOverlay: {
+          flex: 1,
+          backgroundColor: 'rgba(0, 0, 0, 0.9)',
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        imageModalContainer: {
+          width: screenWidth,
+          height: screenHeight,
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        imageModalScrollView: {
+          width: screenWidth,
+          height: screenHeight,
+          bottom:moderateScale(40)
+        },
+        imageModalImageContainer: {
+          width: screenWidth,
+          height: screenHeight,
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        imageModalImage: {
+          width: screenWidth,
+          height: screenHeight,
+          resizeMode: 'contain',
+        },
+        imageModalCloseButton: {
+          position: 'absolute',
+          top: moderateScale(30),
+          right: moderateScale(20),
+          width: moderateScale(40),
+          height: moderateScale(40),
+          borderRadius: moderateScale(20),
+          backgroundColor: 'rgba(255, 255, 255, 0.3)',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          elevation: 10,
+        },
       }),
-    [moderateScale, insets.top],
+    [moderateScale, insets.top, screenWidth, screenHeight],
   );
 
   const renderCarouselItem = ({item, index}: {item: any; index: number}) => {
@@ -1226,6 +1299,19 @@ export default function FarmerHomeScreen() {
               <View style={dynamicStyles.notificationBadge} />
             )}
           </TouchableOpacity>
+          <TouchableOpacity
+            style={dynamicStyles.bellIcon}
+            activeOpacity={0.7}
+            onPress={() => {
+              // Navigate to Profile screen
+              tabNavigation.navigate(SCREEN_NAMES.Profile as any);
+            }}>
+            <Ionicons
+              name="person-outline"
+              size={moderateScale(22)}
+              color={colors.textPrimary}
+            />
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -1254,11 +1340,51 @@ export default function FarmerHomeScreen() {
                 <FlatList
                   ref={announcementCarouselRef}
                   data={recentAnnouncements}
-                  renderItem={({item: announcement}) => {
-                    // If announcement has video, use VideoPlayer component with image as thumbnail
-                    // This shows both: image as thumbnail + play button for video
+                  renderItem={({item: announcement, index}) => {
+                    // If announcement has video URL
                     if (announcement.videoUrl) {
-                      console.log('[FarmerHomeScreen] Rendering announcement with video:', {
+                      // Check if it's a YouTube URL
+                      if (isYouTubeUrl(announcement.videoUrl)) {
+                        const videoId = extractYouTubeVideoId(announcement.videoUrl);
+                        if (videoId) {
+                          // Use YoutubePlayer for YouTube videos
+                          const isCurrentSlide = index === announcementIndex;
+                          return (
+                            <View style={dynamicStyles.carouselItem}>
+                              <YoutubePlayer
+                                height={moderateScale(180)}
+                                width={screenWidth - moderateScale(32) - moderateScale(20)}
+                                play={isCurrentSlide}
+                                videoId={videoId}
+                                initialPlayerParams={{
+                                  controls: false,
+                                  modestbranding: false,
+                                  rel: false,
+                                  showinfo: false,
+                                  fs: false,
+                                }}
+                              />
+                              <TouchableOpacity
+                                style={{
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
+                                  right: 0,
+                                  bottom: 0,
+                                }}
+                                activeOpacity={1}
+                                onPress={() => {
+                                  setSelectedVideoId(videoId);
+                                  setShowVideoModal(true);
+                                  stopAnnouncementAutoSlide();
+                                }}
+                              />
+                            </View>
+                          );
+                        }
+                      }
+                      // For non-YouTube videos, use VideoPlayer component
+                      console.log('[FarmerHomeScreen] Rendering announcement with non-YouTube video:', {
                         id: announcement.id,
                         hasImage: !!announcement.imageUrl,
                         imageUrl: announcement.imageUrl,
@@ -1276,12 +1402,20 @@ export default function FarmerHomeScreen() {
                         </View>
                       );
                     }
-                    // If only image (no video), show image with optional link handling
+                    // If only image (no video), show image with preview modal
                     return (
                       <TouchableOpacity
                         style={dynamicStyles.carouselItem}
                         activeOpacity={0.9}
-                        onPress={() => handleAnnouncementPress(announcement)}>
+                        onPress={() => {
+                          if (announcement.imageUrl) {
+                            setSelectedImageUrl(announcement.imageUrl);
+                            setShowImageModal(true);
+                            stopAnnouncementAutoSlide();
+                          } else if (announcement.linkUrl) {
+                            handleAnnouncementPress(announcement);
+                          }
+                        }}>
                         {announcement.imageUrl ? (
                           <Image
                             source={{uri: announcement.imageUrl}}
@@ -1525,6 +1659,107 @@ export default function FarmerHomeScreen() {
           )}
         </ScrollView>
       )}
+
+      {/* Video Modal */}
+      <Modal
+        visible={showVideoModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setShowVideoModal(false);
+          setSelectedVideoId(null);
+          startAnnouncementAutoSlide();
+        }}>
+        <Pressable
+          style={dynamicStyles.videoModalOverlay}
+          onPress={() => {
+            setShowVideoModal(false);
+            setSelectedVideoId(null);
+            startAnnouncementAutoSlide();
+          }}>
+          <Pressable
+            style={dynamicStyles.videoModalContainer}
+            onPress={(e) => e.stopPropagation()}>
+            {selectedVideoId && (
+              <View style={{width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center'}}>
+               <View style={{top:moderateScale(150)}}>
+                <YoutubePlayer
+                  height={screenHeight * 0.6}
+                  width={screenWidth}
+                  play={true}
+                  videoId={selectedVideoId}
+                  initialPlayerParams={{
+                    controls: true,
+                    modestbranding: false,
+                    rel: false,
+                    showinfo: false,
+                    fs: true,
+                  }}
+                />
+                </View>
+                <TouchableOpacity
+                  style={dynamicStyles.videoModalCloseButton}
+                  onPress={() => {
+                    setShowVideoModal(false);
+                    setSelectedVideoId(null);
+                    startAnnouncementAutoSlide();
+                  }}
+                  activeOpacity={0.7}>
+                  <Ionicons
+                    name="close"
+                    size={moderateScale(24)}
+                    color={colors.textWhite}
+                  />
+                </TouchableOpacity>
+              </View>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Image Preview Modal */}
+      <Modal
+        visible={showImageModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setShowImageModal(false);
+          setSelectedImageUrl(null);
+          startAnnouncementAutoSlide();
+        }}>
+        <View style={dynamicStyles.imageModalOverlay}>
+          <ScrollView
+            style={dynamicStyles.imageModalScrollView}
+            contentContainerStyle={dynamicStyles.imageModalImageContainer}
+            minimumZoomScale={1}
+            maximumZoomScale={3}
+            showsHorizontalScrollIndicator={false}
+            showsVerticalScrollIndicator={false}
+            bouncesZoom={true}>
+            {selectedImageUrl && (
+              <Image
+                source={{uri: selectedImageUrl}}
+                style={dynamicStyles.imageModalImage}
+                resizeMode="contain"
+              />
+            )}
+          </ScrollView>
+          <TouchableOpacity
+            style={dynamicStyles.imageModalCloseButton}
+            onPress={() => {
+              setShowImageModal(false);
+              setSelectedImageUrl(null);
+              startAnnouncementAutoSlide();
+            }}
+            activeOpacity={0.7}>
+            <Ionicons
+              name="close"
+              size={moderateScale(24)}
+              color={colors.textWhite}
+            />
+          </TouchableOpacity>
+        </View>
+      </Modal>
     </View>
   );
 }

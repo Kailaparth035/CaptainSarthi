@@ -21,6 +21,7 @@ import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
 import {ImagePath} from '../assets/images';
 import {RootStackParamList} from '../navigation/RootNavigator';
 import {FarmerTabParamList} from '../navigation/FarmerTabNavigator';
+import {TabParamList} from '../navigation/TabNavigator';
 import {SCREEN_NAMES} from '../constants/screenNames';
 import {useLanguage} from '../contexts/LanguageContext';
 import colors from '../utils/colors';
@@ -65,7 +66,7 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
   const {t} = useLanguage();
-  const tabNavigation = useNavigation<BottomTabNavigationProp<FarmerTabParamList>>();
+  const tabNavigation = useNavigation<BottomTabNavigationProp<FarmerTabParamList & TabParamList>>();
   const [showFailedModal, setShowFailedModal] = useState(false);
   const [selectedNotification, setSelectedNotification] =
     useState<NotificationItem | null>(null);
@@ -77,6 +78,7 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [userRole, setUserRole] = useState<'farmer' | 'dealer' | null>(null);
   
   // API request parameters
   const page = 1;
@@ -106,41 +108,91 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
     }
   };
 
-  // Format timestamp
-  const formatTimestamp = (timestamp: string) => {
-    // If timestamp is already formatted, return as is
-    if (timestamp && timestamp.includes('AM') || timestamp.includes('PM')) {
-      return timestamp;
-    }
-    // Otherwise, try to format it
+  // Format timestamp to return date and time separately
+  const formatTimestamp = (timestamp: string): {date: string; time: string} => {
     try {
       const date = new Date(timestamp);
+      
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        return {date: '', time: timestamp || ''};
+      }
+      
+      // Format date (e.g., "15 Jan 2025" or "Today", "Yesterday")
+      const today = new Date();
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      
+      const isToday = date.toDateString() === today.toDateString();
+      const isYesterday = date.toDateString() === yesterday.toDateString();
+      
+      let formattedDate = '';
+      if (isToday) {
+        formattedDate = 'Today';
+      } else if (isYesterday) {
+        formattedDate = 'Yesterday';
+      } else {
+        const day = date.getDate();
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        const month = monthNames[date.getMonth()];
+        const year = date.getFullYear();
+        formattedDate = `${day} ${month} ${year}`;
+      }
+      
+      // Format time (e.g., "1:15 PM")
       const hours = date.getHours();
       const minutes = date.getMinutes();
       const ampm = hours >= 12 ? 'PM' : 'AM';
       const formattedHours = hours % 12 || 12;
       const formattedMinutes = minutes < 10 ? `0${minutes}` : minutes;
-      return `${formattedHours}:${formattedMinutes} ${ampm}`;
+      const formattedTime = `${formattedHours}:${formattedMinutes} ${ampm}`;
+      
+      return {date: formattedDate, time: formattedTime};
     } catch (e) {
-      return timestamp;
+      // If timestamp is already formatted (contains AM/PM), try to extract time
+      if (timestamp && (timestamp.includes('AM') || timestamp.includes('PM'))) {
+        return {date: '', time: timestamp};
+      }
+      return {date: '', time: timestamp || ''};
     }
   };
 
   // Transform API response to NotificationItem
   const transformNotification = (item: any): NotificationItem => {
     const notificationData = item.data || {};
+    const timestampData = formatTimestamp(item.createdAt || item.created_at || item.timestamp || item.date || '');
+    
+    // Extract status from various possible locations
+    let status: NotificationStatus | undefined;
+    if (item.status) {
+      status = item.status as NotificationStatus;
+    } else if (notificationData.status) {
+      status = notificationData.status as NotificationStatus;
+    } else if (item.description || item.body || item.message) {
+      const desc = (item.description || item.body || item.message || '').toLowerCase();
+      if (desc.includes('complete') || desc.includes('verified')) {
+        status = 'complete';
+      } else if (desc.includes('pending')) {
+        status = 'pending';
+      } else if (desc.includes('failed') || desc.includes('reject')) {
+        status = 'failed';
+      }
+    }
+    
     return {
       id: item.id?.toString() || item.notification_id?.toString() || String(Math.random()),
       title: item.title || item.message || 'Notification',
       description: item.description || item.body || item.message || '',
-      timestamp: formatTimestamp(item.createdAt || item.created_at || item.timestamp || item.date || ''),
+      timestamp: item.createdAt || item.created_at || item.timestamp || item.date || '',
+      date: timestampData.date,
+      time: timestampData.time,
       type: item.type || 'other',
       isRead: item.is_read === true || item.isRead === true || false,
       hasArrow: item.has_arrow !== false,
-      firstName: item.first_name || item.firstName || '',
-      lastName: item.last_name || item.lastName || '',
-      rejectionReason: item.rejection_reason || item.rejectionReason || '',
-      status: item.status || undefined,
+      firstName: item.first_name || item.firstName || notificationData.first_name || notificationData.firstName || '',
+      lastName: item.last_name || item.lastName || notificationData.last_name || notificationData.lastName || '',
+      rejectionReason: item.rejection_reason || item.rejectionReason || notificationData.rejection_reason || notificationData.rejectionReason || '',
+      status: status,
       referenceId: item.reference_id || item.referenceId,
       clickAction: notificationData.click_action || notificationData.clickAction,
       eventId: notificationData.event_id || notificationData.eventId,
@@ -160,12 +212,17 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
     try {
       isFetchingRef.current = true;
 
-      // Check if farmer is logged in
+      // Check if user is logged in
       const loggedIn = await isLoggedIn();
       const role = await getUserRole();
       
-      if (!loggedIn || role !== 'farmer') {
-        console.log('[NotificationsScreen] Farmer not logged in, skipping API call');
+      // Store role in state
+      if (mountedRef.current) {
+        setUserRole(role as 'farmer' | 'dealer' | null);
+      }
+      
+      if (!loggedIn) {
+        console.log('[NotificationsScreen] User not logged in, skipping API call');
         isFetchingRef.current = false;
         if (mountedRef.current) {
           setLoading(false);
@@ -173,6 +230,12 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
         }
         return;
       }
+console.log("role ::",role);
+
+      // Determine API endpoint based on role
+      const apiEndpoint = role === 'farmer' 
+        ? Apis.FARMER_PUSH_NOTIFICATIONS 
+        : Apis.DEALER_PUSH_NOTIFICATIONS;
 
       if (showRefreshing) {
         setRefreshing(true);
@@ -186,9 +249,9 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
         limit: limit.toString(),
       };
 
-      console.log('[NotificationsScreen] Fetching notifications - Page:', page, 'Limit:', limit);
+      console.log('[NotificationsScreen] Fetching notifications - Role:', role, 'Page:', page, 'Limit:', limit);
       
-      const response = await getData(Apis.FARMER_PUSH_NOTIFICATIONS, params);
+      const response = await getData(apiEndpoint, params);
       
       console.log('[NotificationsScreen] Notifications API Response:', JSON.stringify(response, null, 2));
       
@@ -231,8 +294,14 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
   // Mark notification as read
   const markNotificationAsRead = useCallback(async (notificationId: string) => {
     try {
-      const readUrl = `${Apis.FARMER_PUSH_NOTIFICATION_READ}/${notificationId}/read`;
-      console.log('[NotificationsScreen] Marking notification as read:', notificationId);
+      // Determine API endpoint based on role
+      const role = await getUserRole();
+      const apiEndpoint = role === 'farmer' 
+        ? Apis.FARMER_PUSH_NOTIFICATION_READ 
+        : Apis.DEALER_PUSH_NOTIFICATION_READ;
+      
+      const readUrl = `${apiEndpoint}/${notificationId}/read`;
+      console.log('[NotificationsScreen] Marking notification as read:', notificationId, 'Role:', role);
       const response = await putData(readUrl, {});
       console.log('[NotificationsScreen] Mark as read response:', response);
       
@@ -378,14 +447,114 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
           color: colors.textSecondary,
           lineHeight: moderateScale(20),
         },
-        timestamp: {
+        timestampContainer: {
+          alignItems: 'flex-end',
+          justifyContent: 'flex-start',
+        },
+        timestampDate: {
+          ...Typography.regularSm,
+          fontSize: moderateScale(11),
+          color: colors.textTertiary,
+          marginBottom: moderateScale(2),
+        },
+        timestampTime: {
           ...Typography.regularSm,
           fontSize: moderateScale(12),
           color: colors.textTertiary,
-          marginTop: moderateScale(2),
         },
         arrowIcon: {
           marginLeft: moderateScale(8),
+        },
+        // Dealer Notification Styles
+        dealerNotificationCard: {
+          backgroundColor: colors.backgroundWhite,
+          borderRadius: moderateScale(12),
+          padding: moderateScale(16),
+          marginBottom: moderateScale(12),
+          shadowColor: colors.shadowColor,
+          shadowOpacity: 0.08,
+          shadowOffset: {width: 0, height: moderateScale(4)},
+          shadowRadius: moderateScale(10),
+          elevation: 4,
+          borderBottomWidth: 1,
+          borderBottomColor: colors.borderLight,
+        },
+        dealerNotificationItem: {
+          flexDirection: 'row',
+          alignItems: 'flex-start',
+        },
+        dealerIconContainer: {
+          width: moderateScale(40),
+          height: moderateScale(40),
+          borderRadius: moderateScale(20),
+          backgroundColor: colors.backgroundGray,
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginRight: moderateScale(12),
+        },
+        dealerNotificationContent: {
+          flex: 1,
+          flexDirection: 'row',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+        },
+        dealerNotificationTextContainer: {
+          flex: 1,
+          marginRight: moderateScale(12),
+        },
+        dealerNotificationName: {
+          ...Typography.semiBoldMd,
+          fontSize: moderateScale(16),
+          color: colors.textPrimary,
+          marginBottom: moderateScale(4),
+        },
+        dealerNotificationDescription: {
+          ...Typography.regularSm,
+          fontSize: moderateScale(14),
+          color: colors.textSecondary,
+          lineHeight: moderateScale(20),
+        },
+        dealerRightContainer: {
+          alignItems: 'flex-end',
+          justifyContent: 'flex-start',
+        },
+        dealerTimestampContainer: {
+          alignItems: 'flex-end',
+          marginBottom: moderateScale(8),
+        },
+        dealerTimestampDate: {
+          ...Typography.regularSm,
+          fontSize: moderateScale(11),
+          color: colors.textTertiary,
+          marginBottom: moderateScale(2),
+        },
+        dealerTimestampTime: {
+          ...Typography.regularSm,
+          fontSize: moderateScale(12),
+          color: colors.textTertiary,
+        },
+        dealerStatusContainer: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+        },
+        dealerArrow: {
+          marginRight: moderateScale(4),
+        },
+        statusIconContainer: {
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        dealerUnreadDot: {
+          position: 'absolute',
+          top: moderateScale(-2),
+          right: moderateScale(-2),
+          width: moderateScale(12),
+          height: moderateScale(12),
+          borderRadius: moderateScale(6),
+          backgroundColor: '#FF9500', // Orange color for unread
+          borderWidth: 2,
+          borderColor: colors.backgroundWhite,
         },
         // Bottom Sheet Modal styles
         modalOverlay: {
@@ -439,7 +608,19 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
 
   const handleNotificationPress = async (notification: NotificationItem) => {
     // Handle notification press - navigate to details or show modal
-    if (notification.status === 'failed') {
+    // For dealer role, show failed modal for failed status
+    if (userRole === 'dealer' && notification.status === 'failed') {
+      setSelectedNotification(notification);
+      setFirstName(notification.firstName || '');
+      setLastName(notification.lastName || '');
+      setRejectionReason(notification.rejectionReason || '');
+      setShowFailedModal(true);
+      // Mark as read when opening modal
+      if (!notification.isRead) {
+        await markNotificationAsRead(notification.id);
+      }
+    } else if (notification.status === 'failed') {
+      // For farmer role or other cases
       setSelectedNotification(notification);
       setFirstName(notification.firstName || '');
       setLastName(notification.lastName || '');
@@ -489,14 +670,128 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
   };
 
   const handleViewForm = () => {
-    // Handle view form action
-    console.log('View form for:', selectedNotification?.id);
-    // You can add navigation logic here if needed
-    handleCloseModal();
+    // Handle view form action - navigate to AddFarmerScreen in edit mode
+    if (selectedNotification?.referenceId) {
+      console.log('View form for:', selectedNotification.id, 'Farmer ID:', selectedNotification.referenceId);
+      handleCloseModal();
+      // Navigate to AddFarmerScreen with farmer ID for edit mode
+      (navigation as any).navigate(SCREEN_NAMES.AddFarmer, {
+        farmerId: selectedNotification.referenceId.toString(),
+        isEditMode: true,
+      });
+    } else {
+      console.log('No reference ID found for notification:', selectedNotification?.id);
+      handleCloseModal();
+    }
   };
 
-  // Render notification item
+  // Get status icon for dealer notifications
+  const getStatusIcon = (status?: NotificationStatus) => {
+    switch (status) {
+      case 'complete':
+        return (
+          <View style={styles.statusIconContainer}>
+            <Ionicons name="checkmark-circle" size={moderateScale(24)} color="#34C759" />
+          </View>
+        );
+      case 'pending':
+        return (
+          <View style={styles.statusIconContainer}>
+            <Ionicons name="alert-circle" size={moderateScale(24)} color="#FF9500" />
+          </View>
+        );
+      case 'failed':
+        return (
+          <View style={styles.statusIconContainer}>
+            <Ionicons name="close-circle" size={moderateScale(24)} color="#FF3B30" />
+          </View>
+        );
+      default:
+        return null;
+    }
+  };
+
+  // Render dealer notification item (matching the image design)
+  const renderDealerNotificationItem = ({item}: {item: NotificationItem}) => {
+    const fullName = `${item.firstName || ''} ${item.lastName || ''}`.trim() || item.title;
+    const description = item.description || item.title || '';
+    const status = item.status;
+
+    return (
+      <Pressable
+        style={styles.dealerNotificationCard}
+        onPress={() => handleNotificationPress(item)}
+        activeOpacity={0.7}>
+        <View style={styles.dealerNotificationItem}>
+          {/* User Icon with Unread Yellow Dot */}
+          <View style={styles.dealerIconContainer}>
+            <Ionicons
+              name="people-outline"
+              size={moderateScale(24)}
+              color={colors.textSecondary}
+            />
+            {!item.isRead && (
+              <View style={styles.dealerUnreadDot} />
+            )}
+          </View>
+
+          {/* Notification Content */}
+          <View style={styles.dealerNotificationContent}>
+            <View style={styles.dealerNotificationTextContainer}>
+              {/* User Name */}
+              <Text style={styles.dealerNotificationName} numberOfLines={1}>
+                {fullName}
+              </Text>
+              {/* Status Message */}
+              <Text
+                numberOfLines={2}
+                ellipsizeMode='tail'
+                style={styles.dealerNotificationDescription}>
+                {description}
+              </Text>
+            </View>
+
+            {/* Right Side: Date, Time, and Status Icon */}
+            <View style={styles.dealerRightContainer}>
+              {/* Date and Time */}
+              <View style={styles.dealerTimestampContainer}>
+                {item.date ? (
+                  <Text style={styles.dealerTimestampDate}>{item.date}</Text>
+                ) : null}
+                {item.time ? (
+                  <Text style={styles.dealerTimestampTime}>{item.time}</Text>
+                ) : item.timestamp ? (
+                  <Text style={styles.dealerTimestampTime}>{item.timestamp}</Text>
+                ) : null}
+              </View>
+
+              {/* Status Icon and Arrow */}
+              <View style={styles.dealerStatusContainer}>
+                {status === 'failed' && (
+                  <Ionicons
+                    name="chevron-forward"
+                    size={moderateScale(20)}
+                    color={colors.textSecondary}
+                    style={styles.dealerArrow}
+                  />
+                )}
+                {getStatusIcon(status)}
+              </View>
+            </View>
+          </View>
+        </View>
+      </Pressable>
+    );
+  };
+
+  // Render notification item (farmer or dealer)
   const renderNotificationItem = ({item}: {item: NotificationItem}) => {
+    // Use dealer UI if user is a dealer
+    if (userRole === 'dealer') {
+      return renderDealerNotificationItem({item});
+    }
+
+    // Use farmer UI (original design)
     const iconSource = getNotificationIcon(item.type, item.dataType);
 
     return (
@@ -545,10 +840,17 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
                 {item.description}
               </Text>
             </View>
-            {/* Timestamp */}
-            <Text style={styles.timestamp}>
-              {item.timestamp}
-            </Text>
+            {/* Date and Time */}
+            <View style={styles.timestampContainer}>
+              {item.date ? (
+                <Text style={styles.timestampDate}>{item.date}</Text>
+              ) : null}
+              {item.time ? (
+                <Text style={styles.timestampTime}>{item.time}</Text>
+              ) : item.timestamp ? (
+                <Text style={styles.timestampTime}>{item.timestamp}</Text>
+              ) : null}
+            </View>
           </View>
         </View>
       </Pressable>
@@ -713,6 +1015,7 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
                 value={firstName}
                 onChangeText={setFirstName}
                 placeholder={t('notifications.enterFirstName')}
+                editable={false}
                 containerStyle={styles.modalInputContainer}
               />
 
@@ -722,6 +1025,7 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
                 value={lastName}
                 onChangeText={setLastName}
                 placeholder={t('notifications.enterLastName')}
+                editable={false}
                 containerStyle={styles.modalInputContainer}
               />
 
@@ -733,6 +1037,7 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
                 placeholder={t('notifications.enterRejectionReason')}
                 multiline={true}
                 textAlignVertical="top"
+                editable={false}
                 containerStyle={styles.modalInputContainer}
               />
 

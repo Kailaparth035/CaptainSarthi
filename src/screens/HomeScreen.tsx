@@ -209,12 +209,33 @@ export default function HomeScreen() {
   const [tractors, setTractors] = useState<any[]>(initialTractors);
   const [refreshing, setRefreshing] = useState(false);
   const [profileName, setProfileName] = useState<string>('');
+  const [unreadCount, setUnreadCount] = useState<number>(0);
 
   // Update StatusBar and bottom bar to match screen background color
   useDynamicStatusBar({
     backgroundColor: colors.backgroundLight,
     bottomBarColor: colors.backgroundLight,
   });
+
+  // Fetch unread notification count
+  const fetchUnreadCount = React.useCallback(async () => {
+    try {
+      console.log('[HomeScreen] Fetching unread notification count...');
+      const response = await getData(Apis.DEALER_PUSH_NOTIFICATIONS_UNREAD_COUNT, {});
+      
+      if (response?.status === true && response?.data) {
+        const count = response.data.count || response.data.unread_count || 0;
+        setUnreadCount(count);
+        console.log('[HomeScreen] Unread notification count:', count);
+      } else {
+        console.log('[HomeScreen] No unread count in response, setting to 0');
+        setUnreadCount(0);
+      }
+    } catch (error) {
+      console.error('[HomeScreen] Error fetching unread notification count:', error);
+      setUnreadCount(0);
+    }
+  }, []);
 
   // Fetch all dashboard data - memoized to prevent unnecessary re-renders
   const fetchAllData = React.useCallback(async (isRefresh = false) => {
@@ -415,12 +436,14 @@ export default function HomeScreen() {
     React.useCallback(() => {
       console.log('[HomeScreen] Screen focused - fetching latest data');
       fetchAllData();
-    }, [fetchAllData])
+      fetchUnreadCount();
+    }, [fetchAllData, fetchUnreadCount])
   );
 
   // Pull to refresh handler
   const onRefresh = () => {
     fetchAllData(true);
+    fetchUnreadCount();
   };
 
   // Get first 4 farmers for home screen
@@ -661,7 +684,17 @@ export default function HomeScreen() {
         bellIcon: {
           padding: moderateScale(4),
           alignItems:'center',
-          justifyContent:'center'
+          justifyContent:'center',
+          position: 'relative',
+        },
+        notificationBadge: {
+          position: 'absolute',
+          top: moderateScale(6),
+          right: moderateScale(6),
+          width: moderateScale(8),
+          height: moderateScale(8),
+          borderRadius: moderateScale(4),
+          backgroundColor: '#FF9500', // Orange color for dealer notifications
         },
         summaryContainer: {
           flexDirection: 'row',
@@ -835,6 +868,9 @@ export default function HomeScreen() {
               size={moderateScale(22)}
               color={colors.textPrimary}
             />
+            {unreadCount > 0 && (
+              <View style={dynamicStyles.notificationBadge} />
+            )}
           </TouchableOpacity>
         </View>
       </View>

@@ -2282,6 +2282,7 @@ export default function AddFarmerScreen() {
     dateType?: 'dob' | 'dom' | 'purchase' | 'registration',
     dateError?: string | undefined,
     setDateError?: (error: string | undefined) => void,
+    required?: boolean,
   ) => {
     // Helper function to validate date whenever any part changes
     const validateDate = (day: string, month: string, year: string) => {
@@ -2479,6 +2480,7 @@ export default function AddFarmerScreen() {
               numberOfLinesLabel={1}
               returnKeyType="next"
               onSubmitEditing={() => mmRef?.current?.focus()}
+              required={required}
             />
           </View>
           <View style={styles.dateInput}>
@@ -2665,6 +2667,7 @@ export default function AddFarmerScreen() {
                   placeholder={categoriesLoading ? t('addFarmer.loadingCategories') : t('addFarmer.selectCategory')}
                   error={errors.category}
                   disabled={categoriesLoading}
+                  required={true}
                 />
                 {categoriesLoading && (
                   <View style={{marginTop: moderateScale(8), alignItems: 'center'}}>
@@ -2728,6 +2731,7 @@ export default function AddFarmerScreen() {
                             ? errors.selectedSubQuestion
                             : undefined
                         }
+                        required={true}
                         editable={!isEditMode}
                       />
                     </View>
@@ -2757,6 +2761,7 @@ export default function AddFarmerScreen() {
                           ? errors.selectedSubQuestion
                           : undefined
                       }
+                      required={true}
                       disabled={isEditMode}
                     />
                   );
@@ -2783,6 +2788,7 @@ export default function AddFarmerScreen() {
                           ? errors.selectedSubQuestion
                           : undefined
                       }
+                      required={true}
                       disabled={isEditMode}
                     />
                   );
@@ -2806,6 +2812,7 @@ export default function AddFarmerScreen() {
                           ? errors.selectedSubQuestion
                           : undefined
                       }
+                      required={true}
                       onError={(message) => showToastMessage(message)}
                     />
                   );
@@ -2836,6 +2843,7 @@ export default function AddFarmerScreen() {
                           ? errors.selectedSubQuestion
                           : undefined
                       }
+                      required={true}
                       disabled={isEditMode}
                     />
                   );
@@ -2855,6 +2863,7 @@ export default function AddFarmerScreen() {
                           ? errors.selectedSubQuestion
                           : undefined
                       }
+                      required={true}
                     />
                   );
               }
@@ -2882,6 +2891,7 @@ export default function AddFarmerScreen() {
                 placeholder={t('addFarmer.enterFirstName')}
                 error={errors.firstName}
                 numberOfLinesLabel={1}
+                required={true}
               />
             </View>
             <SimpleBoxInput
@@ -2902,6 +2912,7 @@ export default function AddFarmerScreen() {
                 placeholder={t('addFarmer.enterLastName')}
                 error={errors.lastName}
                 numberOfLinesLabel={1}
+                required={true}
               />
             </View>
             {/* Phone Number with Country Code */}
@@ -2921,6 +2932,7 @@ export default function AddFarmerScreen() {
                   keyboardType="phone-pad"
                   error={errors.countryCode}
                   numberOfLinesLabel={1}
+                  required={true}
                 />
               </View>
               <View 
@@ -2939,6 +2951,7 @@ export default function AddFarmerScreen() {
                   error={errors.phoneNumber}
                   numberOfLinesLabel={1}
                   maxLength={10}
+                  required={true}
                 />
               </View>
             </View>
@@ -2969,6 +2982,7 @@ export default function AddFarmerScreen() {
                 'dob',
                 dobDateError,
                 setDobDateError,
+                true, // required
               )}
             </View>
             <View onLayout={registerFieldPosition('domDD')}>
@@ -2998,6 +3012,7 @@ export default function AddFarmerScreen() {
                 'dom',
                 domDateError,
                 setDomDateError,
+                true, // required
               )}
             </View>
             {/* <SimpleBoxInput
@@ -3026,6 +3041,7 @@ export default function AddFarmerScreen() {
                 placeholder={t('addFarmer.enterHouseNumber')}
                 error={errors.houseNumber}
                 numberOfLinesLabel={1}
+                required={true}
               />
             </View>
             <View onLayout={registerFieldPosition('streetName')}>
@@ -3039,6 +3055,7 @@ export default function AddFarmerScreen() {
                 placeholder={t('addFarmer.enterStreetName')}
                 error={errors.streetName}
                 numberOfLinesLabel={1}
+                required={true}
               />
             </View>
             <SimpleBoxInput
@@ -3060,6 +3077,7 @@ export default function AddFarmerScreen() {
                 placeholder={t('addFarmer.selectState')}
                 error={errors.state}
                 loading={statesLoading}
+                required={true}
               />
             </View>
             <View onLayout={registerFieldPosition('district')}>
@@ -3074,6 +3092,7 @@ export default function AddFarmerScreen() {
                 placeholder={stateId ? t('addFarmer.selectDistrict') : t('addFarmer.selectStateFirst')}
                 error={errors.district}
                 loading={districtsLoading}
+                required={true}
               />
             </View>
             <View onLayout={registerFieldPosition('village')}>
@@ -3088,6 +3107,7 @@ export default function AddFarmerScreen() {
                 placeholder={districtId ? t('addFarmer.selectVillage') : t('addFarmer.selectDistrictFirst')}
                 error={errors.village}
                 loading={villagesLoading}
+                required={true}
               />
             </View>
             <View onLayout={registerFieldPosition('pincode')}>
@@ -3103,6 +3123,7 @@ export default function AddFarmerScreen() {
                 maxLength={6}
                 error={errors.pincode}
                 numberOfLinesLabel={1}
+                required={true}
               />
             </View>
           </View>
@@ -3291,6 +3312,7 @@ export default function AddFarmerScreen() {
                   placeholder={t('addFarmer.enterModelName')}
                   error={tractor.errors.modelName}
                   numberOfLinesLabel={1}
+                  required={true}
                 />
               </View>
               <View onLayout={registerFieldPosition(`tractor_${tractor.id}_vehicleNumber`)}>
@@ -3303,6 +3325,7 @@ export default function AddFarmerScreen() {
                   placeholder={t('addFarmer.enterVehicleNumber')}
                   error={tractor.errors.vehicleNumber}
                   numberOfLinesLabel={1}
+                  required={true}
                 />
               </View>
               <View onLayout={registerFieldPosition(`tractor_${tractor.id}_ownerName`)}>
@@ -3315,6 +3338,7 @@ export default function AddFarmerScreen() {
                   placeholder={t('addFarmer.enterOwnerName')}
                   error={tractor.errors.ownerName}
                   numberOfLinesLabel={1}
+                  required={true}
                 />
               </View>
               <View onLayout={registerFieldPosition(`tractor_${tractor.id}_chassisNumber`)}>
@@ -3327,6 +3351,7 @@ export default function AddFarmerScreen() {
                   placeholder={t('addFarmer.enterChassisNumber')}
                   error={tractor.errors.chassisNumber}
                   numberOfLinesLabel={1}
+                  required={true}
                 />
               </View>
               <View onLayout={registerFieldPosition(`tractor_${tractor.id}_engineNumber`)}>
@@ -3339,6 +3364,7 @@ export default function AddFarmerScreen() {
                   placeholder={t('addFarmer.enterEngineNumber')}
                   error={tractor.errors.engineNumber}
                   numberOfLinesLabel={1}
+                  required={true}
                 />
               </View>
               <View onLayout={registerFieldPosition(`tractor_${tractor.id}_purchaseDateDD`)}>
@@ -3370,6 +3396,7 @@ export default function AddFarmerScreen() {
                     'purchase',
                     tractor.errors.purchaseDateError,
                     (error) => updateTractorDateError(tractor.id, error),
+                    true, // required
                   );
                 })()}
               </View>
@@ -3383,6 +3410,7 @@ export default function AddFarmerScreen() {
                   placeholder={t('addFarmer.whoDrivesPlaceholder')}
                   error={tractor.errors.whoFrom}
                   numberOfLinesLabel={1}
+                  required={true}
                 />
               </View>
               {/* Add New Tractor Button - Only show on last tractor */}

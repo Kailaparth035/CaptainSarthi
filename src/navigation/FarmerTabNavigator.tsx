@@ -99,10 +99,14 @@ export default function FarmerTabNavigator() {
         component={FarmerTractorsStack}
         listeners={createTabPressListener(SCREEN_NAMES.Tractors)}
       />
+      {/* Profile tab hidden from tab bar but accessible programmatically */}
       <Tab.Screen 
         name={SCREEN_NAMES.Profile} 
         component={FarmerProfileStack}
         listeners={createTabPressListener(SCREEN_NAMES.Profile)}
+        options={{
+          tabBarButton: () => null, // Hide from tab bar
+        }}
       />
     </Tab.Navigator>
   );

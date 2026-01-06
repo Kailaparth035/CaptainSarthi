@@ -200,6 +200,17 @@
     "marriage": "विवाह",
     "continue": "जारी रखें"
   },
+  "updateNumberModal": {
+    "title": "नंबर अपडेट करें",
+    "description": "डीलर को नंबर अपडेट करने के लिए एक अनुरोध भेजा जाएगा। डीलर OTP सत्यापन के लिए आपसे संपर्क कर सकता है।",
+    "existingNumber": "मौजूदा नंबर",
+    "newNumber": "नया नंबर",
+    "enterMobileNumber": "मोबाइल नंबर दर्ज करें",
+    "sendRequest": "अनुरोध भेजें",
+    "pleaseEnterMobileNumber": "कृपया मोबाइल नंबर दर्ज करें",
+    "pleaseEnterValidMobileNumber": "कृपया मान्य मोबाइल नंबर दर्ज करें",
+    "newNumberMustBeDifferent": "नया नंबर मौजूदा नंबर से अलग होना चाहिए"
+  },
   "addFarmer": {
     "title": "किसान जोड़ें",
     "personalDetails": "व्यक्तिगत विवरण",
