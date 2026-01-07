@@ -34,7 +34,9 @@
     "addNew": "Add new",
     "name": "Name",
     "category": "Category",
-    "allCategories": "All Categories"
+    "allCategories": "All Categories",
+    "details": "Farmer details",
+    "noDetailsFound": "No farmer details found"
   },
   "tractors": {
     "title": "Tractors",

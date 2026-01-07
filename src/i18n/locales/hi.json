@@ -34,7 +34,9 @@
     "addNew": "नया जोड़ें",
     "name": "नाम",
     "category": "श्रेणी",
-    "allCategories": "सभी श्रेणियां"
+    "allCategories": "सभी श्रेणियां",
+    "details": "किसान विवरण",
+    "noDetailsFound": "कोई किसान विवरण नहीं मिला"
   },
   "tractors": {
     "title": "ट्रैक्टर",

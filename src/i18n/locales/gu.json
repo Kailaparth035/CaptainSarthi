@@ -34,7 +34,9 @@
     "addNew": "નવું ઉમેરો",
     "name": "નામ",
     "category": "શ્રેણી",
-    "allCategories": "બધી શ્રેણીઓ"
+    "allCategories": "બધી શ્રેણીઓ",
+    "details": "ખેડૂત માહિતી",
+    "noDetailsFound": "કોઈ ખેડૂત માહિતી મળી નથી"
   },
   "tractors": {
     "title": "ટ્રેક્ટર",
@@ -186,8 +188,8 @@
     "dateOfMarriage": "લગ્નની તારીખ",
     "dealershipName": "ડીલરશિપનું નામ",
     "dealershipAddress": "ડીલરશિપ સરનામું",
-    "tractorDetails": "ટ્રેક્ટર વિગતો",
-    "tractorCount": "ટ્રેક્ટર સંખ્યા",
+    "tractorDetails": "ટ્રેક્ટર માહિતી",
+    "tractorCount": "ટ્રેક્ટર નંબર",
     "modelName": "મોડલ નામ",
     "vehicleNo": "વાહન નંબર",
     "ownerName": "માલિકનું નામ",
@@ -225,8 +227,8 @@
     "title": "ખેડૂત ઉમેરો",
     "personalDetails": "વ્યક્તિગત વિગતો",
     "address": "સરનામું",
-    "tractorDetails": "ટ્રેક્ટર વિગતો",
-    "tractorCount": "ટ્રેક્ટર સંખ્યા",
+    "tractorDetails": "ટ્રેક્ટર માહિતી",
+    "tractorCount": "ટ્રેક્ટર નંબર",
     "uploadProfilePhoto": "પ્રોફાઇલ ફોટો અપલોડ કરો",
     "dealerName": "ડીલરનું નામ",
     "selectCategory": "શ્રેણી પસંદ કરો",
