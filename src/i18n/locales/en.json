@@ -225,6 +225,8 @@
   },
   "addFarmer": {
     "title": "Add Farmer",
+    "addNewFarmer": "Add new farmer",
+    "editFarmer": "Edit farmer",
     "personalDetails": "Personal details",
     "address": "Address",
     "tractorDetails": "Tractor details",

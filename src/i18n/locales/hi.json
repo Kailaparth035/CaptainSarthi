@@ -225,6 +225,8 @@
   },
   "addFarmer": {
     "title": "किसान जोड़ें",
+    "addNewFarmer": "नया किसान जोड़ें",
+    "editFarmer": "किसान संपादित करें",
     "personalDetails": "व्यक्तिगत विवरण",
     "address": "पता",
     "tractorDetails": "ट्रैक्टर विवरण",

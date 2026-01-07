@@ -2570,7 +2570,7 @@ export default function AddFarmerScreen() {
             color={colors.textPrimary}
           />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{isEditMode ? 'Edit farmer' : 'Add new farmer'}</Text>
+        <Text style={styles.headerTitle}>{isEditMode ? t('addFarmer.editFarmer') : t('addFarmer.addNewFarmer')}</Text>
       </View>
 
       <KeyboardAvoidingView

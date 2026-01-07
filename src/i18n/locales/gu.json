@@ -225,6 +225,8 @@
   },
   "addFarmer": {
     "title": "ખેડૂત ઉમેરો",
+    "addNewFarmer": "નવા ખેડૂત ઉમેરો",
+    "editFarmer": "ખેડૂત સંપાદિત કરો",
     "personalDetails": "વ્યક્તિગત વિગતો",
     "address": "સરનામું",
     "tractorDetails": "ટ્રેક્ટર માહિતી",
