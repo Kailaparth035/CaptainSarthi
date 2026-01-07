@@ -43,16 +43,17 @@ const createTabPressListener = (screenName: string) => {
       if (needsReset) {
         e.preventDefault();
         
-        // Reset the entire navigation state but preserve tab structure
-        // Only reset the specific tab's nested stack
-        const allRoutes = state.routes.map((r: any, index: number) => {
+        // Reset the stack to root by creating a new state with only the root screen
+        const allRoutes = state.routes.map((r: any) => {
           if (r.key === route.key) {
-            // Reset this tab's stack to root
+            // Reset this tab's stack to root - always show list page
             return {
               ...r,
               state: {
                 routes: [{name: screenName}],
                 index: 0,
+                key: `stack-${screenName}`,
+                routeNames: [screenName],
               },
             };
           }
@@ -60,6 +61,7 @@ const createTabPressListener = (screenName: string) => {
           return r;
         });
         
+        // Dispatch reset action to reset the navigation state
         navigation.dispatch(
           CommonActions.reset({
             index: targetTabIndex,
