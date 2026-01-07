@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {useRoute, useNavigation} from '@react-navigation/native';
+import {useRoute, useNavigation, useFocusEffect} from '@react-navigation/native';
 import {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
 import {FarmerTabParamList} from '../navigation/FarmerTabNavigator';
 import {SCREEN_NAMES} from '../constants/screenNames';
@@ -90,7 +90,7 @@ export default function EventDetailsScreen() {
   const [loading, setLoading] = useState(true);
   const [eventDetails, setEventDetails] = useState<any>(null);
   const [eventApiData, setEventApiData] = useState<any>(null); // Store full API response
-  const {playTTS, state: ttsState} = useTTS();
+  const {playTTS, stopTTS, state: ttsState} = useTTS();
 
   // Fetch event details from API
   const fetchEventDetails = useCallback(async (showRefreshing = false) => {
@@ -559,6 +559,16 @@ export default function EventDetailsScreen() {
     const descriptionText = params?.description || eventDetails.fullDescription;
     await playTTS(descriptionText);
   };
+
+  // Stop TTS when navigating away from this screen
+  useFocusEffect(
+    React.useCallback(() => {
+      return () => {
+        // This cleanup function runs when the screen loses focus
+        stopTTS();
+      };
+    }, [stopTTS])
+  );
 
   useDynamicStatusBar({
     backgroundColor: colors.backgroundLight,

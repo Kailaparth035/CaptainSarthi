@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {useRoute, useNavigation} from '@react-navigation/native';
+import {useRoute, useNavigation, useFocusEffect} from '@react-navigation/native';
 import {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
 import {FarmerTabParamList} from '../navigation/FarmerTabNavigator';
 import {SCREEN_NAMES} from '../constants/screenNames';
@@ -83,7 +83,7 @@ export default function StoryDetailsScreen() {
   const [loading, setLoading] = useState(true);
   const [storyDetails, setStoryDetails] = useState<any>(null);
   const [storyApiData, setStoryApiData] = useState<any>(null); // Store full API data for language re-transformation
-  const {playTTS, state: ttsState} = useTTS();
+  const {playTTS, stopTTS, state: ttsState} = useTTS();
 
   // Fetch story details from API
   const fetchStoryDetails = useCallback(async (showRefreshing = false) => {
@@ -245,6 +245,9 @@ export default function StoryDetailsScreen() {
   useEffect(() => {
     fetchStoryDetails();
   }, [fetchStoryDetails]);
+
+  const screenWidth = Dimensions.get('window').width;
+  const screenHeight = Dimensions.get('window').height;
 
   const dynamicStyles = useMemo(
     () =>
@@ -466,14 +469,22 @@ export default function StoryDetailsScreen() {
     await playTTS(descriptionText);
   };
 
+  // Stop TTS when navigating away from this screen
+  useFocusEffect(
+    React.useCallback(() => {
+      return () => {
+        // This cleanup function runs when the screen loses focus
+        stopTTS();
+      };
+    }, [stopTTS])
+  );
+
   useDynamicStatusBar({
     backgroundColor: colors.backgroundLight,
     bottomBarColor: colors.backgroundLight,
   });
 
   const {currentConfig} = useStatusBar();
-  const screenWidth = Dimensions.get('window').width;
-  const screenHeight = Dimensions.get('window').height;
 
   // Skeleton component matching the exact design
   const renderSkeleton = () => {
