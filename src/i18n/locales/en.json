@@ -138,7 +138,10 @@
     "edit": "Edit",
     "submit": "Submit",
     "loading": "Loading...",
-    "search": "Search"
+    "search": "Search",
+    "filters": "Filters",
+    "reset": "Reset",
+    "apply": "Apply"
   },
   "onboarding": {
     "getStarted": "Get started",
@@ -280,6 +283,7 @@
     "addNewTractor": "Add new tractor",
     "remove": "Remove",
     "sendForVerification": "Send for verification",
+    "updateForVerification": "Update for verification",
     "dd": "DD",
     "mm": "MM",
     "yyyy": "YYYY",

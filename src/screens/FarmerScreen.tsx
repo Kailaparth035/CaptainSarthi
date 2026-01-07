@@ -710,7 +710,7 @@ export default function FarmerScreen() {
           setSelectedCategory('name');
           setSelectedOptions({});
         }}
-        title="Filters"
+        title={t('common.filters')}
         categories={filterCategories}
         selectedCategory={selectedCategory}
         selectedOptions={selectedOptions}

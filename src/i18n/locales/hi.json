@@ -138,7 +138,10 @@
     "edit": "संपादित करें",
     "submit": "सबमिट करें",
     "loading": "लोड हो रहा है...",
-    "search": "खोजें"
+    "search": "खोजें",
+    "filters": "फिल्टर",
+    "reset": "रीसेट करें",
+    "apply": "आवेदन करना"
   },
   "onboarding": {
     "getStarted": "शुरू करें",
@@ -280,6 +283,7 @@
     "addNewTractor": "नया ट्रैक्टर जोड़ें",
     "remove": "हटाएं",
     "sendForVerification": "सत्यापन के लिए भेजें",
+    "updateForVerification": "सत्यापन के लिए अद्यतन करें",
     "dd": "दिन",
     "mm": "महीना",
     "yyyy": "वर्ष",

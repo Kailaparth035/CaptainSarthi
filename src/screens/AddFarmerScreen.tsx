@@ -3434,7 +3434,7 @@ export default function AddFarmerScreen() {
         {/* Submit Button */}
         <View style={{padding:moderateScale(14)}}>
           <Button
-            title={isEditMode ? 'Update for verification' : t('addFarmer.sendForVerification')}
+            title={isEditMode ? t('addFarmer.updateForVerification') : t('addFarmer.sendForVerification')}
             onPress={isEditMode ? handleUpdateFarmer : handleSubmit}
             loading={submitting}
             disabled={submitting}

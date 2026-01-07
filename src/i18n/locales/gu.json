@@ -138,7 +138,10 @@
     "edit": "સંપાદિત કરો",
     "submit": "સબમિટ કરો",
     "loading": "લોડ થઈ રહ્યું છે...",
-    "search": "શોધો"
+    "search": "શોધો",
+    "filters": "ફિલ્ટર્સ",
+    "reset": "રીસેટ કરો",
+    "apply": "અરજી કરો"
   },
   "onboarding": {
     "getStarted": "શરૂ કરો",
@@ -280,6 +283,7 @@
     "addNewTractor": "નવું ટ્રેક્ટર ઉમેરો",
     "remove": "કાઢી નાખો",
     "sendForVerification": "ચકાસણી માટે મોકલો",
+    "updateForVerification": "ચકાસણી માટે અપડેટ",
     "dd": "દિવસ",
     "mm": "મહિનો",
     "yyyy": "વર્ષ",
