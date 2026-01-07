@@ -21,6 +21,52 @@ export type TabParamList = {
 
 const Tab = createBottomTabNavigator<TabParamList>();
 
+// Helper function to create tab press listener that resets stack to root
+const createTabPressListener = (screenName: string) => {
+  return ({navigation, route}: any) => ({
+    tabPress: (e: any) => {
+      const state = navigation.getState();
+      const tabState = state.routes.find((r: any) => r.key === route.key)?.state;
+      const currentTabIndex = state.index;
+      const targetTabIndex = state.routes.findIndex((r: any) => r.key === route.key);
+      
+      // Always reset to root screen when tab is pressed
+      // Check if stack has multiple screens OR if we're switching from another tab
+      const needsReset = (tabState && tabState.index > 0) || currentTabIndex !== targetTabIndex;
+      
+      if (needsReset) {
+        e.preventDefault();
+        
+        // Reset the stack to root by creating a new state with only the root screen
+        const allRoutes = state.routes.map((r: any) => {
+          if (r.key === route.key) {
+            // Reset this tab's stack to root - always show list page
+            return {
+              ...r,
+              state: {
+                routes: [{name: screenName}],
+                index: 0,
+                key: `stack-${screenName}`,
+                routeNames: [screenName],
+              },
+            };
+          }
+          // Keep other tabs as they are
+          return r;
+        });
+        
+        // Dispatch reset action to reset the navigation state
+        navigation.dispatch(
+          CommonActions.reset({
+            index: targetTabIndex,
+            routes: allRoutes,
+          })
+        );
+      }
+    },
+  });
+};
+
 export default function TabNavigator() {
   return (
     <Tab.Navigator
@@ -32,102 +78,22 @@ export default function TabNavigator() {
       <Tab.Screen 
         name={SCREEN_NAMES.Home} 
         component={HomeStack}
-        listeners={({navigation, route}) => ({
-          tabPress: (e) => {
-            // Always reset stack to main screen when tab is pressed
-            const state = navigation.getState();
-            const tabState = state.routes.find(r => r.key === route.key)?.state;
-            
-            // If stack exists and has multiple screens, pop to root
-            if (tabState && tabState.index > 0) {
-              e.preventDefault();
-              // Navigate to root screen to reset the stack
-              navigation.dispatch(
-                CommonActions.navigate({
-                  name: SCREEN_NAMES.Home,
-                  params: {
-                    screen: SCREEN_NAMES.Home,
-                  },
-                })
-              );
-            }
-          },
-        })}
+        listeners={createTabPressListener(SCREEN_NAMES.Home)}
       />
       <Tab.Screen 
         name={SCREEN_NAMES.Farmer} 
         component={FarmerStack}
-        listeners={({navigation, route}) => ({
-          tabPress: (e) => {
-            // Always reset stack to main screen when tab is pressed
-            const state = navigation.getState();
-            const tabState = state.routes.find(r => r.key === route.key)?.state;
-            
-            // If stack exists and has multiple screens, pop to root
-            if (tabState && tabState.index > 0) {
-              e.preventDefault();
-              // Navigate to root screen to reset the stack
-              navigation.dispatch(
-                CommonActions.navigate({
-                  name: SCREEN_NAMES.Farmer,
-                  params: {
-                    screen: SCREEN_NAMES.Farmer,
-                  },
-                })
-              );
-            }
-          },
-        })}
+        listeners={createTabPressListener(SCREEN_NAMES.Farmer)}
       />
       <Tab.Screen 
         name={SCREEN_NAMES.Tractors} 
         component={TractorsStack}
-        listeners={({navigation, route}) => ({
-          tabPress: (e) => {
-            // Always reset stack to main screen when tab is pressed
-            const state = navigation.getState();
-            const tabState = state.routes.find(r => r.key === route.key)?.state;
-            
-            // If stack exists and has multiple screens, pop to root
-            if (tabState && tabState.index > 0) {
-              e.preventDefault();
-              // Navigate to root screen to reset the stack
-              navigation.dispatch(
-                CommonActions.navigate({
-                  name: SCREEN_NAMES.Tractors,
-                  params: {
-                    screen: SCREEN_NAMES.Tractors,
-                  },
-                })
-              );
-            }
-          },
-        })}
+        listeners={createTabPressListener(SCREEN_NAMES.Tractors)}
       />
       <Tab.Screen 
         name={SCREEN_NAMES.Profile} 
         component={ProfileStack}
-        listeners={({navigation, route}) => ({
-          tabPress: (e) => {
-            // Always reset stack to main screen when tab is pressed
-            const state = navigation.getState();
-            const tabState = state.routes.find(r => r.key === route.key)?.state;
-            
-            // If stack exists and has multiple screens, pop to root
-            if (tabState && tabState.index > 0) {
-              e.preventDefault();
-              // Navigate to root screen to reset the stack
-              navigation.dispatch(
-                CommonActions.navigate({
-                  name: SCREEN_NAMES.Profile,
-                  params: {
-                    screen: SCREEN_NAMES.Profile,
-                  },
-                })
-              );
-            }
-          },
-        })}
+        listeners={createTabPressListener(SCREEN_NAMES.Profile)}
       />
     </Tab.Navigator>
   );
