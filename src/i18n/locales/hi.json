@@ -20,11 +20,21 @@
     "syncNow": "अभी सिंक करें",
     "clients": "ग्राहक",
     "tractors": "ट्रैक्टर",
-    "seeAll": "सभी देखें"
+    "seeAll": "सभी देखें",
+    "farmers": "किसान",
+    "unknownModel": "अज्ञात मॉडल",
+    "notAvailable": "उपलब्ध नहीं",
+    "noFarmerAdded": "कोई किसान नहीं जोड़ा गया",
+    "noFarmerDescription": "ऐसा लगता है कि अभी तक यहाँ कोई किसान नहीं है। शुरू करने के लिए अपना पहला किसान जोड़ें।",
+    "addFarmer": "किसान जोड़ें",
+    "noTractors": "कोई ट्रैक्टर नहीं मिला"
   },
   "farmer": {
     "title": "किसान",
-    "addNew": "नया जोड़ें"
+    "addNew": "नया जोड़ें",
+    "name": "नाम",
+    "category": "श्रेणी",
+    "allCategories": "सभी श्रेणियां"
   },
   "tractors": {
     "title": "ट्रैक्टर",

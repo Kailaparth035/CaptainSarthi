@@ -289,10 +289,10 @@ export default function HomeScreen() {
             const color = colorsArray[index % colorsArray.length];
             
             // Use title as model name, fallback to series or description
-            const modelName = tractor.title || tractor.series || tractor.description || 'Unknown Model';
+            const modelName = tractor.title || tractor.series || tractor.description || t('home.unknownModel');
             
             // Use series name instead of owner
-            const seriesName = tractor.series || 'N/A';
+            const seriesName = tractor.series || t('home.notAvailable');
             
             return {
               id: tractor.id?.toString() || index.toString(),
@@ -315,8 +315,8 @@ export default function HomeScreen() {
         const transformedTractors = tractorsResponse.map((tractor: any, index: number) => {
           const colorsArray = [colors.tractorGreen, colors.tractorOrange, colors.tractorGreen];
           const color = colorsArray[index % colorsArray.length];
-          const modelName = tractor.title || tractor.series || tractor.description || 'Unknown Model';
-          const seriesName = tractor.series || 'N/A';
+          const modelName = tractor.title || tractor.series || tractor.description || t('home.unknownModel');
+          const seriesName = tractor.series || t('home.notAvailable');
           
           return {
             id: tractor.id?.toString() || index.toString(),
@@ -960,7 +960,7 @@ export default function HomeScreen() {
         {/* Clients Section */}
         <View style={dynamicStyles.sectionCard}>
           <View style={dynamicStyles.sectionHeader}>
-            <Text style={dynamicStyles.sectionTitle}>Farmers</Text>
+            <Text style={dynamicStyles.sectionTitle}>{t("home.farmers")}</Text>
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={() => {
@@ -1054,7 +1054,7 @@ export default function HomeScreen() {
                     },
                   ]}
                 >
-                  No farmer added
+                  {t("home.noFarmerAdded")}
                 </Text>
                 <Text
                   style={[
@@ -1068,7 +1068,7 @@ export default function HomeScreen() {
                     },
                   ]}
                 >
-                  Looks like there are no farmers here yet. Add your first farmer to get started.
+                  {t("home.noFarmerDescription")}
                 </Text>
                 <TouchableOpacity
                   style={{
@@ -1096,7 +1096,7 @@ export default function HomeScreen() {
                       },
                     ]}
                   >
-                    Add farmer
+                    {t("home.addFarmer")}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -1180,7 +1180,7 @@ export default function HomeScreen() {
                     { color: colors.textSecondary },
                   ]}
                 >
-                  {t("home.noTractors") || "No tractors found"}
+                  {t("home.noTractors")}
                 </Text>
               </View>
             )}

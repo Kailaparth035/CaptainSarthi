@@ -1,8 +1,8 @@
 {
-  "appName": "ફાર્મર",
+  "appName": "ખેડૂત",
   "tabs": {
     "Home": "હોમ",
-    "Farmer": "ફાર્મર",
+    "Farmer": "ખેડૂત",
     "Tractors": "ટ્રેક્ટર",
     "More": "વધુ",
     "Profile": "પ્રોફાઇલ",
@@ -12,7 +12,7 @@
   },
   "home": {
     "title": "હોમ",
-    "welcome": "ફાર્મર એપ્લિકેશનમાં આપનું સ્વાગત છે.",
+    "welcome": "ખેડૂત એપ્લિકેશનમાં આપનું સ્વાગત છે.",
     "greeting": "નમસ્તે",
     "activeClients": "સક્રિય ક્લાયન્ટ્સ",
     "tractorModels": "ટ્રેક્ટર મોડલ્સ",
@@ -20,11 +20,21 @@
     "syncNow": "હવે સમન્વય કરો",
     "clients": "ક્લાયન્ટ્સ",
     "tractors": "ટ્રેક્ટર",
-    "seeAll": "બધું જુઓ"
+    "seeAll": "બધું જુઓ",
+    "farmers": "ખેડૂત",
+    "unknownModel": "અજ્ઞાત મોડલ",
+    "notAvailable": "ઉપલબ્ધ નથી",
+    "noFarmerAdded": "કોઈ ખેડૂત ઉમેર્યો નથી",
+    "noFarmerDescription": "એવું લાગે છે કે અહીં હજુ સુધી કોઈ ખેડૂત નથી. શરૂ કરવા માટે તમારો પહેલો ખેડૂત ઉમેરો.",
+    "addFarmer": "ખેડૂત ઉમેરો",
+    "noTractors": "કોઈ ટ્રેક્ટર મળ્યું નથી"
   },
   "farmer": {
-    "title": "ફાર્મર",
-    "addNew": "નવું ઉમેરો"
+    "title": "ખેડૂત",
+    "addNew": "નવું ઉમેરો",
+    "name": "નામ",
+    "category": "શ્રેણી",
+    "allCategories": "બધી શ્રેણીઓ"
   },
   "tractors": {
     "title": "ટ્રેક્ટર",
@@ -212,7 +222,7 @@
     "newNumberMustBeDifferent": "નવો નંબર હાલના નંબરથી અલગ હોવો જોઈએ"
   },
   "addFarmer": {
-    "title": "ફાર્મર ઉમેરો",
+    "title": "ખેડૂત ઉમેરો",
     "personalDetails": "વ્યક્તિગત વિગતો",
     "address": "સરનામું",
     "tractorDetails": "ટ્રેક્ટર વિગતો",

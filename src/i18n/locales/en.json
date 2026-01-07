@@ -20,11 +20,21 @@
     "syncNow": "Sync now",
     "clients": "Clients",
     "tractors": "Tractors",
-    "seeAll": "See all"
+    "seeAll": "See all",
+    "farmers": "Farmers",
+    "unknownModel": "Unknown Model",
+    "notAvailable": "N/A",
+    "noFarmerAdded": "No farmer added",
+    "noFarmerDescription": "Looks like there are no farmers here yet. Add your first farmer to get started.",
+    "addFarmer": "Add farmer",
+    "noTractors": "No tractors found"
   },
   "farmer": {
     "title": "Farmers",
-    "addNew": "Add new"
+    "addNew": "Add new",
+    "name": "Name",
+    "category": "Category",
+    "allCategories": "All Categories"
   },
   "tractors": {
     "title": "Tractors",
