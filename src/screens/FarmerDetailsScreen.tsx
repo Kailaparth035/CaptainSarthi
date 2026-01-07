@@ -1006,7 +1006,7 @@ export default function FarmerDetailsScreen() {
                         />
                       ) : (
                         <View style={dynamicStyles.placeholderImage}>
-                          <Text style={[dynamicStyles.placeholderText, {fontSize: moderateScale(10)}]}>No RC Front</Text>
+                          <Text style={[dynamicStyles.placeholderText, {fontSize: moderateScale(10)}]}>{t("addFarmer.noRcFront")}</Text>
                         </View>
                       )}
                     </TouchableOpacity>
@@ -1033,7 +1033,7 @@ export default function FarmerDetailsScreen() {
                         />
                       ) : (
                         <View style={dynamicStyles.placeholderImage}>
-                          <Text style={[dynamicStyles.placeholderText, {fontSize: moderateScale(10)}]}>No RC Back</Text>
+                          <Text style={[dynamicStyles.placeholderText, {fontSize: moderateScale(10)}]}>{t("addFarmer.noRcBack")}</Text>
                         </View>
                       )}
                     </TouchableOpacity>

@@ -284,7 +284,12 @@
     "yourAnswerHere": "यहां अपना उत्तर दर्ज करें",
     "selectOption": "विकल्प चुनें",
     "uploadTractorImage": "ट्रैक्टर छवि अपलोड करें",
-    "uploadSecondImage": "दूसरी छवि अपलोड करें"
+    "uploadSecondImage": "दूसरी छवि अपलोड करें",
+    "uploadRcFront": "RC फ्रंट अपलोड करें",
+    "uploadRcBack": "RC बैक अपलोड करें",
+    "uploadRcImage": "RC छवि अपलोड करें",
+    "noRcFront": "कोई RC फ्रंट नहीं",
+    "noRcBack": "कोई RC बैक नहीं"
   }
 }
 

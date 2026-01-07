@@ -3271,14 +3271,14 @@ export default function AddFarmerScreen() {
               {/* RC Front and Back Images */}
               <View style={styles.imageUploadContainer}>
                 {renderImageUpload(
-                  'Upload RC front',
+                  t('addFarmer.uploadRcFront'),
                   tractor.rcFront,
                   () => handleImagePicker('rcFront', tractor.id),
                   false,
                   tractor.rcFront ? () => handleImagePreview(tractor.id, 'rcFront', tractor.rcFront!) : undefined,
                 )}
                 {renderImageUpload(
-                  'Upload RC back',
+                  t('addFarmer.uploadRcBack'),
                   tractor.rcBack,
                   () => handleImagePicker('rcBack', tractor.id),
                   false,

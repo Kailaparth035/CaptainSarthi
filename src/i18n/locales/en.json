@@ -284,7 +284,12 @@
     "yourAnswerHere": "Your answer here",
     "selectOption": "Select option",
     "uploadTractorImage": "Upload Tractor image",
-    "uploadSecondImage": "Upload second image"
+    "uploadSecondImage": "Upload second image",
+    "uploadRcFront": "Upload RC front",
+    "uploadRcBack": "Upload RC back",
+    "uploadRcImage": "Upload RC image",
+    "noRcFront": "No RC Front",
+    "noRcBack": "No RC Back"
   }
 }
 
