@@ -25,7 +25,7 @@ import ImagePickerModal from '../components/ImagePickerModal';
 import ImagePreviewModal, {ImageItem} from '../components/ImagePreviewModal';
 import Button from '../components/Button';
 import {SCREEN_NAMES} from '../constants/screenNames';
-import {saveProfileReviewed, getUserRole, saveProfileCompleted} from '../utils/session';
+import {saveProfileReviewed, getUserRole, saveProfileCompleted, getPendingNavigation, clearPendingNavigation} from '../utils/session';
 import { ImagePath } from '../assets/images';
 import {useLanguage} from '../contexts/LanguageContext';
 import Toast, {ToastType} from '../components/Toast';
@@ -557,9 +557,45 @@ export default function ReviewProfileScreen() {
         // Mark profile as completed
         await saveProfileCompleted(true);
         
+        // Check for pending navigation (e.g., from notification click)
+        const pendingNav = await getPendingNavigation();
+        const hasPendingNotificationNav = pendingNav?.action === 'OPEN_NOTIFICATION_DETAIL';
+        const hasPendingEventNav = pendingNav?.action === 'OPEN_EVENT_DETAIL';
+        
         // Navigate to FarmerTabs after a short delay to show success message
         setTimeout(() => {
           navigation.replace(SCREEN_NAMES.FarmerTabs);
+          
+          // If there's a pending notification navigation, navigate to Notifications screen
+          if (hasPendingNotificationNav) {
+            console.log('[ReviewProfileScreen] Pending notification navigation detected - will navigate to Notifications');
+            setTimeout(() => {
+              (navigation as any).navigate(SCREEN_NAMES.FarmerTabs, {
+                screen: SCREEN_NAMES.Home,
+                params: {
+                  screen: SCREEN_NAMES.Notifications,
+                },
+              });
+              // Clear pending navigation
+              clearPendingNavigation();
+            }, 500);
+          } else if (hasPendingEventNav && pendingNav?.params?.eventId) {
+            // If there's a pending event navigation, navigate to EventDetails screen
+            console.log('[ReviewProfileScreen] Pending event navigation detected - will navigate to EventDetails with eventId:', pendingNav.params.eventId);
+            setTimeout(() => {
+              (navigation as any).navigate(SCREEN_NAMES.FarmerTabs, {
+                screen: SCREEN_NAMES.Events,
+                params: {
+                  screen: SCREEN_NAMES.EventDetails,
+                  params: {
+                    eventId: pendingNav.params.eventId,
+                  },
+                },
+              });
+              // Clear pending navigation
+              clearPendingNavigation();
+            }, 500);
+          }
         }, 1000);
       } else {
         // Show error message
