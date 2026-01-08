@@ -22,6 +22,7 @@ import FirebaseService from './src/Service/FirebaseService';
 import {isLoggedIn, getUserRole, savePendingNavigation} from './src/utils/session';
 import {SCREEN_NAMES} from './src/constants/screenNames';
 import {CommonActions} from '@react-navigation/native';
+import SplashScreen from 'react-native-splash-screen';
 
 function App() {
   useEffect(() => {
@@ -244,6 +245,33 @@ function App() {
 
 function AppContent() {
   const {currentConfig} = useStatusBar();
+
+  useEffect(() => {
+    // Hide splash screen when navigation is ready
+    // Wait for navigation container to be initialized
+    const hideSplash = () => {
+      if (navigationRef.current?.isReady()) {
+        SplashScreen.hide();
+      } else {
+        // Wait for navigation to be ready
+        const checkNavigation = setInterval(() => {
+          if (navigationRef.current?.isReady()) {
+            SplashScreen.hide();
+            clearInterval(checkNavigation);
+          }
+        }, 100);
+        
+        // Fallback: hide after 2 seconds if navigation doesn't become ready
+        setTimeout(() => {
+          SplashScreen.hide();
+          clearInterval(checkNavigation);
+        }, 2000);
+      }
+    };
+    
+    // Small delay to ensure app initialization is complete
+    setTimeout(hideSplash, 100);
+  }, []);
 
   return (
     <>
