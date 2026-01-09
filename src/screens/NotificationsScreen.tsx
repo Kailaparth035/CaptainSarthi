@@ -46,6 +46,8 @@ interface NotificationItem {
   title: string;
   description: string;
   timestamp: string;
+  date?: string;
+  time?: string;
   type: 'event' | 'story' | 'other';
   isRead: boolean;
   hasArrow?: boolean;
@@ -54,6 +56,7 @@ interface NotificationItem {
   rejectionReason?: string;
   status?: NotificationStatus;
   referenceId?: string | number;
+  farmerId?: string; // Store farmer ID from notification data
   clickAction?: string;
   eventId?: string;
   storyId?: string;
@@ -64,7 +67,7 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
   navigation,
 }) => {
   const insets = useSafeAreaInsets();
-  const {moderateScale} = useDeviceMetrics();
+  const {moderateScale, deviceHeight} = useDeviceMetrics();
   const {t} = useLanguage();
   const tabNavigation = useNavigation<BottomTabNavigationProp<FarmerTabParamList & TabParamList>>();
   const [showFailedModal, setShowFailedModal] = useState(false);
@@ -79,6 +82,7 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [userRole, setUserRole] = useState<'farmer' | 'dealer' | null>(null);
+  const [farmerList, setFarmerList] = useState<any[]>([]); // Store farmer list for dealer role
   
   // API request parameters
   const page = 1;
@@ -158,17 +162,21 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
   };
 
   // Transform API response to NotificationItem
-  const transformNotification = (item: any): NotificationItem => {
+  const transformNotification = (item: any, farmers: any[] = []): NotificationItem => {
     const notificationData = item.data || {};
     const timestampData = formatTimestamp(item.createdAt || item.created_at || item.timestamp || item.date || '');
     
-    // Extract status from various possible locations
+    // Extract status from data.status ("0" = pending, "1" = complete, "2" = failed/rejected)
     let status: NotificationStatus | undefined;
-    if (item.status) {
-      status = item.status as NotificationStatus;
-    } else if (notificationData.status) {
-      status = notificationData.status as NotificationStatus;
+    const statusCode = notificationData.status?.toString() || item.status?.toString();
+    if (statusCode === '1') {
+      status = 'complete';
+    } else if (statusCode === '0') {
+      status = 'pending';
+    } else if (statusCode === '2') {
+      status = 'failed';
     } else if (item.description || item.body || item.message) {
+      // Fallback to text parsing if status code not available
       const desc = (item.description || item.body || item.message || '').toLowerCase();
       if (desc.includes('complete') || desc.includes('verified')) {
         status = 'complete';
@@ -176,6 +184,34 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
         status = 'pending';
       } else if (desc.includes('failed') || desc.includes('reject')) {
         status = 'failed';
+      }
+    }
+    
+    // Extract farmer_id from notification data
+    const farmerIdFromNotification = notificationData.farmer_id?.toString() || notificationData.reference_id?.toString();
+    
+    // Find farmer from farmer list (use passed parameter or state)
+    const farmersToSearch = farmers.length > 0 ? farmers : farmerList;
+    let farmerFirstName = '';
+    let farmerLastName = '';
+    if (farmerIdFromNotification && farmersToSearch.length > 0) {
+      const farmer = farmersToSearch.find((f: any) => 
+        f.id?.toString() === farmerIdFromNotification || 
+        f.farmer_id?.toString() === farmerIdFromNotification
+      );
+      if (farmer) {
+        farmerFirstName = farmer.first_name || farmer.firstName || '';
+        farmerLastName = farmer.last_name || farmer.lastName || '';
+      }
+    }
+    
+    // Extract rejection reason from body (format: "Farmer xyz has been rejected. Reason: reason text")
+    let rejectionReason = '';
+    const body = item.body || item.description || '';
+    if (status === 'failed' && body) {
+      const reasonMatch = body.match(/Reason:\s*(.+)/i);
+      if (reasonMatch && reasonMatch[1]) {
+        rejectionReason = reasonMatch[1].trim();
       }
     }
     
@@ -189,17 +225,46 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
       type: item.type || 'other',
       isRead: item.is_read === true || item.isRead === true || false,
       hasArrow: item.has_arrow !== false,
-      firstName: item.first_name || item.firstName || notificationData.first_name || notificationData.firstName || '',
-      lastName: item.last_name || item.lastName || notificationData.last_name || notificationData.lastName || '',
-      rejectionReason: item.rejection_reason || item.rejectionReason || notificationData.rejection_reason || notificationData.rejectionReason || '',
+      firstName: farmerFirstName || item.first_name || item.firstName || notificationData.first_name || notificationData.firstName || '',
+      lastName: farmerLastName || item.last_name || item.lastName || notificationData.last_name || notificationData.lastName || '',
+      rejectionReason: rejectionReason || item.rejection_reason || item.rejectionReason || notificationData.rejection_reason || notificationData.rejectionReason || '',
       status: status,
-      referenceId: item.reference_id || item.referenceId,
+      referenceId: item.reference_id || item.referenceId || farmerIdFromNotification,
+      farmerId: farmerIdFromNotification, // Store farmer ID for matching
       clickAction: notificationData.click_action || notificationData.clickAction,
       eventId: notificationData.event_id || notificationData.eventId,
       storyId: notificationData.story_id || notificationData.storyId,
       dataType: notificationData.type || item.type || 'other', // data.type from API response
     };
   };
+
+  // Fetch farmer list for dealer role
+  const fetchFarmerList = useCallback(async (): Promise<any[]> => {
+    try {
+      const role = await getUserRole();
+      if (role !== 'dealer') {
+        return []; // Only fetch for dealer role
+      }
+      
+      console.log('[NotificationsScreen] Fetching farmer list for dealer');
+      const response = await getData(Apis.DEALER_FARMERS, {});
+      
+      if (response?.status === true && response?.data) {
+        const farmersArray = response.data.farmers || 
+                           (Array.isArray(response.data) ? response.data : []);
+        
+        if (mountedRef.current && Array.isArray(farmersArray)) {
+          setFarmerList(farmersArray);
+          console.log('[NotificationsScreen] Farmer list fetched:', farmersArray.length, 'farmers');
+          return farmersArray;
+        }
+      }
+      return [];
+    } catch (error) {
+      console.error('[NotificationsScreen] Error fetching farmer list:', error);
+      return [];
+    }
+  }, []);
 
   // Fetch notifications from API
   const fetchNotifications = useCallback(async (showRefreshing = false) => {
@@ -230,12 +295,19 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
         }
         return;
       }
-console.log("role ::",role);
+      
+      console.log("role ::",role);
 
       // Determine API endpoint based on role
       const apiEndpoint = role === 'farmer' 
         ? Apis.FARMER_PUSH_NOTIFICATIONS 
         : Apis.DEALER_PUSH_NOTIFICATIONS;
+
+      // Fetch farmer list if dealer role (before notifications to match farmer IDs)
+      let farmersList: any[] = [];
+      if (role === 'dealer') {
+        farmersList = await fetchFarmerList();
+      }
 
       if (showRefreshing) {
         setRefreshing(true);
@@ -264,7 +336,8 @@ console.log("role ::",role);
         
         if (mountedRef.current) {
           if (Array.isArray(notificationsArray)) {
-            const transformedNotifications = notificationsArray.map(transformNotification);
+            // Transform notifications with farmer list passed as parameter
+            const transformedNotifications = notificationsArray.map((item: any) => transformNotification(item, farmersList));
             setNotifications(transformedNotifications);
           } else {
             console.warn('[NotificationsScreen] Unexpected notifications array format');
@@ -289,7 +362,7 @@ console.log("role ::",role);
         setRefreshing(false);
       }
     }
-  }, []);
+  }, [fetchFarmerList]);
 
   // Mark notification as read
   const markNotificationAsRead = useCallback(async (notificationId: string) => {
@@ -382,7 +455,7 @@ console.log("role ::",role);
           paddingBottom: moderateScale(100),
         },
         listContent: {
-          padding: moderateScale(16),
+          padding: moderateScale(0),
           paddingBottom: moderateScale(100),
         },
         skeletonContainer: {
@@ -465,19 +538,31 @@ console.log("role ::",role);
         arrowIcon: {
           marginLeft: moderateScale(8),
         },
-        // Dealer Notification Styles
-        dealerNotificationCard: {
+        // Dealer Notification Styles - Container for all notifications
+        dealerNotificationContainer: {
           backgroundColor: colors.backgroundWhite,
           borderRadius: moderateScale(12),
-          padding: moderateScale(16),
-          marginBottom: moderateScale(12),
+          marginTop: moderateScale(16),
+          marginBottom: moderateScale(16),
+          marginHorizontal: moderateScale(16),
           shadowColor: colors.shadowColor,
           shadowOpacity: 0.08,
           shadowOffset: {width: 0, height: moderateScale(4)},
           shadowRadius: moderateScale(10),
           elevation: 4,
+          overflow: 'hidden',
+          height: deviceHeight - insets.top - moderateScale(110), // Fixed height: screen height minus header and padding
+        },
+        dealerNotificationScrollContainer: {
+          flex: 1,
+        },
+        dealerNotificationCard: {
+          padding: moderateScale(16),
           borderBottomWidth: 1,
           borderBottomColor: colors.borderLight,
+        },
+        dealerNotificationCardLast: {
+          borderBottomWidth: 0,
         },
         dealerNotificationItem: {
           flexDirection: 'row',
@@ -487,10 +572,10 @@ console.log("role ::",role);
           width: moderateScale(40),
           height: moderateScale(40),
           borderRadius: moderateScale(20),
-          backgroundColor: colors.backgroundGray,
+          backgroundColor: colors.borderColor,
           alignItems: 'center',
           justifyContent: 'center',
-          marginRight: moderateScale(12),
+          marginRight: moderateScale(15),
         },
         dealerNotificationContent: {
           flex: 1,
@@ -536,7 +621,7 @@ console.log("role ::",role);
         dealerStatusContainer: {
           flexDirection: 'row',
           alignItems: 'center',
-          justifyContent: 'flex-end',
+          justifyContent: 'flex-start',
         },
         dealerArrow: {
           marginRight: moderateScale(4),
@@ -544,6 +629,8 @@ console.log("role ::",role);
         statusIconContainer: {
           alignItems: 'center',
           justifyContent: 'center',
+          marginLeft:moderateScale(7),
+          bottom:moderateScale(2)
         },
         dealerUnreadDot: {
           position: 'absolute',
@@ -555,6 +642,30 @@ console.log("role ::",role);
           backgroundColor: '#FF9500', // Orange color for unread
           borderWidth: 2,
           borderColor: colors.backgroundWhite,
+        },
+        statusIconCircleGreen: {
+          width: moderateScale(13),
+          height: moderateScale(13),
+          borderRadius: moderateScale(12),
+          backgroundColor: '#34C759',
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        statusIconCircleYellow: {
+          width: moderateScale(13),
+          height: moderateScale(13),
+          borderRadius: moderateScale(12),
+          backgroundColor: '#FF9500',
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        statusIconCircleRed: {
+          width: moderateScale(15),
+          height: moderateScale(15),
+          borderRadius: moderateScale(12),
+          backgroundColor: '#FF3B30',
+          alignItems: 'center',
+          justifyContent: 'center',
         },
         // Bottom Sheet Modal styles
         modalOverlay: {
@@ -603,7 +714,7 @@ console.log("role ::",role);
           marginBottom: moderateScale(0),
         },
       }),
-    [moderateScale, insets.top, insets.bottom],
+    [moderateScale, insets.top, insets.bottom, deviceHeight],
   );
 
   const handleNotificationPress = async (notification: NotificationItem) => {
@@ -669,18 +780,59 @@ console.log("role ::",role);
     setRejectionReason('');
   };
 
-  const handleViewForm = () => {
+  const handleViewForm = async () => {
     // Handle view form action - navigate to AddFarmerScreen in edit mode
-    if (selectedNotification?.referenceId) {
-      console.log('View form for:', selectedNotification.id, 'Farmer ID:', selectedNotification.referenceId);
+    // Use farmerId if available (from notification data), otherwise use referenceId
+    const farmerId = selectedNotification?.farmerId || selectedNotification?.referenceId;
+    
+    if (farmerId) {
+      console.log('[NotificationsScreen] View form clicked - Farmer ID:', farmerId);
+      
+      // Close modal first
       handleCloseModal();
-      // Navigate to AddFarmerScreen with farmer ID for edit mode
-      (navigation as any).navigate(SCREEN_NAMES.AddFarmer, {
-        farmerId: selectedNotification.referenceId.toString(),
-        isEditMode: true,
-      });
+      
+      // Small delay to ensure modal is closed before navigation
+      setTimeout(() => {
+        // Navigate to AddFarmerScreen with farmer ID for edit mode
+        // Since NotificationsScreen is in HomeStack and AddFarmer is in FarmerStack,
+        // we need to navigate to the Farmer tab first, then to AddFarmer screen
+        try {
+          console.log('[NotificationsScreen] Attempting navigation to AddFarmer with params:', {
+            farmerId: farmerId.toString(),
+            editMode: true,
+          });
+          
+          // Use tabNavigation to navigate across tabs
+          // Pass rejectedUpdate: true to indicate this is a rejected update flow
+          tabNavigation.navigate(SCREEN_NAMES.Farmer, {
+            screen: SCREEN_NAMES.AddFarmer,
+            params: {
+              farmerId: farmerId.toString(),
+              rejectedUpdate: true, // Third flow: rejected update from notifications
+            },
+          } as any);
+          
+          console.log('[NotificationsScreen] Navigation successful');
+        } catch (error) {
+          console.error('[NotificationsScreen] Error navigating with tabNavigation:', error);
+          // Fallback: try using navigation prop with nested navigation
+          try {
+            (navigation as any).navigate(SCREEN_NAMES.Farmer, {
+              screen: SCREEN_NAMES.AddFarmer,
+              params: {
+                farmerId: farmerId.toString(),
+                rejectedUpdate: true, // Third flow: rejected update from notifications
+              },
+            });
+            console.log('[NotificationsScreen] Fallback navigation successful');
+          } catch (fallbackError) {
+            console.error('[NotificationsScreen] Fallback navigation also failed:', fallbackError);
+            // Navigation failed - user can manually navigate to Farmer tab
+          }
+        }
+      }, 100);
     } else {
-      console.log('No reference ID found for notification:', selectedNotification?.id);
+      console.log('[NotificationsScreen] No farmer ID found for notification:', selectedNotification?.id);
       handleCloseModal();
     }
   };
@@ -691,19 +843,25 @@ console.log("role ::",role);
       case 'complete':
         return (
           <View style={styles.statusIconContainer}>
-            <Ionicons name="checkmark-circle" size={moderateScale(24)} color="#34C759" />
+            <View style={styles.statusIconCircleGreen}>
+              <Ionicons name="checkmark" size={moderateScale(10)} color="#FFFFFF" />
+            </View>
           </View>
         );
       case 'pending':
         return (
           <View style={styles.statusIconContainer}>
-            <Ionicons name="alert-circle" size={moderateScale(24)} color="#FF9500" />
+            <View style={styles.statusIconCircleYellow}>
+              <Ionicons name="alert" size={moderateScale(10)} color="#FFFFFF" />
+            </View>
           </View>
         );
       case 'failed':
         return (
           <View style={styles.statusIconContainer}>
-            <Ionicons name="close-circle" size={moderateScale(24)} color="#FF3B30" />
+            <View style={styles.statusIconCircleRed}>
+              <Ionicons name="close" size={moderateScale(10)} color="#FFFFFF" />
+            </View>
           </View>
         );
       default:
@@ -712,42 +870,81 @@ console.log("role ::",role);
   };
 
   // Render dealer notification item (matching the image design)
-  const renderDealerNotificationItem = ({item}: {item: NotificationItem}) => {
-    const fullName = `${item.firstName || ''} ${item.lastName || ''}`.trim() || item.title;
-    const description = item.description || item.title || '';
+  const renderDealerNotificationItem = ({item, index}: {item: NotificationItem; index: number}) => {
+    const fullName = `${item.firstName || ''} ${item.lastName || ''}`.trim() || item.title || 'Unknown';
     const status = item.status;
+    const isLast = index === notifications.length - 1;
+    
+    // Build status message: title • body (if title contains status)
+    // Format: "Verification complete • Send login details" or "Verification pending" or "Verification failed • See rejection reason"
+    let statusMessage = '';
+    const title = item.title || '';
+    const body = item.description || item.body || '';
+    
+    if (status === 'complete' || status === 'pending' || status === 'failed') {
+      // Extract status text from title if it contains verification status
+      if (title.toLowerCase().includes('verified') || title.toLowerCase().includes('complete')) {
+        statusMessage = title;
+        if (body && !title.toLowerCase().includes(body.toLowerCase())) {
+          statusMessage += ` • ${body}`;
+        }
+      } else if (title.toLowerCase().includes('rejected') || title.toLowerCase().includes('failed')) {
+        statusMessage = title;
+        if (body && !title.toLowerCase().includes(body.toLowerCase())) {
+          statusMessage += ` • ${body}`;
+        }
+      } else {
+        // Use title first, then add body with dot separator
+        statusMessage = title || 'Verification';
+        if (body && body !== title) {
+          statusMessage += ` • ${body}`;
+        }
+      }
+    } else {
+      // For other notification types
+      statusMessage = title;
+      if (body && body !== title) {
+        statusMessage += ` • ${body}`;
+      }
+    }
 
     return (
       <Pressable
-        style={styles.dealerNotificationCard}
+        style={[
+          styles.dealerNotificationCard,
+          isLast && styles.dealerNotificationCardLast,
+        ]}
         onPress={() => handleNotificationPress(item)}
-        activeOpacity={0.7}>
+        activeOpacity={0.7}
+      >
         <View style={styles.dealerNotificationItem}>
-          {/* User Icon with Unread Yellow Dot */}
+          {/* User Icon with Unread Orange Dot */}
           <View style={styles.dealerIconContainer}>
             <Ionicons
               name="people-outline"
-              size={moderateScale(24)}
+              size={moderateScale(22)}
               color={colors.textSecondary}
             />
-            {!item.isRead && (
-              <View style={styles.dealerUnreadDot} />
-            )}
+            {!item.isRead && <View style={styles.dealerUnreadDot} />}
           </View>
 
           {/* Notification Content */}
           <View style={styles.dealerNotificationContent}>
             <View style={styles.dealerNotificationTextContainer}>
               {/* User Name */}
-              <Text style={styles.dealerNotificationName} numberOfLines={1}>
-                {fullName}
-              </Text>
-              {/* Status Message */}
+              <View style={styles.dealerStatusContainer}>
+                <Text style={styles.dealerNotificationName} numberOfLines={1}>
+                  {fullName}
+                </Text>
+                {getStatusIcon(status)}
+              </View>
+              {/* Status Message with dot separator */}
               <Text
-                numberOfLines={2}
-                ellipsizeMode='tail'
-                style={styles.dealerNotificationDescription}>
-                {description}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+                style={styles.dealerNotificationDescription}
+              >
+                {statusMessage}
               </Text>
             </View>
 
@@ -761,22 +958,22 @@ console.log("role ::",role);
                 {item.time ? (
                   <Text style={styles.dealerTimestampTime}>{item.time}</Text>
                 ) : item.timestamp ? (
-                  <Text style={styles.dealerTimestampTime}>{item.timestamp}</Text>
+                  <Text style={styles.dealerTimestampTime}>
+                    {item.timestamp}
+                  </Text>
                 ) : null}
               </View>
 
-              {/* Status Icon and Arrow */}
-              <View style={styles.dealerStatusContainer}>
-                {status === 'failed' && (
+              {/* Status Icon and Arrow (only for failed) */}
+
+              {/* {status === 'failed' && (
                   <Ionicons
                     name="chevron-forward"
                     size={moderateScale(20)}
                     color={colors.textSecondary}
                     style={styles.dealerArrow}
                   />
-                )}
-                {getStatusIcon(status)}
-              </View>
+                )} */}
             </View>
           </View>
         </View>
@@ -785,10 +982,10 @@ console.log("role ::",role);
   };
 
   // Render notification item (farmer or dealer)
-  const renderNotificationItem = ({item}: {item: NotificationItem}) => {
+  const renderNotificationItem = ({item, index}: {item: NotificationItem; index: number}) => {
     // Use dealer UI if user is a dealer
     if (userRole === 'dealer') {
-      return renderDealerNotificationItem({item});
+      return renderDealerNotificationItem({item, index});
     }
 
     // Use farmer UI (original design)
@@ -956,10 +1153,39 @@ console.log("role ::",role);
           showsVerticalScrollIndicator={false}>
           {renderSkeleton()}
         </ScrollView>
+      ) : userRole === 'dealer' ? (
+        // Dealer notifications in a single white card container with fixed height and scrollable content
+        <View style={{flex: 1}}>
+          {notifications.length > 0 ? (
+            <View style={styles.dealerNotificationContainer}>
+              <ScrollView
+                style={styles.dealerNotificationScrollContainer}
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                  <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={onRefresh}
+                    colors={[colors.primary]}
+                    tintColor={colors.primary}
+                  />
+                }>
+                {notifications.map((notification, index) => (
+                  <View key={notification.id}>
+                    {renderNotificationItem({item: notification, index})}
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          ) : (
+            <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+              <ListEmptyComponent />
+            </View>
+          )}
+        </View>
       ) : (
         <FlatList
           data={notifications}
-          renderItem={renderNotificationItem}
+          renderItem={({item, index}) => renderNotificationItem({item, index})}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}

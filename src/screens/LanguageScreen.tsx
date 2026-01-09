@@ -20,7 +20,7 @@ import Button from '../components/Button';
 import {getData} from '../Service/Apimethod';
 import Apis from '../Service/constant';
 
-type Language = 'en' | 'gu' | 'hi';
+type Language = string;
 
 interface LanguageOption {
   code: Language;
@@ -50,9 +50,9 @@ export default function LanguageScreen() {
       setLoading(true);
       const response = await getData(Apis.GET_LANGUAGES, {});
       if (response?.success && response?.data) {
-        const supportedCodes: Language[] = ['en', 'gu', 'hi'];
+        // Show all active languages from API
         const apiLanguages: LanguageOption[] = response.data
-          .filter((lang: any) => lang.is_active === true && supportedCodes.includes(lang.code))
+          .filter((lang: any) => lang.is_active === true)
           .map((lang: any) => ({
             code: lang.code as Language,
             name: lang.name,

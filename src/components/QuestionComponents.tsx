@@ -343,22 +343,30 @@ export function CheckboxQuestion({
 }
 
 // File Upload Question Component
+type FileItem = {
+  uri: string;
+  type: 'image';
+  name: string;
+};
+
 type FileUploadQuestionProps = {
   question: string;
-  onUpload: (imageUri: string) => void;
-  uploadedFileName?: string;
+  onUpload: (files: FileItem[]) => void; // Changed to accept array of files
+  uploadedFiles?: FileItem[]; // Changed to accept array
   error?: string;
   onError?: (message: string) => void;
   required?: boolean;
+  maxDocuments?: number; // Maximum number of files allowed
 };
 
 export function FileUploadQuestion({
   question,
   onUpload,
-  uploadedFileName,
+  uploadedFiles = [],
   error,
   onError,
   required = false,
+  maxDocuments = 5, // Default to 5 if not provided
 }: FileUploadQuestionProps) {
   const {moderateScale} = useDeviceMetrics();
   const {pickImage} = useImagePicker();
@@ -366,6 +374,14 @@ export function FileUploadQuestion({
 
   const handleCameraPress = async () => {
     try {
+      // Check if max documents reached
+      if (uploadedFiles.length >= maxDocuments) {
+        if (onError) {
+          onError(`Maximum ${maxDocuments} file${maxDocuments > 1 ? 's' : ''} allowed`);
+        }
+        return;
+      }
+
       const imageUri = await pickImage('camera', {
         onError: (message) => {
           if (onError) {
@@ -374,11 +390,18 @@ export function FileUploadQuestion({
         },
       });
       if (imageUri) {
-        onUpload(imageUri);
+        const fileName = imageUri.split('/').pop() || 'image.jpg';
+        const newFile: FileItem = {
+          uri: imageUri,
+          type: 'image',
+          name: fileName,
+        };
+        const updatedFiles = [...uploadedFiles, newFile];
+        onUpload(updatedFiles);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error in handleCameraPress:', error);
-      if (onError) {
+      if (error?.message !== 'User cancelled image selection' && onError) {
         onError('Failed to open camera. Please try again.');
       }
     }
@@ -386,6 +409,14 @@ export function FileUploadQuestion({
 
   const handleGalleryPress = async () => {
     try {
+      // Check if max documents reached
+      if (uploadedFiles.length >= maxDocuments) {
+        if (onError) {
+          onError(`Maximum ${maxDocuments} file${maxDocuments > 1 ? 's' : ''} allowed`);
+        }
+        return;
+      }
+
       const imageUri = await pickImage('gallery', {
         onError: (message) => {
           if (onError) {
@@ -394,14 +425,27 @@ export function FileUploadQuestion({
         },
       });
       if (imageUri) {
-        onUpload(imageUri);
+        const fileName = imageUri.split('/').pop() || 'image.jpg';
+        const newFile: FileItem = {
+          uri: imageUri,
+          type: 'image',
+          name: fileName,
+        };
+        const updatedFiles = [...uploadedFiles, newFile];
+        onUpload(updatedFiles);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error in handleGalleryPress:', error);
-      if (onError) {
+      if (error?.message !== 'User cancelled image selection' && onError) {
         onError('Failed to open gallery. Please try again.');
       }
     }
+  };
+
+
+  const handleRemoveFile = (index: number) => {
+    const updatedFiles = uploadedFiles.filter((_, i) => i !== index);
+    onUpload(updatedFiles);
   };
 
   const styles = useMemo(
@@ -452,6 +496,38 @@ export function FileUploadQuestion({
           color: colors.primary,
           marginTop: moderateScale(8),
         },
+        filesList: {
+          marginTop: moderateScale(12),
+        },
+        fileItem: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: moderateScale(12),
+          backgroundColor: colors.backgroundWhite,
+          borderRadius: moderateScale(8),
+          borderWidth: 1,
+          borderColor: colors.borderLight,
+          marginBottom: moderateScale(8),
+        },
+        fileInfo: {
+          flex: 1,
+          marginRight: moderateScale(8),
+        },
+        fileName: {
+          ...Typography.regularMd,
+          fontSize: moderateScale(14),
+          color: colors.textPrimary,
+        },
+        fileType: {
+          ...Typography.regularSm,
+          fontSize: moderateScale(12),
+          color: colors.textTertiary,
+          marginTop: moderateScale(2),
+        },
+        removeButton: {
+          padding: moderateScale(4),
+        },
         errorText: {
           color: 'red',
           fontSize: moderateScale(10),
@@ -469,8 +545,17 @@ export function FileUploadQuestion({
       </Text>
       <TouchableOpacity
         style={styles.uploadBox}
-        onPress={() => setImagePickerVisible(true)}
-        activeOpacity={0.7}>
+        onPress={() => {
+          if (uploadedFiles.length >= maxDocuments) {
+            if (onError) {
+              onError(`Maximum ${maxDocuments} file${maxDocuments > 1 ? 's' : ''} allowed`);
+            }
+            return;
+          }
+          setImagePickerVisible(true);
+        }}
+        activeOpacity={0.7}
+        disabled={uploadedFiles.length >= maxDocuments}>
         <Ionicons
           name="cloud-upload-outline"
           size={moderateScale(32)}
@@ -478,11 +563,44 @@ export function FileUploadQuestion({
           style={styles.uploadIcon}
         />
         <Text style={styles.uploadText}>Upload document</Text>
-        <Text style={styles.hintText}>Upload png or jpg. 5 mb max size</Text>
-        {uploadedFileName && (
-          <Text style={styles.fileNameText}>{uploadedFileName}</Text>
+              <Text style={styles.hintText}>
+                Upload images. Max {maxDocuments} file{maxDocuments > 1 ? 's' : ''}. 5 mb max size
+              </Text>
+        {uploadedFiles.length > 0 && (
+          <Text style={styles.fileNameText}>
+            {uploadedFiles.length} file{uploadedFiles.length > 1 ? 's' : ''} uploaded
+          </Text>
         )}
       </TouchableOpacity>
+      
+      {/* Display uploaded files list */}
+      {uploadedFiles.length > 0 && (
+        <View style={styles.filesList}>
+          {uploadedFiles.map((file, index) => (
+            <View key={index} style={styles.fileItem}>
+              <View style={styles.fileInfo}>
+                <Text style={styles.fileName} numberOfLines={1}>
+                  {file.name}
+                </Text>
+                <Text style={styles.fileType}>
+                  Image
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.removeButton}
+                onPress={() => handleRemoveFile(index)}
+                activeOpacity={0.7}>
+                <Ionicons
+                  name="close-circle"
+                  size={moderateScale(24)}
+                  color={colors.statusError}
+                />
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+      )}
+      
       {error && <Text style={styles.errorText}>{error}</Text>}
       <ImagePickerModal
         visible={imagePickerVisible}
@@ -504,7 +622,6 @@ type DropdownQuestionProps = {
   placeholder?: string;
   error?: string;
   required?: boolean;
-  disabled?: boolean;
 };
 
 export function DropdownQuestion({
@@ -516,7 +633,6 @@ export function DropdownQuestion({
   placeholder = 'Select option',
   error,
   required = false,
-  disabled = false,
 }: DropdownQuestionProps) {
   const {moderateScale} = useDeviceMetrics();
 

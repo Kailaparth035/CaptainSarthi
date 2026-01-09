@@ -12,6 +12,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import colors from '../utils/colors';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import {Typography} from '../utils/typography';
+import {useLanguage} from '../contexts/LanguageContext';
 
 type ImagePickerModalProps = {
   visible: boolean;
@@ -28,6 +29,7 @@ export default function ImagePickerModal({
 }: ImagePickerModalProps) {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
+  const {t} = useLanguage();
 
   const styles = StyleSheet.create({
     modalOverlay: {
@@ -96,7 +98,7 @@ export default function ImagePickerModal({
         <Pressable
           style={styles.modalContainer}
           onPress={e => e.stopPropagation()}>
-          <Text style={styles.modalTitle}>Select Image Source</Text>
+          <Text style={styles.modalTitle}>{t('imagePicker.selectImageSource')}</Text>
 
           <TouchableOpacity
             style={styles.optionButton}
@@ -118,7 +120,7 @@ export default function ImagePickerModal({
               color={colors.primary}
               style={styles.optionIcon}
             />
-            <Text style={styles.optionText}>Camera</Text>
+            <Text style={styles.optionText}>{t('imagePicker.camera')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -141,14 +143,14 @@ export default function ImagePickerModal({
               color={colors.primary}
               style={styles.optionIcon}
             />
-            <Text style={styles.optionText}>Gallery</Text>
+            <Text style={styles.optionText}>{t('imagePicker.gallery')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.cancelButton}
             onPress={onClose}
             activeOpacity={0.7}>
-            <Text style={styles.cancelButtonText}>Cancel</Text>
+            <Text style={styles.cancelButtonText}>{t('imagePicker.cancel')}</Text>
           </TouchableOpacity>
         </Pressable>
       </Pressable>

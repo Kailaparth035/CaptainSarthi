@@ -273,6 +273,13 @@
     "selectOption": "Select option",
     "uploadTractorImage": "Upload Tractor image",
     "uploadSecondImage": "Upload second image"
+  },
+  "imagePicker": {
+    "selectImageSource": "Select Image Source",
+    "camera": "Camera",
+    "gallery": "Gallery",
+    "uploadDocument": "Upload Document",
+    "cancel": "Cancel"
   }
 }
 

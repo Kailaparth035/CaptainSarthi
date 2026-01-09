@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -6,26 +6,24 @@ import {
   Modal,
   StyleSheet,
   FlatList,
+  ActivityIndicator,
 } from 'react-native';
 import {useLanguage} from '../contexts/LanguageContext';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import {Colors} from '../constants/colors';
 import {Typography, FontFamily} from '../utils/typography';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import {getData} from '../Service/Apimethod';
+import Apis from '../Service/constant';
 
-type Language = 'en' | 'gu' | 'hi';
+type Language = string;
 
 interface LanguageOption {
   code: Language;
   name: string;
   nativeName: string;
+  enabled: boolean;
 }
-
-const languages: LanguageOption[] = [
-  {code: 'en', name: 'English', nativeName: 'English'},
-  {code: 'gu', name: 'Gujarati', nativeName: 'ગુજરાતી'},
-  {code: 'hi', name: 'Hindi', nativeName: 'हिंदी'},
-];
 
 interface LanguageSwitcherProps {
   visible: boolean;
@@ -38,6 +36,50 @@ export default function LanguageSwitcher({
 }: LanguageSwitcherProps) {
   const {currentLanguage, changeLanguage, t} = useLanguage();
   const {moderateScale} = useDeviceMetrics();
+  const [languages, setLanguages] = useState<LanguageOption[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (visible) {
+      fetchLanguages();
+    }
+  }, [visible]);
+
+  const fetchLanguages = async () => {
+    try {
+      setLoading(true);
+      const response = await getData(Apis.GET_LANGUAGES, {});
+      if (response?.success && response?.data) {
+        // Show all active languages from API
+        const apiLanguages: LanguageOption[] = response.data
+          .filter((lang: any) => lang.is_active === true)
+          .map((lang: any) => ({
+            code: lang.code as Language,
+            name: lang.name,
+            nativeName: lang.native_name || lang.name,
+            enabled: lang.is_active === true,
+          }));
+        setLanguages(apiLanguages);
+      } else {
+        // Fallback to default languages if API fails
+        setLanguages([
+          {code: 'en', name: 'English', nativeName: 'English', enabled: true},
+          {code: 'gu', name: 'Gujarati', nativeName: 'ગુજરાતી', enabled: true},
+          {code: 'hi', name: 'Hindi', nativeName: 'हिंदी', enabled: true},
+        ]);
+      }
+    } catch (error) {
+      console.error('Error fetching languages:', error);
+      // Fallback to default languages on error
+      setLanguages([
+        {code: 'en', name: 'English', nativeName: 'English', enabled: true},
+        {code: 'gu', name: 'Gujarati', nativeName: 'ગુજરાતી', enabled: true},
+        {code: 'hi', name: 'Hindi', nativeName: 'हिंदी', enabled: true},
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleLanguageSelect = async (lang: Language) => {
     await changeLanguage(lang);
@@ -134,37 +176,49 @@ export default function LanguageSwitcher({
             </TouchableOpacity>
           </View>
 
-          <FlatList
-            data={languages}
-            keyExtractor={item => item.code}
-            renderItem={({item}) => {
-              const isActive = currentLanguage === item.code;
-              return (
-                <TouchableOpacity
-                  style={[
-                    styles.languageItem,
-                    isActive && styles.languageItemActive,
-                  ]}
-                  onPress={() => handleLanguageSelect(item.code)}
-                  activeOpacity={0.7}>
-                  <View style={styles.languageInfo}>
-                    <Text style={styles.languageName}>{item.name}</Text>
-                    <Text style={styles.languageNativeName}>
-                      {item.nativeName}
-                    </Text>
-                  </View>
-                  {isActive && (
-                    <Ionicons
-                      name="checkmark-circle"
-                      size={moderateScale(24)}
-                      color={Colors.primary}
-                      style={styles.checkIcon}
-                    />
-                  )}
-                </TouchableOpacity>
-              );
-            }}
-          />
+          {loading ? (
+            <View style={{padding: moderateScale(40), alignItems: 'center'}}>
+              <ActivityIndicator size="large" color={Colors.primary} />
+            </View>
+          ) : (
+            <FlatList
+              data={languages}
+              keyExtractor={item => item.code}
+              renderItem={({item}) => {
+                const isActive = currentLanguage === item.code;
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.languageItem,
+                      isActive && styles.languageItemActive,
+                      !item.enabled && {opacity: 0.5},
+                    ]}
+                    onPress={() => {
+                      if (item.enabled) {
+                        handleLanguageSelect(item.code);
+                      }
+                    }}
+                    activeOpacity={item.enabled ? 0.7 : 1}
+                    disabled={!item.enabled}>
+                    <View style={styles.languageInfo}>
+                      <Text style={styles.languageName}>{item.name}</Text>
+                      <Text style={styles.languageNativeName}>
+                        {item.nativeName}
+                      </Text>
+                    </View>
+                    {isActive && (
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={moderateScale(24)}
+                        color={Colors.primary}
+                        style={styles.checkIcon}
+                      />
+                    )}
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          )}
         </TouchableOpacity>
       </TouchableOpacity>
     </Modal>

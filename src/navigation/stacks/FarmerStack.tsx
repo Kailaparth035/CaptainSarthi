@@ -18,6 +18,7 @@ export type FarmerStackParamList = {
   [SCREEN_NAMES.AddFarmer]: {
     farmerId?: string;
     editMode?: boolean;
+    rejectedUpdate?: boolean; // Third flow: rejected update from notifications
   } | undefined;
 };
 

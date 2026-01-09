@@ -3,7 +3,7 @@ import {useTranslation} from 'react-i18next';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {changeLanguage} from '../i18n';
 
-type Language = 'en' | 'gu' | 'hi';
+type Language = string;
 
 interface LanguageContextType {
   currentLanguage: Language;
@@ -24,7 +24,7 @@ export function LanguageProvider({children}: {children: ReactNode}) {
     const loadLanguage = async () => {
       try {
         const savedLanguage = await AsyncStorage.getItem(LANGUAGE_KEY);
-        if (savedLanguage && (savedLanguage === 'en' || savedLanguage === 'gu' || savedLanguage === 'hi')) {
+        if (savedLanguage) {
           setCurrentLanguage(savedLanguage as Language);
           await changeLanguage(savedLanguage as Language);
         }

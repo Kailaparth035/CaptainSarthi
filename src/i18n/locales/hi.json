@@ -273,6 +273,13 @@
     "selectOption": "विकल्प चुनें",
     "uploadTractorImage": "ट्रैक्टर छवि अपलोड करें",
     "uploadSecondImage": "दूसरी छवि अपलोड करें"
+  },
+  "imagePicker": {
+    "selectImageSource": "छवि स्रोत चुनें",
+    "camera": "कैमरा",
+    "gallery": "गैलरी",
+    "uploadDocument": "दस्तावेज अपलोड करें",
+    "cancel": "रद्द करें"
   }
 }
 

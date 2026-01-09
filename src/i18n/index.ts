@@ -36,10 +36,11 @@ i18n
     },
   });
 
-// Function to change language
-export const changeLanguage = async (language: 'en' | 'gu' | 'hi') => {
+// Function to change language - accepts any language code, falls back to 'en' if not supported
+export const changeLanguage = async (language: string) => {
   try {
     await AsyncStorage.setItem(LANGUAGE_KEY, language);
+    // i18n will automatically fallback to 'en' if the language is not in resources
     await i18n.changeLanguage(language);
   } catch (error) {
     console.error('Error changing language:', error);

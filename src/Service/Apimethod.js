@@ -118,10 +118,38 @@ export const putData = async (fullUrl, body = {}) => {
   }
 
   try {
-    const response = await axiosInstance.put(fullUrl, body);
+    const headers = body instanceof FormData
+      ? { 'Content-Type': 'multipart/form-data' }
+      : { 'Content-Type': 'application/json' };
+
+    const response = await axiosInstance.put(fullUrl, body, { headers });
     return handleApiResponse(response);
   } catch (error) {
     console.log('PUT error:', error);
+    // Return error response data so error messages can be extracted
+    if (error?.response?.data) {
+      return error.response.data;
+    }
+    // If no response data, return error object with message
+    return {
+      status: false,
+      message: error?.message || 'An error occurred while processing your request'
+    };
+  }
+};
+
+//  PUT with multipart/form-data (for file uploads)
+export const putDataWithImage = async (url, formData) => {
+  try {
+    const response = await axiosInstance.put(url, formData, {
+      headers: {
+        Accept: 'application/json', 
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    return handleApiResponse(response);
+  } catch (error) {
+    console.log("PUT Upload error:", error?.response?.data || error?.message);
     // Return error response data so error messages can be extracted
     if (error?.response?.data) {
       return error.response.data;

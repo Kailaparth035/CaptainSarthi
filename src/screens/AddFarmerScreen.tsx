@@ -36,7 +36,7 @@ import {
   FileUploadQuestion,
   DropdownQuestion,
 } from '../components/QuestionComponents';
-import {getData, postDataWithImage, putData} from '../Service/Apimethod';
+import {getData, postDataWithImage, putData, putDataWithImage} from '../Service/Apimethod';
 import Apis from '../Service/constant';
 import {getImageUrl} from '../utils/imageUtils';
 
@@ -223,10 +223,21 @@ export default function AddFarmerScreen() {
   const {pickImage} = useImagePicker();
   
   // Get route params for edit mode
-  const routeParams = route.params as {farmerId?: string; editMode?: boolean} | undefined;
-  const isEditMode = routeParams?.editMode === true;
-  const farmerId = routeParams?.farmerId;
-  console.log("routeParams ::",farmerId);
+  const routeParams = route.params as {
+    farmerId?: string; 
+    editMode?: boolean; 
+    isEditMode?: boolean;
+    rejectedUpdate?: boolean; // New flag for rejected update from notifications
+  } | undefined;
+  const isEditMode = routeParams?.editMode === true || routeParams?.isEditMode === true;
+  const isRejectedUpdate = routeParams?.rejectedUpdate === true; // Third flow: rejected update from notifications
+  const farmerId = "SATHI0004";
+  console.log("[AddFarmerScreen] Route params:", {
+    farmerId,
+    isEditMode,
+    isRejectedUpdate,
+    routeParams,
+  });
   
   // Store the numeric ID from API response for update API
   const [farmerNumericId, setFarmerNumericId] = useState<number | null>(null);
@@ -634,20 +645,23 @@ export default function AddFarmerScreen() {
     }, [])
   );
 
-  // Fetch farmer details in edit mode
+  // Fetch farmer details in edit mode or rejected update mode
   const fetchFarmerDetailsForEdit = async () => {
-    if (!isEditMode || !farmerId) return;
+    if ((!isEditMode && !isRejectedUpdate) || !farmerId) return;
     
     try {
       setCategoriesLoading(true);
       const response = await getData(Apis.DEALER_FARMERS, { clientId: farmerId });
-      console.log("response ::",response);
+      console.log("[AddFarmerScreen] Farmer details API response:", JSON.stringify(response, null, 2));
       
       if (response?.status === true && response?.data) {
         const farmerData = response.data;
         
-        // Extract and store numeric ID for update API
-        // The API might return id, farmer_id, or we need to extract from farmerId or forms array
+        // Store farmerId (clientId) for update API - use the original farmerId passed from navigation
+        // This is the clientId format like "SATHI0005"
+        console.log("Stored farmer ID for update API:", farmerId);
+        
+        // Also try to extract numeric ID if available
         let numericId = farmerData.id || 
                        farmerData.farmer_id || 
                        (farmerData.farmerId && typeof farmerData.farmerId === 'number' ? farmerData.farmerId : null) ||
@@ -661,14 +675,6 @@ export default function AddFarmerScreen() {
         if (numericId) {
           setFarmerNumericId(numericId);
           console.log("Stored farmer numeric ID for update API:", numericId);
-        } else {
-          console.warn("Could not extract numeric ID from farmer data. Using farmerId as fallback.");
-          // Try to parse farmerId if it's numeric
-          if (farmerId && !isNaN(parseInt(farmerId))) {
-            setFarmerNumericId(parseInt(farmerId));
-          } else {
-            console.error("No valid numeric ID found. Update API may fail.");
-          }
         }
         
         // Prefill personal details
@@ -808,13 +814,16 @@ export default function AddFarmerScreen() {
         
         // Set category and fetch questions
         if (farmerData.categoryId || farmerData.category) {
-          setCategory(String(farmerData.categoryId || farmerData.category));
-          // Questions will be fetched when category is set
+          const categoryId = String(farmerData.categoryId || farmerData.category);
+          setCategory(categoryId);
+          // Fetch questions for this category - will be handled by useEffect
+          // But we can also fetch immediately to ensure questions are available
+          await fetchQuestions(categoryId);
         }
         
         // Prefill profile photo
-        if (farmerData.profileImage) {
-          const imageUrl = getImageUrl(farmerData.profileImage);
+        if (farmerData.profileImage || farmerData.profile_image) {
+          const imageUrl = getImageUrl(farmerData.profileImage || farmerData.profile_image);
           if (imageUrl) {
             setProfilePhoto(imageUrl);
           }
@@ -831,6 +840,22 @@ export default function AddFarmerScreen() {
                 const questionType = q.question_type?.toLowerCase() || 'textbox';
                 if (questionType === 'checkbox') {
                   answers[questionKey] = q.answers.map((a: any) => a.answer_text || a.answer);
+                } else if (questionType === 'file' || questionType === 'document') {
+                  // For file questions, convert URLs to file objects
+                  const fileUrls = q.answers
+                    .map((a: any) => a.answer_text || a.answer || a.file_url || a.document_url)
+                    .filter((url: any) => url && typeof url === 'string');
+                  
+                  if (fileUrls.length > 0) {
+                    answers[questionKey] = fileUrls.map((url: string) => {
+                      const fileName = url.split('/').pop() || 'file';
+                      return {
+                        uri: getImageUrl(url) || url,
+                        type: 'image',
+                        name: fileName,
+                      };
+                    });
+                  }
                 } else {
                   answers[questionKey] = q.answers[0]?.answer_text || q.answers[0]?.answer || '';
                 }
@@ -846,6 +871,22 @@ export default function AddFarmerScreen() {
               const questionType = q.question_type?.toLowerCase() || 'textbox';
               if (questionType === 'checkbox') {
                 answers[questionKey] = q.answers.map((a: any) => a.answer_text || a.answer);
+              } else if (questionType === 'file' || questionType === 'document') {
+                // For file questions, convert URLs to file objects
+                const fileUrls = q.answers
+                  .map((a: any) => a.answer_text || a.answer || a.file_url || a.document_url)
+                  .filter((url: any) => url && typeof url === 'string');
+                
+                if (fileUrls.length > 0) {
+                  answers[questionKey] = fileUrls.map((url: string) => {
+                    const fileName = url.split('/').pop() || 'file';
+                    return {
+                      uri: getImageUrl(url) || url,
+                      type: 'image',
+                      name: fileName,
+                    };
+                  });
+                }
               } else {
                 answers[questionKey] = q.answers[0]?.answer_text || q.answers[0]?.answer || '';
               }
@@ -854,7 +895,191 @@ export default function AddFarmerScreen() {
           setSubQuestionAnswers(answers);
         }
         
-        // Note: Tractor details are not editable in update mode per requirements
+        // Prefill tractor details if available
+        // Check multiple possible locations for tractor data
+        const tractorsData = farmerData.tractors || 
+                            farmerData.tractor_list || 
+                            farmerData.tractorDetails || 
+                            (farmerData.tractor_details?.tractor_list) ||
+                            [];
+        
+        console.log("[AddFarmerScreen] Tractor data found:", {
+          tractors: farmerData.tractors?.length || 0,
+          tractor_list: farmerData.tractor_list?.length || 0,
+          tractorDetails: farmerData.tractorDetails?.length || 0,
+          tractor_details_tractor_list: farmerData.tractor_details?.tractor_list?.length || 0,
+          finalTractorsData: tractorsData.length,
+        });
+        
+        if (Array.isArray(tractorsData) && tractorsData.length > 0) {
+          console.log('[AddFarmerScreen] Prefilling tractors:', tractorsData.length);
+          const prefilledTractors: TractorDetails[] = tractorsData.map((tractor: any, index: number) => {
+            console.log(`[AddFarmerScreen] Processing tractor ${index + 1}:`, {
+              tractor_id: tractor.tractor_id || tractor.id,
+              model: tractor.model_name || tractor.model,
+              vehicle_no: tractor.vehicle_number || tractor.vehicleNo,
+            });
+            
+            // Parse purchase date - check multiple field names
+            // Priority: date_of_registration (for purchase date), then date_of_invoice, then other fields
+            let purchaseDateDD = '';
+            let purchaseDateMM = '';
+            let purchaseDateYYYY = '';
+            
+            // Check date_of_registration first (as per user requirement)
+            if (tractor.date_of_registration) {
+              const date = new Date(tractor.date_of_registration);
+              if (!isNaN(date.getTime())) {
+                purchaseDateDD = String(date.getDate()).padStart(2, '0');
+                purchaseDateMM = String(date.getMonth() + 1).padStart(2, '0');
+                purchaseDateYYYY = String(date.getFullYear());
+              }
+            } else if (tractor.date_of_invoice || tractor.invoice_date || tractor.purchase_date || tractor.dateOfInvoice) {
+              const dateStr = tractor.date_of_invoice || tractor.invoice_date || tractor.purchase_date || tractor.dateOfInvoice;
+              const date = new Date(dateStr);
+              if (!isNaN(date.getTime())) {
+                purchaseDateDD = String(date.getDate()).padStart(2, '0');
+                purchaseDateMM = String(date.getMonth() + 1).padStart(2, '0');
+                purchaseDateYYYY = String(date.getFullYear());
+              }
+            } else if (tractor.invoice_day && tractor.invoice_month && tractor.invoice_year) {
+              purchaseDateDD = String(tractor.invoice_day).padStart(2, '0');
+              purchaseDateMM = String(tractor.invoice_month).padStart(2, '0');
+              purchaseDateYYYY = String(tractor.invoice_year);
+            } else if (tractor.registration_day && tractor.registration_month && tractor.registration_year) {
+              purchaseDateDD = String(tractor.registration_day).padStart(2, '0');
+              purchaseDateMM = String(tractor.registration_month).padStart(2, '0');
+              purchaseDateYYYY = String(tractor.registration_year);
+            }
+            
+            // Get tractor images - check multiple field names and formats
+            const tractorImages: string[] = [];
+            
+            // Priority 1: Check for tractorImages array (exact match from API)
+            if (tractor.tractorImages && Array.isArray(tractor.tractorImages)) {
+              tractor.tractorImages.forEach((imgUrl: string) => {
+                if (imgUrl) {
+                  const fullUrl = getImageUrl(imgUrl) || imgUrl;
+                  if (fullUrl && !tractorImages.includes(fullUrl)) {
+                    tractorImages.push(fullUrl);
+                  }
+                }
+              });
+            }
+            
+            // Priority 2: Check for tractor_images array (alternative format)
+            if (tractor.tractor_images && Array.isArray(tractor.tractor_images)) {
+              tractor.tractor_images.forEach((img: any) => {
+                const imgUrl = typeof img === 'string' ? img : (img.url || img.image_url || img.uri || img);
+                if (imgUrl) {
+                  const fullUrl = getImageUrl(imgUrl) || imgUrl;
+                  if (fullUrl && !tractorImages.includes(fullUrl)) {
+                    tractorImages.push(fullUrl);
+                  }
+                }
+              });
+            }
+            
+            // Priority 3: Check for tractor_images_url array
+            if (tractor.tractor_images_url && Array.isArray(tractor.tractor_images_url)) {
+              tractor.tractor_images_url.forEach((imgUrl: string) => {
+                const fullUrl = getImageUrl(imgUrl) || imgUrl;
+                if (fullUrl && !tractorImages.includes(fullUrl)) {
+                  tractorImages.push(fullUrl);
+                }
+              });
+            }
+            
+            // Priority 4: Check for single tractor image (tractorImage or tractor_image)
+            if (tractor.tractorImage || tractor.tractor_image || tractor.tractor_image_url) {
+              const singleImg = tractor.tractorImage || tractor.tractor_image || tractor.tractor_image_url;
+              const fullUrl = getImageUrl(singleImg) || singleImg;
+              if (fullUrl && !tractorImages.includes(fullUrl)) {
+                tractorImages.unshift(fullUrl); // Add to beginning
+              }
+            }
+            
+            // Ensure at least one empty slot if no images (for adding new images)
+            if (tractorImages.length === 0) {
+              tractorImages.push('');
+            } else if (tractorImages.length < 2) {
+              // If we have 1 image, add an empty slot for second image
+              tractorImages.push('');
+            }
+            
+            // Get RC front image - check multiple field names (priority: rcImagesFront from API)
+            let rcFront: string | undefined = undefined;
+            const rcFrontFields = [
+              tractor.rcImagesFront, // Priority 1: exact match from API
+              tractor.rc_front_image,
+              tractor.rc_front,
+              tractor.rc_image_front,
+              tractor.rcbook_front,
+              tractor.rc_book_front,
+              tractor.rc_front_url,
+            ];
+            
+            for (const field of rcFrontFields) {
+              if (field) {
+                const fullUrl = getImageUrl(field) || field;
+                if (fullUrl) {
+                  rcFront = fullUrl;
+                  break;
+                }
+              }
+            }
+            
+            // Get RC back image - check multiple field names (priority: rcImagesBack from API)
+            let rcBack: string | undefined = undefined;
+            const rcBackFields = [
+              tractor.rcImagesBack, // Priority 1: exact match from API
+              tractor.rc_back_image,
+              tractor.rc_back,
+              tractor.rc_image_back,
+              tractor.rcbook_back,
+              tractor.rc_book_back,
+              tractor.rc_back_url,
+            ];
+            
+            for (const field of rcBackFields) {
+              if (field) {
+                const fullUrl = getImageUrl(field) || field;
+                if (fullUrl) {
+                  rcBack = fullUrl;
+                  break;
+                }
+              }
+            }
+            
+            console.log(`[AddFarmerScreen] Tractor ${index + 1} images:`, {
+              tractorImages: tractorImages.length,
+              rcFront: rcFront ? 'present' : 'missing',
+              rcBack: rcBack ? 'present' : 'missing',
+            });
+            
+            return {
+              id: String(index + 1),
+              tractorImages: tractorImages,
+              rcFront: rcFront,
+              rcBack: rcBack,
+              modelName: tractor.model_name || tractor.model || tractor.modelName || '',
+              vehicleNumber: tractor.vehicle_number || tractor.vehicleNo || tractor.vehicleNumber || '',
+              chassisNumber: tractor.chassis_number || tractor.chassisNo || tractor.chassisNumber || '',
+              engineNumber: tractor.engine_number || tractor.engineNo || tractor.engineNumber || '',
+              ownerName: tractor.ownername || tractor.owner_name || tractor.ownerName || '', // Priority: ownername from API
+              purchaseDateDD: purchaseDateDD,
+              purchaseDateMM: purchaseDateMM,
+              purchaseDateYYYY: purchaseDateYYYY,
+              whoFrom: tractor.who_drives || tractor.whoFrom || tractor.whoDrives || '',
+              errors: {},
+            };
+          });
+          
+          setTractors(prefilledTractors);
+          console.log('[AddFarmerScreen] Prefilled tractors:', prefilledTractors.length);
+        } else {
+          console.log('[AddFarmerScreen] No tractor data found in API response');
+        }
       }
     } catch (error) {
       console.error('Error fetching farmer details for edit:', error);
@@ -864,12 +1089,12 @@ export default function AddFarmerScreen() {
     }
   };
 
-  // Fetch farmer details when in edit mode
+  // Fetch farmer details when in edit mode or rejected update mode
   useEffect(() => {
-    if (isEditMode && farmerId) {
+    if ((isEditMode || isRejectedUpdate) && farmerId) {
       fetchFarmerDetailsForEdit();
     }
-  }, [isEditMode, farmerId]);
+  }, [isEditMode, isRejectedUpdate, farmerId]);
 
   // Fetch questions when category changes
   useEffect(() => {
@@ -885,7 +1110,7 @@ export default function AddFarmerScreen() {
         setSubQuestionAnswers({});
       }
     }
-  }, [category]);
+  }, [category, isEditMode]);
 
   const styles = useMemo(
     () =>
@@ -1424,12 +1649,25 @@ export default function AddFarmerScreen() {
           console.log('  - Status: ✗ Unanswered (undefined/null)');
         } else if (Array.isArray(answer)) {
           // For arrays, check if it has at least one non-empty element
-          const nonEmptyItems = answer.filter(item => {
-            if (typeof item === 'string') {
-              return item.trim() !== '';
-            }
-            return item !== null && item !== undefined;
-          });
+          // Handle file arrays (objects with uri property) differently from string arrays
+          const questionType = question.question_type?.toLowerCase() || 'textbox';
+          let nonEmptyItems: any[] = [];
+          
+          if (questionType === 'file' || questionType === 'document') {
+            // For file arrays, check if objects have valid uri
+            nonEmptyItems = answer.filter((item: any) => 
+              item && typeof item === 'object' && item.uri && item.uri.trim() !== ''
+            );
+          } else {
+            // For other arrays (checkbox, etc.), check strings
+            nonEmptyItems = answer.filter((item: any) => {
+              if (typeof item === 'string') {
+                return item.trim() !== '';
+              }
+              return item !== null && item !== undefined;
+            });
+          }
+          
           if (nonEmptyItems.length === 0) {
             isUnanswered = true;
             console.log('  - Status: ✗ Unanswered (empty array or all empty items)');
@@ -1701,9 +1939,391 @@ export default function AddFarmerScreen() {
     return isValid;
   };
 
-  // Handle update farmer in edit mode
+  // Handle rejected update farmer (from notifications)
+  const handleRejectedUpdate = async () => {
+    if (!isRejectedUpdate || !farmerId) {
+      console.error('handleRejectedUpdate called but not in rejected update mode or farmerId missing');
+      return;
+    }
+    
+    console.log('[AddFarmerScreen] Updating rejected farmer with ID:', farmerId);
+
+    // Small delay to ensure all state updates are complete before validation
+    await new Promise<void>(resolve => setTimeout(() => resolve(), 100));
+    
+    // Validate form for rejected update mode (validate all fields including tractors)
+    const isValid = validateForm();
+    
+    if (!isValid) {
+      // Scroll to first error field (same as handleUpdateFarmer)
+      setTimeout(() => {
+        const currentErrors = latestErrorsRef.current;
+        const currentTractors = latestTractorsRef.current;
+        
+        // Find first error field
+        let firstErrorField: string | null = null;
+        let firstErrorY = 0;
+        
+        // Priority order for error fields
+        const errorFieldOrder = [
+          'firstName',
+          'lastName',
+          'countryCode',
+          'phoneNumber',
+          'dobDD',
+          'domDD',
+          'houseNumber',
+          'streetName',
+          'village',
+          'district',
+          'state',
+          'pincode',
+        ];
+        
+        // Check form errors in priority order
+        for (const fieldName of errorFieldOrder) {
+          if (currentErrors[fieldName as keyof FormErrors]) {
+            firstErrorField = fieldName;
+            firstErrorY = fieldPositions.current[fieldName] || 0;
+            break;
+          }
+        }
+        
+        // If no form error, check tractor errors
+        if (!firstErrorField) {
+          const firstTractorError = currentTractors.find(t => 
+            Object.values(t.errors).some(err => err)
+          );
+          if (firstTractorError) {
+            const tractorErrorKeys = Object.keys(firstTractorError.errors).filter(
+              key => firstTractorError.errors[key as keyof TractorDetails['errors']]
+            );
+            if (tractorErrorKeys.length > 0) {
+              firstErrorField = `tractor_${firstTractorError.id}_${tractorErrorKeys[0]}`;
+              firstErrorY = fieldPositions.current[firstErrorField] || 0;
+            }
+          }
+        }
+        
+        // Scroll to first error field
+        if (firstErrorField && firstErrorY > 0) {
+          scrollViewRef.current?.scrollTo({
+            y: Math.max(0, firstErrorY - 100),
+            animated: true,
+          });
+        } else {
+          scrollViewRef.current?.scrollTo({y: 0, animated: true});
+        }
+      }, 300);
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+
+      // Format questions array with all question details from API (same as handleUpdateFarmer)
+      const questionArray = questions.map((question, index) => {
+        const questionKey = `question_${question.id}_${index}`;
+        const answer = subQuestionAnswers[questionKey];
+        
+        const answers: {id: number; answer_text: string}[] = [];
+        
+        if (answer !== undefined && answer !== null && answer !== '') {
+          const questionType = question.question_type?.toLowerCase() || 'textbox';
+          
+          // Get options from answer_options or options
+          const questionOptions = question.answer_options || question.options || [];
+          
+          // Handle file/document type separately - files are uploaded separately
+          if ((questionType === 'file' || questionType === 'document') && Array.isArray(answer)) {
+            // For file questions, the files will be uploaded separately with question_docs_{index} key
+            const fileCount = answer.filter((file: any) => {
+              // Check if it's a new file (local URI) or existing file (URL)
+              if (file && typeof file === 'object' && file.uri) {
+                return file.uri.startsWith('file://') || file.uri.startsWith('content://');
+              }
+              return false;
+            }).length;
+            if (fileCount > 0) {
+              answers.push({
+                id: question.id || Date.now(),
+                answer_text: `${fileCount} file(s) uploaded`,
+              });
+            }
+          } else if (questionType === 'checkbox' && Array.isArray(answer)) {
+            // For checkbox questions, each selected option becomes an answer
+            answer.forEach((selectedOption: string) => {
+              if (selectedOption && selectedOption.trim()) {
+                const option = questionOptions.find((opt: any) => 
+                  opt.option_text === selectedOption || 
+                  opt.text === selectedOption ||
+                  opt.value === selectedOption || 
+                  opt === selectedOption
+                );
+                const answerId = option?.id || 
+                                option?.option_id || 
+                                Date.now();
+                
+                answers.push({
+                  id: answerId,
+                  answer_text: selectedOption,
+                });
+              }
+            });
+          } else if (questionType === 'radio' && typeof answer === 'string') {
+            const option = questionOptions.find((opt: any) => 
+              opt.option_text === answer || 
+              opt.text === answer ||
+              opt.value === answer || 
+              opt === answer
+            );
+            const answerId = option?.id || 
+                            option?.option_id || 
+                            Date.now();
+            
+            answers.push({
+              id: answerId,
+              answer_text: answer,
+            });
+          } else if (questionType === 'dropdown' && typeof answer === 'string') {
+            const option = questionOptions.find((opt: any) => 
+              opt.option_text === answer || 
+              opt.text === answer ||
+              opt.value === answer || 
+              opt === answer
+            );
+            const answerId = option?.id || 
+                            option?.option_id || 
+                            Date.now();
+            
+            answers.push({
+              id: answerId,
+              answer_text: answer,
+            });
+          } else {
+            // For text questions
+            const answerText = Array.isArray(answer) 
+              ? answer.filter(item => item).join(', ')
+              : String(answer).trim();
+            
+            if (answerText) {
+              answers.push({
+                id: question.id || Date.now(),
+                answer_text: answerText,
+              });
+            }
+          }
+        }
+        
+        return {
+          ...question,
+          answers: answers,
+        };
+      });
+
+      // Format tractor details (same as handleUpdateFarmer)
+      const tractorDetailsArray = tractors.map(tractor => ({
+        model_name: tractor.modelName,
+        vehicle_number: tractor.vehicleNumber,
+        chassis_number: tractor.chassisNumber,
+        engine_number: tractor.engineNumber,
+        invoice_day: tractor.purchaseDateDD,
+        invoice_month: tractor.purchaseDateMM,
+        invoice_year: tractor.purchaseDateYYYY,
+        registration_day: tractor.purchaseDateDD,
+        registration_month: tractor.purchaseDateMM,
+        registration_year: tractor.purchaseDateYYYY,
+        who_drives: tractor.whoFrom,
+        owner_name: tractor.ownerName || '',
+      }));
+
+      // Get names from selected IDs
+      const selectedState = states.find(s => s.value === stateId);
+      const selectedDistrict = districts.find(d => d.value === districtId);
+      const selectedVillage = villages.find(v => v.value === villageId);
+
+      // Prepare the data object according to API structure (same as handleUpdateFarmer but for rejected update)
+      const farmerData = {
+        farmer_id: farmerId, // Include farmer_id for update
+        first_name: firstName,
+        middle_name: middleName,
+        last_name: lastName,
+        mobile_number: phoneNumber.replace(/\s/g, ''),
+        mobile_country_code: countryCode,
+        dob_day: dobDD,
+        dob_month: dobMM,
+        dob_year: dobYYYY,
+        dom_day: domDD,
+        dom_month: domMM,
+        dom_year: domYYYY,
+        category_id: category || undefined,
+        state_id: stateId,
+        district_id: districtId,
+        village_id: villageId,
+        address: {
+          house_number: houseNumber,
+          street_name: streetName,
+          landmark: landmark,
+          village: selectedVillage?.label || villageId,
+          district: selectedDistrict?.label || districtId,
+          state: selectedState?.label || stateId,
+          pincode: pincode,
+        },
+        questions: questionArray,
+        tractorDetails: tractorDetailsArray,
+      };
+
+      // Create FormData
+      const formData = new FormData();
+      
+      // Add data as JSON string
+      formData.append('data', JSON.stringify(farmerData));
+      
+      // Add profile photo (if it's a new local image)
+      if (profilePhoto && (profilePhoto.startsWith('file://') || profilePhoto.startsWith('content://'))) {
+        const profileUriParts = profilePhoto.split('.');
+        const profileFileExtension = profileUriParts.length > 1 ? profileUriParts[profileUriParts.length - 1].toLowerCase() : 'jpg';
+        const profileMimeType = profileFileExtension === 'png' ? 'image/png' : 'image/jpeg';
+        const profileFileName = `profile-photo-${Date.now()}.${profileFileExtension}`;
+        
+        formData.append('profile_photo', {
+          uri: profilePhoto,
+          type: profileMimeType,
+          name: profileFileName,
+        } as any);
+      }
+
+      // Helper function to append file (image) to FormData
+      const appendFile = (key: string, fileUri: string, fileType: 'image', index?: number) => {
+        if (!fileUri || fileUri.trim() === '') return;
+        
+        // Only append new files (local URIs), skip existing URLs
+        if (!fileUri.startsWith('file://') && !fileUri.startsWith('content://')) {
+          return; // Skip existing URLs
+        }
+        
+        const uriParts = fileUri.split('.');
+        const fileExtension = uriParts.length > 1 ? uriParts[uriParts.length - 1].toLowerCase() : 'jpg';
+        const mimeType = fileExtension === 'png' ? 'image/png' : 'image/jpeg';
+        const fileName = `${key}-${Date.now()}-${index || 0}.${fileExtension}`;
+        
+        formData.append(key, {
+          uri: fileUri,
+          type: mimeType,
+          name: fileName,
+        } as any);
+      };
+
+      // Add question document files with question_docs_{index} key
+      questions.forEach((question, questionIndex) => {
+        const questionKey = `question_${question.id}_${questionIndex}`;
+        const answer = subQuestionAnswers[questionKey];
+        const questionType = question.question_type?.toLowerCase() || 'textbox';
+        
+        // Handle file/document type questions
+        if ((questionType === 'file' || questionType === 'document') && Array.isArray(answer)) {
+          const validFiles = answer.filter((file: any) => {
+            // Only include new files (local URIs)
+            return file && file.uri && (file.uri.startsWith('file://') || file.uri.startsWith('content://'));
+          });
+          validFiles.forEach((file: any, fileIndex: number) => {
+            const fileKey = `question_docs_${questionIndex}`;
+            appendFile(fileKey, file.uri, file.type || 'image', fileIndex);
+          });
+        }
+      });
+
+      // Add tractor images and RC images with indexed naming
+      tractors.forEach((tractor, tractorIndex) => {
+        // Add tractor images (min 1, max 2)
+        if (tractor.tractorImages && tractor.tractorImages.length > 0) {
+          const validImages = tractor.tractorImages.filter(img => img && img.trim() !== '');
+          validImages.forEach((imageUri, imageIndex) => {
+            let imageKey = '';
+            if (tractorIndex === 0) {
+              imageKey = 'tractor_images_0';
+            } else if (tractorIndex === 1) {
+              imageKey = 'tractor_images_1';
+            } else {
+              imageKey = `tractor_images_${tractorIndex}`;
+            }
+            appendFile(imageKey, imageUri, 'image', imageIndex);
+          });
+        }
+
+        // Add RC front image
+        if (tractor.rcFront && tractor.rcFront.trim() !== '') {
+          appendFile(`tractor_rc_front_${tractorIndex}`, tractor.rcFront, 'image');
+        }
+
+        // Add RC back image
+        if (tractor.rcBack && tractor.rcBack.trim() !== '') {
+          appendFile(`tractor_rc_back_${tractorIndex}`, tractor.rcBack, 'image');
+        }
+      });
+
+      console.log('[AddFarmerScreen] Updating rejected farmer data:', farmerData, null, 2);
+      console.log('', farmerId);
+
+      // Call rejected update API - Use PUT method with form-data (as shown in Postman image)
+      // This matches the Postman structure: PUT /api/dealer/v1/farmer/update with form-data
+      // The data includes farmer_id and all form fields like add farmer API
+      const response = await putDataWithImage(Apis.DEALER_UPDATE_FARMER_V1, formData);
+      
+      console.log('[AddFarmerScreen] Rejected update API Response:', JSON.stringify(response, null, 2));
+
+      // Check if response exists and has status
+      if (response && response.status === true) {
+        // Show success toast
+        const successMessage = response?.message || 'Update request sent for verification. Check notifications for update.';
+        showToastMessage(successMessage, 'success');
+        
+        // Navigate back after a short delay to allow toast to be visible
+        setTimeout(() => {
+          navigation.goBack();
+        }, 2000);
+      } else {
+        // Extract error message from various possible response structures
+        let errorMessage = '';
+        if (response) {
+          errorMessage = response?.message || 
+                        response?.data?.message || 
+                        response?.error?.message ||
+                        response?.error ||
+                        (typeof response === 'string' ? response : '');
+        }
+        
+        // Show error message from API response or fallback
+        const finalErrorMessage = errorMessage || 'Failed to update rejected farmer. Please try again.';
+        console.log('[AddFarmerScreen] Showing error toast with API message:', finalErrorMessage);
+        showToastMessage(finalErrorMessage, 'error');
+      }
+    } catch (error: any) {
+      console.error('[AddFarmerScreen] Error updating rejected farmer:', error);
+      
+      // Extract error message from various possible error structures
+      let errorMessage = '';
+      if (error?.response?.data) {
+        errorMessage = error.response.data.message || 
+                      error.response.data.error?.message ||
+                      error.response.data.error ||
+                      '';
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      // Show error message from API response or fallback
+      const finalErrorMessage = errorMessage || 'Failed to update rejected farmer. Please try again.';
+      console.log('[AddFarmerScreen] Showing error toast with API message:', finalErrorMessage);
+      showToastMessage(finalErrorMessage, 'error');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Handle update farmer in edit mode (from farmer list) - Simple form with PUT API
   const handleUpdateFarmer = async () => {
-    if (!isEditMode || !farmerId) {
+    if (!isEditMode || isRejectedUpdate || !farmerId) {
       console.error('handleUpdateFarmer called but not in edit mode or farmerId missing');
       return;
     }
@@ -1717,12 +2337,12 @@ export default function AddFarmerScreen() {
       return;
     }
     
-    console.log('Using farmer ID for update:', updateId);
+    console.log('[AddFarmerScreen] Updating farmer with ID:', updateId);
 
     // Small delay to ensure all state updates are complete before validation
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise<void>(resolve => setTimeout(() => resolve(), 100));
     
-    // Validate form for edit mode (skip tractor validation)
+    // Validate form for edit mode (only personal details and address, no tractors/category)
     const newErrors: FormErrors = {};
 
     // Personal details validation
@@ -1808,7 +2428,7 @@ export default function AddFarmerScreen() {
     try {
       setSubmitting(true);
 
-      // Prepare update data
+      // Prepare update data - Simple structure for edit from farmer list (PUT API)
       const updateData = {
         farmer_id: updateId,
         changes: {
@@ -1829,7 +2449,7 @@ export default function AddFarmerScreen() {
         },
       };
       
-      console.log('Updating farmer data:', JSON.stringify(updateData, null, 2));
+      console.log('[AddFarmerScreen] Updating farmer data (simple edit):', JSON.stringify(updateData, null, 2));
       
       // Upload profile photo separately if it's a new image
       if (profilePhoto && (profilePhoto.startsWith('file://') || profilePhoto.startsWith('content://'))) {
@@ -1854,10 +2474,10 @@ export default function AddFarmerScreen() {
         }
       }
       
-      // Call update API
+      // Call update API (PUT request with simple structure)
       const response = await putData(Apis.DEALER_UPDATE_FARMER, updateData);
       
-      console.log('Update API Response:', JSON.stringify(response, null, 2));
+      console.log('[AddFarmerScreen] Update API Response:', JSON.stringify(response, null, 2));
 
       // Check if response exists and has status
       if (response && response.status === true) {
@@ -1882,11 +2502,11 @@ export default function AddFarmerScreen() {
         
         // Show error message from API response or fallback
         const finalErrorMessage = errorMessage || 'Failed to update farmer. Please try again.';
-        console.log('Showing error toast with API message:', finalErrorMessage);
+        console.log('[AddFarmerScreen] Showing error toast with API message:', finalErrorMessage);
         showToastMessage(finalErrorMessage, 'error');
       }
     } catch (error: any) {
-      console.error('Error updating farmer:', error);
+      console.error('[AddFarmerScreen] Error updating farmer:', error);
       
       // Extract error message from various possible error structures
       let errorMessage = '';
@@ -1901,7 +2521,7 @@ export default function AddFarmerScreen() {
       
       // Show error message from API response or fallback
       const finalErrorMessage = errorMessage || 'Failed to update farmer. Please try again.';
-      console.log('Showing error toast with API message:', finalErrorMessage);
+      console.log('[AddFarmerScreen] Showing error toast with API message:', finalErrorMessage);
       showToastMessage(finalErrorMessage, 'error');
     } finally {
       setSubmitting(false);
@@ -1910,7 +2530,7 @@ export default function AddFarmerScreen() {
 
   const handleSubmit = async () => {
     // Small delay to ensure all state updates are complete before validation
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise<void>(resolve => setTimeout(() => resolve(), 100));
     
     // Validate form - this sets errors in state
     const isValid = validateForm();
@@ -2002,7 +2622,18 @@ export default function AddFarmerScreen() {
           // Get options from answer_options or options
           const questionOptions = question.answer_options || question.options || [];
           
-          if (questionType === 'checkbox' && Array.isArray(answer)) {
+          // Handle file/document type separately - files are uploaded separately
+          if ((questionType === 'file' || questionType === 'document') && Array.isArray(answer)) {
+            // For file questions, the files will be uploaded separately with question_docs_{index} key
+            // We still need to include a placeholder answer or the file count
+            const fileCount = answer.filter((file: any) => file && file.uri && file.uri.trim() !== '').length;
+            if (fileCount > 0) {
+              answers.push({
+                id: question.id || Date.now(),
+                answer_text: `${fileCount} file(s) uploaded`,
+              });
+            }
+          } else if (questionType === 'checkbox' && Array.isArray(answer)) {
             // For checkbox questions, each selected option becomes an answer
             answer.forEach((selectedOption: string) => {
               if (selectedOption && selectedOption.trim()) {
@@ -2150,23 +2781,42 @@ export default function AddFarmerScreen() {
         } as any);
       }
 
-      // Helper function to append image to FormData
-      const appendImage = (key: string, imageUri: string, index?: number) => {
-        console.log("image upload key and value:",key,imageUri,index);
+      // Helper function to append file (image) to FormData
+      const appendFile = (key: string, fileUri: string, fileType: 'image', index?: number) => {
+        console.log("file upload key and value:", key, fileUri, fileType, index);
         
-        if (!imageUri || imageUri.trim() === '') return;
+        if (!fileUri || fileUri.trim() === '') return;
         
-        const uriParts = imageUri.split('.');
+        const uriParts = fileUri.split('.');
         const fileExtension = uriParts.length > 1 ? uriParts[uriParts.length - 1].toLowerCase() : 'jpg';
-        const mimeType = fileExtension === 'png' ? 'image/png' : 'image/jpeg';
+        
+        let mimeType: string;
+        mimeType = fileExtension === 'png' ? 'image/png' : 'image/jpeg';
+        
         const fileName = `${key}-${Date.now()}-${index || 0}.${fileExtension}`;
         
         formData.append(key, {
-          uri: imageUri,
+          uri: fileUri,
           type: mimeType,
           name: fileName,
         } as any);
       };
+
+      // Add question document files with question_docs_{index} key
+      questions.forEach((question, questionIndex) => {
+        const questionKey = `question_${question.id}_${questionIndex}`;
+        const answer = subQuestionAnswers[questionKey];
+        const questionType = question.question_type?.toLowerCase() || 'textbox';
+        
+        // Handle file/document type questions
+        if ((questionType === 'file' || questionType === 'document') && Array.isArray(answer)) {
+          const validFiles = answer.filter((file: any) => file && file.uri && file.uri.trim() !== '');
+          validFiles.forEach((file: any, fileIndex: number) => {
+            const fileKey = `question_docs_${questionIndex}`;
+            appendFile(fileKey, file.uri, file.type || 'image', fileIndex);
+          });
+        }
+      });
 
       // Add tractor images and RC images with indexed naming
       tractors.forEach((tractor, tractorIndex) => {
@@ -2191,18 +2841,18 @@ export default function AddFarmerScreen() {
               // Fallback for any additional tractors (shouldn't happen based on current logic)
               imageKey = `tractor_images_${tractorIndex}`;
             }
-            appendImage(imageKey, imageUri, imageIndex);
+            appendFile(imageKey, imageUri, 'image', imageIndex);
           });
         }
 
         // Add RC front image
         if (tractor.rcFront && tractor.rcFront.trim() !== '') {
-          appendImage(`tractor_rc_front_${tractorIndex}`, tractor.rcFront);
+          appendFile(`tractor_rc_front_${tractorIndex}`, tractor.rcFront, 'image');
         }
 
         // Add RC back image
         if (tractor.rcBack && tractor.rcBack.trim() !== '') {
-          appendImage(`tractor_rc_back_${tractorIndex}`, tractor.rcBack);
+          appendFile(`tractor_rc_back_${tractorIndex}`, tractor.rcBack, 'image');
         }
       });
 
@@ -2570,7 +3220,9 @@ export default function AddFarmerScreen() {
             color={colors.textPrimary}
           />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{isEditMode ? 'Edit farmer' : 'Add new farmer'}</Text>
+        <Text style={styles.headerTitle}>
+          {isRejectedUpdate ? 'Update rejected farmer' : isEditMode ? 'Edit farmer' : 'Add new farmer'}
+        </Text>
       </View>
 
       <KeyboardAvoidingView
@@ -2590,8 +3242,8 @@ export default function AddFarmerScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{t('addFarmer.personalDetails')}</Text>
 
-            {/* Profile Photo - Hidden in edit mode */}
-            {!isEditMode && (
+            {/* Profile Photo - Hidden in edit mode (from farmer list), but shown in rejected update */}
+            {!isEditMode && !isRejectedUpdate && (
               <>
                 <View 
                   style={styles.profilePhotoContainer}
@@ -2648,8 +3300,8 @@ export default function AddFarmerScreen() {
               numberOfLinesLabel={1}
             />
 
-            {/* Category Dropdown - Hidden in edit mode */}
-            {!isEditMode && (
+            {/* Category Dropdown - Hidden in edit mode (from farmer list), but shown in rejected update */}
+            {!isEditMode && !isRejectedUpdate && (
               <View onLayout={registerFieldPosition('category')}>
                 <Dropdown
                   label={t('addFarmer.selectCategory')}
@@ -2666,7 +3318,6 @@ export default function AddFarmerScreen() {
                   }}
                   placeholder={categoriesLoading ? t('addFarmer.loadingCategories') : t('addFarmer.selectCategory')}
                   error={errors.category}
-                  disabled={categoriesLoading}
                   required={true}
                 />
                 {categoriesLoading && (
@@ -2677,19 +3328,19 @@ export default function AddFarmerScreen() {
               </View>
             )}
 
-            {/* Dynamic Sub-questions from API - Hidden in edit mode */}
-            {!isEditMode && (
-              <>
-                {questionsLoading && (
-                  <View style={{marginVertical: moderateScale(20), alignItems: 'center'}}>
-                    <ActivityIndicator size="small" color={colors.primary} />
-                    <Text style={{marginTop: moderateScale(8), fontSize: moderateScale(12), color: colors.textTertiary}}>
-                      Loading questions...
-                    </Text>
-                  </View>
-                )}
-                
-                {category && !questionsLoading && questions.length > 0 && questions.map((question, index) => {
+            {/* Dynamic Sub-questions from API - Hidden in edit mode (from farmer list), but shown in rejected update */}
+            {(!isEditMode || isRejectedUpdate) && (
+            <>
+              {questionsLoading && (
+                <View style={{marginVertical: moderateScale(20), alignItems: 'center'}}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text style={{marginTop: moderateScale(8), fontSize: moderateScale(12), color: colors.textTertiary}}>
+                    Loading questions...
+                  </Text>
+                </View>
+              )}
+              
+              {category && !questionsLoading && questions.length > 0 && questions.map((question, index) => {
               const questionKey = `question_${question.id}_${index}`;
               const currentAnswer = subQuestionAnswers[questionKey];
 
@@ -2724,7 +3375,7 @@ export default function AddFarmerScreen() {
                         value={
                           typeof currentAnswer === 'string' ? currentAnswer : ''
                         }
-                        onChangeText={isEditMode ? () => {} : handleAnswerChange}
+                        onChangeText={handleAnswerChange}
                         placeholder={t('addFarmer.yourAnswerHere')}
                         error={
                           errors.selectedSubQuestion && index === 0
@@ -2732,7 +3383,7 @@ export default function AddFarmerScreen() {
                             : undefined
                         }
                         required={true}
-                        editable={!isEditMode}
+                        editable={true}
                       />
                     </View>
                   );
@@ -2754,7 +3405,7 @@ export default function AddFarmerScreen() {
                           ? currentAnswer
                           : null
                       }
-                      onChange={isEditMode ? () => {} : handleAnswerChange}
+                      onChange={handleAnswerChange}
                       options={radioOptions}
                       error={
                         errors.selectedSubQuestion && index === 0
@@ -2762,7 +3413,7 @@ export default function AddFarmerScreen() {
                           : undefined
                       }
                       required={true}
-                      disabled={isEditMode}
+                      disabled={false}
                     />
                   );
 
@@ -2781,7 +3432,7 @@ export default function AddFarmerScreen() {
                       selectedValues={
                         Array.isArray(currentAnswer) ? currentAnswer : []
                       }
-                      onChange={isEditMode ? () => {} : handleAnswerChange}
+                      onChange={handleAnswerChange}
                       options={checkboxOptions}
                       error={
                         errors.selectedSubQuestion && index === 0
@@ -2789,30 +3440,46 @@ export default function AddFarmerScreen() {
                           : undefined
                       }
                       required={true}
-                      disabled={isEditMode}
+                      disabled={false}
                     />
                   );
 
                 case 'file':
                 case 'document':
+                  // Determine max documents (from API or default to 5)
+                  const maxDocs = question?.max_documents > 0 ? question.max_documents : 5;
+                  
+                  // Convert currentAnswer to FileItem array format
+                  let currentFiles: Array<{uri: string; type: 'image'; name: string}> = [];
+                  if (currentAnswer) {
+                    if (Array.isArray(currentAnswer)) {
+                      currentFiles = currentAnswer;
+                    } else if (typeof currentAnswer === 'string') {
+                      // Legacy format: single file URI string
+                      const fileName = currentAnswer.split('/').pop() || 'file';
+                      currentFiles = [{
+                        uri: currentAnswer,
+                        type: 'image',
+                        name: fileName,
+                      }];
+                    }
+                  }
+                  
                   return (
                     <FileUploadQuestion
                       key={questionKey}
-                      question={question.question_text || ''}
-                      onUpload={isEditMode ? () => {} : (imageUri: string) => {
-                        handleAnswerChange(imageUri);
+                      question={(question.question_text || '') + (maxDocs > 0 ? ` (maximum ${maxDocs} upload)` : '')}
+                      onUpload={(files: Array<{uri: string; type: 'image'; name: string}>) => {
+                        handleAnswerChange(files);
                       }}
-                      uploadedFileName={
-                        typeof currentAnswer === 'string'
-                          ? currentAnswer.split('/').pop() || currentAnswer
-                          : undefined
-                      }
+                      uploadedFiles={currentFiles}
                       error={
                         errors.selectedSubQuestion && index === 0
                           ? errors.selectedSubQuestion
                           : undefined
                       }
                       required={true}
+                      maxDocuments={maxDocs}
                       onError={(message) => showToastMessage(message)}
                     />
                   );
@@ -2836,7 +3503,7 @@ export default function AddFarmerScreen() {
                         typeof currentAnswer === 'string' ? currentAnswer : ''
                       }
                       options={dropdownOptions}
-                      onSelect={isEditMode ? () => {} : handleAnswerChange}
+                      onSelect={handleAnswerChange}
                       placeholder="Select option"
                       error={
                         errors.selectedSubQuestion && index === 0
@@ -2844,7 +3511,6 @@ export default function AddFarmerScreen() {
                           : undefined
                       }
                       required={true}
-                      disabled={isEditMode}
                     />
                   );
 
@@ -2869,14 +3535,14 @@ export default function AddFarmerScreen() {
               }
             })}
 
-                {category && !questionsLoading && questions.length === 0 && (
-                  <View style={{marginVertical: moderateScale(20), alignItems: 'center'}}>
-                    <Text style={{fontSize: moderateScale(14), color: colors.textTertiary}}>
-                      No questions available for this category.
-                    </Text>
-                  </View>
-                )}
-              </>
+              {category && !questionsLoading && questions.length === 0 && (
+                <View style={{marginVertical: moderateScale(20), alignItems: 'center'}}>
+                  <Text style={{fontSize: moderateScale(14), color: colors.textTertiary}}>
+                    No questions available for this category.
+                  </Text>
+                </View>
+              )}
+            </>
             )}
 
             {/* Personal Info Fields */}
@@ -3128,8 +3794,8 @@ export default function AddFarmerScreen() {
             </View>
           </View>
 
-          {/* Tractor Details Section - Hidden in edit mode */}
-          {!isEditMode && tractors.map((tractor, index) => (
+          {/* Tractor Details Section - Hidden in edit mode (from farmer list), but shown in rejected update */}
+          {(!isEditMode || isRejectedUpdate) && tractors.map((tractor, index) => (
             <View key={tractor.id} style={styles.section}>
               <View style={styles.tractorHeader}>
                 <Text style={styles.tractorCountText}>
@@ -3430,12 +4096,25 @@ export default function AddFarmerScreen() {
               )}
             </View>
           ))}
+          )}
         </ScrollView>
         {/* Submit Button */}
         <View style={{padding:moderateScale(14)}}>
           <Button
-            title={isEditMode ? 'Update for verification' : t('addFarmer.sendForVerification')}
-            onPress={isEditMode ? handleUpdateFarmer : handleSubmit}
+            title={
+              isRejectedUpdate 
+                ? 'Update rejected form' 
+                : isEditMode 
+                  ? 'Update for verification' 
+                  : t('addFarmer.sendForVerification')
+            }
+            onPress={
+              isRejectedUpdate 
+                ? handleRejectedUpdate 
+                : isEditMode 
+                  ? handleUpdateFarmer 
+                  : handleSubmit
+            }
             loading={submitting}
             disabled={submitting}
           />
