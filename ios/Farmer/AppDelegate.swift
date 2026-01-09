@@ -5,6 +5,7 @@ import ReactAppDependencyProvider
 import FirebaseCore
 import FirebaseMessaging
 import UserNotifications
+import SplashScreen
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterDelegate {
@@ -17,6 +18,9 @@ class AppDelegate: UIResponder, UIApplicationDelegate, UNUserNotificationCenterD
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
+    // Show splash screen
+    SplashScreen.show()
+    
     // Initialize Firebase
     FirebaseApp.configure()
 

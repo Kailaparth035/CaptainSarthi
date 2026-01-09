@@ -47,7 +47,8 @@
     "zToA": "Z से A",
     "newestFirst": "नवीनतम पहले",
     "oldestFirst": "पुराना पहले",
-    "specifications": "विनिर्देश"
+    "specifications": "विनिर्देश",
+    "noDetailsAvailable": "ट्रैक्टर का कोई विवरण उपलब्ध नहीं है"
   },
   "profile": {
     "title": "प्रोफ़ाइल",
@@ -120,7 +121,8 @@
     "viewForm": "फॉर्म देखें",
     "enterFirstName": "पहला नाम दर्ज करें",
     "enterLastName": "अंतिम नाम दर्ज करें",
-    "enterRejectionReason": "अस्वीकृति का कारण दर्ज करें"
+    "enterRejectionReason": "अस्वीकृति का कारण दर्ज करें",
+    "noNotificationsFound": "कोई सूचना नहीं मिली"
   },
   "language": {
     "title": "भाषा",
@@ -150,7 +152,11 @@
     "beforeContinue": "से सहमत हों इससे पहले कि आप आगे बढ़ें।"
   },
   "events": {
-    "textToSpeech": "टेक्स्ट टू स्पीच"
+    "textToSpeech": "टेक्स्ट टू स्पीच",
+    "noEventsFound": "कोई इवेंट नहीं मिला"
+  },
+  "stories": {
+    "noStoriesFound": "कोई कहानी नहीं मिली"
   },
   "farmerHome": {
     "greeting": "नमस्ते",

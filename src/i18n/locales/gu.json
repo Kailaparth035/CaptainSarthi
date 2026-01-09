@@ -1,8 +1,8 @@
 {
-  "appName": "ફાર્મર",
+  "appName": "ખેડૂત",
   "tabs": {
     "Home": "હોમ",
-    "Farmer": "ફાર્મર",
+    "Farmer": "ખેડૂત",
     "Tractors": "ટ્રેક્ટર",
     "More": "વધુ",
     "Profile": "પ્રોફાઇલ",
@@ -12,7 +12,7 @@
   },
   "home": {
     "title": "હોમ",
-    "welcome": "ફાર્મર એપ્લિકેશનમાં આપનું સ્વાગત છે.",
+    "welcome": "ખેડૂત એપ્લિકેશનમાં આપનું સ્વાગત છે.",
     "greeting": "નમસ્તે",
     "activeClients": "સક્રિય ક્લાયન્ટ્સ",
     "tractorModels": "ટ્રેક્ટર મોડલ્સ",
@@ -20,11 +20,23 @@
     "syncNow": "હવે સમન્વય કરો",
     "clients": "ક્લાયન્ટ્સ",
     "tractors": "ટ્રેક્ટર",
-    "seeAll": "બધું જુઓ"
+    "seeAll": "બધું જુઓ",
+    "farmers": "ખેડૂત",
+    "unknownModel": "અજ્ઞાત મોડલ",
+    "notAvailable": "ઉપલબ્ધ નથી",
+    "noFarmerAdded": "કોઈ ખેડૂત ઉમેરાયો નથી",
+    "noFarmerDescription": "એવું લાગે છે કે અહીં હજુ સુધી કોઈ ખેડૂત નથી. શરૂ કરવા માટે તમારો પહેલો ખેડૂત ઉમેરો.",
+    "addFarmer": "ખેડૂત ઉમેરો",
+    "noTractors": "કોઈ ટ્રેક્ટર મળ્યું નથી"
   },
   "farmer": {
-    "title": "ફાર્મર",
-    "addNew": "નવું ઉમેરો"
+    "title": "ખેડૂત",
+    "addNew": "નવું ઉમેરો",
+    "name": "નામ",
+    "category": "શ્રેણી",
+    "allCategories": "બધી શ્રેણીઓ",
+    "details": "ખેડૂત માહિતી",
+    "noDetailsFound": "કોઈ ખેડૂત માહિતી મળી નથી"
   },
   "tractors": {
     "title": "ટ્રેક્ટર",
@@ -35,7 +47,8 @@
     "zToA": "Z થી A",
     "newestFirst": "નવીનતમ પહેલા",
     "oldestFirst": "જૂની પહેલા",
-    "specifications": "વિશિષ્ટતાઓ"
+    "specifications": "વિશિષ્ટતાઓ",
+    "noDetailsAvailable": "ટ્રેક્ટરની કોઈ વિગતો ઉપલબ્ધ નથી"
   },
   "profile": {
     "title": "પ્રોફાઇલ",
@@ -108,7 +121,8 @@
     "viewForm": "ફોર્મ જુઓ",
     "enterFirstName": "પ્રથમ નામ દાખલ કરો",
     "enterLastName": "છેલ્લું નામ દાખલ કરો",
-    "enterRejectionReason": "નકારવાનું કારણ દાખલ કરો"
+    "enterRejectionReason": "નકારવાનું કારણ દાખલ કરો",
+    "noNotificationsFound": "કોઈ સૂચનાઓ મળી નથી"
   },
   "language": {
     "title": "ભાષા",
@@ -126,7 +140,10 @@
     "edit": "સંપાદિત કરો",
     "submit": "સબમિટ કરો",
     "loading": "લોડ થઈ રહ્યું છે...",
-    "search": "શોધો"
+    "search": "શોધો",
+    "filters": "ફિલ્ટર્સ",
+    "reset": "રીસેટ કરો",
+    "apply": "અરજી કરો"
   },
   "onboarding": {
     "getStarted": "શરૂ કરો",
@@ -135,7 +152,11 @@
     "beforeContinue": "સ્વીકારો તમે આગળ વધો તે પહેલા."
   },
   "events": {
-    "textToSpeech": "ટેક્સ્ટ ટુ સ્પીચ"
+    "textToSpeech": "ટેક્સ્ટ ટુ સ્પીચ",
+    "noEventsFound": "કોઈ ઇવેન્ટ્સ મળી નથી"
+  },
+  "stories": {
+    "noStoriesFound": "કોઈ વાર્તા મળી નથી"
   },
   "farmerHome": {
     "greeting": "નમસ્તે",
@@ -176,8 +197,8 @@
     "dateOfMarriage": "લગ્નની તારીખ",
     "dealershipName": "ડીલરશિપનું નામ",
     "dealershipAddress": "ડીલરશિપ સરનામું",
-    "tractorDetails": "ટ્રેક્ટર વિગતો",
-    "tractorCount": "ટ્રેક્ટર સંખ્યા",
+    "tractorDetails": "ટ્રેક્ટર માહિતી",
+    "tractorCount": "ટ્રેક્ટર નંબર",
     "modelName": "મોડલ નામ",
     "vehicleNo": "વાહન નંબર",
     "ownerName": "માલિકનું નામ",
@@ -212,11 +233,13 @@
     "newNumberMustBeDifferent": "નવો નંબર હાલના નંબરથી અલગ હોવો જોઈએ"
   },
   "addFarmer": {
-    "title": "ફાર્મર ઉમેરો",
+    "title": "ખેડૂત ઉમેરો",
+    "addNewFarmer": "નવા ખેડૂત ઉમેરો",
+    "editFarmer": "ખેડૂત સંપાદિત કરો",
     "personalDetails": "વ્યક્તિગત વિગતો",
     "address": "સરનામું",
-    "tractorDetails": "ટ્રેક્ટર વિગતો",
-    "tractorCount": "ટ્રેક્ટર સંખ્યા",
+    "tractorDetails": "ટ્રેક્ટર માહિતી",
+    "tractorCount": "ટ્રેક્ટર નંબર",
     "uploadProfilePhoto": "પ્રોફાઇલ ફોટો અપલોડ કરો",
     "dealerName": "ડીલરનું નામ",
     "selectCategory": "શ્રેણી પસંદ કરો",
@@ -266,6 +289,7 @@
     "addNewTractor": "નવું ટ્રેક્ટર ઉમેરો",
     "remove": "કાઢી નાખો",
     "sendForVerification": "ચકાસણી માટે મોકલો",
+    "updateForVerification": "ચકાસણી માટે અપડેટ",
     "dd": "દિવસ",
     "mm": "મહિનો",
     "yyyy": "વર્ષ",
@@ -279,7 +303,13 @@
     "camera": "કેમેરા",
     "gallery": "ગેલેરી",
     "uploadDocument": "દસ્તાવેજ અપલોડ કરો",
-    "cancel": "રદ કરો"
+    "cancel": "રદ કરો",
+    "uploadSecondImage": "બીજી છબી અપલોડ કરો",
+    "uploadRcFront": "RC ફ્રન્ટ અપલોડ કરો",
+    "uploadRcBack": "RC બેક અપલોડ કરો",
+    "uploadRcImage": "RC છબી અપલોડ કરો",
+    "noRcFront": "કોઈ RC ફ્રન્ટ નથી",
+    "noRcBack": "કોઈ RC બેક નથી"
   }
 }
 

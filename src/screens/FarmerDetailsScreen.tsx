@@ -21,6 +21,7 @@ import useDeviceMetrics from '../utils/responsiveCustom';
 import {Typography} from '../utils/typography';
 import ImagePreviewModal, {ImageItem} from '../components/ImagePreviewModal';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
+import {useLanguage} from '../contexts/LanguageContext';
 import {getData} from '../Service/Apimethod';
 import Apis, {API_BASE_URL} from '../Service/constant';
 import {getImageUrl} from '../utils/imageUtils';
@@ -93,6 +94,7 @@ const InfoRow = ({
 export default function FarmerDetailsScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
+  const {t} = useLanguage();
   const route = useRoute();
   const navigation = useNavigation();
   const tabNavigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
@@ -686,7 +688,7 @@ export default function FarmerDetailsScreen() {
               color={colors.textPrimary}
             />
           </TouchableOpacity>
-          <Text style={dynamicStyles.headerTitle}>Farmer details</Text>
+          <Text style={dynamicStyles.headerTitle}>{t("farmer.details")}</Text>
         </View>
         <TouchableOpacity
           style={dynamicStyles.editButton}
@@ -818,9 +820,9 @@ export default function FarmerDetailsScreen() {
         {/* Tractor Details Card */}
         <View style={dynamicStyles.card}>
           <View style={dynamicStyles.tractorHeader}>
-            <Text style={dynamicStyles.tractorTitle}>Tractor details</Text>
+            <Text style={dynamicStyles.tractorTitle}>{t("farmerProfile.tractorDetails")}</Text>
             <Text style={dynamicStyles.tractorCount}>
-              Tractor count: {farmerDetails.tractors.length}
+              {t("farmerProfile.tractorCount")}: {farmerDetails.tractors.length}
             </Text>
           </View>
 
@@ -1004,7 +1006,7 @@ export default function FarmerDetailsScreen() {
                         />
                       ) : (
                         <View style={dynamicStyles.placeholderImage}>
-                          <Text style={[dynamicStyles.placeholderText, {fontSize: moderateScale(10)}]}>No RC Front</Text>
+                          <Text style={[dynamicStyles.placeholderText, {fontSize: moderateScale(10)}]}>{t("addFarmer.noRcFront")}</Text>
                         </View>
                       )}
                     </TouchableOpacity>
@@ -1031,7 +1033,7 @@ export default function FarmerDetailsScreen() {
                         />
                       ) : (
                         <View style={dynamicStyles.placeholderImage}>
-                          <Text style={[dynamicStyles.placeholderText, {fontSize: moderateScale(10)}]}>No RC Back</Text>
+                          <Text style={[dynamicStyles.placeholderText, {fontSize: moderateScale(10)}]}>{t("addFarmer.noRcBack")}</Text>
                         </View>
                       )}
                     </TouchableOpacity>
@@ -1085,7 +1087,7 @@ export default function FarmerDetailsScreen() {
       ) : (
         <View style={{flex: 1, alignItems: 'center', justifyContent: 'center', padding: moderateScale(20)}}>
           <Text style={[Typography.regularMd, {color: colors.textSecondary}]}>
-            No farmer details found
+            {t("farmer.noDetailsFound")}
           </Text>
         </View>
       )}

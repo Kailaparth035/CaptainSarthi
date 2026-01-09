@@ -1,5 +1,6 @@
 import React, {createContext, useContext, useState, useRef, ReactNode} from 'react';
 import Tts from 'react-native-tts';
+import {useLanguage} from './LanguageContext';
 
 type TTSState = {
   isPlaying: boolean;
@@ -29,13 +30,25 @@ const defaultState: TTSState = {
 
 export function TTSProvider({children}: {children: ReactNode}) {
   const [state, setState] = useState<TTSState>(defaultState);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number>(0);
   const pausedPositionRef = useRef<number>(0);
+  const {currentLanguage} = useLanguage();
+
+  // Map app language codes to TTS language codes
+  const getTTSLanguage = (lang: string): string => {
+    const languageMap: Record<string, string> = {
+      'en': 'en-IN', // Indian English
+      'hi': 'hi-IN', // Hindi
+      'gu': 'gu-IN', // Gujarati
+    };
+    return languageMap[lang] || 'en-IN';
+  };
 
   React.useEffect(() => {
-    // Initialize TTS
-    Tts.setDefaultLanguage('en-US');
+    // Initialize TTS with default settings
+    const ttsLanguage = getTTSLanguage(currentLanguage);
+    Tts.setDefaultLanguage(ttsLanguage);
     Tts.setDefaultRate(0.5);
     Tts.setDefaultPitch(1.0);
 
@@ -80,7 +93,7 @@ export function TTSProvider({children}: {children: ReactNode}) {
       }
       Tts.stop();
     };
-  }, []);
+  }, [currentLanguage]);
 
   const playTTS = React.useCallback(async (text: string) => {
     try {
@@ -96,6 +109,15 @@ export function TTSProvider({children}: {children: ReactNode}) {
         currentPosition: 0,
       });
 
+      // Set language based on current language before speaking
+      // This is crucial for Android 12+ to work properly with non-English languages
+      const ttsLanguage = getTTSLanguage(currentLanguage);
+      try {
+        await Tts.setDefaultLanguage(ttsLanguage);
+      } catch (langError) {
+        console.warn('TTS Language setting error, using default:', langError);
+      }
+
       // Estimate duration (rough calculation: ~150 words per minute)
       const wordCount = text.split(/\s+/).length;
       const estimatedDuration = (wordCount / 150) * 60; // in seconds
@@ -105,7 +127,7 @@ export function TTSProvider({children}: {children: ReactNode}) {
         duration: estimatedDuration,
       }));
 
-      // Start TTS
+      // Start TTS (language is already set via setDefaultLanguage above)
       await Tts.speak(text);
 
       // Update progress periodically
@@ -134,7 +156,7 @@ export function TTSProvider({children}: {children: ReactNode}) {
       console.error('TTS Error:', error);
       setState(prev => ({...prev, isPlaying: false}));
     }
-  }, []);
+  }, [currentLanguage]);
 
   const stopTTS = React.useCallback(async () => {
     try {
@@ -179,6 +201,14 @@ export function TTSProvider({children}: {children: ReactNode}) {
       const remainingText = state.text;
       const currentPos = pausedPositionRef.current;
       
+      // Set language based on current language before speaking
+      const ttsLanguage = getTTSLanguage(currentLanguage);
+      try {
+        await Tts.setDefaultLanguage(ttsLanguage);
+      } catch (langError) {
+        console.warn('TTS Language setting error, using default:', langError);
+      }
+      
       // Calculate remaining text (rough approximation)
       const wordsPerSecond = 150 / 60; // words per second
       const wordsToSkip = Math.floor(currentPos * wordsPerSecond);
@@ -187,12 +217,13 @@ export function TTSProvider({children}: {children: ReactNode}) {
 
       if (remainingWords.trim()) {
         startTimeRef.current = Date.now() - pausedPositionRef.current * 1000;
+        // Language is already set via setDefaultLanguage above
         await Tts.speak(remainingWords);
       }
     } catch (error) {
       console.error('TTS Resume Error:', error);
     }
-  }, [state.text]);
+  }, [state.text, currentLanguage]);
 
   return (
     <TTSContext.Provider

@@ -46,7 +46,7 @@ export default function StoriesScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
   const navigation = useNavigation();
-  const {currentLanguage} = useLanguage();
+  const {currentLanguage, t} = useLanguage();
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [stories, setStories] = useState<any[]>([]);
@@ -73,12 +73,22 @@ export default function StoriesScreen() {
         videoUrl = story.video_url || story.videoUrl;
       }
       
-      // Use YouTube thumbnail if video is YouTube, otherwise use image_url
+      // Priority: cover_image_url > YouTube thumbnail > image_url > default
       let imageUrl = null;
-      if (videoUrl && isYouTubeUrl(videoUrl)) {
+      
+      // First check for cover_image_url
+      if (story.cover_image_url) {
+        imageUrl = getImageUrl(story.cover_image_url);
+      } else if (story.media?.cover_image_url) {
+        imageUrl = getImageUrl(story.media.cover_image_url);
+      }
+      // If no cover_image_url, check for YouTube thumbnail
+      else if (videoUrl && isYouTubeUrl(videoUrl)) {
         const youtubeThumbnail = getYouTubeThumbnailUrl(videoUrl, 'maxresdefault');
         imageUrl = youtubeThumbnail;
-      } else if (story.image_url) {
+      }
+      // If no YouTube thumbnail, check for image_url
+      else if (story.image_url) {
         imageUrl = getImageUrl(story.image_url);
       }
       
@@ -476,7 +486,7 @@ export default function StoriesScreen() {
           }}
         />
         <Text style={[Typography.boldXl, {color: colors.textPrimary, fontSize: moderateScale(20)}]}>
-          No story found
+          {t('stories.noStoriesFound')}
         </Text>
       </View>
     );

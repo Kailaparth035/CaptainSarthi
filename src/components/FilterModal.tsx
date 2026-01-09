@@ -12,6 +12,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import colors from '../utils/colors';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import {Typography} from '../utils/typography';
+import {useLanguage} from '../contexts/LanguageContext';
 
 type FilterCategory = {
   id: string;
@@ -58,13 +59,15 @@ export default function FilterModal({
   onClose,
   onApply,
   onReset,
-  title = 'Filters',
+  title,
   categories = defaultCategories,
   selectedCategory: initialCategory,
   selectedOptions: initialOptions = {},
 }: FilterModalProps) {
   const {moderateScale} = useDeviceMetrics();
+  const {t} = useLanguage();
   const insets = useSafeAreaInsets();
+  const modalTitle = title || t('common.filters');
   const [selectedCategory, setSelectedCategory] = useState<string>(
     initialCategory || categories[0]?.id || '',
   );
@@ -300,14 +303,14 @@ export default function FilterModal({
                 color={colors.textPrimary}
               />
             </TouchableOpacity>
-            <Text style={dynamicStyles.modalTitle}>{title}</Text>
+            <Text style={dynamicStyles.modalTitle}>{modalTitle}</Text>
           </View>
           <View style={dynamicStyles.headerRight}>
             <TouchableOpacity
               style={dynamicStyles.resetButton}
               onPress={handleReset}
               activeOpacity={0.7}>
-              <Text style={dynamicStyles.resetButtonText}>Reset</Text>
+              <Text style={dynamicStyles.resetButtonText}>{t('common.reset')}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -385,7 +388,7 @@ export default function FilterModal({
             style={dynamicStyles.applyButton}
             onPress={handleApply}
             activeOpacity={0.7}>
-            <Text style={dynamicStyles.applyButtonText}>Apply</Text>
+            <Text style={dynamicStyles.applyButtonText}>{t('common.apply')}</Text>
           </TouchableOpacity>
         </View>
       </View>

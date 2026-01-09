@@ -6,8 +6,8 @@
         <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
     </style>
 
-    <!-- BootSplash Theme - Shows splash screen on launch -->
-    <style name="BootTheme" parent="AppTheme">
+    <!-- SplashScreen Theme - Shows splash screen on launch -->
+    <style name="SplashScreenTheme" parent="SplashScreen_SplashTheme">
         <!-- Splash screen background - use bootsplash.xml which has white background + splash image -->
         <item name="android:windowBackground">@drawable/bootsplash</item>
         <item name="android:windowNoTitle">true</item>
@@ -15,7 +15,6 @@
         <item name="android:windowFullscreen">false</item>
         <item name="android:windowContentOverlay">@null</item>
         <item name="android:windowIsTranslucent">false</item>
-        <item name="android:windowAnimationStyle">@null</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>

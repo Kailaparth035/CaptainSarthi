@@ -1586,7 +1586,7 @@ export default function FarmerHomeScreen() {
                   }}
                 />
                 <Text style={[Typography.boldXl, {color: colors.textPrimary, fontSize: moderateScale(20)}]}>
-                  No events found
+                  {t('events.noEventsFound')}
                 </Text>
               </View>
             )}
@@ -1638,7 +1638,7 @@ export default function FarmerHomeScreen() {
                   }}
                 />
                 <Text style={[Typography.boldXl, {color: colors.textPrimary, fontSize: moderateScale(20)}]}>
-                  No story found
+                  {t('stories.noStoriesFound')}
                 </Text>
               </View>
             )}

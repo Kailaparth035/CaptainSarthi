@@ -10,7 +10,7 @@ import {
   SafeAreaProvider,
   SafeAreaView,
 } from 'react-native-safe-area-context';
-import RootNavigator from './src/navigation/RootNavigator';
+import RootNavigator, {navigationRef} from './src/navigation/RootNavigator';
 import {StatusBarProvider, useStatusBar} from './src/contexts/StatusBarContext';
 import {TTSProvider} from './src/contexts/TTSContext';
 import {LanguageProvider} from './src/contexts/LanguageContext';
@@ -19,6 +19,10 @@ import {StatusBar} from 'react-native';
 import {useEffect} from 'react';
 import './src/i18n'; // Initialize i18n
 import FirebaseService from './src/Service/FirebaseService';
+import {isLoggedIn, getUserRole, savePendingNavigation} from './src/utils/session';
+import {SCREEN_NAMES} from './src/constants/screenNames';
+import {CommonActions} from '@react-navigation/native';
+import SplashScreen from 'react-native-splash-screen';
 
 function App() {
   useEffect(() => {
@@ -42,15 +46,158 @@ function App() {
             }
           },
           // Background/Quit state notification handler
-          (remoteMessage) => {
+          async (remoteMessage) => {
             console.log('App: 🔔 Notification opened from background/quit state');
             console.log('App: Notification data:', JSON.stringify(remoteMessage, null, 2));
             
             // Handle navigation or other actions when notification is opened
             if (remoteMessage.data) {
               console.log('App: 📦 Custom data:', remoteMessage.data);
-              // Example: Navigate based on notification data
-              // navigationRef.current?.navigate(remoteMessage.data.screen);
+              
+              // Check if click_action is OPEN_NOTIFICATION_DETAIL
+              if (remoteMessage.data.click_action === 'OPEN_NOTIFICATION_DETAIL') {
+                console.log('App: 📬 Notification click action detected: OPEN_NOTIFICATION_DETAIL');
+                
+                try {
+                  // Check if user is logged in
+                  const loggedIn = await isLoggedIn();
+                  
+                  if (loggedIn) {
+                    // Check if user is a farmer
+                    const userRole = await getUserRole();
+                    const isFarmer = userRole === 'farmer';
+                    
+                    if (isFarmer) {
+                      console.log('App: ✅ Farmer logged in - navigating to Notifications screen');
+                      
+                      // Function to attempt navigation
+                      const attemptNavigation = (retries = 0) => {
+                        if (navigationRef.current?.isReady()) {
+                          // Navigate to FarmerTabs first, then to Notifications
+                          navigationRef.current?.dispatch(
+                            CommonActions.navigate({
+                              name: SCREEN_NAMES.FarmerTabs,
+                              params: {
+                                screen: SCREEN_NAMES.Home,
+                                params: {
+                                  screen: SCREEN_NAMES.Notifications,
+                                },
+                              },
+                            })
+                          );
+                          console.log('App: ✅ Navigated to Notifications screen');
+                        } else if (retries < 5) {
+                          // Retry after a short delay (max 5 retries)
+                          console.log(`App: ⚠️ Navigation not ready yet, retrying... (${retries + 1}/5)`);
+                          setTimeout(() => attemptNavigation(retries + 1), 500);
+                        } else {
+                          console.log('App: ⚠️ Navigation not ready after retries, storing pending navigation');
+                          savePendingNavigation({
+                            action: 'OPEN_NOTIFICATION_DETAIL',
+                            screen: SCREEN_NAMES.Notifications,
+                          });
+                        }
+                      };
+                      
+                      // Wait a bit for navigation to be ready, then attempt navigation
+                      setTimeout(() => attemptNavigation(), 500);
+                    } else {
+                      console.log('App: ⚠️ User is not a farmer, ignoring notification click');
+                    }
+                  } else {
+                    console.log('App: ⚠️ User not logged in - storing pending navigation');
+                    // Store pending navigation to handle after login
+                    await savePendingNavigation({
+                      action: 'OPEN_NOTIFICATION_DETAIL',
+                      screen: SCREEN_NAMES.Notifications,
+                    });
+                  }
+                } catch (error) {
+                  console.error('App: ❌ Error handling notification click:', error);
+                }
+              }
+              
+              // Check if click_action is OPEN_EVENT_DETAIL
+              if (remoteMessage.data.click_action === 'OPEN_EVENT_DETAIL') {
+                console.log('App: 📅 Notification click action detected: OPEN_EVENT_DETAIL');
+                
+                try {
+                  // Extract event_id from notification data
+                  const eventId = remoteMessage.data.event_id;
+                  
+                  if (!eventId) {
+                    console.error('App: ❌ No event_id found in notification data');
+                    return;
+                  }
+                  
+                  console.log('App: 📅 Event ID:', eventId);
+                  
+                  // Check if user is logged in
+                  const loggedIn = await isLoggedIn();
+                  
+                  if (loggedIn) {
+                    // Check if user is a farmer
+                    const userRole = await getUserRole();
+                    const isFarmer = userRole === 'farmer';
+                    
+                    if (isFarmer) {
+                      console.log('App: ✅ Farmer logged in - navigating to Event Details screen');
+                      
+                      // Function to attempt navigation
+                      const attemptNavigation = (retries = 0) => {
+                        if (navigationRef.current?.isReady()) {
+                          // Navigate to FarmerTabs -> Events -> EventDetails with eventId
+                          navigationRef.current?.dispatch(
+                            CommonActions.navigate({
+                              name: SCREEN_NAMES.FarmerTabs,
+                              params: {
+                                screen: SCREEN_NAMES.Events,
+                                params: {
+                                  screen: SCREEN_NAMES.EventDetails,
+                                  params: {
+                                    eventId: eventId,
+                                  },
+                                },
+                              },
+                            })
+                          );
+                          console.log('App: ✅ Navigated to Event Details screen with eventId:', eventId);
+                        } else if (retries < 5) {
+                          // Retry after a short delay (max 5 retries)
+                          console.log(`App: ⚠️ Navigation not ready yet, retrying... (${retries + 1}/5)`);
+                          setTimeout(() => attemptNavigation(retries + 1), 500);
+                        } else {
+                          console.log('App: ⚠️ Navigation not ready after retries, storing pending navigation');
+                          savePendingNavigation({
+                            action: 'OPEN_EVENT_DETAIL',
+                            screen: SCREEN_NAMES.EventDetails,
+                            params: {
+                              eventId: eventId,
+                            },
+                          });
+                        }
+                      };
+                      
+                      // Wait a bit for navigation to be ready, then attempt navigation
+                      setTimeout(() => attemptNavigation(), 500);
+                    } else {
+                      console.log('App: ⚠️ User is not a farmer, ignoring notification click');
+                    }
+                  } else {
+                    console.log('App: ⚠️ User not logged in - storing pending navigation');
+                    // Store pending navigation to handle after login
+                    await savePendingNavigation({
+                      action: 'OPEN_EVENT_DETAIL',
+                      screen: SCREEN_NAMES.EventDetails,
+                      params: {
+                        eventId: eventId,
+                      },
+                    });
+                  }
+                } catch (error) {
+                  console.error('App: ❌ Error handling event notification click:', error);
+                }
+              }
             }
           },
           // Token refresh handler
@@ -98,6 +245,33 @@ function App() {
 
 function AppContent() {
   const {currentConfig} = useStatusBar();
+
+  useEffect(() => {
+    // Hide splash screen when navigation is ready
+    // Wait for navigation container to be initialized
+    const hideSplash = () => {
+      if (navigationRef.current?.isReady()) {
+        SplashScreen.hide();
+      } else {
+        // Wait for navigation to be ready
+        const checkNavigation = setInterval(() => {
+          if (navigationRef.current?.isReady()) {
+            SplashScreen.hide();
+            clearInterval(checkNavigation);
+          }
+        }, 100);
+        
+        // Fallback: hide after 2 seconds if navigation doesn't become ready
+        setTimeout(() => {
+          SplashScreen.hide();
+          clearInterval(checkNavigation);
+        }, 2000);
+      }
+    };
+    
+    // Small delay to ensure app initialization is complete
+    setTimeout(hideSplash, 100);
+  }, []);
 
   return (
     <>

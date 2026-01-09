@@ -24,7 +24,7 @@
     "farmers": "ખેડૂત",
     "unknownModel": "અજ્ઞાત મોડલ",
     "notAvailable": "ઉપલબ્ધ નથી",
-    "noFarmerAdded": "કોઈ ખેડૂત ઉમેર્યો નથી",
+    "noFarmerAdded": "કોઈ ખેડૂત ઉમેરાયો નથી",
     "noFarmerDescription": "એવું લાગે છે કે અહીં હજુ સુધી કોઈ ખેડૂત નથી. શરૂ કરવા માટે તમારો પહેલો ખેડૂત ઉમેરો.",
     "addFarmer": "ખેડૂત ઉમેરો",
     "noTractors": "કોઈ ટ્રેક્ટર મળ્યું નથી"
@@ -47,7 +47,8 @@
     "zToA": "Z થી A",
     "newestFirst": "નવીનતમ પહેલા",
     "oldestFirst": "જૂની પહેલા",
-    "specifications": "વિશિષ્ટતાઓ"
+    "specifications": "વિશિષ્ટતાઓ",
+    "noDetailsAvailable": "ટ્રેક્ટરની કોઈ વિગતો ઉપલબ્ધ નથી"
   },
   "profile": {
     "title": "પ્રોફાઇલ",
@@ -120,7 +121,8 @@
     "viewForm": "ફોર્મ જુઓ",
     "enterFirstName": "પ્રથમ નામ દાખલ કરો",
     "enterLastName": "છેલ્લું નામ દાખલ કરો",
-    "enterRejectionReason": "નકારવાનું કારણ દાખલ કરો"
+    "enterRejectionReason": "નકારવાનું કારણ દાખલ કરો",
+    "noNotificationsFound": "કોઈ સૂચનાઓ મળી નથી"
   },
   "language": {
     "title": "ભાષા",
@@ -150,7 +152,11 @@
     "beforeContinue": "સ્વીકારો તમે આગળ વધો તે પહેલા."
   },
   "events": {
-    "textToSpeech": "ટેક્સ્ટ ટુ સ્પીચ"
+    "textToSpeech": "ટેક્સ્ટ ટુ સ્પીચ",
+    "noEventsFound": "કોઈ ઇવેન્ટ્સ મળી નથી"
+  },
+  "stories": {
+    "noStoriesFound": "કોઈ વાર્તા મળી નથી"
   },
   "farmerHome": {
     "greeting": "નમસ્તે",

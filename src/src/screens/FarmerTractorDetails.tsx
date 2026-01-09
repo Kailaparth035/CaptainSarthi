@@ -595,7 +595,7 @@ export default function FarmerTractorDetails() {
       ) : (
         <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', padding: moderateScale(32)}}>
           <Text style={[Typography.regularMd, {fontSize: moderateScale(16), color: colors.textTertiary, textAlign: 'center'}]}>
-            No tractor details available
+            {t('tractors.noDetailsAvailable')}
           </Text>
         </View>
       )}

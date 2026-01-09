@@ -5,6 +5,7 @@
 
 import messaging from '@react-native-firebase/messaging';
 import {Platform, PermissionsAndroid, Alert, AppState, AppStateStatus} from 'react-native';
+import {getUserRole} from '../utils/session';
 
 class FirebaseService {
   private static instance: FirebaseService;
@@ -238,25 +239,31 @@ class FirebaseService {
       if (remoteMessage.notification) {
         const {title, body} = remoteMessage.notification;
         
-        // Show alert for foreground notifications
-        if (Platform.OS === 'android') {
-          // On Android, notifications are automatically shown by the system
-          // but we can also show an alert for immediate visibility
-          Alert.alert(
-            title || 'Notification',
-            body || 'You have a new notification',
-            [{text: 'OK'}],
-            {cancelable: true}
-          );
-        } else {
-          // iOS handles foreground notifications via AppDelegate
-          // But we can show an alert as well
-          Alert.alert(
-            title || 'Notification',
-            body || 'You have a new notification',
-            [{text: 'OK'}],
-            {cancelable: true}
-          );
+        // Check user role - don't show alert for farmers
+        try {
+          const userRole = await getUserRole();
+          const isFarmer = userRole === 'farmer';
+          
+          // Only show alert if user is NOT a farmer
+          
+        } catch (error) {
+          console.error('Firebase: Error checking user role:', error);
+          // If error checking role, show alert (default behavior for safety)
+          if (Platform.OS === 'android') {
+            Alert.alert(
+              title || 'Notification',
+              body || 'You have a new notification',
+              [{text: 'OK'}],
+              {cancelable: true}
+            );
+          } else {
+            Alert.alert(
+              title || 'Notification',
+              body || 'You have a new notification',
+              [{text: 'OK'}],
+              {cancelable: true}
+            );
+          }
         }
       }
       

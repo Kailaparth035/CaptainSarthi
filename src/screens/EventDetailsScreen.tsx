@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {useRoute, useNavigation} from '@react-navigation/native';
+import {useRoute, useNavigation, useFocusEffect} from '@react-navigation/native';
 import {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
 import {FarmerTabParamList} from '../navigation/FarmerTabNavigator';
 import {SCREEN_NAMES} from '../constants/screenNames';
@@ -60,7 +60,7 @@ const getEventDetails = (eventId: string) => {
       'Captain Tractors proudly organized its National Dealer Meet 2025 on the 9th and 10th of September in the royal city of Udaipur, Rajasthan. This grand assembly brought together over 175+ of our valued dealer partners from every corner of India, celebrating the strength, trust, and growth of the Captain Tractors family.',
     fullDescription:
       'Captain Tractors proudly organized its National Dealer Meet 2025 on the 9th and 10th of September in the royal city of Udaipur, Rajasthan. This grand assembly brought together over 175+ of our valued dealer partners from every corner of India, celebrating the strength, trust, and growth of the Captain Tractors family.\n\nThe first day was a vibrant celebration. Dealers were welcomed with traditional Rajasthani hospitality, creating a festive atmosphere. An unforgettable evening of folk dance, music, and cultural performances perfectly embodied the event\'s theme, \'Chhalaang\', binding the Captain family in a shared spirit of unity and enthusiasm.',
-    videoUri: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+    videoUri: '', // Removed static video - only show video if API provides it
     thumbnailUri: ImagePath.eventImage,
     images: [
       ImagePath.eventImage,
@@ -90,7 +90,7 @@ export default function EventDetailsScreen() {
   const [loading, setLoading] = useState(true);
   const [eventDetails, setEventDetails] = useState<any>(null);
   const [eventApiData, setEventApiData] = useState<any>(null); // Store full API response
-  const {playTTS, state: ttsState} = useTTS();
+  const {playTTS, stopTTS, state: ttsState} = useTTS();
 
   // Fetch event details from API
   const fetchEventDetails = useCallback(async (showRefreshing = false) => {
@@ -343,6 +343,14 @@ export default function EventDetailsScreen() {
           overflow: 'hidden',
           backgroundColor: 'transparent',
         },
+        bannerImageContainer: {
+          width: '100%',
+          height: moderateScale(250),
+          marginBottom: moderateScale(8),
+          borderRadius: moderateScale(10),
+          overflow: 'hidden',
+          backgroundColor: 'transparent',
+        },
         videoModalOverlay: {
           flex: 1,
           backgroundColor: 'rgba(0, 0, 0, 0.9)',
@@ -351,22 +359,22 @@ export default function EventDetailsScreen() {
         },
         videoModalContainer: {
           width: screenWidth,
-          bottom: moderateScale(30),
+          bottom:moderateScale(30),          
           justifyContent: 'center',
           alignItems: 'center',
+          position:'absolute',
+          backgroundColor: 'transparent',
         },
         videoModalCloseButton: {
           position: 'absolute',
-          top: insets.top + moderateScale(12),
+          top: insets.top ,
           right: moderateScale(20),
           width: moderateScale(40),
           height: moderateScale(40),
           borderRadius: moderateScale(20),
-          backgroundColor: 'rgba(255, 255, 255, 0.3)',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 1000,
-          elevation: 10,
+          backgroundColor: 'rgba(255, 255, 255, 0.3)',
         },
         thumbnailContainer: {
           flexDirection: 'row',
@@ -559,6 +567,16 @@ export default function EventDetailsScreen() {
     const descriptionText = params?.description || eventDetails.fullDescription;
     await playTTS(descriptionText);
   };
+
+  // Stop TTS when navigating away from this screen
+  useFocusEffect(
+    React.useCallback(() => {
+      return () => {
+        // This cleanup function runs when the screen loses focus
+        stopTTS();
+      };
+    }, [stopTTS])
+  );
 
   useDynamicStatusBar({
     backgroundColor: colors.backgroundLight,
@@ -803,10 +821,10 @@ export default function EventDetailsScreen() {
               tintColor={colors.primary}
             />
           }>
-        {/* Video Player Section */}
-        {/* <View style={dynamicStyles.card}> */}
+        {/* Video Player Section - Only show if video exists */}
+        {eventDetails.videoUri && eventDetails.videoUri.trim() !== '' ? (
           <View style={dynamicStyles.videoContainer}>
-            {eventDetails.videoUri && isYouTubeUrl(eventDetails.videoUri) ? (
+            {isYouTubeUrl(eventDetails.videoUri) ? (
               // YouTube video - show thumbnail with play button, open modal on tap
               <TouchableOpacity
                 style={{width: '100%', height: '100%'}}
@@ -851,9 +869,33 @@ export default function EventDetailsScreen() {
               />
             )}
           </View>
+        ) : (
+          // Banner Image Section - Show when video is not available
+          eventDetails.images && eventDetails.images.length > 0 && (
+            <TouchableOpacity
+              style={dynamicStyles.bannerImageContainer}
+              onPress={() => handleImagePress(0)}
+              activeOpacity={0.9}>
+              <Image
+                source={
+                  typeof eventDetails.images[0] === 'object' && eventDetails.images[0]?.uri
+                    ? {uri: eventDetails.images[0].uri}
+                    : typeof eventDetails.thumbnailUri === 'object' && eventDetails.thumbnailUri?.uri
+                    ? {uri: eventDetails.thumbnailUri.uri}
+                    : typeof eventDetails.thumbnailUri === 'number'
+                    ? eventDetails.thumbnailUri
+                    : eventDetails.images[0] || ImagePath.eventImage
+                }
+                style={{width: '100%', height: '100%', borderRadius: moderateScale(10)}}
+                resizeMode="cover"
+              />
+            </TouchableOpacity>
+          )
+        )}
 
-          {/* Thumbnails Grid - Left: Full height, Right: 2 stacked */}
-          <View style={dynamicStyles.thumbnailContainer}>
+          {/* Thumbnails Grid - Left: Full height, Right: 2 stacked - Only show when video exists */}
+          {eventDetails.videoUri && eventDetails.videoUri.trim() !== '' && (
+            <View style={dynamicStyles.thumbnailContainer}>
             {/* Left: Full height image */}
             {eventDetails.images && eventDetails.images.length > 0 && (
               <TouchableOpacity
@@ -900,6 +942,7 @@ export default function EventDetailsScreen() {
               ))}
             </View>
           </View>
+          )}
         {/* </View> */}
 
         {/* Event Details Card */}
@@ -984,50 +1027,53 @@ export default function EventDetailsScreen() {
         onRequestClose={() => {
           setShowVideoModal(false);
           setSelectedVideoId(null);
+          // startAnnouncementAutoSlide();
         }}>
-        <Pressable
-          style={dynamicStyles.videoModalOverlay}
-          onPress={() => {
-            setShowVideoModal(false);
-            setSelectedVideoId(null);
-          }}>
-          <Pressable
-            style={dynamicStyles.videoModalContainer}
-            onPress={(e) => e.stopPropagation()}>
-            {selectedVideoId && (
-              <View style={{width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center'}}>
-                <View style={{top: moderateScale(150)}}>
-                  <YoutubePlayer
-                    height={screenHeight * 0.6}
-                    width={screenWidth}
-                    play={true}
-                    videoId={selectedVideoId}
-                    initialPlayerParams={{
-                      controls: true,
-                      modestbranding: false,
-                      rel: false,
-                      showinfo: false,
-                      fs: true,
-                    }}
-                  />
-                </View>
-                <TouchableOpacity
-                  style={dynamicStyles.videoModalCloseButton}
-                  onPress={() => {
-                    setShowVideoModal(false);
-                    setSelectedVideoId(null);
-                  }}
-                  activeOpacity={0.7}>
-                  <Ionicons
-                    name="close"
-                    size={moderateScale(24)}
-                    color={colors.textWhite}
-                  />
-                </TouchableOpacity>
+        <View style={dynamicStyles.videoModalOverlay}>
+        <TouchableOpacity
+                style={dynamicStyles.videoModalCloseButton}
+                onPress={() => {
+                  setShowVideoModal(false);
+                  setSelectedVideoId(null);
+                  // startAnnouncementAutoSlide();
+                }}
+                activeOpacity={0.7}>
+                <Ionicons
+                  name="close"
+                  size={moderateScale(24)}
+                  color={colors.textWhite}
+                />
+              </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={() => {
+              setShowVideoModal(false);
+              setSelectedVideoId(null);
+              // startAnnouncementAutoSlide();
+            }}
+          />
+          {selectedVideoId && (
+            <View style={dynamicStyles.videoModalContainer}>
+              
+              <View style={{
+                width: screenWidth * 0.9,
+                height: screenHeight * 0.6,
+                justifyContent: 'center',
+                alignItems: 'center',
+                backgroundColor: 'transparent',
+              }}>
+                
+                <YoutubePlayer
+                  height={screenHeight * 0.6}
+                  width={screenWidth * 0.9}
+                  play={true}
+                  videoId={selectedVideoId}
+                />
               </View>
-            )}
-          </Pressable>
-        </Pressable>
+      
+            </View>
+          )}
+        </View>
       </Modal>
     </View>
   );

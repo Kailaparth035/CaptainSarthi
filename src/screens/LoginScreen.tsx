@@ -33,7 +33,7 @@ import SimpleBoxInput from '../components/FloatingInput';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Toast, { ToastType } from '../components/Toast';
-import { saveSession, saveLoginResponse, isTermsAccepted, isProfileCompleted } from '../utils/session';
+import { saveSession, saveLoginResponse, isTermsAccepted, isProfileCompleted, getPendingNavigation, clearPendingNavigation } from '../utils/session';
 import { isFarmerRole } from '../utils/userRole';
 import { postData } from '../Service/Apimethod';
 import Apis from '../Service/constant';
@@ -477,6 +477,11 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
             return;
           }
           
+          // Check for pending navigation (e.g., from notification click)
+          const pendingNav = await getPendingNavigation();
+          const hasPendingNotificationNav = pendingNav?.action === 'OPEN_NOTIFICATION_DETAIL' && role === 'farmer';
+          const hasPendingEventNav = pendingNav?.action === 'OPEN_EVENT_DETAIL' && role === 'farmer';
+          
           // Navigate based on role from response
           if (role === 'farmer') {
             // Farmer role - check if terms have been accepted
@@ -494,15 +499,55 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
                 // Profile is completed - navigate to FarmerTabs
                 console.log('[LoginScreen] Profile completed - navigating to FarmerTabs');
                 navigation.replace(SCREEN_NAMES.FarmerTabs);
+                
+                // If there's a pending notification navigation, navigate to Notifications screen
+                if (hasPendingNotificationNav) {
+                  console.log('[LoginScreen] Pending notification navigation detected - will navigate to Notifications');
+                  // Wait a bit for navigation to complete, then navigate to Notifications
+                  setTimeout(() => {
+                    (navigation as any).navigate(SCREEN_NAMES.FarmerTabs, {
+                      screen: SCREEN_NAMES.Home,
+                      params: {
+                        screen: SCREEN_NAMES.Notifications,
+                      },
+                    });
+                    // Clear pending navigation
+                    clearPendingNavigation();
+                  }, 500);
+                } else if (hasPendingEventNav && pendingNav?.params?.eventId) {
+                  // If there's a pending event navigation, navigate to EventDetails screen
+                  console.log('[LoginScreen] Pending event navigation detected - will navigate to EventDetails with eventId:', pendingNav.params.eventId);
+                  setTimeout(() => {
+                    (navigation as any).navigate(SCREEN_NAMES.FarmerTabs, {
+                      screen: SCREEN_NAMES.Events,
+                      params: {
+                        screen: SCREEN_NAMES.EventDetails,
+                        params: {
+                          eventId: pendingNav.params.eventId,
+                        },
+                      },
+                    });
+                    // Clear pending navigation
+                    clearPendingNavigation();
+                  }, 500);
+                }
               } else {
                 // Profile not completed - show ReviewProfile screen
                 console.log('[LoginScreen] Profile not completed - navigating to ReviewProfile');
                 navigation.replace(SCREEN_NAMES.ReviewProfile);
+                // Store pending navigation for after profile completion
+                if (hasPendingNotificationNav || hasPendingEventNav) {
+                  console.log('[LoginScreen] Profile not completed - storing pending navigation');
+                }
               }
             }
           } else if (role === 'dealer') {
             // Dealer role - navigate to MainTabs (dashboard)
             navigation.replace(SCREEN_NAMES.MainTabs);
+            // Clear pending navigation if any (not for dealer)
+            if (pendingNav) {
+              await clearPendingNavigation();
+            }
           } else {
             // Fallback: if role is not provided, use mobile number check
             if (isFarmerRole(mobileNumber)) {
@@ -520,14 +565,51 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
                   // Profile is completed - navigate to FarmerTabs
                   console.log('[LoginScreen] Profile completed (fallback) - navigating to FarmerTabs');
                   navigation.replace(SCREEN_NAMES.FarmerTabs);
+                  
+                  // If there's a pending notification navigation, navigate to Notifications screen
+                  if (hasPendingNotificationNav) {
+                    console.log('[LoginScreen] Pending notification navigation detected (fallback) - will navigate to Notifications');
+                    setTimeout(() => {
+                      (navigation as any).navigate(SCREEN_NAMES.FarmerTabs, {
+                        screen: SCREEN_NAMES.Home,
+                        params: {
+                          screen: SCREEN_NAMES.Notifications,
+                        },
+                      });
+                      clearPendingNavigation();
+                    }, 500);
+                  } else if (hasPendingEventNav && pendingNav?.params?.eventId) {
+                    // If there's a pending event navigation, navigate to EventDetails screen
+                    console.log('[LoginScreen] Pending event navigation detected (fallback) - will navigate to EventDetails with eventId:', pendingNav.params.eventId);
+                    setTimeout(() => {
+                      (navigation as any).navigate(SCREEN_NAMES.FarmerTabs, {
+                        screen: SCREEN_NAMES.Events,
+                        params: {
+                          screen: SCREEN_NAMES.EventDetails,
+                          params: {
+                            eventId: pendingNav.params.eventId,
+                          },
+                        },
+                      });
+                      clearPendingNavigation();
+                    }, 500);
+                  }
                 } else {
                   // Profile not completed - show ReviewProfile screen
                   console.log('[LoginScreen] Profile not completed (fallback) - navigating to ReviewProfile');
                   navigation.replace(SCREEN_NAMES.ReviewProfile);
+                  // Store pending navigation for after profile completion
+                  if (hasPendingNotificationNav || hasPendingEventNav) {
+                    console.log('[LoginScreen] Profile not completed (fallback) - storing pending navigation');
+                  }
                 }
               }
             } else {
               navigation.replace(SCREEN_NAMES.MainTabs);
+              // Clear pending navigation if any (not for farmer)
+              if (pendingNav) {
+                await clearPendingNavigation();
+              }
             }
           }
         }, 1000); // Wait 1 second to show the success message

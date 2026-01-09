@@ -20,11 +20,23 @@
     "syncNow": "अभी सिंक करें",
     "clients": "ग्राहक",
     "tractors": "ट्रैक्टर",
-    "seeAll": "सभी देखें"
+    "seeAll": "सभी देखें",
+    "farmers": "किसान",
+    "unknownModel": "अज्ञात मॉडल",
+    "notAvailable": "उपलब्ध नहीं",
+    "noFarmerAdded": "कोई किसान नहीं जोड़ा गया",
+    "noFarmerDescription": "ऐसा लगता है कि अभी तक यहाँ कोई किसान नहीं है। शुरू करने के लिए अपना पहला किसान जोड़ें।",
+    "addFarmer": "किसान जोड़ें",
+    "noTractors": "कोई ट्रैक्टर नहीं मिला"
   },
   "farmer": {
     "title": "किसान",
-    "addNew": "नया जोड़ें"
+    "addNew": "नया जोड़ें",
+    "name": "नाम",
+    "category": "श्रेणी",
+    "allCategories": "सभी श्रेणियां",
+    "details": "किसान विवरण",
+    "noDetailsFound": "कोई किसान विवरण नहीं मिला"
   },
   "tractors": {
     "title": "ट्रैक्टर",
@@ -35,7 +47,8 @@
     "zToA": "Z से A",
     "newestFirst": "नवीनतम पहले",
     "oldestFirst": "पुराना पहले",
-    "specifications": "विनिर्देश"
+    "specifications": "विनिर्देश",
+    "noDetailsAvailable": "ट्रैक्टर का कोई विवरण उपलब्ध नहीं है"
   },
   "profile": {
     "title": "प्रोफ़ाइल",
@@ -108,7 +121,8 @@
     "viewForm": "फॉर्म देखें",
     "enterFirstName": "पहला नाम दर्ज करें",
     "enterLastName": "अंतिम नाम दर्ज करें",
-    "enterRejectionReason": "अस्वीकृति का कारण दर्ज करें"
+    "enterRejectionReason": "अस्वीकृति का कारण दर्ज करें",
+    "noNotificationsFound": "कोई सूचना नहीं मिली"
   },
   "language": {
     "title": "भाषा",
@@ -126,7 +140,10 @@
     "edit": "संपादित करें",
     "submit": "सबमिट करें",
     "loading": "लोड हो रहा है...",
-    "search": "खोजें"
+    "search": "खोजें",
+    "filters": "फिल्टर",
+    "reset": "रीसेट करें",
+    "apply": "आवेदन करना"
   },
   "onboarding": {
     "getStarted": "शुरू करें",
@@ -135,7 +152,11 @@
     "beforeContinue": "से सहमत हों इससे पहले कि आप आगे बढ़ें।"
   },
   "events": {
-    "textToSpeech": "टेक्स्ट टू स्पीच"
+    "textToSpeech": "टेक्स्ट टू स्पीच",
+    "noEventsFound": "कोई इवेंट नहीं मिला"
+  },
+  "stories": {
+    "noStoriesFound": "कोई कहानी नहीं मिली"
   },
   "farmerHome": {
     "greeting": "नमस्ते",
@@ -213,6 +234,8 @@
   },
   "addFarmer": {
     "title": "किसान जोड़ें",
+    "addNewFarmer": "नया किसान जोड़ें",
+    "editFarmer": "किसान संपादित करें",
     "personalDetails": "व्यक्तिगत विवरण",
     "address": "पता",
     "tractorDetails": "ट्रैक्टर विवरण",
@@ -266,6 +289,7 @@
     "addNewTractor": "नया ट्रैक्टर जोड़ें",
     "remove": "हटाएं",
     "sendForVerification": "सत्यापन के लिए भेजें",
+    "updateForVerification": "सत्यापन के लिए अद्यतन करें",
     "dd": "दिन",
     "mm": "महीना",
     "yyyy": "वर्ष",
@@ -279,7 +303,13 @@
     "camera": "कैमरा",
     "gallery": "गैलरी",
     "uploadDocument": "दस्तावेज अपलोड करें",
-    "cancel": "रद्द करें"
+    "cancel": "रद्द करें",
+    "uploadSecondImage": "दूसरी छवि अपलोड करें",
+    "uploadRcFront": "RC फ्रंट अपलोड करें",
+    "uploadRcBack": "RC बैक अपलोड करें",
+    "uploadRcImage": "RC छवि अपलोड करें",
+    "noRcFront": "कोई RC फ्रंट नहीं",
+    "noRcBack": "कोई RC बैक नहीं"
   }
 }
 

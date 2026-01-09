@@ -22,6 +22,7 @@ import {Typography} from '../utils/typography';
 import {SCREEN_NAMES} from '../constants/screenNames';
 import {RootStackParamList} from '../navigation/RootNavigator';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
+import {useLanguage} from '../contexts/LanguageContext';
 import {getData} from '../Service/Apimethod';
 import Apis from '../Service/constant';
 import {getImageUrl} from '../utils/imageUtils';
@@ -77,6 +78,7 @@ const TractorThumbnail = ({
 export default function TractorsScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
+  const {t} = useLanguage();
   const navigation = useNavigation<NavigationProp>();
   const [tractors, setTractors] = useState<any[]>([]);
   const [loadingTractors, setLoadingTractors] = useState(true);
@@ -327,11 +329,11 @@ export default function TractorsScreen() {
     <View style={[dynamicStyles.container]}>
       {/* Header */}
       <View style={dynamicStyles.header}>
-        <Text style={dynamicStyles.headerTitle}>Tractors</Text>
+        <Text style={dynamicStyles.headerTitle}>{t("tractors.title")}</Text>
         {/* <TouchableOpacity
           style={dynamicStyles.addButton}
           activeOpacity={0.7}>
-          <Text style={dynamicStyles.addButtonText}>Add new</Text>
+          <Text style={dynamicStyles.addButtonText}>{t("farmer.addNew")}</Text>
         </TouchableOpacity> */}
       </View>
 
@@ -425,7 +427,7 @@ export default function TractorsScreen() {
                 color={colors.primary}
               />
             </ImageBackground>
-            <Text style={dynamicStyles.emptyText}>No tractors found</Text>
+            <Text style={dynamicStyles.emptyText}>{t("home.noTractors")}</Text>
           </View>
         )}
       </View>

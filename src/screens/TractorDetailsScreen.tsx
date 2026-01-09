@@ -23,6 +23,7 @@ import {Typography, FontFamily} from '../utils/typography';
 import VideoPlayer from '../components/VideoPlayer';
 import ImagePreviewModal, {ImageItem} from '../components/ImagePreviewModal';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
+import {useLanguage} from '../contexts/LanguageContext';
 import {useStatusBar} from '../contexts/StatusBarContext';
 import {getData} from '../Service/Apimethod';
 import Apis, {API_BASE_URL} from '../Service/constant';
@@ -138,6 +139,7 @@ const SpecRow = ({
 export default function TractorDetailsScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
+  const {t} = useLanguage();
   const route = useRoute();
   const navigation = useNavigation();
   const tabNavigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
@@ -657,7 +659,7 @@ export default function TractorDetailsScreen() {
                 color={colors.textPrimary}
               />
             </TouchableOpacity>
-            <Text style={dynamicStyles.headerTitle}>Tractor Details </Text>
+            <Text style={dynamicStyles.headerTitle}>{t("farmerProfile.tractorDetails")}</Text>
           </View>
         </View>
         {renderSkeleton()}
@@ -701,7 +703,7 @@ export default function TractorDetailsScreen() {
                 color={colors.textPrimary}
               />
             </TouchableOpacity>
-            <Text style={dynamicStyles.headerTitle}>Tractor Details </Text>
+            <Text style={dynamicStyles.headerTitle}>{t("farmerProfile.tractorDetails")}</Text>
           </View>
         </View>
 

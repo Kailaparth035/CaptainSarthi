@@ -837,19 +837,19 @@ export default function FarmerHomeScreen() {
           bottom:moderateScale(30),          
           justifyContent: 'center',
           alignItems: 'center',
+          position:'absolute',
+          backgroundColor: 'transparent',
         },
         videoModalCloseButton: {
           position: 'absolute',
-          top: insets.top + moderateScale(12),
+          top: insets.top ,
           right: moderateScale(20),
           width: moderateScale(40),
           height: moderateScale(40),
           borderRadius: moderateScale(20),
-          backgroundColor: 'rgba(255, 255, 255, 0.3)',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 1000,
-          elevation: 10,
+          backgroundColor: 'rgba(255, 255, 255, 0.3)',
         },
         imageModalOverlay: {
           flex: 1,
@@ -1586,7 +1586,7 @@ export default function FarmerHomeScreen() {
                   }}
                 />
                 <Text style={[Typography.boldXl, {color: colors.textPrimary, fontSize: moderateScale(20)}]}>
-                  No events found
+                  {t('events.noEventsFound')}
                 </Text>
               </View>
             )}
@@ -1638,7 +1638,7 @@ export default function FarmerHomeScreen() {
                   }}
                 />
                 <Text style={[Typography.boldXl, {color: colors.textPrimary, fontSize: moderateScale(20)}]}>
-                  No story found
+                  {t('stories.noStoriesFound')}
                 </Text>
               </View>
             )}
@@ -1661,7 +1661,7 @@ export default function FarmerHomeScreen() {
       )}
 
       {/* Video Modal */}
-      <Modal
+<Modal
         visible={showVideoModal}
         transparent={true}
         animationType="fade"
@@ -1670,51 +1670,51 @@ export default function FarmerHomeScreen() {
           setSelectedVideoId(null);
           startAnnouncementAutoSlide();
         }}>
-        <Pressable
-          style={dynamicStyles.videoModalOverlay}
-          onPress={() => {
-            setShowVideoModal(false);
-            setSelectedVideoId(null);
-            startAnnouncementAutoSlide();
-          }}>
-          <Pressable
-            style={dynamicStyles.videoModalContainer}
-            onPress={(e) => e.stopPropagation()}>
-            {selectedVideoId && (
-              <View style={{width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center'}}>
-               <View style={{top:moderateScale(150)}}>
+        <View style={dynamicStyles.videoModalOverlay}>
+        <TouchableOpacity
+                style={dynamicStyles.videoModalCloseButton}
+                onPress={() => {
+                  setShowVideoModal(false);
+                  setSelectedVideoId(null);
+                  startAnnouncementAutoSlide();
+                }}
+                activeOpacity={0.7}>
+                <Ionicons
+                  name="close"
+                  size={moderateScale(24)}
+                  color={colors.textWhite}
+                />
+              </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={() => {
+              setShowVideoModal(false);
+              setSelectedVideoId(null);
+              startAnnouncementAutoSlide();
+            }}
+          />
+          {selectedVideoId && (
+            <View style={dynamicStyles.videoModalContainer}>
+              
+              <View style={{
+                width: screenWidth * 0.9,
+                height: screenHeight * 0.6,
+                justifyContent: 'center',
+                alignItems: 'center',
+                backgroundColor: 'transparent',
+              }}>
+                
                 <YoutubePlayer
                   height={screenHeight * 0.6}
-                  width={screenWidth}
+                  width={screenWidth * 0.9}
                   play={true}
                   videoId={selectedVideoId}
-                  initialPlayerParams={{
-                    controls: true,
-                    modestbranding: false,
-                    rel: false,
-                    showinfo: false,
-                    fs: true,
-                  }}
                 />
-                </View>
-                <TouchableOpacity
-                  style={dynamicStyles.videoModalCloseButton}
-                  onPress={() => {
-                    setShowVideoModal(false);
-                    setSelectedVideoId(null);
-                    startAnnouncementAutoSlide();
-                  }}
-                  activeOpacity={0.7}>
-                  <Ionicons
-                    name="close"
-                    size={moderateScale(24)}
-                    color={colors.textWhite}
-                  />
-                </TouchableOpacity>
               </View>
-            )}
-          </Pressable>
-        </Pressable>
+      
+            </View>
+          )}
+        </View>
       </Modal>
 
       {/* Image Preview Modal */}

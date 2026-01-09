@@ -254,18 +254,18 @@ export default function FarmerScreen() {
     const categoriesList = [
       {
         id: 'name',
-        label: 'Name',
+        label: t('farmer.name'),
         options: [
-          {id: 'a-to-z', label: 'A to Z', value: 'a-to-z'},
-          {id: 'z-to-a', label: 'Z to A', value: 'z-to-a'},
+          {id: 'a-to-z', label: t('tractors.aToZ'), value: 'a-to-z'},
+          {id: 'z-to-a', label: t('tractors.zToA'), value: 'z-to-a'},
         ],
       },
       {
         id: 'date',
-        label: 'Date',
+        label: t('tractors.date'),
         options: [
-          {id: 'newest', label: 'Newest First', value: 'newest'},
-          {id: 'oldest', label: 'Oldest First', value: 'oldest'},
+          {id: 'newest', label: t('tractors.newestFirst'), value: 'newest'},
+          {id: 'oldest', label: t('tractors.oldestFirst'), value: 'oldest'},
         ],
       },
     ];
@@ -273,7 +273,7 @@ export default function FarmerScreen() {
     // Add category filter if categories are available
     if (categories.length > 0) {
       const categoryOptions = [
-        {id: 'all', label: 'All Categories', value: 'all'},
+        {id: 'all', label: t('farmer.allCategories'), value: 'all'},
         ...categories.map(cat => ({
           id: `cat-${cat.id}`,
           label: cat.name,
@@ -283,7 +283,7 @@ export default function FarmerScreen() {
 
       categoriesList.push({
         id: 'category',
-        label: 'Category',
+        label: t('farmer.category'),
         options: categoryOptions,
       });
     }
@@ -683,16 +683,16 @@ export default function FarmerScreen() {
               style={dynamicStyles.emptyImage}
               resizeMode="contain"
             />
-            <Text style={dynamicStyles.emptyTitle}>No farmer added</Text>
+            <Text style={dynamicStyles.emptyTitle}>{t("home.noFarmerAdded")}</Text>
             <Text style={dynamicStyles.emptyText}>
-              Looks like there are no farmers here yet. Add your first farmer to get started.
+              {t("home.noFarmerDescription")}
             </Text>
             <TouchableOpacity
               style={dynamicStyles.addFarmerButton}
               activeOpacity={0.7}
               onPress={() => navigation.navigate(SCREEN_NAMES.AddFarmer)}
             >
-              <Text style={dynamicStyles.addFarmerButtonText}>Add farmer</Text>
+              <Text style={dynamicStyles.addFarmerButtonText}>{t("home.addFarmer")}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -710,7 +710,7 @@ export default function FarmerScreen() {
           setSelectedCategory('name');
           setSelectedOptions({});
         }}
-        title="Filters"
+        title={t('common.filters')}
         categories={filterCategories}
         selectedCategory={selectedCategory}
         selectedOptions={selectedOptions}

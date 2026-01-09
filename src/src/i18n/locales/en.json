@@ -47,7 +47,8 @@
     "zToA": "Z to A",
     "newestFirst": "Newest First",
     "oldestFirst": "Oldest First",
-    "specifications": "Specifications"
+    "specifications": "Specifications",
+    "noDetailsAvailable": "No tractor details available"
   },
   "profile": {
     "title": "Profile",
@@ -120,7 +121,8 @@
     "viewForm": "View form",
     "enterFirstName": "Enter first name",
     "enterLastName": "Enter last name",
-    "enterRejectionReason": "Enter rejection reason"
+    "enterRejectionReason": "Enter rejection reason",
+    "noNotificationsFound": "No notifications found"
   },
   "language": {
     "title": "Language",
@@ -150,7 +152,11 @@
     "beforeContinue": "before you continue."
   },
   "events": {
-    "textToSpeech": "Text to speech"
+    "textToSpeech": "Text to speech",
+    "noEventsFound": "No events found"
+  },
+  "stories": {
+    "noStoriesFound": "No story found"
   },
   "farmerHome": {
     "greeting": "Hello",

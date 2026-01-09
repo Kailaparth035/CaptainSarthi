@@ -46,7 +46,7 @@ export default function EventsScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
   const navigation = useNavigation();
-  const {currentLanguage} = useLanguage();
+  const {currentLanguage, t} = useLanguage();
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState<any[]>([]);
@@ -534,7 +534,7 @@ export default function EventsScreen() {
                 }}
               />
               <Text style={[Typography.boldXl, {color: colors.textPrimary, fontSize: moderateScale(20)}]}>
-                No events found
+                {t('events.noEventsFound')}
               </Text>
             </View>
           ) : (

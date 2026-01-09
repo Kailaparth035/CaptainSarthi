@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import {NavigationContainer, Theme} from '@react-navigation/native';
+import React, { useState, useEffect, useRef } from 'react';
+import {NavigationContainer, Theme, NavigationContainerRef} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {View, ActivityIndicator, StyleSheet} from 'react-native';
 import TabNavigator from './TabNavigator';
@@ -25,6 +25,9 @@ export type RootStackParamList = {
 };
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
+
+// Export navigation ref for use in App.tsx
+export const navigationRef = React.createRef<NavigationContainerRef<RootStackParamList>>();
 
 
 export default function RootNavigator() {
@@ -120,7 +123,7 @@ export default function RootNavigator() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <RootStack.Navigator 
         screenOptions={{headerShown: false}}
         initialRouteName={initialRoute as keyof RootStackParamList}>

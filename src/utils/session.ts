@@ -9,6 +9,7 @@ const PROFILE_REVIEWED_KEY = '@profile_reviewed';
 const TERMS_ACCEPTED_KEY = '@terms_accepted';
 const LANGUAGE_SELECTED_KEY = '@language_selected';
 const FARMER_PROFILE_DATA_KEY = '@farmer_profile_data';
+const PENDING_NAVIGATION_KEY = '@pending_navigation';
 
 export interface UserSession {
   isLoggedIn: boolean;
@@ -438,6 +439,48 @@ export const clearFarmerProfileData = async (): Promise<void> => {
     await AsyncStorage.removeItem(FARMER_PROFILE_DATA_KEY);
   } catch (error) {
     console.error('Error clearing farmer profile data:', error);
+    throw error;
+  }
+};
+
+/**
+ * Save pending navigation intent (e.g., from notification click)
+ */
+export const savePendingNavigation = async (navigationData: {action: string; screen?: string; params?: any}): Promise<void> => {
+  try {
+    await AsyncStorage.setItem(PENDING_NAVIGATION_KEY, JSON.stringify(navigationData));
+    console.log('Pending navigation saved:', navigationData);
+  } catch (error) {
+    console.error('Error saving pending navigation:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get pending navigation intent
+ */
+export const getPendingNavigation = async (): Promise<{action: string; screen?: string; params?: any} | null> => {
+  try {
+    const navigationData = await AsyncStorage.getItem(PENDING_NAVIGATION_KEY);
+    if (navigationData) {
+      return JSON.parse(navigationData);
+    }
+    return null;
+  } catch (error) {
+    console.error('Error getting pending navigation:', error);
+    return null;
+  }
+};
+
+/**
+ * Clear pending navigation intent
+ */
+export const clearPendingNavigation = async (): Promise<void> => {
+  try {
+    await AsyncStorage.removeItem(PENDING_NAVIGATION_KEY);
+    console.log('Pending navigation cleared');
+  } catch (error) {
+    console.error('Error clearing pending navigation:', error);
     throw error;
   }
 };

@@ -1121,7 +1121,7 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
     return (
       <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: moderateScale(100), paddingBottom: moderateScale(50)}}>
         <Text style={[Typography.regularMd, {color: colors.textSecondary, fontSize: moderateScale(16)}]}>
-          No notifications found
+          {t('notifications.noNotificationsFound')}
         </Text>
       </View>
     );

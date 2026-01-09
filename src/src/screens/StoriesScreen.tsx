@@ -46,7 +46,7 @@ export default function StoriesScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
   const navigation = useNavigation();
-  const {currentLanguage} = useLanguage();
+  const {currentLanguage, t} = useLanguage();
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [stories, setStories] = useState<any[]>([]);
@@ -486,7 +486,7 @@ export default function StoriesScreen() {
           }}
         />
         <Text style={[Typography.boldXl, {color: colors.textPrimary, fontSize: moderateScale(20)}]}>
-          No story found
+          {t('stories.noStoriesFound')}
         </Text>
       </View>
     );

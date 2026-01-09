@@ -20,11 +20,23 @@
     "syncNow": "Sync now",
     "clients": "Clients",
     "tractors": "Tractors",
-    "seeAll": "See all"
+    "seeAll": "See all",
+    "farmers": "Farmers",
+    "unknownModel": "Unknown Model",
+    "notAvailable": "N/A",
+    "noFarmerAdded": "No farmer added",
+    "noFarmerDescription": "Looks like there are no farmers here yet. Add your first farmer to get started.",
+    "addFarmer": "Add farmer",
+    "noTractors": "No tractors found"
   },
   "farmer": {
     "title": "Farmers",
-    "addNew": "Add new"
+    "addNew": "Add new",
+    "name": "Name",
+    "category": "Category",
+    "allCategories": "All Categories",
+    "details": "Farmer details",
+    "noDetailsFound": "No farmer details found"
   },
   "tractors": {
     "title": "Tractors",
@@ -35,7 +47,8 @@
     "zToA": "Z to A",
     "newestFirst": "Newest First",
     "oldestFirst": "Oldest First",
-    "specifications": "Specifications"
+    "specifications": "Specifications",
+    "noDetailsAvailable": "No tractor details available"
   },
   "profile": {
     "title": "Profile",
@@ -108,7 +121,8 @@
     "viewForm": "View form",
     "enterFirstName": "Enter first name",
     "enterLastName": "Enter last name",
-    "enterRejectionReason": "Enter rejection reason"
+    "enterRejectionReason": "Enter rejection reason",
+    "noNotificationsFound": "No notifications found"
   },
   "language": {
     "title": "Language",
@@ -126,7 +140,10 @@
     "edit": "Edit",
     "submit": "Submit",
     "loading": "Loading...",
-    "search": "Search"
+    "search": "Search",
+    "filters": "Filters",
+    "reset": "Reset",
+    "apply": "Apply"
   },
   "onboarding": {
     "getStarted": "Get started",
@@ -135,7 +152,11 @@
     "beforeContinue": "before you continue."
   },
   "events": {
-    "textToSpeech": "Text to speech"
+    "textToSpeech": "Text to speech",
+    "noEventsFound": "No events found"
+  },
+  "stories": {
+    "noStoriesFound": "No story found"
   },
   "farmerHome": {
     "greeting": "Hello",
@@ -213,6 +234,8 @@
   },
   "addFarmer": {
     "title": "Add Farmer",
+    "addNewFarmer": "Add new farmer",
+    "editFarmer": "Edit farmer",
     "personalDetails": "Personal details",
     "address": "Address",
     "tractorDetails": "Tractor details",
@@ -266,6 +289,7 @@
     "addNewTractor": "Add new tractor",
     "remove": "Remove",
     "sendForVerification": "Send for verification",
+    "updateForVerification": "Update for verification",
     "dd": "DD",
     "mm": "MM",
     "yyyy": "YYYY",
@@ -279,7 +303,13 @@
     "camera": "Camera",
     "gallery": "Gallery",
     "uploadDocument": "Upload Document",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "uploadSecondImage": "Upload second image",
+    "uploadRcFront": "Upload RC front",
+    "uploadRcBack": "Upload RC back",
+    "uploadRcImage": "Upload RC image",
+    "noRcFront": "No RC Front",
+    "noRcBack": "No RC Back"
   }
 }
 
