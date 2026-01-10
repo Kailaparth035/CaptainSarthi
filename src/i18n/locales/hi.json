@@ -152,10 +152,12 @@
     "beforeContinue": "से सहमत हों इससे पहले कि आप आगे बढ़ें।"
   },
   "events": {
+    "title": "घटनाएँ",
     "textToSpeech": "टेक्स्ट टू स्पीच",
     "noEventsFound": "कोई इवेंट नहीं मिला"
   },
   "stories": {
+    "title": "कहानियां",
     "noStoriesFound": "कोई कहानी नहीं मिली"
   },
   "farmerHome": {

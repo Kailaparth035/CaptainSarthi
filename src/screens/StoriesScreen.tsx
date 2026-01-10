@@ -466,7 +466,7 @@ export default function StoriesScreen() {
 
   // List header component
   const ListHeader = () => (
-    <Text style={dynamicStyles.title}>Stories</Text>
+    <Text style={dynamicStyles.title}>{t('stories.title')}</Text>
   );
 
   // List empty component
@@ -498,7 +498,7 @@ export default function StoriesScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={dynamicStyles.scrollContent}>
-          <Text style={dynamicStyles.title}>Stories</Text>
+          <Text style={dynamicStyles.title}>{t('stories.title')}</Text>
           {renderSkeleton()}
         </ScrollView>
       ) : (

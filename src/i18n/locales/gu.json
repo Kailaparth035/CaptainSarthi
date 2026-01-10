@@ -152,10 +152,12 @@
     "beforeContinue": "સ્વીકારો તમે આગળ વધો તે પહેલા."
   },
   "events": {
+    "title": "ઘટનાઓ",
     "textToSpeech": "ટેક્સ્ટ ટુ સ્પીચ",
     "noEventsFound": "કોઈ ઇવેન્ટ્સ મળી નથી"
   },
   "stories": {
+    "title": "વાર્તાઓ",
     "noStoriesFound": "કોઈ વાર્તા મળી નથી"
   },
   "farmerHome": {
