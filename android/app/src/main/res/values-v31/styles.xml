@@ -1,16 +1,4 @@
 <resources>
-    <!-- SplashScreen Theme for Android 12+ (API 31+) - Same as base for consistency -->
-    <style name="SplashScreenTheme" parent="AppTheme">
-        <!-- Full screen splash image - use bootsplash.xml which has white background + splash image -->
-        <item name="android:windowBackground">@drawable/bootsplash</item>
-        <item name="android:windowNoTitle">true</item>
-        <item name="android:windowActionBar">false</item>
-        <item name="android:windowFullscreen">false</item>
-        <item name="android:windowContentOverlay">@null</item>
-        <item name="android:windowIsTranslucent">false</item>
-        <item name="android:windowAnimationStyle">@null</item>
-        <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:navigationBarColor">@android:color/transparent</item>
-    </style>
+    <!-- Styles for Android 12+ (API 31+) -->
 </resources>
 

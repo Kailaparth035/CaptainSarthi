@@ -125,9 +125,6 @@ dependencies {
     } else {
         implementation jscFlavor
     }
-    
-    // SplashScreen API for Android 12+
-    implementation("androidx.core:core-splashscreen:1.0.1")
 }
 
 // Workaround for corrupted Gradle cache during clean
