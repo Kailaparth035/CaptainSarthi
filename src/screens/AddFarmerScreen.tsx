@@ -156,7 +156,8 @@ const categorySubQuestions: Record<string, QuestionConfig[]> = {
 };
 
 type TractorDetails = {
-  id: string;
+  id: string; // Local ID for UI (like "1", "2", etc.)
+  tractorId?: string; // API's tractor_id (for existing tractors from API)
   tractorImages?: string[]; // Array for multiple tractor images (min 1, max 2)
   rcImage?: string;
   rcFront?: string;
@@ -213,6 +214,13 @@ type FormErrors = {
   pincode?: string;
 };
 
+// Helper function to detect file type based on extension
+const getFileTypeFromUrl = (url: string, fileName: string): 'image' | 'document' => {
+  const ext = (fileName.split('.').pop() || '').toLowerCase();
+  const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
+  return imageExtensions.includes(ext) ? 'image' : 'document';
+};
+
 export default function AddFarmerScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
@@ -231,7 +239,9 @@ export default function AddFarmerScreen() {
   } | undefined;
   const isEditMode = routeParams?.editMode === true || routeParams?.isEditMode === true;
   const isRejectedUpdate = routeParams?.rejectedUpdate === true; // Third flow: rejected update from notifications
-  const farmerId = "SATHI0004";
+  const farmerId = routeParams?.farmerId;
+  // 'SATHI0004';
+  // routeParams?.farmerId || 
   console.log("[AddFarmerScreen] Route params:", {
     farmerId,
     isEditMode,
@@ -842,16 +852,109 @@ export default function AddFarmerScreen() {
                   answers[questionKey] = q.answers.map((a: any) => a.answer_text || a.answer);
                 } else if (questionType === 'file' || questionType === 'document') {
                   // For file questions, convert URLs to file objects
-                  const fileUrls = q.answers
-                    .map((a: any) => a.answer_text || a.answer || a.file_url || a.document_url)
-                    .filter((url: any) => url && typeof url === 'string');
+                  // Handle answer_documents array, answer_text, or other URL sources
+                  let fileUrls: string[] = [];
+                  const seenUrls = new Set<string>(); // Track seen URLs to prevent duplicates
+                  
+                  // Helper function to normalize URL for comparison (extract filename/path)
+                  const normalizeUrl = (url: string): string => {
+                    try {
+                      // Extract pathname from URL (remove protocol, domain, query params)
+                      let path = url;
+                      // Remove protocol if present
+                      if (path.includes('://')) {
+                        path = path.split('://')[1];
+                        // Remove domain/host
+                        if (path.includes('/')) {
+                          path = '/' + path.split('/').slice(1).join('/');
+                        } else {
+                          path = '/' + path;
+                        }
+                      }
+                      // Remove query parameters
+                      if (path.includes('?')) {
+                        path = path.split('?')[0];
+                      }
+                      // Normalize path separators and extract filename
+                      const normalizedPath = path.replace(/\\/g, '/').toLowerCase().trim();
+                      // Extract just the filename for comparison
+                      const filename = normalizedPath.split('/').pop() || normalizedPath;
+                      return filename;
+                    } catch {
+                      // If URL parsing fails, use filename only
+                      const filename = url.split('/').pop() || url.split('\\').pop() || url;
+                      return filename.toLowerCase().trim();
+                    }
+                  };
+                  
+                  // Priority 1: Check for answer_documents array directly on question (most reliable)
+                  if (q.answer_documents && Array.isArray(q.answer_documents)) {
+                    q.answer_documents.forEach((url: any) => {
+                      if (url && typeof url === 'string') {
+                        const trimmedUrl = url.trim();
+                        if (trimmedUrl) {
+                          const normalized = normalizeUrl(trimmedUrl);
+                          if (!seenUrls.has(normalized)) {
+                            seenUrls.add(normalized);
+                            fileUrls.push(trimmedUrl);
+                          }
+                        }
+                      }
+                    });
+                  }
+                  
+                  // Priority 2: Check for answer_documents in answer objects (if not already found)
+                  // Process each answer object
+                  if (q.answers && Array.isArray(q.answers)) {
+                    q.answers.forEach((a: any) => {
+                      // Check for answer_documents in answer object
+                      if (a.answer_documents && Array.isArray(a.answer_documents)) {
+                        a.answer_documents.forEach((url: any) => {
+                          if (url && typeof url === 'string') {
+                            const trimmedUrl = url.trim();
+                            if (trimmedUrl) {
+                              const normalized = normalizeUrl(trimmedUrl);
+                              if (!seenUrls.has(normalized)) {
+                                seenUrls.add(normalized);
+                                fileUrls.push(trimmedUrl);
+                              }
+                            }
+                          }
+                        });
+                      }
+                      
+                      // Priority 3: Check for URL in answer_text only if no answer_documents found
+                      // This prevents duplication when same URLs are in both fields
+                      if (fileUrls.length === 0 || (!q.answer_documents && !a.answer_documents)) {
+                        const url = a.answer_text || a.answer || a.file_url || a.document_url;
+                        if (url && typeof url === 'string') {
+                          // Split by comma, semicolon, or whitespace to handle combined URLs
+                          const separatedUrls = url.split(/[,;\s]+/).filter((u: string) => u.trim());
+                          separatedUrls.forEach((u: string) => {
+                            const trimmedUrl = u.trim();
+                            if (trimmedUrl) {
+                              const normalized = normalizeUrl(trimmedUrl);
+                              if (!seenUrls.has(normalized)) {
+                                seenUrls.add(normalized);
+                                fileUrls.push(trimmedUrl);
+                              }
+                            }
+                          });
+                        }
+                      }
+                    });
+                  }
+                  
+                  // Final deduplication using Set (extra safety)
+                  fileUrls = [...new Set(fileUrls)].filter((url: string) => url && url.length > 0);
                   
                   if (fileUrls.length > 0) {
                     answers[questionKey] = fileUrls.map((url: string) => {
-                      const fileName = url.split('/').pop() || 'file';
+                      const fileName = url.split('/').pop() || url.split('\\').pop() || 'file';
+                      const fileType = getFileTypeFromUrl(url, fileName);
                       return {
                         uri: getImageUrl(url) || url,
-                        type: 'image',
+                        type: fileType,
                         name: fileName,
                       };
                     });
@@ -873,16 +976,109 @@ export default function AddFarmerScreen() {
                 answers[questionKey] = q.answers.map((a: any) => a.answer_text || a.answer);
               } else if (questionType === 'file' || questionType === 'document') {
                 // For file questions, convert URLs to file objects
-                const fileUrls = q.answers
-                  .map((a: any) => a.answer_text || a.answer || a.file_url || a.document_url)
-                  .filter((url: any) => url && typeof url === 'string');
+                // Handle answer_documents array, answer_text, or other URL sources
+                let fileUrls: string[] = [];
+                const seenUrls = new Set<string>(); // Track seen URLs to prevent duplicates
+                
+                // Helper function to normalize URL for comparison (extract filename/path)
+                const normalizeUrl = (url: string): string => {
+                  try {
+                    // Extract pathname from URL (remove protocol, domain, query params)
+                    let path = url;
+                    // Remove protocol if present
+                    if (path.includes('://')) {
+                      path = path.split('://')[1];
+                      // Remove domain/host
+                      if (path.includes('/')) {
+                        path = '/' + path.split('/').slice(1).join('/');
+                      } else {
+                        path = '/' + path;
+                      }
+                    }
+                    // Remove query parameters
+                    if (path.includes('?')) {
+                      path = path.split('?')[0];
+                    }
+                    // Normalize path separators and extract filename
+                    const normalizedPath = path.replace(/\\/g, '/').toLowerCase().trim();
+                    // Extract just the filename for comparison
+                    const filename = normalizedPath.split('/').pop() || normalizedPath;
+                    return filename;
+                  } catch {
+                    // If URL parsing fails, use filename only
+                    const filename = url.split('/').pop() || url.split('\\').pop() || url;
+                    return filename.toLowerCase().trim();
+                  }
+                };
+                
+                // Priority 1: Check for answer_documents array directly on question (most reliable)
+                if (q.answer_documents && Array.isArray(q.answer_documents)) {
+                  q.answer_documents.forEach((url: any) => {
+                    if (url && typeof url === 'string') {
+                      const trimmedUrl = url.trim();
+                      if (trimmedUrl) {
+                        const normalized = normalizeUrl(trimmedUrl);
+                        if (!seenUrls.has(normalized)) {
+                          seenUrls.add(normalized);
+                          fileUrls.push(trimmedUrl);
+                        }
+                      }
+                    }
+                  });
+                }
+                
+                // Priority 2: Check for answer_documents in answer objects (if not already found)
+                // Process each answer object
+                if (q.answers && Array.isArray(q.answers)) {
+                  q.answers.forEach((a: any) => {
+                    // Check for answer_documents in answer object
+                    if (a.answer_documents && Array.isArray(a.answer_documents)) {
+                      a.answer_documents.forEach((url: any) => {
+                        if (url && typeof url === 'string') {
+                          const trimmedUrl = url.trim();
+                          if (trimmedUrl) {
+                            const normalized = normalizeUrl(trimmedUrl);
+                            if (!seenUrls.has(normalized)) {
+                              seenUrls.add(normalized);
+                              fileUrls.push(trimmedUrl);
+                            }
+                          }
+                        }
+                      });
+                    }
+                    
+                    // Priority 3: Check for URL in answer_text only if no answer_documents found
+                    // This prevents duplication when same URLs are in both fields
+                    if (fileUrls.length === 0 || (!q.answer_documents && !a.answer_documents)) {
+                      const url = a.answer_text || a.answer || a.file_url || a.document_url;
+                      if (url && typeof url === 'string') {
+                        // Split by comma, semicolon, or whitespace to handle combined URLs
+                        const separatedUrls = url.split(/[,;\s]+/).filter((u: string) => u.trim());
+                        separatedUrls.forEach((u: string) => {
+                          const trimmedUrl = u.trim();
+                          if (trimmedUrl) {
+                            const normalized = normalizeUrl(trimmedUrl);
+                            if (!seenUrls.has(normalized)) {
+                              seenUrls.add(normalized);
+                              fileUrls.push(trimmedUrl);
+                            }
+                          }
+                        });
+                      }
+                    }
+                  });
+                }
+                
+                // Final deduplication using Set (extra safety)
+                fileUrls = [...new Set(fileUrls)].filter((url: string) => url && url.length > 0);
                 
                 if (fileUrls.length > 0) {
                   answers[questionKey] = fileUrls.map((url: string) => {
-                    const fileName = url.split('/').pop() || 'file';
+                    const fileName = url.split('/').pop() || url.split('\\').pop() || 'file';
+                    const fileType = getFileTypeFromUrl(url, fileName);
                     return {
                       uri: getImageUrl(url) || url,
-                      type: 'image',
+                      type: fileType,
                       name: fileName,
                     };
                   });
@@ -1058,7 +1254,8 @@ export default function AddFarmerScreen() {
             });
             
             return {
-              id: String(index + 1),
+              id: String(index + 1), // Keep local ID for UI operations
+              tractorId: tractor.tractor_id || tractor.id || undefined, // Store API's tractor_id
               tractorImages: tractorImages,
               rcFront: rcFront,
               rcBack: rcBack,
@@ -1875,7 +2072,7 @@ export default function AddFarmerScreen() {
       // Validate RC Front image (required)
       console.log('RC Front image:', tractor.rcFront || '✗ Missing');
       if (!tractor.rcFront || !tractor.rcFront.trim()) {
-        tractorErrorsObj.rcFront = 'RC book front image is required';
+        tractorErrorsObj.rcFront = t('addFarmer.rcFrontRequired');
         tractorErrors = true;
         console.log('ERROR: RC book front image is required');
       } else {
@@ -1885,7 +2082,7 @@ export default function AddFarmerScreen() {
       // Validate RC Back image (required)
       console.log('RC Back image:', tractor.rcBack || '✗ Missing');
       if (!tractor.rcBack || !tractor.rcBack.trim()) {
-        tractorErrorsObj.rcBack = 'RC book back image is required';
+        tractorErrorsObj.rcBack = t('addFarmer.rcBackRequired');
         tractorErrors = true;
         console.log('ERROR: RC book back image is required');
       } else {
@@ -2022,9 +2219,14 @@ export default function AddFarmerScreen() {
       setSubmitting(true);
 
       // Format questions array with all question details from API (same as handleUpdateFarmer)
+      console.log('[AddFarmerScreen] Formatting question array for rejected update, total questions:', questions.length);
+      console.log('[AddFarmerScreen] subQuestionAnswers:', Object.keys(subQuestionAnswers));
+      
       const questionArray = questions.map((question, index) => {
         const questionKey = `question_${question.id}_${index}`;
         const answer = subQuestionAnswers[questionKey];
+        
+        console.log(`[AddFarmerScreen] Processing question ${index} (ID: ${question.id}), key: ${questionKey}, answer:`, answer);
         
         const answers: {id: number; answer_text: string}[] = [];
         
@@ -2036,19 +2238,97 @@ export default function AddFarmerScreen() {
           
           // Handle file/document type separately - files are uploaded separately
           if ((questionType === 'file' || questionType === 'document') && Array.isArray(answer)) {
-            // For file questions, the files will be uploaded separately with question_docs_{index} key
-            const fileCount = answer.filter((file: any) => {
-              // Check if it's a new file (local URI) or existing file (URL)
-              if (file && typeof file === 'object' && file.uri) {
-                return file.uri.startsWith('file://') || file.uri.startsWith('content://');
-              }
-              return false;
-            }).length;
-            if (fileCount > 0) {
-              answers.push({
-                id: question.id || Date.now(),
-                answer_text: `${fileCount} file(s) uploaded`,
+            console.log(`[AddFarmerScreen] File question detected for question ${index}, answer array length:`, answer.length);
+            
+            // Separate existing files (URLs) and new files (local URIs)
+            const existingFiles: string[] = [];
+            const newFiles: any[] = [];
+            
+            answer.forEach((file: any, fileIdx: number) => {
+              console.log(`[AddFarmerScreen] Processing file ${fileIdx}:`, {
+                file: file,
+                isObject: typeof file === 'object',
+                hasUri: file?.uri ? true : false,
+                uri: file?.uri?.substring(0, 50) + '...',
               });
+              
+              if (file && typeof file === 'object' && file.uri) {
+                const uri = file.uri;
+                // Check if it's a new file (local URI) or existing file (URL)
+                if (uri.startsWith('file://') || uri.startsWith('content://')) {
+                  console.log(`[AddFarmerScreen] File ${fileIdx} is NEW (local URI):`, uri.substring(0, 50));
+                  newFiles.push(file);
+                } else {
+                  // Existing file (URL) - preserve it
+                  console.log(`[AddFarmerScreen] File ${fileIdx} is EXISTING (URL):`, uri.substring(0, 50));
+                  existingFiles.push(uri);
+                }
+              } else if (typeof file === 'string' && file.trim() !== '') {
+                // Legacy format: direct URL string
+                console.log(`[AddFarmerScreen] File ${fileIdx} is EXISTING (string URL):`, file.substring(0, 50));
+                existingFiles.push(file);
+              } else {
+                console.warn(`[AddFarmerScreen] File ${fileIdx} has invalid format:`, file);
+              }
+            });
+            
+            console.log(`[AddFarmerScreen] Separated files - Existing: ${existingFiles.length}, New: ${newFiles.length}`);
+            
+            // Always add an answer entry for file questions
+            // For rejected update, we need to send ALL files (existing + new) properly
+            // Send existing file URLs in answer_text so API preserves them
+            // New files will be uploaded via FormData and API should merge them with existing
+            if (existingFiles.length > 0 || newFiles.length > 0) {
+              // Send ALL existing file URLs in answer_text (comma-separated)
+              // This ensures API preserves these files and merges with newly uploaded ones
+              // Format: "url1, url2, url3" - all existing URLs comma-separated
+              // New files are uploaded separately via FormData with question_docs_{index} key
+              let answerText = '';
+              
+              if (existingFiles.length > 0) {
+                // Send existing document URLs in answer_text (comma-separated)
+                // This tells API to preserve these documents and keep them
+                answerText = existingFiles.join(', ');
+                console.log(`[AddFarmerScreen] Existing files URLs (${existingFiles.length}) in answer_text:`, answerText.substring(0, 150));
+              }
+              
+              // Note: New files are uploaded via FormData separately
+              // API should merge existing URLs from answer_text with new files from FormData
+              // We don't add count message here because existing URLs should be enough
+              // The API will see question_docs_{index} files in FormData and merge them
+              
+              // Always add answer entry for file questions (required for API)
+              // Include existing URLs so API knows to preserve them
+              if (answerText || newFiles.length > 0) {
+                // If we have existing files, send them with answer_documents array
+                // If we only have new files, still add an entry (API will use FormData files)
+                if (answerText && existingFiles.length > 0) {
+                  // Send existing URLs - API should preserve these
+                  // Include both answer_text (comma-separated) and answer_documents array
+                  // This ensures API preserves existing files and merges with new ones
+                  const answerObj: any = {
+                    id: question.id || Date.now(),
+                    answer_text: answerText, // Existing file URLs comma-separated
+                  };
+                  
+                  // Also include answer_documents array at answer level (if API supports it)
+                  if (existingFiles.length > 0) {
+                    answerObj.answer_documents = existingFiles;
+                  }
+                  
+                  answers.push(answerObj);
+                  console.log(`[AddFarmerScreen] Added answer entry with ${existingFiles.length} existing file URL(s) and answer_documents array for question ${index}`);
+                } else if (newFiles.length > 0) {
+                  // Only new files - add count message (same as add farmer)
+                  answers.push({
+                    id: question.id || Date.now(),
+                    answer_text: `${newFiles.length} file(s) uploaded`,
+                  });
+                  console.log(`[AddFarmerScreen] Added answer entry with ${newFiles.length} new file(s) for question ${index}`);
+                }
+              }
+            } else {
+              console.warn(`[AddFarmerScreen] Question ${index} has file type but no valid files found`);
             }
           } else if (questionType === 'checkbox' && Array.isArray(answer)) {
             // For checkbox questions, each selected option becomes an answer
@@ -2115,27 +2395,110 @@ export default function AddFarmerScreen() {
           }
         }
         
-        return {
+        // Build question object with answers
+        const questionObj: any = {
           ...question,
           answers: answers,
         };
+        
+        // For file/document questions, also include answer_documents array if we have existing files
+        // This helps API properly handle file preservation and merging
+        const questionType = question.question_type?.toLowerCase() || 'textbox';
+        if ((questionType === 'file' || questionType === 'document') && Array.isArray(subQuestionAnswers[questionKey])) {
+          const answer = subQuestionAnswers[questionKey];
+          const existingFiles: string[] = [];
+          
+          // Extract existing file URLs (not local URIs)
+          answer.forEach((file: any) => {
+            if (file && typeof file === 'object' && file.uri) {
+              const uri = file.uri;
+              if (!uri.startsWith('file://') && !uri.startsWith('content://')) {
+                existingFiles.push(uri);
+              }
+            } else if (typeof file === 'string' && file.trim() !== '') {
+              existingFiles.push(file);
+            }
+          });
+          
+          // Include answer_documents array with existing file URLs
+          // This tells API to preserve these documents
+          // New files are uploaded separately via FormData
+          if (existingFiles.length > 0) {
+            questionObj.answer_documents = existingFiles;
+            console.log(`[AddFarmerScreen] Added answer_documents array (${existingFiles.length} files) for question ${index}`);
+          }
+        }
+        
+        return questionObj;
       });
 
-      // Format tractor details (same as handleUpdateFarmer)
-      const tractorDetailsArray = tractors.map(tractor => ({
-        model_name: tractor.modelName,
-        vehicle_number: tractor.vehicleNumber,
-        chassis_number: tractor.chassisNumber,
-        engine_number: tractor.engineNumber,
-        invoice_day: tractor.purchaseDateDD,
-        invoice_month: tractor.purchaseDateMM,
-        invoice_year: tractor.purchaseDateYYYY,
-        registration_day: tractor.purchaseDateDD,
-        registration_month: tractor.purchaseDateMM,
-        registration_year: tractor.purchaseDateYYYY,
-        who_drives: tractor.whoFrom,
-        owner_name: tractor.ownerName || '',
-      }));
+      // Format tractor details - Only include tractors that have tractorId from API (existing tractors)
+      // This ensures we only UPDATE existing tractors, not add new ones
+      // Format tractor details array for rejected update
+      // IMPORTANT: In rejected update mode, only include existing tractors (those with tractorId from API)
+      // We don't allow adding new tractors in rejected update - only modifying existing ones
+      // The tractor_id should come from the API response (farmerDetails API -> tractors array -> tractor_id)
+      const tractorDetailsArray = tractors
+        .filter(tractor => {
+          // Only include tractors that have tractorId (existing tractors from API)
+          // This ensures we don't send new tractors that shouldn't be added
+          const hasTractorId = !!tractor.tractorId;
+          if (!hasTractorId) {
+            console.warn(`[AddFarmerScreen] Filtering out tractor ${tractor.id} - no tractorId (not an existing tractor from API)`);
+          }
+          return hasTractorId;
+        })
+        .map((tractor, tractorIndex) => {
+          // Get the tractor_id from API response (stored in tractor.tractorId during prefill)
+          // This is the actual tractor_id from the API's tractors array
+          const apiTractorId = tractor.tractorId;
+          
+          if (!apiTractorId) {
+            console.error(`[AddFarmerScreen] ERROR: Tractor ${tractor.id} at index ${tractorIndex} has no tractorId! This should not happen.`);
+          }
+          
+          const tractorDetail: any = {
+            // Include tractor_id FIRST - this is the key field that tells API which tractor to update
+            // This comes from the API response (farmerDetails -> tractors array -> tractor_id)
+            tractor_id: apiTractorId, // Use tractor_id field - this is from API response
+            id: apiTractorId, // Also include id for compatibility
+            
+            // Include all tractor details fields that can be updated
+            model_name: tractor.modelName,
+            vehicle_number: tractor.vehicleNumber,
+            chassis_number: tractor.chassisNumber,
+            engine_number: tractor.engineNumber,
+            invoice_day: tractor.purchaseDateDD,
+            invoice_month: tractor.purchaseDateMM,
+            invoice_year: tractor.purchaseDateYYYY,
+            registration_day: tractor.purchaseDateDD,
+            registration_month: tractor.purchaseDateMM,
+            registration_year: tractor.purchaseDateYYYY,
+            who_drives: tractor.whoFrom,
+            owner_name: tractor.ownerName || '',
+          };
+          
+          console.log(`[AddFarmerScreen] Including existing tractor ${tractorIndex + 1}:`, {
+            local_id: tractor.id,
+            api_tractor_id: apiTractorId,
+            model_name: tractor.modelName,
+            vehicle_number: tractor.vehicleNumber,
+            has_images: (tractor.tractorImages || []).filter((img: string) => img && img.trim() !== '').length,
+            has_rc_front: !!tractor.rcFront,
+            has_rc_back: !!tractor.rcBack,
+          });
+          
+          return tractorDetail;
+        });
+      
+      console.log('[AddFarmerScreen] Tractor details array for rejected update (only existing tractors with tractor_id from API):', JSON.stringify(tractorDetailsArray, null, 2));
+      console.log(`[AddFarmerScreen] Total existing tractors to update: ${tractorDetailsArray.length}`);
+      
+      // Verify all tractors have tractor_id
+      const tractorsWithoutId = tractorDetailsArray.filter(t => !t.tractor_id);
+      if (tractorsWithoutId.length > 0) {
+        console.error(`[AddFarmerScreen] ERROR: ${tractorsWithoutId.length} tractor(s) without tractor_id found! This will cause update to fail.`);
+      }
 
       // Get names from selected IDs
       const selectedState = states.find(s => s.value === stateId);
@@ -2144,7 +2507,7 @@ export default function AddFarmerScreen() {
 
       // Prepare the data object according to API structure (same as handleUpdateFarmer but for rejected update)
       const farmerData = {
-        farmer_id: farmerId, // Include farmer_id for update
+        farmer_id: routeParams?.farmerId, // Include farmer_id for update
         first_name: firstName,
         middle_name: middleName,
         last_name: lastName,
@@ -2193,19 +2556,83 @@ export default function AddFarmerScreen() {
         } as any);
       }
 
-      // Helper function to append file (image) to FormData
-      const appendFile = (key: string, fileUri: string, fileType: 'image', index?: number) => {
-        if (!fileUri || fileUri.trim() === '') return;
+      // Helper function to append file (image or document) to FormData
+      const appendFile = (key: string, fileUri: string, fileType: 'image' | 'document', index?: number) => {
+        console.log('[AddFarmerScreen] appendFile called:', { key, fileUri: fileUri?.substring(0, 50) + '...', fileType, index });
+        
+        if (!fileUri || fileUri.trim() === '') {
+          console.warn('[AddFarmerScreen] appendFile: Empty fileUri, skipping');
+          return;
+        }
         
         // Only append new files (local URIs), skip existing URLs
         if (!fileUri.startsWith('file://') && !fileUri.startsWith('content://')) {
+          console.warn('[AddFarmerScreen] appendFile: Not a local URI, skipping:', fileUri.substring(0, 50));
           return; // Skip existing URLs
         }
         
         const uriParts = fileUri.split('.');
         const fileExtension = uriParts.length > 1 ? uriParts[uriParts.length - 1].toLowerCase() : 'jpg';
-        const mimeType = fileExtension === 'png' ? 'image/png' : 'image/jpeg';
+        
+        // Determine MIME type based on file extension and fileType
+        let mimeType: string;
+        if (fileType === 'document') {
+          // Handle document types
+          switch (fileExtension) {
+            case 'pdf':
+              mimeType = 'application/pdf';
+              break;
+            case 'doc':
+              mimeType = 'application/msword';
+              break;
+            case 'docx':
+              mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+              break;
+            case 'xls':
+              mimeType = 'application/vnd.ms-excel';
+              break;
+            case 'xlsx':
+              mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+              break;
+            case 'txt':
+              mimeType = 'text/plain';
+              break;
+            default:
+              mimeType = 'application/octet-stream';
+          }
+        } else {
+          // Handle image types
+          switch (fileExtension) {
+            case 'png':
+              mimeType = 'image/png';
+              break;
+            case 'jpg':
+            case 'jpeg':
+              mimeType = 'image/jpeg';
+              break;
+            case 'gif':
+              mimeType = 'image/gif';
+              break;
+            case 'webp':
+              mimeType = 'image/webp';
+              break;
+            case 'bmp':
+              mimeType = 'image/bmp';
+              break;
+            default:
+              mimeType = 'image/jpeg'; // Default to JPEG
+          }
+        }
+        
         const fileName = `${key}-${Date.now()}-${index || 0}.${fileExtension}`;
+        
+        console.log('[AddFarmerScreen] Appending file to FormData:', {
+          key,
+          fileName,
+          mimeType,
+          fileExtension,
+          fileType,
+        });
         
         formData.append(key, {
           uri: fileUri,
@@ -2215,6 +2642,7 @@ export default function AddFarmerScreen() {
       };
 
       // Add question document files with question_docs_{index} key
+      // Same logic as add farmer flow - upload all new files in the answer array
       questions.forEach((question, questionIndex) => {
         const questionKey = `question_${question.id}_${questionIndex}`;
         const answer = subQuestionAnswers[questionKey];
@@ -2222,48 +2650,204 @@ export default function AddFarmerScreen() {
         
         // Handle file/document type questions
         if ((questionType === 'file' || questionType === 'document') && Array.isArray(answer)) {
-          const validFiles = answer.filter((file: any) => {
-            // Only include new files (local URIs)
-            return file && file.uri && (file.uri.startsWith('file://') || file.uri.startsWith('content://'));
+          console.log(`[AddFarmerScreen] Processing question ${questionIndex} (${question.id}):`, {
+            questionKey,
+            answerLength: answer.length,
+            answer: answer,
           });
+          
+          // Filter valid files - only new files (local URIs) will be uploaded
+          // Existing files (URLs) are already sent in answer_text for preservation
+          const validFiles = answer.filter((file: any) => {
+            if (file && typeof file === 'object' && file.uri) {
+              const isNewFile = file.uri && (file.uri.startsWith('file://') || file.uri.startsWith('content://'));
+              console.log(`[AddFarmerScreen] File check:`, {
+                uri: file.uri?.substring(0, 50) + '...',
+                isNewFile,
+                type: file.type,
+                name: file.name,
+              });
+              // Only include new files (local URIs) - these need to be uploaded
+              return isNewFile;
+            }
+            return false;
+          });
+          
+          console.log(`[AddFarmerScreen] Valid new files to upload for question ${questionIndex}:`, validFiles.length);
+          
+          // Upload each new file
           validFiles.forEach((file: any, fileIndex: number) => {
             const fileKey = `question_docs_${questionIndex}`;
-            appendFile(fileKey, file.uri, file.type || 'image', fileIndex);
+            // Detect file type from file.type or from filename extension
+            let fileType: 'image' | 'document' = file.type || 'image';
+            if (!file.type && file.uri) {
+              // If type not set, detect from filename extension
+              const fileName = file.name || file.uri.split('/').pop() || file.uri.split('\\').pop() || 'file';
+              fileType = getFileTypeFromUrl(file.uri, fileName);
+            }
+            
+            console.log(`[AddFarmerScreen] Uploading file for question ${questionIndex}, fileIndex ${fileIndex}:`, {
+              fileKey,
+              uri: file.uri?.substring(0, 50) + '...',
+              fileType,
+              name: file.name,
+            });
+            
+            appendFile(fileKey, file.uri, fileType, fileIndex);
           });
         }
       });
 
-      // Add tractor images and RC images with indexed naming
-      tractors.forEach((tractor, tractorIndex) => {
+      // Add tractor images and RC images - use same format as add farmer flow
+      // Use tractorIndex-based naming (tractor_images_0, tractor_images_1, etc.)
+      // This matches the add farmer format for consistency
+      // IMPORTANT: In rejected update mode, only process existing tractors (with tractorId)
+      // The index used for image keys (tractor_images_0, etc.) should match the order in tractorDetailsArray
+      // This ensures API can match images to the correct tractor using the tractor_id in tractorDetailsArray
+      
+      // First, get the list of existing tractors (same filter as tractorDetailsArray)
+      const existingTractors = isRejectedUpdate 
+        ? tractors.filter(tractor => tractor.tractorId)
+        : tractors;
+      
+      console.log(`[AddFarmerScreen] Processing ${existingTractors.length} tractor(s) for image upload`);
+      console.log(`[AddFarmerScreen] Tractor order in array:`, existingTractors.map((t, idx) => ({
+        index: idx,
+        local_id: t.id,
+        tractor_id: t.tractorId,
+        model: t.modelName,
+      })));
+      
+      existingTractors.forEach((tractor, arrayIndex) => {
+        // Use arrayIndex (from filtered array) for image key naming
+        // This matches the order in tractorDetailsArray (which also filters existing tractors)
+        const tractorIndex = arrayIndex;
+        
+        console.log(`[AddFarmerScreen] Processing tractor at arrayIndex ${tractorIndex} (local ID: ${tractor.id}, API tractor_id: ${tractor.tractorId})`);
+        
+        // In rejected update mode, ensure tractor has tractorId (should be guaranteed by filter, but double-check)
+        if (isRejectedUpdate && !tractor.tractorId) {
+          console.error(`[AddFarmerScreen] ERROR: Tractor ${tractor.id} at index ${tractorIndex} has no tractorId! This should not happen after filtering.`);
+          return; // Skip this tractor - don't upload its images
+        }
+        
         // Add tractor images (min 1, max 2)
+        // Format: tractor_images_0, tractor_images_1, etc. (same as add farmer)
         if (tractor.tractorImages && tractor.tractorImages.length > 0) {
           const validImages = tractor.tractorImages.filter(img => img && img.trim() !== '');
+          console.log(`[AddFarmerScreen] Tractor ${tractorIndex} has ${validImages.length} images`);
+          
           validImages.forEach((imageUri, imageIndex) => {
-            let imageKey = '';
-            if (tractorIndex === 0) {
-              imageKey = 'tractor_images_0';
-            } else if (tractorIndex === 1) {
-              imageKey = 'tractor_images_1';
+            // Check if it's a new file (local URI) or existing file (URL)
+            const isNewFile = imageUri.startsWith('file://') || imageUri.startsWith('content://');
+            console.log(`[AddFarmerScreen] Tractor ${tractorIndex}, Image ${imageIndex}:`, {
+              uri: imageUri?.substring(0, 50) + '...',
+              isNewFile,
+            });
+            
+            // Only upload new files (local URIs), existing URLs should be preserved by API
+            if (isNewFile) {
+              // Use same key format as add farmer flow
+              // IMPORTANT: The tractorIndex here should match the index in tractorDetailsArray
+              // Both arrays filter existing tractors, so order should match
+              // When tractor count is 1 (tractorIndex = 0): both images use tractor_images_0
+              // When tractor count is 2 (tractorIndex = 1): first image uses tractor_images_1, second uses tractor_images_2
+              // The API will match these keys to the tractor at the same index in tractorDetailsArray
+              // So tractor_images_0 -> first tractor in tractorDetailsArray (with its tractor_id)
+              //    tractor_images_1 -> second tractor in tractorDetailsArray (with its tractor_id)
+              let imageKey = '';
+              if (tractorIndex === 0) {
+                // First tractor: both images use tractor_images_0
+                // This matches first tractor in tractorDetailsArray
+                imageKey = 'tractor_images_0';
+              } else if (tractorIndex === 1) {
+                // Second tractor: first image uses tractor_images_1
+                // This matches second tractor in tractorDetailsArray
+                imageKey = 'tractor_images_1';
+              } else {
+                // Fallback for any additional tractors
+                imageKey = `tractor_images_${tractorIndex}`;
+              }
+              
+              console.log(`[AddFarmerScreen] Uploading new tractor image:`, {
+                tractorIndex: tractorIndex,
+                api_tractor_id: tractor.tractorId,
+                imageIndex: imageIndex,
+                imageKey: imageKey,
+                uri: imageUri?.substring(0, 50) + '...',
+                note: `This image will be matched to tractor at index ${tractorIndex} in tractorDetailsArray (tractor_id: ${tractor.tractorId})`,
+              });
+              appendFile(imageKey, imageUri, 'image', imageIndex);
             } else {
-              imageKey = `tractor_images_${tractorIndex}`;
+              console.log(`[AddFarmerScreen] Skipping existing tractor image URL (will be preserved by API)`);
             }
-            appendFile(imageKey, imageUri, 'image', imageIndex);
           });
         }
 
-        // Add RC front image
+        // Add RC front image (only if it's a new file)
         if (tractor.rcFront && tractor.rcFront.trim() !== '') {
-          appendFile(`tractor_rc_front_${tractorIndex}`, tractor.rcFront, 'image');
+          const isNewFile = tractor.rcFront.startsWith('file://') || tractor.rcFront.startsWith('content://');
+          if (isNewFile) {
+            // Use same format as add farmer: tractor_rc_front_{tractorIndex}
+            console.log(`[AddFarmerScreen] Uploading new RC front image for tractor ${tractorIndex}`);
+            appendFile(`tractor_rc_front_${tractorIndex}`, tractor.rcFront, 'image');
+          } else {
+            console.log(`[AddFarmerScreen] Skipping existing RC front image URL (will be preserved by API)`);
+          }
         }
 
-        // Add RC back image
+        // Add RC back image (only if it's a new file)
         if (tractor.rcBack && tractor.rcBack.trim() !== '') {
-          appendFile(`tractor_rc_back_${tractorIndex}`, tractor.rcBack, 'image');
+          const isNewFile = tractor.rcBack.startsWith('file://') || tractor.rcBack.startsWith('content://');
+          if (isNewFile) {
+            // Use same format as add farmer: tractor_rc_back_{tractorIndex}
+            console.log(`[AddFarmerScreen] Uploading new RC back image for tractor ${tractorIndex}`);
+            appendFile(`tractor_rc_back_${tractorIndex}`, tractor.rcBack, 'image');
+          } else {
+            console.log(`[AddFarmerScreen] Skipping existing RC back image URL (will be preserved by API)`);
+          }
         }
       });
 
-      console.log('[AddFarmerScreen] Updating rejected farmer data:', farmerData, null, 2);
-      console.log('', farmerId);
+      // Log payload summary for debugging
+      console.log('[AddFarmerScreen] Rejected update payload summary:');
+      console.log('[AddFarmerScreen] - farmer_id:', farmerData.farmer_id);
+      console.log('[AddFarmerScreen] - Total questions in array:', questionArray.length);
+      console.log('[AddFarmerScreen] - Questions with file answers:', questionArray.filter(q => {
+        const hasFileAnswer = q.answers?.some((a: any) => 
+          a.answer_text && (a.answer_text.includes('file(s) uploaded') || a.answer_text.includes(',') || a.answer_text.startsWith('http'))
+        );
+        return hasFileAnswer;
+      }).length);
+      console.log('[AddFarmerScreen] - Total tractors:', tractorDetailsArray.length);
+      console.log('[AddFarmerScreen] Tractor details array:', JSON.stringify(tractorDetailsArray.map(t => ({
+        tractor_id: t.tractor_id || t.id,
+        model_name: t.model_name,
+        vehicle_number: t.vehicle_number,
+        chassis_number: t.chassis_number,
+        engine_number: t.engine_number,
+        owner_name: t.owner_name,
+      })), null, 2));
+      console.log('[AddFarmerScreen] Current tractors state:', tractors.map(t => ({
+        id: t.id,
+        tractorId: t.tractorId,
+        modelName: t.modelName,
+        tractorImages_count: (t.tractorImages || []).filter((img: string) => img && img.trim() !== '').length,
+        hasRcFront: !!t.rcFront,
+        hasRcBack: !!t.rcBack,
+      })));
+      console.log('[AddFarmerScreen] farmerData (summary):', {
+        farmer_id: farmerData.farmer_id,
+        questions_count: farmerData.questions?.length || 0,
+        tractorDetails_count: farmerData.tractorDetails?.length || 0,
+      });
+      console.log('[AddFarmerScreen] Question array (with answers):', questionArray.map(q => ({
+        id: q.id,
+        question_text: q.question_text?.substring(0, 50) + '...',
+        question_type: q.question_type,
+        answers_count: q.answers?.length || 0,
+        answer_texts: q.answers?.map((a: any) => a.answer_text?.substring(0, 50) + '...') || [],
+      })));
 
       // Call rejected update API - Use PUT method with form-data (as shown in Postman image)
       // This matches the Postman structure: PUT /api/dealer/v1/farmer/update with form-data
@@ -2713,7 +3297,7 @@ export default function AddFarmerScreen() {
 
       // Format tractor details
       // Use purchase date values for registration date fields
-      const tractorDetailsArray = tractors.map(tractor => ({
+      const tractorDetailsArray = tractors.map(tractor => ({        
         model_name: tractor.modelName,
         vehicle_number: tractor.vehicleNumber,
         chassis_number: tractor.chassisNumber,
@@ -3301,7 +3885,7 @@ export default function AddFarmerScreen() {
             />
 
             {/* Category Dropdown - Hidden in edit mode (from farmer list), but shown in rejected update */}
-            {!isEditMode && !isRejectedUpdate && (
+            {(!isEditMode || isRejectedUpdate) && (
               <View onLayout={registerFieldPosition('category')}>
                 <Dropdown
                   label={t('addFarmer.selectCategory')}
@@ -3450,16 +4034,30 @@ export default function AddFarmerScreen() {
                   const maxDocs = question?.max_documents > 0 ? question.max_documents : 5;
                   
                   // Convert currentAnswer to FileItem array format
-                  let currentFiles: Array<{uri: string; type: 'image'; name: string}> = [];
+                  let currentFiles: Array<{uri: string; type: 'image' | 'document'; name: string}> = [];
                   if (currentAnswer) {
                     if (Array.isArray(currentAnswer)) {
-                      currentFiles = currentAnswer;
+                      currentFiles = currentAnswer.map((file: any) => {
+                        // Ensure file has correct type if it's already a file object
+                        if (file.type) {
+                          return file;
+                        }
+                        // If type is missing, detect it from filename
+                        const fileName = file.name || file.uri?.split('/').pop() || 'file';
+                        const fileType = getFileTypeFromUrl(file.uri || '', fileName);
+                        return {
+                          uri: file.uri || file,
+                          type: fileType,
+                          name: fileName,
+                        };
+                      });
                     } else if (typeof currentAnswer === 'string') {
                       // Legacy format: single file URI string
-                      const fileName = currentAnswer.split('/').pop() || 'file';
+                      const fileName = currentAnswer.split('/').pop() || currentAnswer.split('\\').pop() || 'file';
+                      const fileType = getFileTypeFromUrl(currentAnswer, fileName);
                       currentFiles = [{
                         uri: currentAnswer,
-                        type: 'image',
+                        type: fileType,
                         name: fileName,
                       }];
                     }
@@ -3469,7 +4067,7 @@ export default function AddFarmerScreen() {
                     <FileUploadQuestion
                       key={questionKey}
                       question={(question.question_text || '') + (maxDocs > 0 ? ` (maximum ${maxDocs} upload)` : '')}
-                      onUpload={(files: Array<{uri: string; type: 'image'; name: string}>) => {
+                      onUpload={(files: Array<{uri: string; type: 'image' | 'document'; name: string}>) => {
                         handleAnswerChange(files);
                       }}
                       uploadedFiles={currentFiles}
@@ -3801,7 +4399,9 @@ export default function AddFarmerScreen() {
                 <Text style={styles.tractorCountText}>
                   {t('addFarmer.tractorCount')} {index + 1}
                 </Text>
-                {tractors.length > 1 && (
+                {/* Remove tractor button - Only allow removing if not in rejected update mode */}
+                {/* In rejected update mode, we must keep all existing tractors (they have tractorId) */}
+                {tractors.length > 1 && !isRejectedUpdate && (
                   <TouchableOpacity
                     style={styles.removeTractorButton}
                     onPress={() => removeTractor(tractor.id)}
@@ -4079,8 +4679,9 @@ export default function AddFarmerScreen() {
                   required={true}
                 />
               </View>
-              {/* Add New Tractor Button - Only show on last tractor */}
-              {index === tractors.length - 1 && (
+              {/* Add New Tractor Button - Only show on last tractor and NOT in rejected update mode */}
+              {/* In rejected update mode, only allow modifying existing tractors (with tractorId) */}
+              {index === tractors.length - 1 && !isRejectedUpdate && (
                 <TouchableOpacity
                   style={styles.addNewButton}
                   onPress={addNewTractor}
@@ -4096,7 +4697,6 @@ export default function AddFarmerScreen() {
               )}
             </View>
           ))}
-          )}
         </ScrollView>
         {/* Submit Button */}
         <View style={{padding:moderateScale(14)}}>

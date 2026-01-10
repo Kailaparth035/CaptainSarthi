@@ -296,7 +296,11 @@
     "yourAnswerHere": "તમારો જવાબ અહીં દાખલ કરો",
     "selectOption": "વિકલ્પ પસંદ કરો",
     "uploadTractorImage": "ટ્રેક્ટર છબી અપલોડ કરો",
-    "uploadSecondImage": "બીજી છબી અપલોડ કરો"
+    "uploadSecondImage": "બીજી છબી અપલોડ કરો",
+    "uploadRcFront": "RC ફ્રન્ટ અપલોડ કરો",
+    "uploadRcBack": "RC બેક અપલોડ કરો",
+    "rcFrontRequired": "RC બુક ફ્રન્ટ છબી જરૂરી છે",
+    "rcBackRequired": "RC બુક બેક છબી જરૂરી છે"
   },
   "imagePicker": {
     "selectImageSource": "છબી સ્રોત પસંદ કરો",

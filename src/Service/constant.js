@@ -25,7 +25,7 @@ const Apis = {
   DEALER_QUESTIONS:`${API_BASE_URL}/api/dealers/questions`,
   DEALER_ADD_FARMER:`${API_BASE_URL}/api/dealers/v1/farmer/add`,
   DEALER_UPDATE_FARMER:`${API_BASE_URL}/api/dealers/farmers/update-request`,
-  DEALER_UPDATE_FARMER_V1:`${API_BASE_URL}/api/dealer/v1/farmer/update`, // For rejected update with full form-data
+  DEALER_UPDATE_FARMER_V1:`${API_BASE_URL}/api/dealers/v1/farmer/update`, // For rejected update with full form-data
   DEALER_FCM_REGISTER:`${API_BASE_URL}/api/dealers/fcm/register`,
   DEALER_FCM_UNREGISTER:`${API_BASE_URL}/api/dealers/fcm/unregister`,
   DEALER_PUSH_NOTIFICATIONS:`${API_BASE_URL}/api/dealers/push-notifications`,

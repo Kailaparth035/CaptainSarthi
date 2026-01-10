@@ -148,7 +148,7 @@ export default function FarmerDetailsScreen() {
       } else {
         setLoading(true);
       }
-      const clientId = params?.farmer_id || params?.farmerId;
+      const clientId = params?.farmerId || params?.farmer_id;
       
       if (!clientId) {
         console.error('No farmer_id provided');
@@ -221,6 +221,7 @@ export default function FarmerDetailsScreen() {
           middleName: farmerData.middleName || "",
           lastName: farmerData.lastName || "",
           fullName: fullName,
+          verificationStatus:farmerData?.verificationStatus,
           mobile: farmerData.mobile || "",
           dateOfBirth: formatDate(farmerData.dateOfBirth) || "",
           dateOfMarriage: formatDate(farmerData.dateOfMarriage) || "",
@@ -675,13 +676,14 @@ export default function FarmerDetailsScreen() {
             onPress={() => {
               // If coming from Home, navigate back to Home tab
               // If coming from List, use goBack() to return to list
-              if (params?.fromScreen === 'Home') {
+              if (params?.fromScreen === "Home") {
                 tabNavigation.navigate(SCREEN_NAMES.Home);
               } else {
                 navigation.goBack();
               }
             }}
-            activeOpacity={0.7}>
+            activeOpacity={0.7}
+          >
             <Ionicons
               name="arrow-back"
               size={moderateScale(20)}
@@ -690,21 +692,27 @@ export default function FarmerDetailsScreen() {
           </TouchableOpacity>
           <Text style={dynamicStyles.headerTitle}>{t("farmer.details")}</Text>
         </View>
-        <TouchableOpacity
-          style={dynamicStyles.editButton}
-          activeOpacity={0.7}
-          onPress={() => {
-            // Navigate to AddFarmerScreen in edit mode
-            const farmerId = params?.farmer_id || params?.farmerId;
-            if (farmerId) {
-              navigation.navigate(SCREEN_NAMES.AddFarmer as never, {
-                farmerId: farmerId,
-                editMode: true,
-              } as never);
-            }
-          }}>
-          <Text style={dynamicStyles.editButtonText}>Edit</Text>
-        </TouchableOpacity>
+        {farmerDetails?.verificationStatus == 1 && (
+          <TouchableOpacity
+            style={dynamicStyles.editButton}
+            activeOpacity={0.7}
+            onPress={() => {
+              // Navigate to AddFarmerScreen in edit mode
+              const farmerId = params?.farmer_id || params?.farmerId;
+              if (farmerId) {
+                navigation.navigate(
+                  SCREEN_NAMES.AddFarmer as never,
+                  {
+                    farmerId: farmerId,
+                    editMode: true,
+                  } as never
+                );
+              }
+            }}
+          >
+            <Text style={dynamicStyles.editButtonText}>Edit</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Scrollable Content */}
@@ -712,7 +720,7 @@ export default function FarmerDetailsScreen() {
         renderSkeleton()
       ) : farmerDetails ? (
         <ScrollView
-          style={{flex: 1}}
+          style={{ flex: 1 }}
           contentContainerStyle={dynamicStyles.scrollContent}
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -722,371 +730,453 @@ export default function FarmerDetailsScreen() {
               colors={[colors.primary]}
               tintColor={colors.primary}
             />
-          }>
+          }
+        >
           {refreshing ? (
             renderSkeletonContent()
           ) : (
             <>
               {/* User Details Card */}
-        <View style={dynamicStyles.card}>
-          <View style={dynamicStyles.profileHeader}>
-            <View style={dynamicStyles.profileImageContainer}>
-              {farmerDetails.profileImage ? (
-                <Image
-                  source={{uri: farmerDetails.profileImage}}
-                  style={dynamicStyles.profileImage}
-                  resizeMode="cover"
-                />
-              ) : (
-                <View style={dynamicStyles.profileImage}>
-                  <Text style={dynamicStyles.profileImageText}>
-                    {params?.farmerInitials || (farmerDetails.firstName?.[0] || '') + (farmerDetails.lastName?.[0] || '') || 'DW'}
-                  </Text>
-                </View>
-              )}
-            </View>
-            <View style={dynamicStyles.profileInfo}>
-              <Text style={dynamicStyles.profileName}>
-                {params?.farmerName || farmerDetails.fullName || ''}
-              </Text>
-              <Text style={dynamicStyles.profilePhone}>
-                {params?.farmerPhone || farmerDetails.mobile || ''}
-              </Text>
-            </View>
-          </View>
-
-          <InfoRow
-            label="First name"
-            value={farmerDetails.firstName}
-            moderateScale={moderateScale}
-          />
-          <InfoRow
-            label="Middle name"
-            value={farmerDetails.middleName}
-            moderateScale={moderateScale}
-          />
-          <InfoRow
-            label="Last name"
-            value={farmerDetails.lastName}
-            moderateScale={moderateScale}
-          />
-          <InfoRow
-            label="Mobile no."
-            value={farmerDetails.mobile}
-            moderateScale={moderateScale}
-          />
-          <InfoRow
-            label="Date of birth"
-            value={farmerDetails.dateOfBirth}
-            moderateScale={moderateScale}
-          />
-          <InfoRow
-            label="Date of marriage"
-            value={farmerDetails.dateOfMarriage}
-            moderateScale={moderateScale}
-          />
-          {/* Address Section - Display below title */}
-          <View
-            style={{
-              paddingVertical: moderateScale(12),
-              borderBottomWidth: 0,
-            }}>
-            <Text
-              style={[
-                Typography.regularMd,
-                {
-                  fontSize: moderateScale(14),
-                  color: colors.textTertiary,
-                  marginBottom: moderateScale(8),
-                },
-              ]}>
-              Farmer address
-            </Text>
-            <Text
-              style={[
-                Typography.regularMd,
-                {
-                  fontSize: moderateScale(14),
-                  color: colors.textPrimary,
-                  lineHeight: moderateScale(20),
-                },
-              ]}
-              numberOfLines={0}>
-              {farmerDetails?.addressData || 'N/A'}
-            </Text>
-          </View>
-        </View>
-
-        {/* Tractor Details Card */}
-        <View style={dynamicStyles.card}>
-          <View style={dynamicStyles.tractorHeader}>
-            <Text style={dynamicStyles.tractorTitle}>{t("farmerProfile.tractorDetails")}</Text>
-            <Text style={dynamicStyles.tractorCount}>
-              {t("farmerProfile.tractorCount")}: {farmerDetails.tractors.length}
-            </Text>
-          </View>
-
-          {farmerDetails.tractors.map((tractor: any, index: number) => {
-            // Get RC images using rcImagesFront and rcImagesBack
-            const rcImageFront = tractor.rcImagesFront || null;
-            const rcImageBack = tractor.rcImagesBack || null;
-            
-            // Get tractor images array (multiple images)
-            const tractorImages = tractor.tractorImages || [];
-            const hasTractorImages = tractorImages.length > 0;
-            
-            // Calculate image index for preview modal
-            const getImageIndex = (imageType: 'tractor' | 'tractorImage' | 'rcFront' | 'rcBack', imageIndex?: number) => {
-              let imgIndex = 0;
-              
-              if (imageType === 'tractor' || imageType === 'tractorImage') {
-                // First images are tractor images
-                if (imageIndex !== undefined) {
-                  imgIndex = imageIndex;
-                } else {
-                  imgIndex = 0; // Default to first tractor image
-                }
-              } else if (imageType === 'rcFront' && rcImageFront) {
-                // RC front comes after all tractor images
-                imgIndex = tractorImages.length;
-              } else if (imageType === 'rcBack' && rcImageBack) {
-                // RC back comes after tractor images and RC front
-                imgIndex = tractorImages.length + (rcImageFront ? 1 : 0);
-              }
-              return imgIndex;
-            };
-            
-            return (
-              <View key={tractor.id || tractor.tractorId || index}>
-                {/* Tractor Images - Show in row if 2 images, full width if 1, thumbnails if more than 2 */}
-                <View style={dynamicStyles.tractorImageContainer}>
-                  {hasTractorImages ? (
-                    // Multiple images from tractorImages array
-                    tractorImages.length === 1 ? (
-                      // Single image - full width
-                      <TouchableOpacity
-                        style={dynamicStyles.tractorMainImage}
-                        onPress={() => {
-                          setSelectedTractorIndex(index);
-                          setSelectedImageIndex(getImageIndex('tractorImage', 0));
-                          setPreviewModalVisible(true);
-                        }}
-                        activeOpacity={0.7}>
-                        <Image 
-                          source={{uri: tractorImages[0]}} 
-                          style={dynamicStyles.tractorMainImage}
-                          resizeMode="contain"
-                        />
-                      </TouchableOpacity>
-                    ) : tractorImages.length === 2 ? (
-                      // Two images - show side by side in a row
-                      <View style={dynamicStyles.tractorImagesRow}>
-                        <TouchableOpacity
-                          style={dynamicStyles.tractorImageHalf}
-                          onPress={() => {
-                            setSelectedTractorIndex(index);
-                            setSelectedImageIndex(getImageIndex('tractorImage', 0));
-                            setPreviewModalVisible(true);
-                          }}
-                          activeOpacity={0.7}>
-                          <Image 
-                            source={{uri: tractorImages[0]}} 
-                            style={{
-                              width: '100%',
-                              height: '100%',
-                              borderRadius: moderateScale(8),
-                            }}
-                            resizeMode="contain"
-                          />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={dynamicStyles.tractorImageHalf}
-                          onPress={() => {
-                            setSelectedTractorIndex(index);
-                            setSelectedImageIndex(getImageIndex('tractorImage', 1));
-                            setPreviewModalVisible(true);
-                          }}
-                          activeOpacity={0.7}>
-                          <Image 
-                            source={{uri: tractorImages[1]}} 
-                            style={{
-                              width: '100%',
-                              height: '100%',
-                              borderRadius: moderateScale(8),
-                            }}
-                            resizeMode="contain"
-                          />
-                        </TouchableOpacity>
-                      </View>
-                    ) : (
-                      // More than 2 images - first full width, then thumbnails
-                      <>
-                        <TouchableOpacity
-                          style={dynamicStyles.tractorMainImage}
-                          onPress={() => {
-                            setSelectedTractorIndex(index);
-                            setSelectedImageIndex(getImageIndex('tractorImage', 0));
-                            setPreviewModalVisible(true);
-                          }}
-                          activeOpacity={0.7}>
-                          <Image 
-                            source={{uri: tractorImages[0]}} 
-                            style={dynamicStyles.tractorMainImage}
-                            resizeMode="contain"
-                          />
-                        </TouchableOpacity>
-                        <View style={dynamicStyles.tractorImagesContainer}>
-                          {tractorImages.slice(1).map((imageUri: string, imgIndex: number) => (
-                            <TouchableOpacity
-                              key={`tractor-thumb-${imgIndex + 1}`}
-                              style={dynamicStyles.tractorImageThumbnail}
-                              onPress={() => {
-                                setSelectedTractorIndex(index);
-                                setSelectedImageIndex(getImageIndex('tractorImage', imgIndex + 1));
-                                setPreviewModalVisible(true);
-                              }}
-                              activeOpacity={0.7}>
-                              <Image 
-                                source={{uri: imageUri}} 
-                                style={dynamicStyles.tractorImageThumbnail}
-                                resizeMode="contain"
-                              />
-                            </TouchableOpacity>
-                          ))}
-                        </View>
-                      </>
-                    )
-                  ) : tractor.tractorImage ? (
-                    // Fallback to single tractorImage
-                    <TouchableOpacity
-                      style={dynamicStyles.tractorMainImage}
-                      onPress={() => {
-                        setSelectedTractorIndex(index);
-                        setSelectedImageIndex(getImageIndex('tractorImage', 0));
-                        setPreviewModalVisible(true);
-                      }}
-                      activeOpacity={0.7}>
-                      <Image 
-                        source={{uri: tractor.tractorImage}} 
-                        style={dynamicStyles.tractorMainImage}
-                        resizeMode="contain"
+              <View style={dynamicStyles.card}>
+                <View style={dynamicStyles.profileHeader}>
+                  <View style={dynamicStyles.profileImageContainer}>
+                    {farmerDetails.profileImage ? (
+                      <Image
+                        source={{ uri: farmerDetails.profileImage }}
+                        style={dynamicStyles.profileImage}
+                        resizeMode="cover"
                       />
-                    </TouchableOpacity>
-                  ) : (
-                    // No image available
-                    <View style={dynamicStyles.tractorMainImage}>
-                      <View style={dynamicStyles.placeholderImage}>
-                        <Text style={dynamicStyles.placeholderText}>No image available</Text>
+                    ) : (
+                      <View style={dynamicStyles.profileImage}>
+                        <Text style={dynamicStyles.profileImageText}>
+                          {params?.farmerInitials ||
+                            (farmerDetails.firstName?.[0] || "") +
+                              (farmerDetails.lastName?.[0] || "") ||
+                            "DW"}
+                        </Text>
                       </View>
-                    </View>
-                  )}
-
-                  {/* RC Book Images */}
-                  <View style={dynamicStyles.documentImagesContainer}>
-                    <TouchableOpacity
-                      style={dynamicStyles.documentImage}
-                      onPress={() => {
-                        if (rcImageFront) {
-                          setSelectedTractorIndex(index);
-                          setSelectedImageIndex(getImageIndex('rcFront', undefined));
-                          setPreviewModalVisible(true);
-                        }
-                      }}
-                      activeOpacity={rcImageFront ? 0.7 : 1}>
-                      {rcImageFront ? (
-                        <Image 
-                          source={{uri: rcImageFront}} 
-                          style={{
-                            width: moderateScale(140),
-                            height: moderateScale(70),
-                            borderRadius: moderateScale(8),
-                            alignSelf: 'center',
-                          }}
-                          resizeMode="cover"
-                        />
-                      ) : (
-                        <View style={dynamicStyles.placeholderImage}>
-                          <Text style={[dynamicStyles.placeholderText, {fontSize: moderateScale(10)}]}>{t("addFarmer.noRcFront")}</Text>
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={dynamicStyles.documentImage}
-                      onPress={() => {
-                        if (rcImageBack) {
-                          setSelectedTractorIndex(index);
-                          setSelectedImageIndex(getImageIndex('rcBack', undefined));
-                          setPreviewModalVisible(true);
-                        }
-                      }}
-                      activeOpacity={rcImageBack ? 0.7 : 1}>
-                      {rcImageBack ? (
-                        <Image 
-                          source={{uri: rcImageBack}} 
-                          style={{
-                            width: moderateScale(140),
-                            height: moderateScale(70),
-                            borderRadius: moderateScale(8),
-                            alignSelf: 'center',
-                          }}
-                          resizeMode="cover"
-                        />
-                      ) : (
-                        <View style={dynamicStyles.placeholderImage}>
-                          <Text style={[dynamicStyles.placeholderText, {fontSize: moderateScale(10)}]}>{t("addFarmer.noRcBack")}</Text>
-                        </View>
-                      )}
-                    </TouchableOpacity>
+                    )}
+                  </View>
+                  <View style={dynamicStyles.profileInfo}>
+                    <Text style={dynamicStyles.profileName}>
+                      {params?.farmerName || farmerDetails.fullName || ""}
+                    </Text>
+                    <Text style={dynamicStyles.profilePhone}>
+                      {params?.farmerPhone || farmerDetails.mobile || ""}
+                    </Text>
                   </View>
                 </View>
 
-              {/* Tractor Specifications */}
-              <InfoRow
-                label="Model name"
-                value={tractor.model}
-                moderateScale={moderateScale}
-              />
-              <InfoRow
-                label="Chassis no."
-                value={tractor.chassisNo}
-                moderateScale={moderateScale}                
-              />
-              <InfoRow
-                label="Vehicle no."
-                value={tractor.vehicleNo}
-                moderateScale={moderateScale}
-              />
-              <InfoRow
-                label="Engine no."
-                value={tractor.engineNo}
-                moderateScale={moderateScale}
-              />
-              <InfoRow
-                label="Mobile no."
-                value={tractor.mobile ? tractor.mobile : farmerDetails.mobile}
-                moderateScale={moderateScale}
-              />
-              <InfoRow
-                label="Date of invoice"
-                value={tractor.dateOfInvoice}
-                moderateScale={moderateScale}
-              />
-              <InfoRow
-                label="Who drives"
-                value={tractor.whoDrives}
-                moderateScale={moderateScale}
-                isShowBorderBottom={index !== farmerDetails.tractors.length - 1}
-              />
-            </View>
-            );
-          })}
-        </View>
+                <InfoRow
+                  label="First name"
+                  value={farmerDetails.firstName}
+                  moderateScale={moderateScale}
+                />
+                <InfoRow
+                  label="Middle name"
+                  value={farmerDetails.middleName}
+                  moderateScale={moderateScale}
+                />
+                <InfoRow
+                  label="Last name"
+                  value={farmerDetails.lastName}
+                  moderateScale={moderateScale}
+                />
+                <InfoRow
+                  label="Mobile no."
+                  value={farmerDetails.mobile}
+                  moderateScale={moderateScale}
+                />
+                <InfoRow
+                  label="Date of birth"
+                  value={farmerDetails.dateOfBirth}
+                  moderateScale={moderateScale}
+                />
+                <InfoRow
+                  label="Date of marriage"
+                  value={farmerDetails.dateOfMarriage}
+                  moderateScale={moderateScale}
+                />
+                {/* Address Section - Display below title */}
+                <View
+                  style={{
+                    paddingVertical: moderateScale(12),
+                    borderBottomWidth: 0,
+                  }}
+                >
+                  <Text
+                    style={[
+                      Typography.regularMd,
+                      {
+                        fontSize: moderateScale(14),
+                        color: colors.textTertiary,
+                        marginBottom: moderateScale(8),
+                      },
+                    ]}
+                  >
+                    Farmer address
+                  </Text>
+                  <Text
+                    style={[
+                      Typography.regularMd,
+                      {
+                        fontSize: moderateScale(14),
+                        color: colors.textPrimary,
+                        lineHeight: moderateScale(20),
+                      },
+                    ]}
+                    numberOfLines={0}
+                  >
+                    {farmerDetails?.addressData || "N/A"}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Tractor Details Card */}
+              <View style={dynamicStyles.card}>
+                <View style={dynamicStyles.tractorHeader}>
+                  <Text style={dynamicStyles.tractorTitle}>
+                    {t("farmerProfile.tractorDetails")}
+                  </Text>
+                  <Text style={dynamicStyles.tractorCount}>
+                    {t("farmerProfile.tractorCount")}:{" "}
+                    {farmerDetails.tractors.length}
+                  </Text>
+                </View>
+
+                {farmerDetails.tractors.map((tractor: any, index: number) => {
+                  // Get RC images using rcImagesFront and rcImagesBack
+                  const rcImageFront = tractor.rcImagesFront || null;
+                  const rcImageBack = tractor.rcImagesBack || null;
+
+                  // Get tractor images array (multiple images)
+                  const tractorImages = tractor.tractorImages || [];
+                  const hasTractorImages = tractorImages.length > 0;
+
+                  // Calculate image index for preview modal
+                  const getImageIndex = (
+                    imageType:
+                      | "tractor"
+                      | "tractorImage"
+                      | "rcFront"
+                      | "rcBack",
+                    imageIndex?: number
+                  ) => {
+                    let imgIndex = 0;
+
+                    if (
+                      imageType === "tractor" ||
+                      imageType === "tractorImage"
+                    ) {
+                      // First images are tractor images
+                      if (imageIndex !== undefined) {
+                        imgIndex = imageIndex;
+                      } else {
+                        imgIndex = 0; // Default to first tractor image
+                      }
+                    } else if (imageType === "rcFront" && rcImageFront) {
+                      // RC front comes after all tractor images
+                      imgIndex = tractorImages.length;
+                    } else if (imageType === "rcBack" && rcImageBack) {
+                      // RC back comes after tractor images and RC front
+                      imgIndex = tractorImages.length + (rcImageFront ? 1 : 0);
+                    }
+                    return imgIndex;
+                  };
+
+                  return (
+                    <View key={tractor.id || tractor.tractorId || index}>
+                      {/* Tractor Images - Show in row if 2 images, full width if 1, thumbnails if more than 2 */}
+                      <View style={dynamicStyles.tractorImageContainer}>
+                        {hasTractorImages ? (
+                          // Multiple images from tractorImages array
+                          tractorImages.length === 1 ? (
+                            // Single image - full width
+                            <TouchableOpacity
+                              style={dynamicStyles.tractorMainImage}
+                              onPress={() => {
+                                setSelectedTractorIndex(index);
+                                setSelectedImageIndex(
+                                  getImageIndex("tractorImage", 0)
+                                );
+                                setPreviewModalVisible(true);
+                              }}
+                              activeOpacity={0.7}
+                            >
+                              <Image
+                                source={{ uri: tractorImages[0] }}
+                                style={dynamicStyles.tractorMainImage}
+                                resizeMode="contain"
+                              />
+                            </TouchableOpacity>
+                          ) : tractorImages.length === 2 ? (
+                            // Two images - show side by side in a row
+                            <View style={dynamicStyles.tractorImagesRow}>
+                              <TouchableOpacity
+                                style={dynamicStyles.tractorImageHalf}
+                                onPress={() => {
+                                  setSelectedTractorIndex(index);
+                                  setSelectedImageIndex(
+                                    getImageIndex("tractorImage", 0)
+                                  );
+                                  setPreviewModalVisible(true);
+                                }}
+                                activeOpacity={0.7}
+                              >
+                                <Image
+                                  source={{ uri: tractorImages[0] }}
+                                  style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    borderRadius: moderateScale(8),
+                                  }}
+                                  resizeMode="contain"
+                                />
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                style={dynamicStyles.tractorImageHalf}
+                                onPress={() => {
+                                  setSelectedTractorIndex(index);
+                                  setSelectedImageIndex(
+                                    getImageIndex("tractorImage", 1)
+                                  );
+                                  setPreviewModalVisible(true);
+                                }}
+                                activeOpacity={0.7}
+                              >
+                                <Image
+                                  source={{ uri: tractorImages[1] }}
+                                  style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    borderRadius: moderateScale(8),
+                                  }}
+                                  resizeMode="contain"
+                                />
+                              </TouchableOpacity>
+                            </View>
+                          ) : (
+                            // More than 2 images - first full width, then thumbnails
+                            <>
+                              <TouchableOpacity
+                                style={dynamicStyles.tractorMainImage}
+                                onPress={() => {
+                                  setSelectedTractorIndex(index);
+                                  setSelectedImageIndex(
+                                    getImageIndex("tractorImage", 0)
+                                  );
+                                  setPreviewModalVisible(true);
+                                }}
+                                activeOpacity={0.7}
+                              >
+                                <Image
+                                  source={{ uri: tractorImages[0] }}
+                                  style={dynamicStyles.tractorMainImage}
+                                  resizeMode="contain"
+                                />
+                              </TouchableOpacity>
+                              <View
+                                style={dynamicStyles.tractorImagesContainer}
+                              >
+                                {tractorImages
+                                  .slice(1)
+                                  .map((imageUri: string, imgIndex: number) => (
+                                    <TouchableOpacity
+                                      key={`tractor-thumb-${imgIndex + 1}`}
+                                      style={
+                                        dynamicStyles.tractorImageThumbnail
+                                      }
+                                      onPress={() => {
+                                        setSelectedTractorIndex(index);
+                                        setSelectedImageIndex(
+                                          getImageIndex(
+                                            "tractorImage",
+                                            imgIndex + 1
+                                          )
+                                        );
+                                        setPreviewModalVisible(true);
+                                      }}
+                                      activeOpacity={0.7}
+                                    >
+                                      <Image
+                                        source={{ uri: imageUri }}
+                                        style={
+                                          dynamicStyles.tractorImageThumbnail
+                                        }
+                                        resizeMode="contain"
+                                      />
+                                    </TouchableOpacity>
+                                  ))}
+                              </View>
+                            </>
+                          )
+                        ) : tractor.tractorImage ? (
+                          // Fallback to single tractorImage
+                          <TouchableOpacity
+                            style={dynamicStyles.tractorMainImage}
+                            onPress={() => {
+                              setSelectedTractorIndex(index);
+                              setSelectedImageIndex(
+                                getImageIndex("tractorImage", 0)
+                              );
+                              setPreviewModalVisible(true);
+                            }}
+                            activeOpacity={0.7}
+                          >
+                            <Image
+                              source={{ uri: tractor.tractorImage }}
+                              style={dynamicStyles.tractorMainImage}
+                              resizeMode="contain"
+                            />
+                          </TouchableOpacity>
+                        ) : (
+                          // No image available
+                          <View style={dynamicStyles.tractorMainImage}>
+                            <View style={dynamicStyles.placeholderImage}>
+                              <Text style={dynamicStyles.placeholderText}>
+                                No image available
+                              </Text>
+                            </View>
+                          </View>
+                        )}
+
+                        {/* RC Book Images */}
+                        <View style={dynamicStyles.documentImagesContainer}>
+                          <TouchableOpacity
+                            style={dynamicStyles.documentImage}
+                            onPress={() => {
+                              if (rcImageFront) {
+                                setSelectedTractorIndex(index);
+                                setSelectedImageIndex(
+                                  getImageIndex("rcFront", undefined)
+                                );
+                                setPreviewModalVisible(true);
+                              }
+                            }}
+                            activeOpacity={rcImageFront ? 0.7 : 1}
+                          >
+                            {rcImageFront ? (
+                              <Image
+                                source={{ uri: rcImageFront }}
+                                style={{
+                                  width: moderateScale(140),
+                                  height: moderateScale(70),
+                                  borderRadius: moderateScale(8),
+                                  alignSelf: "center",
+                                }}
+                                resizeMode="cover"
+                              />
+                            ) : (
+                              <View style={dynamicStyles.placeholderImage}>
+                                <Text
+                                  style={[
+                                    dynamicStyles.placeholderText,
+                                    { fontSize: moderateScale(10) },
+                                  ]}
+                                >
+                                  {t("addFarmer.noRcFront")}
+                                </Text>
+                              </View>
+                            )}
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={dynamicStyles.documentImage}
+                            onPress={() => {
+                              if (rcImageBack) {
+                                setSelectedTractorIndex(index);
+                                setSelectedImageIndex(
+                                  getImageIndex("rcBack", undefined)
+                                );
+                                setPreviewModalVisible(true);
+                              }
+                            }}
+                            activeOpacity={rcImageBack ? 0.7 : 1}
+                          >
+                            {rcImageBack ? (
+                              <Image
+                                source={{ uri: rcImageBack }}
+                                style={{
+                                  width: moderateScale(140),
+                                  height: moderateScale(70),
+                                  borderRadius: moderateScale(8),
+                                  alignSelf: "center",
+                                }}
+                                resizeMode="cover"
+                              />
+                            ) : (
+                              <View style={dynamicStyles.placeholderImage}>
+                                <Text
+                                  style={[
+                                    dynamicStyles.placeholderText,
+                                    { fontSize: moderateScale(10) },
+                                  ]}
+                                >
+                                  {t("addFarmer.noRcBack")}
+                                </Text>
+                              </View>
+                            )}
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+
+                      {/* Tractor Specifications */}
+                      <InfoRow
+                        label="Model name"
+                        value={tractor.model}
+                        moderateScale={moderateScale}
+                      />
+                      <InfoRow
+                        label="Chassis no."
+                        value={tractor.chassisNo}
+                        moderateScale={moderateScale}
+                      />
+                      <InfoRow
+                        label="Vehicle no."
+                        value={tractor.vehicleNo}
+                        moderateScale={moderateScale}
+                      />
+                      <InfoRow
+                        label="Engine no."
+                        value={tractor.engineNo}
+                        moderateScale={moderateScale}
+                      />
+                      <InfoRow
+                        label="Mobile no."
+                        value={
+                          tractor.mobile ? tractor.mobile : farmerDetails.mobile
+                        }
+                        moderateScale={moderateScale}
+                      />
+                      <InfoRow
+                        label="Date of invoice"
+                        value={tractor.dateOfInvoice}
+                        moderateScale={moderateScale}
+                      />
+                      <InfoRow
+                        label="Who drives"
+                        value={tractor.whoDrives}
+                        moderateScale={moderateScale}
+                        isShowBorderBottom={
+                          index !== farmerDetails.tractors.length - 1
+                        }
+                      />
+                    </View>
+                  );
+                })}
+              </View>
             </>
           )}
         </ScrollView>
       ) : (
-        <View style={{flex: 1, alignItems: 'center', justifyContent: 'center', padding: moderateScale(20)}}>
-          <Text style={[Typography.regularMd, {color: colors.textSecondary}]}>
+        <View
+          style={{
+            flex: 1,
+            alignItems: "center",
+            justifyContent: "center",
+            padding: moderateScale(20),
+          }}
+        >
+          <Text style={[Typography.regularMd, { color: colors.textSecondary }]}>
             {t("farmer.noDetailsFound")}
           </Text>
         </View>

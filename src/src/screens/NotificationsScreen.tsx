@@ -676,7 +676,7 @@ console.log("role ::",role);
       handleCloseModal();
       // Navigate to AddFarmerScreen with farmer ID for edit mode
       (navigation as any).navigate(SCREEN_NAMES.AddFarmer, {
-        farmerId: selectedNotification.referenceId.toString(),
+        farmerId: null,
         isEditMode: true,
       });
     } else {

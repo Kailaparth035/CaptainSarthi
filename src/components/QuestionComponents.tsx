@@ -5,6 +5,8 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
+  ScrollView,
+  Image,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import colors from '../utils/colors';
@@ -345,8 +347,15 @@ export function CheckboxQuestion({
 // File Upload Question Component
 type FileItem = {
   uri: string;
-  type: 'image';
+  type: 'image' | 'document';
   name: string;
+};
+
+// Helper function to detect file type based on extension
+const getFileType = (uri: string, fileName: string): 'image' | 'document' => {
+  const ext = (fileName.split('.').pop() || '').toLowerCase();
+  const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
+  return imageExtensions.includes(ext) ? 'image' : 'document';
 };
 
 type FileUploadQuestionProps = {
@@ -499,6 +508,9 @@ export function FileUploadQuestion({
         filesList: {
           marginTop: moderateScale(12),
         },
+        filesHorizontalList: {
+          marginTop: moderateScale(12),
+        },
         fileItem: {
           flexDirection: 'row',
           alignItems: 'center',
@@ -509,6 +521,41 @@ export function FileUploadQuestion({
           borderWidth: 1,
           borderColor: colors.borderLight,
           marginBottom: moderateScale(8),
+        },
+        fileThumbnail: {
+          width: moderateScale(80),
+          height: moderateScale(80),
+          borderRadius: moderateScale(8),
+          marginRight: moderateScale(12),
+          backgroundColor: colors.backgroundGray,
+          borderWidth: 1,
+          borderColor: colors.borderLight,
+          position: 'relative',
+          overflow: 'hidden',
+        },
+        thumbnailImage: {
+          width: '100%',
+          height: '100%',
+        },
+        documentIconContainer: {
+          width: '100%',
+          height: '100%',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: colors.backgroundGray,
+        },
+        fileThumbnailWrapper: {
+          alignItems: 'center',
+          marginRight: moderateScale(12),
+        },
+        fileThumbnailName: {
+          ...Typography.regularSm,
+          fontSize: moderateScale(11),
+          color: colors.textPrimary,
+          marginTop: moderateScale(4),
+          width: moderateScale(80),
+          textAlign: 'center',
+          numberOfLines: 1,
         },
         fileInfo: {
           flex: 1,
@@ -527,6 +574,17 @@ export function FileUploadQuestion({
         },
         removeButton: {
           padding: moderateScale(4),
+        },
+        removeButtonThumbnail: {
+          position: 'absolute',
+          top: moderateScale(4),
+          right: moderateScale(4),
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          borderRadius: moderateScale(12),
+          width: moderateScale(24),
+          height: moderateScale(24),
+          alignItems: 'center',
+          justifyContent: 'center',
         },
         errorText: {
           color: 'red',
@@ -573,31 +631,48 @@ export function FileUploadQuestion({
         )}
       </TouchableOpacity>
       
-      {/* Display uploaded files list */}
+      {/* Display uploaded files list - Horizontal scrollable thumbnails */}
       {uploadedFiles.length > 0 && (
-        <View style={styles.filesList}>
-          {uploadedFiles.map((file, index) => (
-            <View key={index} style={styles.fileItem}>
-              <View style={styles.fileInfo}>
-                <Text style={styles.fileName} numberOfLines={1}>
+        <View style={styles.filesHorizontalList}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{paddingRight: moderateScale(16)}}>
+            {uploadedFiles.map((file, index) => (
+              <View key={index} style={styles.fileThumbnailWrapper}>
+                <View style={styles.fileThumbnail}>
+                  {file.type === 'image' ? (
+                    <Image
+                      source={{uri: file.uri}}
+                      style={styles.thumbnailImage}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={styles.documentIconContainer}>
+                      <Ionicons
+                        name="document-text"
+                        size={moderateScale(32)}
+                        color={colors.textTertiary}
+                      />
+                    </View>
+                  )}
+                  <TouchableOpacity
+                    style={styles.removeButtonThumbnail}
+                    onPress={() => handleRemoveFile(index)}
+                    activeOpacity={0.7}>
+                    <Ionicons
+                      name="close"
+                      size={moderateScale(16)}
+                      color={colors.backgroundWhite}
+                    />
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.fileThumbnailName} numberOfLines={1}>
                   {file.name}
                 </Text>
-                <Text style={styles.fileType}>
-                  Image
-                </Text>
               </View>
-              <TouchableOpacity
-                style={styles.removeButton}
-                onPress={() => handleRemoveFile(index)}
-                activeOpacity={0.7}>
-                <Ionicons
-                  name="close-circle"
-                  size={moderateScale(24)}
-                  color={colors.statusError}
-                />
-              </TouchableOpacity>
-            </View>
-          ))}
+            ))}
+          </ScrollView>
         </View>
       )}
       

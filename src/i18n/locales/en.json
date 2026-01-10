@@ -296,7 +296,11 @@
     "yourAnswerHere": "Your answer here",
     "selectOption": "Select option",
     "uploadTractorImage": "Upload Tractor image",
-    "uploadSecondImage": "Upload second image"
+    "uploadSecondImage": "Upload second image",
+    "uploadRcFront": "Upload RC front",
+    "uploadRcBack": "Upload RC back",
+    "rcFrontRequired": "RC book front image is required",
+    "rcBackRequired": "RC book back image is required"
   },
   "imagePicker": {
     "selectImageSource": "Select Image Source",

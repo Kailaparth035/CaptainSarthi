@@ -169,9 +169,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    paddingTop: spacing(10),
-    paddingBottom:moderateScale(7)    
+    paddingHorizontal: moderateScale(16),
+    paddingTop: moderateScale(12),
+    paddingBottom: moderateScale(12),
   },
   item: {
     flex: 1,
@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
     borderRadius: moderateScale(20),
   },
   iconWithGap: {
-    marginRight: Spacing.sm,
+    marginRight: moderateScale(8),
   },
   pillLabel: {
     ...Typography.semiBoldMd,
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
             const icon = getIconForRoute(routeName, {
               focused: isFocused,
               color,
-              size: fontSize(22),
+              size: moderateScale(22),
             });
 
             const isPill = isFocused;
@@ -315,7 +315,27 @@ const styles = StyleSheet.create({
               canPreventDefault: true,
             });
             if (!isFocused && !event.defaultPrevented) {
-              navigation.navigate(route.name);
+              // When switching tabs, check if target tab has nested screens
+              const targetRoute = state.routes.find((r: any) => r.name === route.name);
+              const targetStackState = targetRoute?.state as any;
+              
+              // If target tab has nested screens (index > 0), reset to root
+              if (targetStackState && targetStackState.index > 0 && targetStackState.routes && targetStackState.routes.length > 0) {
+                // Get the root screen name from the stack (first route in stack)
+                const rootScreenName = targetStackState.routes[0]?.name;
+                if (rootScreenName) {
+                  // Navigate to root screen of the target tab to reset stack
+                  navigation.navigate(route.name, {
+                    screen: rootScreenName,
+                  } as any);
+                } else {
+                  // Fallback: just navigate to tab
+                  navigation.navigate(route.name);
+                }
+              } else {
+                // No nested screens or already at root, navigate normally
+                navigation.navigate(route.name);
+              }
             }
           };
 
@@ -333,7 +353,7 @@ const styles = StyleSheet.create({
           const icon = getIconForRoute(route.name, {
             focused: isFocused,
             color,
-            size: fontSize(22),
+            size: moderateScale(22),
           });
 
           // Active tab shows pill with label; others show icon-only

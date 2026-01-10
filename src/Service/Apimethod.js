@@ -161,3 +161,28 @@ export const putDataWithImage = async (url, formData) => {
     };
   }
 };
+
+//  DELETE request
+export const deleteData = async (fullUrl, params = {}) => {
+  if (__DEV__) {
+    console.log('DELETE Api Call ----fullUrl--->>>>', fullUrl);
+    console.log('DELETE Api Call ----params--->>>>', params);
+  }
+
+  try {
+    const response = await axiosInstance.delete(fullUrl, { params });
+    return handleApiResponse(response);
+  } catch (error) {
+    console.log('DELETE error:', error);
+    // Return error response data so error messages can be extracted
+    // Note: 401 errors will be automatically handled by axios interceptor in Apicom.js
+    if (error?.response?.data) {
+      return error.response.data;
+    }
+    // If no response data, return error object with message
+    return {
+      status: false,
+      message: error?.message || 'An error occurred while processing your request'
+    };
+  }
+};

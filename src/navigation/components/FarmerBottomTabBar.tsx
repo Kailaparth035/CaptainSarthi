@@ -15,6 +15,7 @@ import colors from '../../utils/colors';
 import useDeviceMetrics from '../../utils/responsiveCustom';
 import {useLanguage} from '../../contexts/LanguageContext';
 import {ImagePath} from '../../assets/images';
+import { spacing } from '../../utils';
 
 type IconProps = {focused: boolean; color: string; size: number};
 
@@ -123,15 +124,16 @@ export default function FarmerBottomTabBar({
       borderTopWidth: 1,
     },
     container: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: moderateScale(4),
-      paddingVertical: moderateScale(15),      
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: moderateScale(16),
+      paddingTop: moderateScale(12),
+      paddingBottom: moderateScale(20),
     },
     item: {
-      alignItems: 'center',
-      justifyContent: 'center',
+      alignItems: "center",
+      justifyContent: "center",
     },
     itemInactive: {
       minWidth: moderateScale(36),
@@ -140,25 +142,26 @@ export default function FarmerBottomTabBar({
     itemActive: {
       marginHorizontal: moderateScale(4),
     },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: moderateScale(10),
-    paddingVertical: moderateScale(8),
-    borderRadius: moderateScale(20),
-  },
-  iconWithGap: {
-    marginHorizontal: moderateScale(5),
-  },
-  pillLabel: {
-   ...Typography.semiBoldMd,
-  },
-  iconOnly: {
-    alignItems: 'center',
-    justifyContent: 'center',    
-  },
-});
+    pill: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: moderateScale(10),
+      paddingVertical: moderateScale(8),
+      borderRadius: moderateScale(20),
+    },
+    iconWithGap: {
+      marginRight: moderateScale(8),
+    },
+    pillLabel: {
+      ...Typography.semiBoldMd,
+    },
+    iconOnly: {
+      height: spacing(36),
+      alignItems: "center",
+      justifyContent: "center",
+    },
+  });
 
   return (
     <View
@@ -209,7 +212,7 @@ export default function FarmerBottomTabBar({
            const iconOnly = getIconForRoute(route.name, {
             focused: isFocused,
             color,
-            size: moderateScale(22),
+            size: moderateScale(24),
           });
 
           // Active tab shows pill with label; others show icon-only

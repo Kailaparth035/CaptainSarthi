@@ -296,7 +296,11 @@
     "yourAnswerHere": "यहां अपना उत्तर दर्ज करें",
     "selectOption": "विकल्प चुनें",
     "uploadTractorImage": "ट्रैक्टर छवि अपलोड करें",
-    "uploadSecondImage": "दूसरी छवि अपलोड करें"
+    "uploadSecondImage": "दूसरी छवि अपलोड करें",
+    "uploadRcFront": "RC फ्रंट अपलोड करें",
+    "uploadRcBack": "RC बैक अपलोड करें",
+    "rcFrontRequired": "RC बुक फ्रंट छवि आवश्यक है",
+    "rcBackRequired": "RC बुक बैक छवि आवश्यक है"
   },
   "imagePicker": {
     "selectImageSource": "छवि स्रोत चुनें",

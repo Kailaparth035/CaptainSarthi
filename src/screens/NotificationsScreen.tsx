@@ -551,7 +551,7 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
           shadowRadius: moderateScale(10),
           elevation: 4,
           overflow: 'hidden',
-          height: deviceHeight - insets.top - moderateScale(110), // Fixed height: screen height minus header and padding
+          height: deviceHeight / 1.3
         },
         dealerNotificationScrollContainer: {
           flex: 1,
