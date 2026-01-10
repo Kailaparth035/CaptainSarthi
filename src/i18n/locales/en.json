@@ -152,10 +152,12 @@
     "beforeContinue": "before you continue."
   },
   "events": {
+    "title": "Events",
     "textToSpeech": "Text to speech",
     "noEventsFound": "No events found"
   },
   "stories": {
+    "title": "Stories",
     "noStoriesFound": "No story found"
   },
   "farmerHome": {

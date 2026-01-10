@@ -448,7 +448,7 @@ export default function EventsScreen() {
     <View style={dynamicStyles.container}>
       {/* Header */}
       <View style={dynamicStyles.header}>
-        <Text style={dynamicStyles.title}>Events</Text>
+        <Text style={dynamicStyles.title}>{t('events.title')}</Text>
       </View>
 
       {/* Events List */}
