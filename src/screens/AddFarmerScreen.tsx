@@ -1302,7 +1302,7 @@ export default function AddFarmerScreen() {
           textAlign: 'center',
         },
         removeTractorButton: {
-          alignSelf: 'flex-end',
+          alignSelf: 'center',
           paddingVertical: moderateScale(8),
           paddingHorizontal: moderateScale(12),
           borderRadius: moderateScale(8),
@@ -4092,7 +4092,7 @@ export default function AddFarmerScreen() {
                               ensureFirstTractorImageSlot(tractor.id);
                               handleImagePicker('tractor', tractor.id, 0);
                             },
-                            false,
+                            true,
                             hasFirstImage ? () => handleImagePreview(tractor.id, 'tractor', firstImage, 0) : undefined,
                           )}
                           {hasFirstImage && uploadedImagesCount > 1 && (
@@ -4113,7 +4113,7 @@ export default function AddFarmerScreen() {
                               t('addFarmer.uploadTractorImage'),
                               hasSecondImage ? secondImage : undefined,
                               () => handleImagePicker('tractor', tractor.id, 1),
-                              false,
+                              true,
                               hasSecondImage ? () => handleImagePreview(tractor.id, 'tractor', secondImage, 1) : undefined,
                             )}
                             {hasSecondImage && uploadedImagesCount > 1 && (
@@ -4173,10 +4173,10 @@ export default function AddFarmerScreen() {
                 {/* RC Front Image with OCR Loading Overlay */}
                 <View style={{flex: 1, marginRight: moderateScale(8)}}>
                   {renderImageUpload(
-                    t('addFarmer.uploadRcFront'),
+                    t('uploadRcFront'),
                     tractor.rcFront,
                     () => handleImagePicker('rcFront', tractor.id),
-                    false,
+                    true,
                     tractor.rcFront ? () => handleImagePreview(tractor.id, 'rcFront', tractor.rcFront!) : undefined,
                   )}
                   {/* OCR Loading Overlay */}
@@ -4214,10 +4214,10 @@ export default function AddFarmerScreen() {
                 {/* RC Back Image with OCR Loading Overlay */}
                 <View style={{flex: 1, marginLeft: moderateScale(8)}}>
                   {renderImageUpload(
-                    t('addFarmer.uploadRcBack'),
+                    t('uploadRcBack'),
                     tractor.rcBack,
                     () => handleImagePicker('rcBack', tractor.id),
-                    false,
+                    true,
                     tractor.rcBack ? () => handleImagePreview(tractor.id, 'rcBack', tractor.rcBack!) : undefined,
                   )}
                   {/* OCR Loading Overlay */}
