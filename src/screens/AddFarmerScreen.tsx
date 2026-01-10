@@ -39,6 +39,7 @@ import {
 import {getData, postDataWithImage, putData, putDataWithImage} from '../Service/Apimethod';
 import Apis from '../Service/constant';
 import {getImageUrl} from '../utils/imageUtils';
+import {extractDataFromRCImages, extractDataFromRCImage, RCExtractedData} from '../services/OCRService';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -319,6 +320,10 @@ export default function AddFarmerScreen() {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [toastType, setToastType] = useState<ToastType>('success');
+
+  // OCR processing state
+  const [ocrProcessingTractorId, setOcrProcessingTractorId] = useState<string | null>(null);
+  const [ocrExtractedData, setOcrExtractedData] = useState<Record<string, RCExtractedData>>({});
 
   // Helper function to show toast messages
   const showToastMessage = (message: string, type: ToastType = 'error') => {
@@ -1404,7 +1409,7 @@ export default function AddFarmerScreen() {
               },
             };
           } else {
-            // Handle other image types
+            // Handle other image types (RC images)
             const fieldName = type === 'rc' ? 'rcImage' : type === 'rcFront' ? 'rcFront' : 'rcBack';
             return {
               ...tractor,
@@ -1514,6 +1519,222 @@ export default function AddFarmerScreen() {
             };
           } else {
             showToastMessage('At least one tractor image is required');
+          }
+        }
+        return tractor;
+      }),
+    );
+  };
+
+  /**
+   * Process RC images with OCR and auto-fill tractor fields
+   * This function validates the RC Book, extracts data, and auto-fills form fields
+   * Processes both RC front and back images if available, or single image if only one is provided
+   * @param tractorId - ID of the tractor to process
+   */
+  const processRCImagesForOCR = async (tractorId: string) => {
+    // Find the tractor
+    const tractor = tractors.find(t => t.id === tractorId);
+    if (!tractor) {
+      console.error('[AddFarmerScreen] Tractor not found:', tractorId);
+      return;
+    }
+
+    const rcFront = tractor.rcFront?.trim();
+    const rcBack = tractor.rcBack?.trim();
+
+    // Validate at least one image exists
+    if (!rcFront && !rcBack) {
+      console.log('[AddFarmerScreen] At least one RC image required for OCR processing');
+      showToastMessage('Please upload at least one RC Book image to extract data', 'error');
+      return;
+    }
+
+    // Set processing state
+    setOcrProcessingTractorId(tractorId);
+
+    try {
+      console.log('[AddFarmerScreen] Starting OCR processing for tractor:', tractorId);
+
+      let extractedData: RCExtractedData;
+
+      // Process both images if available (preferred), otherwise process single image
+      if (rcFront && rcBack) {
+        console.log('[AddFarmerScreen] Processing both RC images (front + back)');
+        extractedData = await extractDataFromRCImages(rcFront, rcBack);
+      } else if (rcFront) {
+        console.log('[AddFarmerScreen] Processing RC front image only');
+        extractedData = await extractDataFromRCImage(rcFront);
+      } else {
+        console.log('[AddFarmerScreen] Processing RC back image only');
+        extractedData = await extractDataFromRCImage(rcBack!);
+      }
+
+      // Store extracted data for this tractor
+      setOcrExtractedData(prev => ({
+        ...prev,
+        [tractorId]: extractedData,
+      }));
+
+      // Auto-fill tractor fields with extracted data
+      autoFillTractorFromOCR(tractorId, extractedData);
+
+      // Show success message with extracted fields summary
+      const foundFields = [];
+      if (extractedData.vehicleNumber) foundFields.push('Vehicle Number');
+      if (extractedData.ownerName) foundFields.push('Owner Name');
+      if (extractedData.chassisNumber) foundFields.push('Chassis Number');
+      if (extractedData.engineNumber) foundFields.push('Engine Number');
+      if (extractedData.registrationDate) foundFields.push('Registration Date');
+
+      if (foundFields.length > 0) {
+        showToastMessage(
+          `Successfully extracted: ${foundFields.join(', ')}`,
+          'success',
+        );
+      } else {
+        // No fields extracted - this is not necessarily an error, just informational
+        // User can still manually fill the fields
+        showToastMessage(
+          'RC Book validated. Please review and fill the fields manually if needed.',
+          'success',
+        );
+      }
+
+      console.log('[AddFarmerScreen] OCR processing complete:', extractedData);
+    } catch (error: any) {
+      console.error('[AddFarmerScreen] Error during OCR processing:', error);
+      
+      // Show user-friendly error message
+      const errorMessage = error?.message || 'Failed to extract data from RC Book images';
+      showToastMessage(errorMessage, 'error');
+
+      // Clear processing state
+      setOcrProcessingTractorId(null);
+    } finally {
+      setOcrProcessingTractorId(null);
+    }
+  };
+
+  /**
+   * Auto-fill tractor fields from OCR extracted data
+   * Only fills empty fields to preserve user edits
+   * @param tractorId - ID of the tractor to auto-fill
+   * @param extractedData - Data extracted from OCR
+   */
+  const autoFillTractorFromOCR = (
+    tractorId: string,
+    extractedData: RCExtractedData,
+  ) => {
+    setTractors(prev =>
+      prev.map(tractor => {
+        if (tractor.id === tractorId) {
+          const updates: Partial<TractorDetails> = {};
+
+          // Auto-fill Vehicle Number (only if empty)
+          if (extractedData.vehicleNumber && !tractor.vehicleNumber.trim()) {
+            updates.vehicleNumber = extractedData.vehicleNumber;
+            // Clear error if exists
+            if (tractor.errors.vehicleNumber) {
+              updates.errors = {
+                ...tractor.errors,
+                vehicleNumber: undefined,
+              };
+            }
+          }
+
+          // Auto-fill Owner Name (only if empty)
+          if (extractedData.ownerName && !tractor.ownerName.trim()) {
+            updates.ownerName = extractedData.ownerName;
+            // Clear error if exists
+            if (tractor.errors.ownerName) {
+              updates.errors = {
+                ...(updates.errors || tractor.errors),
+                ownerName: undefined,
+              };
+            }
+          }
+
+          // Auto-fill Chassis Number (only if empty)
+          if (extractedData.chassisNumber && !tractor.chassisNumber.trim()) {
+            updates.chassisNumber = extractedData.chassisNumber;
+            // Clear error if exists
+            if (tractor.errors.chassisNumber) {
+              updates.errors = {
+                ...(updates.errors || tractor.errors),
+                chassisNumber: undefined,
+              };
+            }
+          }
+
+          // Auto-fill Engine Number (only if empty)
+          if (extractedData.engineNumber && !tractor.engineNumber.trim()) {
+            updates.engineNumber = extractedData.engineNumber;
+            // Clear error if exists
+            if (tractor.errors.engineNumber) {
+              updates.errors = {
+                ...(updates.errors || tractor.errors),
+                engineNumber: undefined,
+              };
+            }
+          }
+
+          // Auto-fill Registration Date (parse DD/MM/YYYY or DD-MM-YYYY format)
+          if (
+            extractedData.registrationDate &&
+            (!tractor.purchaseDateDD || !tractor.purchaseDateMM || !tractor.purchaseDateYYYY)
+          ) {
+            // Parse registration date (format: DD/MM/YYYY or DD-MM-YYYY)
+            const dateMatch = extractedData.registrationDate.match(
+              /(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/,
+            );
+            if (dateMatch && dateMatch.length >= 4) {
+              const day = dateMatch[1].padStart(2, '0');
+              const month = dateMatch[2].padStart(2, '0');
+              const year = dateMatch[3];
+
+              // Validate date
+              const dayNum = parseInt(day, 10);
+              const monthNum = parseInt(month, 10);
+              const yearNum = parseInt(year, 10);
+
+              if (
+                dayNum >= 1 &&
+                dayNum <= 31 &&
+                monthNum >= 1 &&
+                monthNum <= 12 &&
+                yearNum >= 1900 &&
+                yearNum <= 2100
+              ) {
+                const testDate = new Date(yearNum, monthNum - 1, dayNum);
+                if (
+                  testDate.getDate() === dayNum &&
+                  testDate.getMonth() === monthNum - 1 &&
+                  testDate.getFullYear() === yearNum
+                ) {
+                  updates.purchaseDateDD = day;
+                  updates.purchaseDateMM = month;
+                  updates.purchaseDateYYYY = year;
+                  // Clear date errors if exists
+                  if (tractor.errors.purchaseDateDD || tractor.errors.purchaseDateError) {
+                    updates.errors = {
+                      ...(updates.errors || tractor.errors),
+                      purchaseDateDD: undefined,
+                      purchaseDateError: undefined,
+                    };
+                  }
+                }
+              }
+            }
+          }
+
+          // Merge updates
+          if (Object.keys(updates).length > 0) {
+            return {
+              ...tractor,
+              ...updates,
+              errors: updates.errors || tractor.errors,
+            };
           }
         }
         return tractor;
@@ -3936,20 +4157,88 @@ export default function AddFarmerScreen() {
 
               {/* RC Front and Back Images */}
               <View style={styles.imageUploadContainer}>
-                {renderImageUpload(
-                  t('addFarmer.uploadRcFront'),
-                  tractor.rcFront,
-                  () => handleImagePicker('rcFront', tractor.id),
-                  false,
-                  tractor.rcFront ? () => handleImagePreview(tractor.id, 'rcFront', tractor.rcFront!) : undefined,
-                )}
-                {renderImageUpload(
-                  t('addFarmer.uploadRcBack'),
-                  tractor.rcBack,
-                  () => handleImagePicker('rcBack', tractor.id),
-                  false,
-                  tractor.rcBack ? () => handleImagePreview(tractor.id, 'rcBack', tractor.rcBack!) : undefined,
-                )}
+                {/* RC Front Image with OCR Loading Overlay */}
+                <View style={{flex: 1, marginRight: moderateScale(8)}}>
+                  {renderImageUpload(
+                    t('addFarmer.uploadRcFront'),
+                    tractor.rcFront,
+                    () => handleImagePicker('rcFront', tractor.id),
+                    false,
+                    tractor.rcFront ? () => handleImagePreview(tractor.id, 'rcFront', tractor.rcFront!) : undefined,
+                  )}
+                  {/* OCR Loading Overlay */}
+                  {ocrProcessingTractorId === tractor.id && tractor.rcFront && (
+                    <View
+                      style={[
+                        styles.imageUploadBox,
+                        {
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                          zIndex: 10,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        },
+                      ]}>
+                      <ActivityIndicator size="small" color={colors.textWhite} />
+                      <Text
+                        style={[
+                          Typography.regularSm,
+                          {
+                            color: colors.textWhite,
+                            marginTop: moderateScale(8),
+                            fontSize: moderateScale(12),
+                            textAlign: 'center',
+                          },
+                        ]}>
+                        Processing...
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                {/* RC Back Image with OCR Loading Overlay */}
+                <View style={{flex: 1, marginLeft: moderateScale(8)}}>
+                  {renderImageUpload(
+                    t('addFarmer.uploadRcBack'),
+                    tractor.rcBack,
+                    () => handleImagePicker('rcBack', tractor.id),
+                    false,
+                    tractor.rcBack ? () => handleImagePreview(tractor.id, 'rcBack', tractor.rcBack!) : undefined,
+                  )}
+                  {/* OCR Loading Overlay */}
+                  {ocrProcessingTractorId === tractor.id && tractor.rcBack && (
+                    <View
+                      style={[
+                        styles.imageUploadBox,
+                        {
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                          zIndex: 10,
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                        },
+                      ]}>
+                      <ActivityIndicator size="small" color={colors.textWhite} />
+                      <Text
+                        style={[
+                          Typography.regularSm,
+                          {
+                            color: colors.textWhite,
+                            marginTop: moderateScale(8),
+                            fontSize: moderateScale(12),
+                            textAlign: 'center',
+                          },
+                        ]}>
+                        Processing...
+                      </Text>
+                    </View>
+                  )}
+                </View>
               </View>
               {/* RC Image Error Messages */}
               {(tractor.errors.rcFront || tractor.errors.rcBack) && (
@@ -3964,6 +4253,66 @@ export default function AddFarmerScreen() {
                       <Text style={styles.errorText}>{tractor.errors.rcBack}</Text>
                     )}
                   </View>
+                </View>
+              )}
+              {/* Extract from RC Button - Show when at least one RC image uploaded and not currently processing */}
+              {((tractor.rcFront && tractor.rcFront.trim()) || (tractor.rcBack && tractor.rcBack.trim())) &&
+                ocrProcessingTractorId !== tractor.id && (
+                  <TouchableOpacity
+                    style={[
+                      styles.addNewButton,
+                      {
+                        backgroundColor: colors.primary + '20',
+                        paddingVertical: moderateScale(12),
+                        paddingHorizontal: moderateScale(16),
+                        borderRadius: moderateScale(8),
+                        marginTop: moderateScale(8),
+                        alignSelf: 'center',
+                      },
+                    ]}
+                    onPress={() => processRCImagesForOCR(tractor.id)}
+                    activeOpacity={0.7}
+                    disabled={ocrProcessingTractorId !== null}>
+                    <Ionicons
+                      name="scan-outline"
+                      size={moderateScale(20)}
+                      color={colors.primary}
+                    />
+                    <Text
+                      style={[
+                        styles.addNewText,
+                        {
+                          marginLeft: moderateScale(8),
+                        },
+                      ]}>
+                      Extract Data from RC Book
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              {/* OCR Processing Indicator */}
+              {ocrProcessingTractorId === tractor.id && (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginTop: moderateScale(12),
+                    paddingVertical: moderateScale(8),
+                    backgroundColor: colors.primary + '15',
+                    borderRadius: moderateScale(8),
+                  }}>
+                  <ActivityIndicator size="small" color={colors.primary} />
+                  <Text
+                    style={[
+                      Typography.regularMd,
+                      {
+                        fontSize: moderateScale(14),
+                        color: colors.primary,
+                        marginLeft: moderateScale(8),
+                      },
+                    ]}>
+                    Extracting data from RC Book...
+                  </Text>
                 </View>
               )}
 
@@ -3993,6 +4342,34 @@ export default function AddFarmerScreen() {
                   numberOfLinesLabel={1}
                   required={true}
                 />
+                {/* Auto-fill indicator */}
+                {ocrExtractedData[tractor.id]?.vehicleNumber &&
+                  tractor.vehicleNumber === ocrExtractedData[tractor.id].vehicleNumber && (
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        marginTop: moderateScale(-4),
+                        marginBottom: moderateScale(4),
+                      }}>
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={moderateScale(14)}
+                        color={colors.statusSuccess}
+                      />
+                      <Text
+                        style={[
+                          Typography.regularSm,
+                          {
+                            fontSize: moderateScale(11),
+                            color: colors.statusSuccess,
+                            marginLeft: moderateScale(4),
+                          },
+                        ]}>
+                        Auto-filled from RC Book
+                      </Text>
+                    </View>
+                  )}
               </View>
               <View onLayout={registerFieldPosition(`tractor_${tractor.id}_ownerName`)}>
                 <SimpleBoxInput
@@ -4006,6 +4383,34 @@ export default function AddFarmerScreen() {
                   numberOfLinesLabel={1}
                   required={true}
                 />
+                {/* Auto-fill indicator */}
+                {ocrExtractedData[tractor.id]?.ownerName &&
+                  tractor.ownerName === ocrExtractedData[tractor.id].ownerName && (
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        marginTop: moderateScale(-4),
+                        marginBottom: moderateScale(4),
+                      }}>
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={moderateScale(14)}
+                        color={colors.statusSuccess}
+                      />
+                      <Text
+                        style={[
+                          Typography.regularSm,
+                          {
+                            fontSize: moderateScale(11),
+                            color: colors.statusSuccess,
+                            marginLeft: moderateScale(4),
+                          },
+                        ]}>
+                        Auto-filled from RC Book
+                      </Text>
+                    </View>
+                  )}
               </View>
               <View onLayout={registerFieldPosition(`tractor_${tractor.id}_chassisNumber`)}>
                 <SimpleBoxInput
@@ -4019,6 +4424,34 @@ export default function AddFarmerScreen() {
                   numberOfLinesLabel={1}
                   required={true}
                 />
+                {/* Auto-fill indicator */}
+                {ocrExtractedData[tractor.id]?.chassisNumber &&
+                  tractor.chassisNumber === ocrExtractedData[tractor.id].chassisNumber && (
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        marginTop: moderateScale(-4),
+                        marginBottom: moderateScale(4),
+                      }}>
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={moderateScale(14)}
+                        color={colors.statusSuccess}
+                      />
+                      <Text
+                        style={[
+                          Typography.regularSm,
+                          {
+                            fontSize: moderateScale(11),
+                            color: colors.statusSuccess,
+                            marginLeft: moderateScale(4),
+                          },
+                        ]}>
+                        Auto-filled from RC Book
+                      </Text>
+                    </View>
+                  )}
               </View>
               <View onLayout={registerFieldPosition(`tractor_${tractor.id}_engineNumber`)}>
                 <SimpleBoxInput
@@ -4032,6 +4465,34 @@ export default function AddFarmerScreen() {
                   numberOfLinesLabel={1}
                   required={true}
                 />
+                {/* Auto-fill indicator */}
+                {ocrExtractedData[tractor.id]?.engineNumber &&
+                  tractor.engineNumber === ocrExtractedData[tractor.id].engineNumber && (
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        marginTop: moderateScale(-4),
+                        marginBottom: moderateScale(4),
+                      }}>
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={moderateScale(14)}
+                        color={colors.statusSuccess}
+                      />
+                      <Text
+                        style={[
+                          Typography.regularSm,
+                          {
+                            fontSize: moderateScale(11),
+                            color: colors.statusSuccess,
+                            marginLeft: moderateScale(4),
+                          },
+                        ]}>
+                        Auto-filled from RC Book
+                      </Text>
+                    </View>
+                  )}
               </View>
               <View onLayout={registerFieldPosition(`tractor_${tractor.id}_purchaseDateDD`)}>
                 {(() => {
@@ -4065,6 +4526,55 @@ export default function AddFarmerScreen() {
                     true, // required
                   );
                 })()}
+                {/* Auto-fill indicator for Registration Date (Purchase Date) */}
+                {ocrExtractedData[tractor.id]?.registrationDate &&
+                  tractor.purchaseDateDD &&
+                  tractor.purchaseDateMM &&
+                  tractor.purchaseDateYYYY && (
+                    // Check if the current date matches the extracted date
+                    (() => {
+                      const extractedDate = ocrExtractedData[tractor.id].registrationDate;
+                      const dateMatch = extractedDate.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+                      if (dateMatch && dateMatch.length >= 4) {
+                        const day = dateMatch[1].padStart(2, '0');
+                        const month = dateMatch[2].padStart(2, '0');
+                        const year = dateMatch[3];
+                        const isMatching =
+                          tractor.purchaseDateDD === day &&
+                          tractor.purchaseDateMM === month &&
+                          tractor.purchaseDateYYYY === year;
+                        if (isMatching) {
+                          return (
+                            <View
+                              style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                marginTop: moderateScale(-4),
+                                marginBottom: moderateScale(4),
+                              }}>
+                              <Ionicons
+                                name="checkmark-circle"
+                                size={moderateScale(14)}
+                                color={colors.statusSuccess}
+                              />
+                              <Text
+                                style={[
+                                  Typography.regularSm,
+                                  {
+                                    fontSize: moderateScale(11),
+                                    color: colors.statusSuccess,
+                                    marginLeft: moderateScale(4),
+                                  },
+                                ]}>
+                                Auto-filled from RC Book
+                              </Text>
+                            </View>
+                          );
+                        }
+                      }
+                      return null;
+                    })()
+                  )}
               </View>
               <View onLayout={registerFieldPosition(`tractor_${tractor.id}_whoFrom`)}>
                 <SimpleBoxInput
