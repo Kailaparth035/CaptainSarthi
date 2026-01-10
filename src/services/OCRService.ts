@@ -22,6 +22,7 @@ export interface RCExtractedData {
   chassisNumber: string;
   engineNumber: string;
   registrationDate: string; // Format: DD/MM/YYYY or DD-MM-YYYY
+  modelNumber: string; // Vehicle model name/number
 }
 
 /**
@@ -521,10 +522,18 @@ const parseEngineNumber = (text: string): string => {
     ];
 
     // Look for text near "ENGINE" keyword (more comprehensive search)
+    // Handle "Engine/Motor No" format as well
     const engineKeywords = [
+      'ENGINE/MOTOR NO.',
+      'ENGINE/MOTOR NO',
+      'ENGINE/MOTOR NUMBER',
+      'ENGINE/MOTOR',
       'ENGINE NO.',
       'ENGINE NO',
       'ENGINE NUMBER',
+      'MOTOR NO.',
+      'MOTOR NO',
+      'MOTOR NUMBER',
       'ENGINE',
     ];
     
@@ -539,6 +548,12 @@ const parseEngineNumber = (text: string): string => {
         
         // Clean up: remove leading punctuation and separators
         afterKeyword = afterKeyword.replace(/^[:;,\-.\s]+/, '').trim();
+        
+        // CRITICAL FIX: If keyword was "ENGINE/MOTOR" or "MOTOR", skip the word "MOTOR" if it appears immediately after
+        // This handles cases where OCR reads "Engine/Motor No: MOTOR SC21324893" or similar
+        // Remove standalone "MOTOR" word if it appears right after the keyword
+        afterKeyword = afterKeyword.replace(/^MOTOR\s+/i, '').trim();
+        afterKeyword = afterKeyword.replace(/^MOTOR[:;,\-.\s]+/i, '').trim();
         
         // Find where to stop (before next field like OWNER, CHASSIS, etc.)
         let stopIndex = afterKeyword.length;
@@ -556,14 +571,17 @@ const parseEngineNumber = (text: string): string => {
         // Remove trailing punctuation and newlines
         engineSection = engineSection.replace(/[:;,\-.\n]+.*$/, '').trim();
         
-        // CRITICAL: Remove any occurrences of "OWNER", "NAME", "ADDRESS" etc. that might have been concatenated
-        // This handles cases like "600687BOWNERNAME" -> "600687B"
-        const labelWords = ['OWNER', 'NAME', 'ADDRESS', 'NUMBER', 'NO', 'CHASSIS', 'DATE', 'VEHICLE'];
+        // CRITICAL: Remove any occurrences of "OWNER", "NAME", "ADDRESS", "MOTOR" etc. that might have been concatenated
+        // This handles cases like "600687BOWNERNAME" -> "600687B" or "SC21324893MOTOR" -> "SC21324893"
+        const labelWords = ['OWNER', 'NAME', 'ADDRESS', 'NUMBER', 'NO', 'CHASSIS', 'DATE', 'VEHICLE', 'MOTOR'];
         let cleanEngineSection = engineSection;
         for (const word of labelWords) {
-          // Remove the word if it appears after alphanumeric (like "600687BOWNER" -> "600687B")
+          // Remove the word if it appears after alphanumeric (like "SC21324893MOTOR" -> "SC21324893")
           const regex = new RegExp(`([A-Z0-9]+)${word}`, 'i');
           cleanEngineSection = cleanEngineSection.replace(regex, '$1');
+          // Also remove if word appears before alphanumeric (like "MOTORSC21324893" -> "SC21324893")
+          const regexBefore = new RegExp(`${word}([A-Z0-9]+)`, 'i');
+          cleanEngineSection = cleanEngineSection.replace(regexBefore, '$1');
         }
         engineSection = cleanEngineSection.trim();
         
@@ -881,6 +899,132 @@ const parseOwnerName = (text: string): string => {
 };
 
 /**
+ * Parse Model Number/Name from text
+ * Looks for text after "MODEL", "MODEL NAME", "VEHICLE MODEL", "MAKE/MODEL" keywords
+ * @param text - OCR extracted text
+ * @returns Model number/name string or empty string if not found
+ */
+const parseModelNumber = (text: string): string => {
+  try {
+    // Keywords that indicate end of model number section (stop parsing)
+    const stopKeywords = [
+      'COLOR',
+      'CHASSIS',
+      'ENGINE',
+      'OWNER',
+      'DATE',
+      'FUEL',
+      'REGISTRATION',
+      'VALIDITY',
+      'ADDRESS',
+      'VEHICLE NO',
+      'VEHICLE NUMBER',
+      'REGISTRATION NO',
+    ];
+
+    const modelKeywords = [
+      'MODEL NAME',
+      'MODEL',
+      'VEHICLE MODEL',
+      'MAKE/MODEL',
+      'MODEL/Make',
+      'MODEL NO',
+      'MODEL NUMBER',
+    ];
+
+    const cleanText = text.replace(/\s+/g, ' '); // Normalize spaces
+    const upperText = cleanText.toUpperCase();
+
+    for (const keyword of modelKeywords) {
+      const keywordIndex = upperText.indexOf(keyword);
+      if (keywordIndex !== -1) {
+        // Extract text after keyword (next 40-50 characters for model name)
+        let afterKeyword = cleanText.substring(
+          keywordIndex + keyword.length,
+          keywordIndex + keyword.length + 50,
+        );
+
+        // Clean up: remove leading punctuation and separators
+        afterKeyword = afterKeyword.replace(/^[:;,\-.\s]+/, '').trim();
+
+        // Find where to stop (before next field like CHASSIS, ENGINE, OWNER, etc.)
+        let stopIndex = afterKeyword.length;
+        const upperAfterKeyword = afterKeyword.toUpperCase();
+        for (const stopKeyword of stopKeywords) {
+          const idx = upperAfterKeyword.indexOf(stopKeyword);
+          if (idx !== -1 && idx < stopIndex && idx > 0) {
+            stopIndex = idx;
+          }
+        }
+
+        // Extract only the model number/name portion (before stop keywords)
+        let modelSection = afterKeyword.substring(0, stopIndex).trim();
+
+        // Remove trailing punctuation, newlines, and field separators
+        modelSection = modelSection.replace(/[:;,\-.\n]+.*$/, '').trim();
+
+        // Remove common label words that might be concatenated
+        const labelWords = ['NAME', 'NUMBER', 'NO', 'MODEL', 'COLOR'];
+        let cleanModelSection = modelSection;
+        for (const word of labelWords) {
+          // Remove the word if it appears after text (like "TRACTORMODEL" -> "TRACTOR" or "MODELNAME COLOR" -> "MODELNAME")
+          const regex = new RegExp(`([A-Z0-9\\s]+)${word}`, 'i');
+          cleanModelSection = cleanModelSection.replace(regex, '$1');
+          // Also remove if word appears before text
+          const regexBefore = new RegExp(`${word}([A-Z0-9\\s]+)`, 'i');
+          cleanModelSection = cleanModelSection.replace(regexBefore, '$1');
+        }
+        modelSection = cleanModelSection.trim();
+        
+        // CRITICAL: Remove "Color" word if it appears at the end (standalone or concatenated)
+        // This handles cases like "MODELNAME COLOR" or "MODELNAMECOLOR"
+        modelSection = modelSection.replace(/\s+COLOR\s*$/i, '').trim();
+        modelSection = modelSection.replace(/COLOR\s*$/i, '').trim();
+
+        // Model names can contain alphanumeric characters, spaces, hyphens, slashes
+        // Examples: "John Deere 5050D", "Mahindra 575 DI", "Eicher 380", "TRACTOR-5045"
+        const modelMatch = modelSection.match(/^[A-Z0-9\s.\-/]{3,40}/i);
+        if (modelMatch && modelMatch[0]) {
+          let modelCandidate = modelMatch[0].trim();
+
+          // Validate: Should be 3-40 characters, reasonable format
+          if (
+            modelCandidate.length >= 3 &&
+            modelCandidate.length <= 40 &&
+            /^[A-Z0-9\s.\-/]+$/i.test(modelCandidate)
+          ) {
+            // Clean up: remove extra spaces, normalize
+            modelCandidate = modelCandidate.replace(/\s+/g, ' ').trim();
+
+            // Capitalize properly (preserve existing capitalization for brand names)
+            const model = modelCandidate
+              .split(' ')
+              .map(word => {
+                // If word is all uppercase or has mixed case, preserve it (likely brand name)
+                if (word === word.toUpperCase() || /[A-Z]/.test(word)) {
+                  return word;
+                }
+                // Otherwise capitalize first letter
+                return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+              })
+              .join(' ');
+
+            console.log('[OCRService] Model number found:', model);
+            return model;
+          }
+        }
+      }
+    }
+
+    console.log('[OCRService] No model number found in text');
+    return '';
+  } catch (error) {
+    console.error('[OCRService] Error parsing model number:', error);
+    return '';
+  }
+};
+
+/**
  * Parse Registration Date from text
  * Supports DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY formats
  * @param text - OCR extracted text
@@ -1023,6 +1167,7 @@ export const parseRCDetails = (text: string): RCExtractedData => {
         chassisNumber: '',
         engineNumber: '',
         registrationDate: '',
+        modelNumber: '',
       };
     }
 
@@ -1034,6 +1179,7 @@ export const parseRCDetails = (text: string): RCExtractedData => {
       engineNumber: parseEngineNumber(text),
       ownerName: parseOwnerName(text),
       registrationDate: parseRegistrationDate(text),
+      modelNumber: parseModelNumber(text),
     };
 
     console.log('[OCRService] Parsing complete:', {
@@ -1042,6 +1188,7 @@ export const parseRCDetails = (text: string): RCExtractedData => {
       engineNumberFound: extractedData.engineNumber.length > 0,
       ownerNameFound: extractedData.ownerName.length > 0,
       registrationDateFound: extractedData.registrationDate.length > 0,
+      modelNumberFound: extractedData.modelNumber.length > 0,
     });
 
     return extractedData;
@@ -1053,6 +1200,7 @@ export const parseRCDetails = (text: string): RCExtractedData => {
       chassisNumber: '',
       engineNumber: '',
       registrationDate: '',
+      modelNumber: '',
     };
   }
 };

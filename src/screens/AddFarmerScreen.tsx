@@ -1581,6 +1581,7 @@ export default function AddFarmerScreen() {
 
       // Show success message with extracted fields summary
       const foundFields = [];
+      if (extractedData.modelNumber) foundFields.push('Model Name');
       if (extractedData.vehicleNumber) foundFields.push('Vehicle Number');
       if (extractedData.ownerName) foundFields.push('Owner Name');
       if (extractedData.chassisNumber) foundFields.push('Chassis Number');
@@ -1631,13 +1632,25 @@ export default function AddFarmerScreen() {
         if (tractor.id === tractorId) {
           const updates: Partial<TractorDetails> = {};
 
+          // Auto-fill Model Name (only if empty)
+          if (extractedData.modelNumber && !tractor.modelName.trim()) {
+            updates.modelName = extractedData.modelNumber;
+            // Clear error if exists
+            if (tractor.errors.modelName) {
+              updates.errors = {
+                ...(updates.errors || tractor.errors),
+                modelName: undefined,
+              };
+            }
+          }
+
           // Auto-fill Vehicle Number (only if empty)
           if (extractedData.vehicleNumber && !tractor.vehicleNumber.trim()) {
             updates.vehicleNumber = extractedData.vehicleNumber;
             // Clear error if exists
             if (tractor.errors.vehicleNumber) {
               updates.errors = {
-                ...tractor.errors,
+                ...(updates.errors || tractor.errors),
                 vehicleNumber: undefined,
               };
             }
@@ -4329,6 +4342,34 @@ export default function AddFarmerScreen() {
                   numberOfLinesLabel={1}
                   required={true}
                 />
+                {/* Auto-fill indicator */}
+                {ocrExtractedData[tractor.id]?.modelNumber &&
+                  tractor.modelName === ocrExtractedData[tractor.id].modelNumber && (
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        marginTop: moderateScale(-4),
+                        marginBottom: moderateScale(4),
+                      }}>
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={moderateScale(14)}
+                        color={colors.statusSuccess}
+                      />
+                      <Text
+                        style={[
+                          Typography.regularSm,
+                          {
+                            fontSize: moderateScale(11),
+                            color: colors.statusSuccess,
+                            marginLeft: moderateScale(4),
+                          },
+                        ]}>
+                        Auto-filled from RC Book
+                      </Text>
+                    </View>
+                  )}
               </View>
               <View onLayout={registerFieldPosition(`tractor_${tractor.id}_vehicleNumber`)}>
                 <SimpleBoxInput
