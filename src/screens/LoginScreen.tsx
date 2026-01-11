@@ -481,6 +481,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           const pendingNav = await getPendingNavigation();
           const hasPendingNotificationNav = pendingNav?.action === 'OPEN_NOTIFICATION_DETAIL' && role === 'farmer';
           const hasPendingEventNav = pendingNav?.action === 'OPEN_EVENT_DETAIL' && role === 'farmer';
+          const hasPendingStoryNav = pendingNav?.action === 'OPEN_STORY_DETAIL' && role === 'farmer';
           
           // Navigate based on role from response
           if (role === 'farmer') {
@@ -530,13 +531,30 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
                     // Clear pending navigation
                     clearPendingNavigation();
                   }, 500);
+                } else if (hasPendingStoryNav && pendingNav?.params?.storyId) {
+                  // If there's a pending story navigation, navigate to StoryDetails screen
+                  console.log('[LoginScreen] Pending story navigation detected - will navigate to StoryDetails with storyId:', pendingNav.params.storyId);
+                  setTimeout(() => {
+                    (navigation as any).navigate(SCREEN_NAMES.FarmerTabs, {
+                      screen: SCREEN_NAMES.Stories,
+                      params: {
+                        screen: SCREEN_NAMES.StoryDetails,
+                        params: {
+                          storyId: pendingNav.params.storyId,
+                          fromScreen: 'Notifications',
+                        },
+                      },
+                    });
+                    // Clear pending navigation
+                    clearPendingNavigation();
+                  }, 500);
                 }
               } else {
                 // Profile not completed - show ReviewProfile screen
                 console.log('[LoginScreen] Profile not completed - navigating to ReviewProfile');
                 navigation.replace(SCREEN_NAMES.ReviewProfile);
                 // Store pending navigation for after profile completion
-                if (hasPendingNotificationNav || hasPendingEventNav) {
+                if (hasPendingNotificationNav || hasPendingEventNav || hasPendingStoryNav) {
                   console.log('[LoginScreen] Profile not completed - storing pending navigation');
                 }
               }

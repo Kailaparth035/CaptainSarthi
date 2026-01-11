@@ -198,6 +198,89 @@ function App() {
                   console.error('App: ❌ Error handling event notification click:', error);
                 }
               }
+              
+              // Check if click_action is OPEN_STORY_DETAIL
+              if (remoteMessage.data.click_action === 'OPEN_STORY_DETAIL') {
+                console.log('App: 📖 Notification click action detected: OPEN_STORY_DETAIL');
+                
+                try {
+                  // Extract story_id from notification data
+                  const storyId = remoteMessage.data.story_id || remoteMessage.data.storyId;
+                  
+                  if (!storyId) {
+                    console.error('App: ❌ No story_id found in notification data');
+                    return;
+                  }
+                  
+                  console.log('App: 📖 Story ID:', storyId);
+                  
+                  // Check if user is logged in
+                  const loggedIn = await isLoggedIn();
+                  
+                  if (loggedIn) {
+                    // Check if user is a farmer
+                    const userRole = await getUserRole();
+                    const isFarmer = userRole === 'farmer';
+                    
+                    if (isFarmer) {
+                      console.log('App: ✅ Farmer logged in - navigating to Story Details screen');
+                      
+                      // Function to attempt navigation
+                      const attemptNavigation = (retries = 0) => {
+                        if (navigationRef.current?.isReady()) {
+                          // Navigate to FarmerTabs -> Stories -> StoryDetails with storyId
+                          navigationRef.current?.dispatch(
+                            CommonActions.navigate({
+                              name: SCREEN_NAMES.FarmerTabs,
+                              params: {
+                                screen: SCREEN_NAMES.Stories,
+                                params: {
+                                  screen: SCREEN_NAMES.StoryDetails,
+                                  params: {
+                                    storyId: storyId,
+                                    fromScreen: 'Notifications',
+                                  },
+                                },
+                              },
+                            })
+                          );
+                          console.log('App: ✅ Navigated to Story Details screen with storyId:', storyId);
+                        } else if (retries < 5) {
+                          // Retry after a short delay (max 5 retries)
+                          console.log(`App: ⚠️ Navigation not ready yet, retrying... (${retries + 1}/5)`);
+                          setTimeout(() => attemptNavigation(retries + 1), 500);
+                        } else {
+                          console.log('App: ⚠️ Navigation not ready after retries, storing pending navigation');
+                          savePendingNavigation({
+                            action: 'OPEN_STORY_DETAIL',
+                            screen: SCREEN_NAMES.StoryDetails,
+                            params: {
+                              storyId: storyId,
+                            },
+                          });
+                        }
+                      };
+                      
+                      // Wait a bit for navigation to be ready, then attempt navigation
+                      setTimeout(() => attemptNavigation(), 500);
+                    } else {
+                      console.log('App: ⚠️ User is not a farmer, ignoring notification click');
+                    }
+                  } else {
+                    console.log('App: ⚠️ User not logged in - storing pending navigation');
+                    // Store pending navigation to handle after login
+                    await savePendingNavigation({
+                      action: 'OPEN_STORY_DETAIL',
+                      screen: SCREEN_NAMES.StoryDetails,
+                      params: {
+                        storyId: storyId,
+                      },
+                    });
+                  }
+                } catch (error) {
+                  console.error('App: ❌ Error handling story notification click:', error);
+                }
+              }
             }
           },
           // Token refresh handler
