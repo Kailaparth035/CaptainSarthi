@@ -471,6 +471,7 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
           shadowOffset: {width: 0, height: moderateScale(4)},
           shadowRadius: moderateScale(10),
           elevation: 4,
+          marginHorizontal:moderateScale(16)
         },
         notificationItem: {
           flexDirection: 'row',
@@ -540,6 +541,7 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
         },
         // Dealer Notification Styles - Container for all notifications
         dealerNotificationContainer: {
+          flex: 1,
           backgroundColor: colors.backgroundWhite,
           borderRadius: moderateScale(12),
           marginTop: moderateScale(16),
@@ -551,7 +553,6 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
           shadowRadius: moderateScale(10),
           elevation: 4,
           overflow: 'hidden',
-          height: deviceHeight / 1.3
         },
         dealerNotificationScrollContainer: {
           flex: 1,
@@ -714,7 +715,7 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
           marginBottom: moderateScale(0),
         },
       }),
-    [moderateScale, insets.top, insets.bottom, deviceHeight],
+    [moderateScale, insets.top, insets.bottom],
   );
 
   const handleNotificationPress = async (notification: NotificationItem) => {

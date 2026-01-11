@@ -478,14 +478,12 @@ export default function FarmerDetailsScreen() {
           flexDirection: 'row',
           justifyContent: 'space-between',
           marginTop: moderateScale(8),
+          gap: moderateScale(12),
         },
         documentImage: {
-          // width: moderateScale(160),
-          height: moderateScale(100),
+          flex: 1,
+          height: moderateScale(150),
           borderRadius: moderateScale(8),
-          // marginHorizontal:moderateScale(5),
-          paddingHorizontal:moderateScale(8),
-          // backgroundColor: colors.backgroundGray,
           alignItems: 'center',
           justifyContent: 'center',
         },
@@ -698,7 +696,7 @@ export default function FarmerDetailsScreen() {
             activeOpacity={0.7}
             onPress={() => {
               // Navigate to AddFarmerScreen in edit mode
-              const farmerId = params?.farmer_id || params?.farmerId;
+              const farmerId =params?.farmerId || params?.farmer_id ;
               if (farmerId) {
                 navigation.navigate(
                   SCREEN_NAMES.AddFarmer as never,
@@ -768,32 +766,32 @@ export default function FarmerDetailsScreen() {
                 </View>
 
                 <InfoRow
-                  label="First name"
+                  label={t("farmerProfile.firstName")}
                   value={farmerDetails.firstName}
                   moderateScale={moderateScale}
                 />
                 <InfoRow
-                  label="Middle name"
+                  label={t("farmerProfile.middleName")}
                   value={farmerDetails.middleName}
                   moderateScale={moderateScale}
                 />
                 <InfoRow
-                  label="Last name"
+                  label={t("farmerProfile.lastName")}
                   value={farmerDetails.lastName}
                   moderateScale={moderateScale}
                 />
                 <InfoRow
-                  label="Mobile no."
+                  label={t("farmerProfile.mobileNo")}
                   value={farmerDetails.mobile}
                   moderateScale={moderateScale}
                 />
                 <InfoRow
-                  label="Date of birth"
+                  label={t("farmerProfile.dateOfBirth")}
                   value={farmerDetails.dateOfBirth}
                   moderateScale={moderateScale}
                 />
                 <InfoRow
-                  label="Date of marriage"
+                  label={t("farmerProfile.dateOfMarriage")}
                   value={farmerDetails.dateOfMarriage}
                   moderateScale={moderateScale}
                 />
@@ -814,7 +812,7 @@ export default function FarmerDetailsScreen() {
                       },
                     ]}
                   >
-                    Farmer address
+                    {t("farmerProfile.farmerAddress")}
                   </Text>
                   <Text
                     style={[
@@ -1030,11 +1028,11 @@ export default function FarmerDetailsScreen() {
                             />
                           </TouchableOpacity>
                         ) : (
-                          // No image available
+                          // No image found
                           <View style={dynamicStyles.tractorMainImage}>
                             <View style={dynamicStyles.placeholderImage}>
                               <Text style={dynamicStyles.placeholderText}>
-                                No image available
+                                {t("farmerProfile.noImageFound")}
                               </Text>
                             </View>
                           </View>
@@ -1059,12 +1057,11 @@ export default function FarmerDetailsScreen() {
                               <Image
                                 source={{ uri: rcImageFront }}
                                 style={{
-                                  width: moderateScale(140),
-                                  height: moderateScale(70),
+                                  width: '100%',
+                                  height: moderateScale(150),
                                   borderRadius: moderateScale(8),
-                                  alignSelf: "center",
                                 }}
-                                resizeMode="cover"
+                                resizeMode="contain"
                               />
                             ) : (
                               <View style={dynamicStyles.placeholderImage}>
@@ -1074,7 +1071,7 @@ export default function FarmerDetailsScreen() {
                                     { fontSize: moderateScale(10) },
                                   ]}
                                 >
-                                  {t("addFarmer.noRcFront")}
+                                  {t("farmerProfile.noImageFound")}
                                 </Text>
                               </View>
                             )}
@@ -1096,10 +1093,9 @@ export default function FarmerDetailsScreen() {
                               <Image
                                 source={{ uri: rcImageBack }}
                                 style={{
-                                  width: moderateScale(140),
-                                  height: moderateScale(70),
+                                  width: '100%',
+                                  height: moderateScale(150),
                                   borderRadius: moderateScale(8),
-                                  alignSelf: "center",
                                 }}
                                 resizeMode="cover"
                               />
@@ -1111,7 +1107,7 @@ export default function FarmerDetailsScreen() {
                                     { fontSize: moderateScale(10) },
                                   ]}
                                 >
-                                  {t("addFarmer.noRcBack")}
+                                  {t("farmerProfile.noImageFound")}
                                 </Text>
                               </View>
                             )}
@@ -1121,39 +1117,39 @@ export default function FarmerDetailsScreen() {
 
                       {/* Tractor Specifications */}
                       <InfoRow
-                        label="Model name"
+                        label={t("farmerProfile.modelName")}
                         value={tractor.model}
                         moderateScale={moderateScale}
                       />
                       <InfoRow
-                        label="Chassis no."
+                        label={t("farmerProfile.chassisNo")}
                         value={tractor.chassisNo}
                         moderateScale={moderateScale}
                       />
                       <InfoRow
-                        label="Vehicle no."
+                        label={t("farmerProfile.vehicleNo")}
                         value={tractor.vehicleNo}
                         moderateScale={moderateScale}
                       />
                       <InfoRow
-                        label="Engine no."
+                        label={t("farmerProfile.engineNo")}
                         value={tractor.engineNo}
                         moderateScale={moderateScale}
                       />
                       <InfoRow
-                        label="Mobile no."
+                        label={t("farmerProfile.mobileNo")}
                         value={
                           tractor.mobile ? tractor.mobile : farmerDetails.mobile
                         }
                         moderateScale={moderateScale}
                       />
                       <InfoRow
-                        label="Date of invoice"
+                        label={t("farmerProfile.dateOfInvoice")}
                         value={tractor.dateOfInvoice}
                         moderateScale={moderateScale}
                       />
                       <InfoRow
-                        label="Who drives"
+                        label={t("farmerProfile.whoDrives")}
                         value={tractor.whoDrives}
                         moderateScale={moderateScale}
                         isShowBorderBottom={

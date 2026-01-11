@@ -150,6 +150,7 @@ export default function FarmerProfileDetailsScreen() {
     dateOfMarriage: '',
     dealershipName: '',
     dealershipAddress: '',
+    dealerShipNo:'',
     profileImage: null as string | null,
     tractors: [] as Array<{
       id: string;
@@ -215,8 +216,9 @@ export default function FarmerProfileDetailsScreen() {
           : '';
         
         // Dealership details
-        const dealershipName = dealershipDetails.dealership_name || '';
+        const dealershipName = dealershipDetails.firm_name || dealershipDetails.dealership_name || '';
         const dealershipAddress = dealershipDetails.dealership_address || '';
+        const dealerShipNo = dealershipDetails.delaership_mobile_no || '';        
         
         // Tractor details - map tractor_list to tractors array
         const tractors: Array<{
@@ -331,9 +333,11 @@ export default function FarmerProfileDetailsScreen() {
           dateOfBirth,
           dateOfMarriage,
           dealershipName,
+          dealerShipNo,
           dealershipAddress,
           profileImage,
           tractors,
+          
         });
       } else {
         console.warn('[FarmerProfileDetailsScreen] Unexpected API response format:', response);
@@ -917,6 +921,11 @@ export default function FarmerProfileDetailsScreen() {
           <InfoRow
             label={t('farmerProfile.dealershipName')}
             value={profileDetails.dealershipName}
+            moderateScale={moderateScale}
+          />
+          <InfoRow
+            label={t('farmerProfile.dealershipName')}
+            value={profileDetails.dealerShipNo}
             moderateScale={moderateScale}
           />
           <InfoRow

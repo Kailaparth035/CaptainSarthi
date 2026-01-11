@@ -724,14 +724,51 @@ export default function TractorDetailsScreen() {
           renderSkeletonContent()
         ) : (
           <>
-            {/* Video Player Section */}
+            {/* Video Player / Image Section */}
         <View style={dynamicStyles.card}>
           <View style={dynamicStyles.videoContainer}>
-            <VideoPlayer
-              thumbnailUri={tractorDetails.thumbnailUri}
-              videoUri={tractorDetails.videoUri}
-              title={tractorDetails.model}
-            />
+            {tractorDetails.videoUri ? (
+              <VideoPlayer
+                thumbnailUri={tractorDetails.thumbnailUri}
+                videoUri={tractorDetails.videoUri}
+                title={tractorDetails.model}
+              />
+            ) : (
+              <TouchableOpacity
+                onPress={() => {
+                  // Open image preview modal with first image (main image)
+                  if (previewImages.length > 0) {
+                    setSelectedImageIndex(0);
+                    setPreviewModalVisible(true);
+                  }
+                }}
+                activeOpacity={0.9}
+                style={{width: '100%', height: '100%'}}>
+                {tractorDetails.thumbnailUri || tractorDetails.main_image ? (
+                  <Image
+                    source={{uri: tractorDetails.thumbnailUri || tractorDetails.main_image}}
+                    style={{width: '100%', height: '100%', borderRadius: moderateScale(8)}}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      backgroundColor: colors.backgroundGray,
+                      borderRadius: moderateScale(8),
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                    <Ionicons
+                      name="image-outline"
+                      size={moderateScale(48)}
+                      color={colors.textTertiary}
+                    />
+                  </View>
+                )}
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Thumbnails Row */}

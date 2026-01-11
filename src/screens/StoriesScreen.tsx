@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   FlatList,
   Platform,
+  BackHandler,
 } from 'react-native';
 import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -19,7 +20,9 @@ import useDeviceMetrics from '../utils/responsiveCustom';
 import {Typography} from '../utils/typography';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import {ImagePath} from '../assets/images';
-import {useNavigation} from '@react-navigation/native';
+import {useNavigation, useFocusEffect} from '@react-navigation/native';
+import {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
+import {FarmerTabParamList} from '../navigation/FarmerTabNavigator';
 import {SCREEN_NAMES} from '../constants/screenNames';
 import {getData} from '../Service/Apimethod';
 import Apis from '../Service/constant';
@@ -46,6 +49,7 @@ export default function StoriesScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
   const navigation = useNavigation();
+  const tabNavigation = useNavigation<BottomTabNavigationProp<FarmerTabParamList>>();
   const {currentLanguage, t} = useLanguage();
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -240,6 +244,18 @@ export default function StoriesScreen() {
   useEffect(() => {
     fetchStories();
   }, [fetchStories]);
+
+  // Handle back button - navigate to Home tab
+  useFocusEffect(
+    React.useCallback(() => {
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+        tabNavigation.navigate(SCREEN_NAMES.Home);
+        return true;
+      });
+
+      return () => backHandler.remove();
+    }, [tabNavigation])
+  );
 
   useDynamicStatusBar({
     backgroundColor: colors.backgroundLight,

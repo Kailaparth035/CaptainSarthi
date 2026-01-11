@@ -10,6 +10,7 @@ import {
   Image,
   AppState,
   AppStateStatus,
+  BackHandler,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation, CommonActions, useFocusEffect} from '@react-navigation/native';
@@ -437,6 +438,14 @@ export default function HomeScreen() {
       console.log('[HomeScreen] Screen focused - fetching latest data');
       fetchAllData();
       fetchUnreadCount();
+
+      // Handle back button - exit app when on Home screen
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+        BackHandler.exitApp();
+        return true;
+      });
+
+      return () => backHandler.remove();
     }, [fetchAllData, fetchUnreadCount])
   );
 

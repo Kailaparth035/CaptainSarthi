@@ -561,7 +561,6 @@ export default function ReviewProfileScreen() {
         const pendingNav = await getPendingNavigation();
         const hasPendingNotificationNav = pendingNav?.action === 'OPEN_NOTIFICATION_DETAIL';
         const hasPendingEventNav = pendingNav?.action === 'OPEN_EVENT_DETAIL';
-        const hasPendingStoryNav = pendingNav?.action === 'OPEN_STORY_DETAIL';
         
         // Navigate to FarmerTabs after a short delay to show success message
         setTimeout(() => {
@@ -590,23 +589,6 @@ export default function ReviewProfileScreen() {
                   screen: SCREEN_NAMES.EventDetails,
                   params: {
                     eventId: pendingNav.params.eventId,
-                  },
-                },
-              });
-              // Clear pending navigation
-              clearPendingNavigation();
-            }, 500);
-          } else if (hasPendingStoryNav && pendingNav?.params?.storyId) {
-            // If there's a pending story navigation, navigate to StoryDetails screen
-            console.log('[ReviewProfileScreen] Pending story navigation detected - will navigate to StoryDetails with storyId:', pendingNav.params.storyId);
-            setTimeout(() => {
-              (navigation as any).navigate(SCREEN_NAMES.FarmerTabs, {
-                screen: SCREEN_NAMES.Stories,
-                params: {
-                  screen: SCREEN_NAMES.StoryDetails,
-                  params: {
-                    storyId: pendingNav.params.storyId,
-                    fromScreen: 'Notifications',
                   },
                 },
               });

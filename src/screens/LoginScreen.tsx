@@ -33,7 +33,7 @@ import SimpleBoxInput from '../components/FloatingInput';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Toast, { ToastType } from '../components/Toast';
-import { saveSession, saveLoginResponse, isTermsAccepted, isProfileCompleted, getPendingNavigation, clearPendingNavigation } from '../utils/session';
+import { saveSession, saveLoginResponse, isTermsAccepted, isProfileCompleted, getPendingNavigation, clearPendingNavigation, saveTermsAccepted, saveProfileCompleted } from '../utils/session';
 import { isFarmerRole } from '../utils/userRole';
 import { postData } from '../Service/Apimethod';
 import Apis from '../Service/constant';
@@ -481,82 +481,73 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           const pendingNav = await getPendingNavigation();
           const hasPendingNotificationNav = pendingNav?.action === 'OPEN_NOTIFICATION_DETAIL' && role === 'farmer';
           const hasPendingEventNav = pendingNav?.action === 'OPEN_EVENT_DETAIL' && role === 'farmer';
-          const hasPendingStoryNav = pendingNav?.action === 'OPEN_STORY_DETAIL' && role === 'farmer';
           
           // Navigate based on role from response
           if (role === 'farmer') {
-            // Farmer role - check if terms have been accepted
-            const termsAccepted = await isTermsAccepted();
-            if (!termsAccepted) {
-              navigation.replace(SCREEN_NAMES.Terms);
-            } else {
-              // Check profile_completed from API response (only for farmer login)
-              // If profile_completed is false, show ReviewProfile screen
-              // If profile_completed is true, show next screen (FarmerTabs)
-              const isProfileCompleted = user?.profile_completed === true;
-              console.log('[LoginScreen] Farmer login - Profile completed from API:', isProfileCompleted, 'Raw value:', user?.profile_completed);
+            // Check profile_completed from API response first
+            const isProfileCompleted = user?.profile_completed === true;
+            console.log('[LoginScreen] Farmer login - Profile completed from API:', isProfileCompleted, 'Raw value:', user?.profile_completed);
+            
+            if (isProfileCompleted) {
+              // Profile is completed - navigate directly to FarmerTabs (FarmerHomeScreen)
+              // Save terms acceptance and profile completion status to prevent showing TermsScreen/ReviewProfileScreen on app restart
+              const termsAccepted = await isTermsAccepted();
+              if (!termsAccepted) {
+                await saveTermsAccepted();
+                console.log('[LoginScreen] Terms acceptance saved because profile is completed');
+              }
+              await saveProfileCompleted(true);
+              console.log('[LoginScreen] Profile completed status saved');
+              console.log('[LoginScreen] Profile completed - navigating to FarmerTabs');
+              navigation.replace(SCREEN_NAMES.FarmerTabs);
               
-              if (isProfileCompleted) {
-                // Profile is completed - navigate to FarmerTabs
-                console.log('[LoginScreen] Profile completed - navigating to FarmerTabs');
-                navigation.replace(SCREEN_NAMES.FarmerTabs);
-                
-                // If there's a pending notification navigation, navigate to Notifications screen
-                if (hasPendingNotificationNav) {
-                  console.log('[LoginScreen] Pending notification navigation detected - will navigate to Notifications');
-                  // Wait a bit for navigation to complete, then navigate to Notifications
-                  setTimeout(() => {
-                    (navigation as any).navigate(SCREEN_NAMES.FarmerTabs, {
-                      screen: SCREEN_NAMES.Home,
+              // If there's a pending notification navigation, navigate to Notifications screen
+              if (hasPendingNotificationNav) {
+                console.log('[LoginScreen] Pending notification navigation detected - will navigate to Notifications');
+                // Wait a bit for navigation to complete, then navigate to Notifications
+                setTimeout(() => {
+                  (navigation as any).navigate(SCREEN_NAMES.FarmerTabs, {
+                    screen: SCREEN_NAMES.Home,
+                    params: {
+                      screen: SCREEN_NAMES.Notifications,
+                    },
+                  });
+                  // Clear pending navigation
+                  clearPendingNavigation();
+                }, 500);
+              } else if (hasPendingEventNav && pendingNav?.params?.eventId) {
+                // If there's a pending event navigation, navigate to EventDetails screen
+                console.log('[LoginScreen] Pending event navigation detected - will navigate to EventDetails with eventId:', pendingNav.params.eventId);
+                setTimeout(() => {
+                  (navigation as any).navigate(SCREEN_NAMES.FarmerTabs, {
+                    screen: SCREEN_NAMES.Events,
+                    params: {
+                      screen: SCREEN_NAMES.EventDetails,
                       params: {
-                        screen: SCREEN_NAMES.Notifications,
+                        eventId: pendingNav.params.eventId,
                       },
-                    });
-                    // Clear pending navigation
-                    clearPendingNavigation();
-                  }, 500);
-                } else if (hasPendingEventNav && pendingNav?.params?.eventId) {
-                  // If there's a pending event navigation, navigate to EventDetails screen
-                  console.log('[LoginScreen] Pending event navigation detected - will navigate to EventDetails with eventId:', pendingNav.params.eventId);
-                  setTimeout(() => {
-                    (navigation as any).navigate(SCREEN_NAMES.FarmerTabs, {
-                      screen: SCREEN_NAMES.Events,
-                      params: {
-                        screen: SCREEN_NAMES.EventDetails,
-                        params: {
-                          eventId: pendingNav.params.eventId,
-                        },
-                      },
-                    });
-                    // Clear pending navigation
-                    clearPendingNavigation();
-                  }, 500);
-                } else if (hasPendingStoryNav && pendingNav?.params?.storyId) {
-                  // If there's a pending story navigation, navigate to StoryDetails screen
-                  console.log('[LoginScreen] Pending story navigation detected - will navigate to StoryDetails with storyId:', pendingNav.params.storyId);
-                  setTimeout(() => {
-                    (navigation as any).navigate(SCREEN_NAMES.FarmerTabs, {
-                      screen: SCREEN_NAMES.Stories,
-                      params: {
-                        screen: SCREEN_NAMES.StoryDetails,
-                        params: {
-                          storyId: pendingNav.params.storyId,
-                          fromScreen: 'Notifications',
-                        },
-                      },
-                    });
-                    // Clear pending navigation
-                    clearPendingNavigation();
-                  }, 500);
-                }
+                    },
+                  });
+                  // Clear pending navigation
+                  clearPendingNavigation();
+                }, 500);
+              }
+            } else {
+              // Profile not completed - show TermsScreen first, then ReviewProfileScreen in sequence
+              // Check if terms have been accepted
+              const termsAccepted = await isTermsAccepted();
+              if (!termsAccepted) {
+                // Show TermsScreen first, which will navigate to ReviewProfileScreen after acceptance
+                console.log('[LoginScreen] Profile not completed - navigating to TermsScreen first');
+                navigation.replace(SCREEN_NAMES.Terms);
               } else {
-                // Profile not completed - show ReviewProfile screen
-                console.log('[LoginScreen] Profile not completed - navigating to ReviewProfile');
+                // Terms already accepted, navigate directly to ReviewProfileScreen
+                console.log('[LoginScreen] Profile not completed - navigating to ReviewProfileScreen');
                 navigation.replace(SCREEN_NAMES.ReviewProfile);
-                // Store pending navigation for after profile completion
-                if (hasPendingNotificationNav || hasPendingEventNav || hasPendingStoryNav) {
-                  console.log('[LoginScreen] Profile not completed - storing pending navigation');
-                }
+              }
+              // Store pending navigation for after profile completion
+              if (hasPendingNotificationNav || hasPendingEventNav) {
+                console.log('[LoginScreen] Profile not completed - storing pending navigation');
               }
             }
           } else if (role === 'dealer') {
@@ -569,57 +560,67 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           } else {
             // Fallback: if role is not provided, use mobile number check
             if (isFarmerRole(mobileNumber)) {
-              const termsAccepted = await isTermsAccepted();
-              if (!termsAccepted) {
-                navigation.replace(SCREEN_NAMES.Terms);
-              } else {
-                // Check profile_completed from API response (only for farmer login)
-                // If profile_completed is false, show ReviewProfile screen
-                // If profile_completed is true, show next screen (FarmerTabs)
-                const isProfileCompleted = user?.profile_completed === true;
-                console.log('[LoginScreen] Farmer login (fallback) - Profile completed from API:', isProfileCompleted, 'Raw value:', user?.profile_completed);
+              // Check profile_completed from API response first
+              const isProfileCompleted = user?.profile_completed === true;
+              console.log('[LoginScreen] Farmer login (fallback) - Profile completed from API:', isProfileCompleted, 'Raw value:', user?.profile_completed);
+              
+              if (isProfileCompleted) {
+                // Profile is completed - navigate directly to FarmerTabs (FarmerHomeScreen)
+                // Save terms acceptance and profile completion status to prevent showing TermsScreen/ReviewProfileScreen on app restart
+                const termsAccepted = await isTermsAccepted();
+                if (!termsAccepted) {
+                  await saveTermsAccepted();
+                  console.log('[LoginScreen] Terms acceptance saved because profile is completed (fallback)');
+                }
+                await saveProfileCompleted(true);
+                console.log('[LoginScreen] Profile completed status saved (fallback)');
+                console.log('[LoginScreen] Profile completed (fallback) - navigating to FarmerTabs');
+                navigation.replace(SCREEN_NAMES.FarmerTabs);
                 
-                if (isProfileCompleted) {
-                  // Profile is completed - navigate to FarmerTabs
-                  console.log('[LoginScreen] Profile completed (fallback) - navigating to FarmerTabs');
-                  navigation.replace(SCREEN_NAMES.FarmerTabs);
-                  
-                  // If there's a pending notification navigation, navigate to Notifications screen
-                  if (hasPendingNotificationNav) {
-                    console.log('[LoginScreen] Pending notification navigation detected (fallback) - will navigate to Notifications');
-                    setTimeout(() => {
-                      (navigation as any).navigate(SCREEN_NAMES.FarmerTabs, {
-                        screen: SCREEN_NAMES.Home,
+                // If there's a pending notification navigation, navigate to Notifications screen
+                if (hasPendingNotificationNav) {
+                  console.log('[LoginScreen] Pending notification navigation detected (fallback) - will navigate to Notifications');
+                  setTimeout(() => {
+                    (navigation as any).navigate(SCREEN_NAMES.FarmerTabs, {
+                      screen: SCREEN_NAMES.Home,
+                      params: {
+                        screen: SCREEN_NAMES.Notifications,
+                      },
+                    });
+                    clearPendingNavigation();
+                  }, 500);
+                } else if (hasPendingEventNav && pendingNav?.params?.eventId) {
+                  // If there's a pending event navigation, navigate to EventDetails screen
+                  console.log('[LoginScreen] Pending event navigation detected (fallback) - will navigate to EventDetails with eventId:', pendingNav.params.eventId);
+                  setTimeout(() => {
+                    (navigation as any).navigate(SCREEN_NAMES.FarmerTabs, {
+                      screen: SCREEN_NAMES.Events,
+                      params: {
+                        screen: SCREEN_NAMES.EventDetails,
                         params: {
-                          screen: SCREEN_NAMES.Notifications,
+                          eventId: pendingNav.params.eventId,
                         },
-                      });
-                      clearPendingNavigation();
-                    }, 500);
-                  } else if (hasPendingEventNav && pendingNav?.params?.eventId) {
-                    // If there's a pending event navigation, navigate to EventDetails screen
-                    console.log('[LoginScreen] Pending event navigation detected (fallback) - will navigate to EventDetails with eventId:', pendingNav.params.eventId);
-                    setTimeout(() => {
-                      (navigation as any).navigate(SCREEN_NAMES.FarmerTabs, {
-                        screen: SCREEN_NAMES.Events,
-                        params: {
-                          screen: SCREEN_NAMES.EventDetails,
-                          params: {
-                            eventId: pendingNav.params.eventId,
-                          },
-                        },
-                      });
-                      clearPendingNavigation();
-                    }, 500);
-                  }
+                      },
+                    });
+                    clearPendingNavigation();
+                  }, 500);
+                }
+              } else {
+                // Profile not completed - show TermsScreen first, then ReviewProfileScreen in sequence
+                // Check if terms have been accepted
+                const termsAccepted = await isTermsAccepted();
+                if (!termsAccepted) {
+                  // Show TermsScreen first, which will navigate to ReviewProfileScreen after acceptance
+                  console.log('[LoginScreen] Profile not completed (fallback) - navigating to TermsScreen first');
+                  navigation.replace(SCREEN_NAMES.Terms);
                 } else {
-                  // Profile not completed - show ReviewProfile screen
-                  console.log('[LoginScreen] Profile not completed (fallback) - navigating to ReviewProfile');
+                  // Terms already accepted, navigate directly to ReviewProfileScreen
+                  console.log('[LoginScreen] Profile not completed (fallback) - navigating to ReviewProfileScreen');
                   navigation.replace(SCREEN_NAMES.ReviewProfile);
-                  // Store pending navigation for after profile completion
-                  if (hasPendingNotificationNav || hasPendingEventNav) {
-                    console.log('[LoginScreen] Profile not completed (fallback) - storing pending navigation');
-                  }
+                }
+                // Store pending navigation for after profile completion
+                if (hasPendingNotificationNav || hasPendingEventNav) {
+                  console.log('[LoginScreen] Profile not completed (fallback) - storing pending navigation');
                 }
               }
             } else {

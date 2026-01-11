@@ -11,6 +11,7 @@ import {HomeStackParamList} from './stacks/HomeStack';
 import {FarmerStackParamList} from './stacks/FarmerStack';
 import {TractorsStackParamList} from './stacks/TractorsStack';
 import {ProfileStackParamList} from './stacks/ProfileStack';
+import {navigationRef} from './RootNavigator';
 
 export type TabParamList = {
   [SCREEN_NAMES.Home]: {screen: keyof HomeStackParamList; params?: any} | undefined;

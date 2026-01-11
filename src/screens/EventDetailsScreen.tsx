@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {useRoute, useNavigation, useFocusEffect} from '@react-navigation/native';
+import {useRoute, useNavigation, useFocusEffect, CommonActions, StackActions} from '@react-navigation/native';
 import {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
 import {FarmerTabParamList} from '../navigation/FarmerTabNavigator';
 import {SCREEN_NAMES} from '../constants/screenNames';
@@ -37,6 +37,7 @@ import Apis, {API_BASE_URL} from '../Service/constant';
 import {getImageUrl} from '../utils/imageUtils';
 import {isYouTubeUrl, getYouTubeThumbnailUrl, extractYouTubeVideoId} from '../utils/youtubeUtils';
 import YoutubePlayer from 'react-native-youtube-iframe';
+import Button from '../components/Button';
 
 type EventDetailsRouteParams = {
   eventId: string;
@@ -90,6 +91,7 @@ export default function EventDetailsScreen() {
   const [loading, setLoading] = useState(true);
   const [eventDetails, setEventDetails] = useState<any>(null);
   const [eventApiData, setEventApiData] = useState<any>(null); // Store full API response
+  const [eventNotFound, setEventNotFound] = useState(false); // Track if event is deleted/not found
   const {playTTS, stopTTS, state: ttsState} = useTTS();
 
   // Fetch event details from API
@@ -117,7 +119,18 @@ export default function EventDetailsScreen() {
       
       console.log('[EventDetailsScreen] API Response:', JSON.stringify(response, null, 2));
       
+      // Check if event is not found (deleted) - API returns status: false or no data
+      if (response?.status === false || !response?.data) {
+        console.warn('[EventDetailsScreen] Event not found or deleted');
+        setEventNotFound(true);
+        setEventDetails(null);
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+      
       if (response?.status === true && response?.data) {
+        setEventNotFound(false); // Reset not found state
         const eventData = response.data;
         console.log('[EventDetailsScreen] Event Data:', JSON.stringify(eventData, null, 2));
         
@@ -233,13 +246,15 @@ export default function EventDetailsScreen() {
         });
       } else {
         console.warn('[EventDetailsScreen] Unexpected API response format:', response);
-        // Fallback to mock data if API fails
-        setEventDetails(getEventDetails(eventId));
+        // Event not found
+        setEventNotFound(true);
+        setEventDetails(null);
       }
     } catch (error) {
       console.error('[EventDetailsScreen] Error fetching event details:', error);
-      // Fallback to mock data on error
-      setEventDetails(getEventDetails(params?.eventId || '1'));
+      // Event not found on error
+      setEventNotFound(true);
+      setEventDetails(null);
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -737,6 +752,52 @@ export default function EventDetailsScreen() {
       </ScrollView>
     );
   };
+
+  // Render error state for deleted/not found event
+  if (!loading && eventNotFound) {
+    return (
+      <View style={dynamicStyles.container}>
+        {/* Header */}
+        <View style={dynamicStyles.header}>
+          <View style={dynamicStyles.headerLeft}>
+            <TouchableOpacity
+              style={dynamicStyles.backButton}
+              onPress={() => {
+                if (params?.fromScreen === 'Home') {
+                  tabNavigation.navigate(SCREEN_NAMES.Home);
+                } else {
+                  navigation.goBack();
+                }
+              }}
+              activeOpacity={0.7}>
+              <Ionicons
+                name="arrow-back"
+                size={moderateScale(20)}
+                color={colors.textPrimary}
+              />
+            </TouchableOpacity>
+          </View>
+        </View>
+        
+        {/* Error State */}
+        <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: moderateScale(32)}}>
+          <Text style={[Typography.boldXl, {color: colors.textPrimary, fontSize: moderateScale(20), marginBottom: moderateScale(24), textAlign: 'center'}]}>
+            {t('events.noEventFound')}
+          </Text>
+          <Button
+            title={t('events.goToHome')}
+            onPress={() => {
+              // Navigate to Home tab with nested navigation to reset stack to Home screen
+              tabNavigation.navigate(SCREEN_NAMES.Home, {
+                screen: SCREEN_NAMES.Home,
+              });
+            }}
+            style={{minWidth: moderateScale(200)}}
+          />
+        </View>
+      </View>
+    );
+  }
 
   if (loading || !eventDetails) {
     return (

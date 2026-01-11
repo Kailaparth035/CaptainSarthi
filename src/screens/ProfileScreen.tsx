@@ -8,9 +8,12 @@ import {
   Image,
   ActivityIndicator,
   RefreshControl,
+  BackHandler,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
+import {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
+import {TabParamList} from '../navigation/TabNavigator';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import colors from '../utils/colors';
@@ -33,6 +36,7 @@ export default function ProfileScreen() {
   const {moderateScale} = useDeviceMetrics();
   const {t, currentLanguage} = useLanguage();
   const navigation = useNavigation<ProfileScreenNavigationProp>();
+  const tabNavigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
   const [userData, setUserData] = useState({
     name: '',
@@ -95,7 +99,15 @@ export default function ProfileScreen() {
   useFocusEffect(
     React.useCallback(() => {
       fetchProfileData();
-    }, [])
+
+      // Handle back button - navigate to Home tab
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+        tabNavigation.navigate(SCREEN_NAMES.Home);
+        return true;
+      });
+
+      return () => backHandler.remove();
+    }, [tabNavigation])
   );
 
   const dynamicStyles = useMemo(

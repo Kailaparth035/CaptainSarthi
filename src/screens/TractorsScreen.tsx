@@ -9,9 +9,12 @@ import {
   Image,
   RefreshControl,
   ImageBackground,
+  BackHandler,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
+import {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
+import {TabParamList} from '../navigation/TabNavigator';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -80,6 +83,7 @@ export default function TractorsScreen() {
   const {moderateScale} = useDeviceMetrics();
   const {t} = useLanguage();
   const navigation = useNavigation<NavigationProp>();
+  const tabNavigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
   const [tractors, setTractors] = useState<any[]>([]);
   const [loadingTractors, setLoadingTractors] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -181,7 +185,15 @@ export default function TractorsScreen() {
   useFocusEffect(
     React.useCallback(() => {
       fetchTractors();
-    }, [])
+
+      // Handle back button - navigate to Home tab
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+        tabNavigation.navigate(SCREEN_NAMES.Home);
+        return true;
+      });
+
+      return () => backHandler.remove();
+    }, [tabNavigation])
   );
 
 

@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {useRoute, useNavigation, useFocusEffect} from '@react-navigation/native';
+import {useRoute, useNavigation, useFocusEffect, CommonActions} from '@react-navigation/native';
 import {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
 import {FarmerTabParamList} from '../navigation/FarmerTabNavigator';
 import {SCREEN_NAMES} from '../constants/screenNames';
@@ -33,6 +33,7 @@ import {useLanguage} from '../contexts/LanguageContext';
 import {isYouTubeUrl, getYouTubeThumbnailUrl, extractYouTubeVideoId} from '../utils/youtubeUtils';
 import YoutubePlayer from 'react-native-youtube-iframe';
 import {Modal, Pressable} from 'react-native';
+import Button from '../components/Button';
 
 type StoryDetailsRouteParams = {
   storyId: string;
@@ -74,7 +75,7 @@ export default function StoryDetailsScreen() {
   const navigation = useNavigation();
   const tabNavigation = useNavigation<BottomTabNavigationProp<FarmerTabParamList>>();
   const params = route.params as StoryDetailsRouteParams;
-  const {currentLanguage} = useLanguage();
+  const {currentLanguage, t} = useLanguage();
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [showVideoModal, setShowVideoModal] = useState(false);
@@ -83,6 +84,7 @@ export default function StoryDetailsScreen() {
   const [loading, setLoading] = useState(true);
   const [storyDetails, setStoryDetails] = useState<any>(null);
   const [storyApiData, setStoryApiData] = useState<any>(null); // Store full API data for language re-transformation
+  const [storyNotFound, setStoryNotFound] = useState(false); // Track if story is deleted/not found
   const {playTTS, stopTTS, state: ttsState} = useTTS();
 
   // Fetch story details from API
@@ -110,7 +112,18 @@ export default function StoryDetailsScreen() {
       
       console.log('[StoryDetailsScreen] API Response:', JSON.stringify(response, null, 2));
       
+      // Check if story is not found (deleted) - API returns status: false or no data
+      if (response?.status === false || !response?.data) {
+        console.warn('[StoryDetailsScreen] Story not found or deleted');
+        setStoryNotFound(true);
+        setStoryDetails(null);
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+      
       if (response?.status === true && response?.data) {
+        setStoryNotFound(false); // Reset not found state
         const storyData = response.data;
         console.log('[StoryDetailsScreen] Story Data:', JSON.stringify(storyData, null, 2));
         
@@ -194,13 +207,15 @@ export default function StoryDetailsScreen() {
         });
       } else {
         console.warn('[StoryDetailsScreen] Unexpected API response format:', response);
-        // Fallback to mock data if API fails
-        setStoryDetails(getStoryDetails(storyId));
+        // Story not found
+        setStoryNotFound(true);
+        setStoryDetails(null);
       }
     } catch (error) {
       console.error('[StoryDetailsScreen] Error fetching story details:', error);
-      // Fallback to mock data on error
-      setStoryDetails(getStoryDetails(params?.storyId || '1'));
+      // Story not found on error
+      setStoryNotFound(true);
+      setStoryDetails(null);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -627,6 +642,51 @@ export default function StoryDetailsScreen() {
       </ScrollView>
     );
   };
+
+  // Render error state for deleted/not found story
+  if (!loading && storyNotFound) {
+    return (
+      <View style={dynamicStyles.container}>
+        {/* Header */}
+        <View style={dynamicStyles.header}>
+          <TouchableOpacity
+            style={dynamicStyles.backButton}
+            onPress={() => {
+              if (params?.fromScreen === 'Home') {
+                tabNavigation.navigate(SCREEN_NAMES.Home);
+              } else {
+                navigation.goBack();
+              }
+            }}
+            activeOpacity={0.7}>
+            <Ionicons
+              name="arrow-back"
+              size={moderateScale(20)}
+              color={colors.textPrimary}
+            />
+          </TouchableOpacity>
+          <Text style={dynamicStyles.headerTitle}>Story detail</Text>
+        </View>
+        
+        {/* Error State */}
+        <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: moderateScale(32)}}>
+          <Text style={[Typography.boldXl, {color: colors.textPrimary, fontSize: moderateScale(20), marginBottom: moderateScale(24), textAlign: 'center'}]}>
+            {t('stories.noStoryFound')}
+          </Text>
+          <Button
+            title={t('stories.goToHome')}
+            onPress={() => {
+              // Navigate to Home tab with nested navigation to reset stack to Home screen
+              tabNavigation.navigate(SCREEN_NAMES.Home, {
+                screen: SCREEN_NAMES.Home,
+              });
+            }}
+            style={{minWidth: moderateScale(200)}}
+          />
+        </View>
+      </View>
+    );
+  }
 
   if (loading || !storyDetails) {
     return (

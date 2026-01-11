@@ -11,6 +11,7 @@ import {
   RefreshControl,
   Modal,
   Pressable,
+  BackHandler,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation, CommonActions, useFocusEffect} from '@react-navigation/native';
@@ -31,7 +32,7 @@ import {useLanguage} from '../contexts/LanguageContext';
 import {getData} from '../Service/Apimethod';
 import Apis, {API_BASE_URL} from '../Service/constant';
 import {getImageUrl} from '../utils/imageUtils';
-import {saveFarmerProfileData, FarmerProfileData} from '../utils/session';
+import {saveFarmerProfileData, FarmerProfileData, getFarmerProfileData} from '../utils/session';
 import {isYouTubeUrl, getYouTubeThumbnailUrl, extractYouTubeVideoId} from '../utils/youtubeUtils';
 import YoutubePlayer from 'react-native-youtube-iframe';
 
@@ -58,7 +59,7 @@ const formatDate = (dateString: string): string => {
 export default function FarmerHomeScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
-  const {t} = useLanguage();
+  const {t, currentLanguage} = useLanguage();
   const navigation = useNavigation();
   const tabNavigation = useNavigation<BottomTabNavigationProp<FarmerTabParamList>>();
   const [currentCarouselIndex, setCurrentCarouselIndex] = useState(0);
@@ -228,8 +229,45 @@ export default function FarmerHomeScreen() {
       } else {
         setLoading(true);
       }
+      
+      // Get stored farmer profile data to extract location details
+      const profileData = await getFarmerProfileData();
+      const locationDetails = profileData?.location_details || {};
+      
+      console.log('[FarmerHomeScreen] Profile data:', profileData);
+      console.log('[FarmerHomeScreen] Location details:', locationDetails);
+      
+      // Build query parameters in correct order: state, district, village, category
+      // Format: state=1&district=2&village=3&category=1
+      let urlParams = '';
+      
+      // Add state parameter (first)
+      if (locationDetails.state_id) {
+        urlParams = `?state=${locationDetails.state_id}`;
+      }
+      
+      // Add district parameter (second)
+      if (locationDetails.district_id) {
+        urlParams = urlParams + `&district=${locationDetails.district_id}`;
+      }
+      
+      // Add village parameter (third)
+      if (locationDetails.village_id) {
+        urlParams = urlParams + `&village=${locationDetails.village_id}`;
+      }
+      
+      // Add category parameter (fourth)
+      if (locationDetails.category_id) {
+        urlParams = urlParams + `&category=${locationDetails.category_id}`;
+      }
+      
+      console.log('[FarmerHomeScreen] Query parameters (ordered):', urlParams);
+      
+      // Build API endpoint with query parameters
+      const apiEndpoint = Apis.FARMER_DASHBOARD + urlParams;
+      console.log('[FarmerHomeScreen] API Endpoint:', apiEndpoint);
       console.log('[FarmerHomeScreen] Fetching dashboard data...');
-      const response = await getData(Apis.FARMER_DASHBOARD, {});
+      const response = await getData(apiEndpoint);
       
       console.log('[FarmerHomeScreen] Dashboard API response:', JSON.stringify(response, null, 2));
       
@@ -276,32 +314,60 @@ export default function FarmerHomeScreen() {
         }
         
         // Transform recent events
-        if (dashboardData.recent_events && Array.isArray(dashboardData.recent_events.list)) {
-          const events = dashboardData.recent_events.list.map((event: any) => {
-            // Check for video URL - prioritize YouTube thumbnail if video is YouTube
-            let videoUrl = '';
-            if (event.media?.cover_video?.video_url) {
-              videoUrl = event.media.cover_video.video_url;
-            } else if (event.video_url || event.videoUrl) {
-              videoUrl = event.video_url || event.videoUrl;
-            }
-            
-            // Use YouTube thumbnail if video is YouTube, otherwise use image_url
+        // Handle both structures: recent_events.list (array) or recent_events (direct array)
+        const eventsArray = dashboardData.recent_events?.list || 
+                           (Array.isArray(dashboardData.recent_events) ? dashboardData.recent_events : []);
+        if (Array.isArray(eventsArray) && eventsArray.length > 0) {
+          // Map language code to language_id (en -> 1, hi -> 2, gu -> 3)
+          const languageIdMap: Record<string, number> = {
+            'en': 1,
+            'hi': 2,
+            'gu': 3,
+          };
+          const currentLanguageId = languageIdMap[currentLanguage] || 1;
+          
+          // Limit to first 5 events
+          const limitedEventsArray = eventsArray.slice(0, 5);
+          
+          const events = limitedEventsArray.map((event: any) => {
+            // Prioritize image_url over video thumbnails
             let imageUrl = null;
-            if (videoUrl && isYouTubeUrl(videoUrl)) {
-              const youtubeThumbnail = getYouTubeThumbnailUrl(videoUrl, 'maxresdefault');
-              imageUrl = youtubeThumbnail;
-            } else if (event.image_url) {
+            if (event.image_url) {
               imageUrl = getImageUrl(event.image_url);
+            } else {
+              // Fallback to video thumbnail only if image_url is not available
+              let videoUrl = '';
+              if (event.media?.cover_video?.video_url) {
+                videoUrl = event.media.cover_video.video_url;
+              } else if (event.video_url || event.videoUrl) {
+                videoUrl = event.video_url || event.videoUrl;
+              }
+              
+              if (videoUrl && isYouTubeUrl(videoUrl)) {
+                const youtubeThumbnail = getYouTubeThumbnailUrl(videoUrl, 'maxresdefault');
+                imageUrl = youtubeThumbnail;
+              }
             }
             
-            // Only use default thumbnail if no video URL or image URL
-            const thumbnail = imageUrl ? {uri: imageUrl} : (videoUrl ? undefined : ImagePath.farmerTractor);
+            // Only use default thumbnail if no image URL
+            const thumbnail = imageUrl ? {uri: imageUrl} : ImagePath.farmerTractor;
+            
+            // Handle language-specific title
+            let displayTitle = event.title || '';
+            if (event.languages && Array.isArray(event.languages) && event.languages.length > 0) {
+              const languageSpecificContent = event.languages.find(
+                (lang: any) => lang.language_id === currentLanguageId
+              );
+              // Use language-specific title if found, otherwise use default title
+              if (languageSpecificContent?.title) {
+                displayTitle = languageSpecificContent.title;
+              }
+            }
             
             return {
               id: event.event_id || event.id,
               thumbnail: thumbnail,
-              title: event.title || '',
+              title: displayTitle,
               date: formatDate(event.publish_date || event.event_date || ''),
             };
           });
@@ -311,32 +377,60 @@ export default function FarmerHomeScreen() {
         }
         
         // Transform recent stories
-        if (dashboardData.recent_stories && Array.isArray(dashboardData.recent_stories.list)) {
-          const stories = dashboardData.recent_stories.list.map((story: any) => {
-            // Check for video URL - prioritize YouTube thumbnail if video is YouTube
-            let videoUrl = '';
-            if (story.media?.cover_video?.video_url) {
-              videoUrl = story.media.cover_video.video_url;
-            } else if (story.video_url || story.videoUrl) {
-              videoUrl = story.video_url || story.videoUrl;
-            }
-            
-            // Use YouTube thumbnail if video is YouTube, otherwise use image_url
+        // Handle both structures: recent_stories.list (array) or recent_stories (direct array)
+        const storiesArray = dashboardData.recent_stories?.list || 
+                            (Array.isArray(dashboardData.recent_stories) ? dashboardData.recent_stories : []);
+        if (Array.isArray(storiesArray) && storiesArray.length > 0) {
+          // Map language code to language_id (en -> 1, hi -> 2, gu -> 3)
+          const languageIdMap: Record<string, number> = {
+            'en': 1,
+            'hi': 2,
+            'gu': 3,
+          };
+          const currentLanguageId = languageIdMap[currentLanguage] || 1;
+          
+          // Limit to first 5 stories
+          const limitedStoriesArray = storiesArray.slice(0, 5);
+          
+          const stories = limitedStoriesArray.map((story: any) => {
+            // Prioritize image_url over video thumbnails
             let imageUrl = null;
-            if (videoUrl && isYouTubeUrl(videoUrl)) {
-              const youtubeThumbnail = getYouTubeThumbnailUrl(videoUrl, 'maxresdefault');
-              imageUrl = youtubeThumbnail;
-            } else if (story.image_url) {
+            if (story.image_url) {
               imageUrl = getImageUrl(story.image_url);
+            } else {
+              // Fallback to video thumbnail only if image_url is not available
+              let videoUrl = '';
+              if (story.media?.cover_video?.video_url) {
+                videoUrl = story.media.cover_video.video_url;
+              } else if (story.video_url || story.videoUrl) {
+                videoUrl = story.video_url || story.videoUrl;
+              }
+              
+              if (videoUrl && isYouTubeUrl(videoUrl)) {
+                const youtubeThumbnail = getYouTubeThumbnailUrl(videoUrl, 'maxresdefault');
+                imageUrl = youtubeThumbnail;
+              }
             }
             
-            // Only use default thumbnail if no video URL or image URL
-            const thumbnail = imageUrl ? {uri: imageUrl} : (videoUrl ? undefined : ImagePath.farmerTractor);
+            // Only use default thumbnail if no image URL
+            const thumbnail = imageUrl ? {uri: imageUrl} : ImagePath.farmerTractor;
+            
+            // Handle language-specific title
+            let displayTitle = story.title || '';
+            if (story.languages && Array.isArray(story.languages) && story.languages.length > 0) {
+              const languageSpecificContent = story.languages.find(
+                (lang: any) => lang.language_id === currentLanguageId
+              );
+              // Use language-specific title if found, otherwise use default title
+              if (languageSpecificContent?.title) {
+                displayTitle = languageSpecificContent.title;
+              }
+            }
             
             return {
               id: story.story_id || story.id,
               thumbnail: thumbnail,
-              title: story.title || '',
+              title: displayTitle,
               date: formatDate(story.publish_date || ''),
             };
           });
@@ -410,7 +504,7 @@ export default function FarmerHomeScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [currentLanguage]);
 
   // Fetch data on mount and when screen comes into focus
   useFocusEffect(
@@ -419,6 +513,14 @@ export default function FarmerHomeScreen() {
       fetchDashboardData(false);
       fetchFarmerProfile();
       fetchUnreadCount();
+
+      // Handle back button - exit app when on Home screen
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+        BackHandler.exitApp();
+        return true;
+      });
+
+      return () => backHandler.remove();
     }, [fetchDashboardData])
   );
 

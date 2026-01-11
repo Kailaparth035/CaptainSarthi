@@ -450,14 +450,31 @@ export default function FarmerTractorDetails() {
             tintColor={colors.primary}
           />
         }>
-        {/* Video Player Section */}
+        {/* Video Player / Image Section */}
         <View style={dynamicStyles.card}>
           <View style={dynamicStyles.videoContainer}>
-            <VideoPlayer
-              thumbnailUri={tractorDetails.thumbnailUri}
-              videoUri={tractorDetails.videoUri}
-              title={tractorDetails.model}
-            />
+            {tractorDetails.videoUri ? (
+              <VideoPlayer
+                thumbnailUri={tractorDetails.thumbnailUri}
+                videoUri={tractorDetails.videoUri}
+                title={tractorDetails.model}
+              />
+            ) : tractorDetails.main_image || tractorDetails.thumbnailUri ? (
+              <TouchableOpacity
+                style={{flex: 1, borderRadius: moderateScale(8), overflow: 'hidden'}}
+                onPress={() => handleImagePress(0)} // Open preview for the main image
+                activeOpacity={0.7}>
+                <Image
+                  source={{uri: tractorDetails.main_image || tractorDetails.thumbnailUri}}
+                  style={{width: '100%', height: '100%'}}
+                  resizeMode="cover"
+                />
+              </TouchableOpacity>
+            ) : (
+              <View style={{flex: 1, backgroundColor: colors.backgroundGray, borderRadius: moderateScale(8), alignItems: 'center', justifyContent: 'center'}}>
+                <Ionicons name="image-outline" size={moderateScale(50)} color={colors.textTertiary} />
+              </View>
+            )}
           </View>
 
           {/* Thumbnails Row */}
@@ -531,18 +548,21 @@ export default function FarmerTractorDetails() {
           <Text style={dynamicStyles.productSeries}>
             {tractorDetails.series}
           </Text>
-          <Text style={dynamicStyles.productDescription}>
-            {showFullDescription
-              ? tractorDetails.fullDescription
-              : tractorDetails.description}
+          <Text 
+            style={dynamicStyles.productDescription}
+            numberOfLines={showFullDescription ? undefined : 3}
+            ellipsizeMode="tail">
+            {tractorDetails.fullDescription || tractorDetails.description}
           </Text>
-          <TouchableOpacity
-            onPress={() => setShowFullDescription(!showFullDescription)}
-            activeOpacity={0.7}>
-            <Text style={dynamicStyles.readMoreLink}>
-              {showFullDescription ? 'Read less' : 'Read more'}
-            </Text>
-          </TouchableOpacity>
+          {tractorDetails.description && tractorDetails.description.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setShowFullDescription(!showFullDescription)}
+              activeOpacity={0.7}>
+              <Text style={dynamicStyles.readMoreLink}>
+                {showFullDescription ? 'Read less' : 'Read more'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Specifications Card */}

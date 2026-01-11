@@ -154,11 +154,15 @@
   "events": {
     "title": "Events",
     "textToSpeech": "Text to speech",
-    "noEventsFound": "No events found"
+    "noEventsFound": "No events found",
+    "noEventFound": "No event found",
+    "goToHome": "Go to Home"
   },
   "stories": {
     "title": "Stories",
-    "noStoriesFound": "No story found"
+    "noStoriesFound": "No story found",
+    "noStoryFound": "No story found",
+    "goToHome": "Go to Home"
   },
   "farmerHome": {
     "greeting": "Hello",
@@ -199,6 +203,7 @@
     "dateOfMarriage": "Date of marriage",
     "dealershipName": "Dealership name",
     "dealershipAddress": "Dealership address",
+    "farmerAddress": "Farmer address",
     "tractorDetails": "Tractor details",
     "tractorCount": "Tractor count",
     "modelName": "Model name",
@@ -208,7 +213,8 @@
     "engineNo": "Engine no.",
     "dateOfInvoice": "Date of invoice",
     "dateOfRegistration": "Date of registration",
-    "whoDrives": "Who drives"
+    "whoDrives": "Who drives",
+    "noImageFound": "No image found"
   },
   "reviewProfile": {
     "personalDetails": "Personal details",

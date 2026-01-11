@@ -9,11 +9,14 @@ import {
   RefreshControl,
   ActivityIndicator,
   Platform,
+  BackHandler,
 } from 'react-native';
 import LinearGradient from 'react-native-linear-gradient';
 import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {useNavigation} from '@react-navigation/native';
+import {useNavigation, useFocusEffect} from '@react-navigation/native';
+import {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
+import {FarmerTabParamList} from '../navigation/FarmerTabNavigator';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import colors from '../utils/colors';
 import useDeviceMetrics from '../utils/responsiveCustom';
@@ -46,6 +49,7 @@ export default function EventsScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
   const navigation = useNavigation();
+  const tabNavigation = useNavigation<BottomTabNavigationProp<FarmerTabParamList>>();
   const {currentLanguage, t} = useLanguage();
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -251,6 +255,18 @@ export default function EventsScreen() {
   useEffect(() => {
     fetchEvents();
   }, [fetchEvents]);
+
+  // Handle back button - navigate to Home tab
+  useFocusEffect(
+    React.useCallback(() => {
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+        tabNavigation.navigate(SCREEN_NAMES.Home);
+        return true;
+      });
+
+      return () => backHandler.remove();
+    }, [tabNavigation])
+  );
 
   // Re-transform events when language changes (if events are already loaded)
   useEffect(() => {

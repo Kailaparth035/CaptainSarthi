@@ -154,7 +154,7 @@ export default function OnboardingScreen() {
             />
 
             {/* Terms & Conditions */}
-            <View style={dynamicStyles.termsContainer}>
+            {/* <View style={dynamicStyles.termsContainer}>
               <TouchableOpacity
                 onPress={() => setTermsAccepted(!termsAccepted)}
                 activeOpacity={0.7}
@@ -179,7 +179,7 @@ export default function OnboardingScreen() {
                   {t('onboarding.beforeContinue') || 'before you continue.'}
                 </Text>
               </TouchableOpacity>
-            </View>
+            </View> */}
           </View>
         </View>
       </ImageBackground>

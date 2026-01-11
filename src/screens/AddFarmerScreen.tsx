@@ -9,6 +9,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Dimensions,
+  Keyboard,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation, useRoute, useFocusEffect} from '@react-navigation/native';
@@ -256,6 +258,8 @@ export default function AddFarmerScreen() {
 
   // Refs for form fields to scroll to errors
   const fieldPositions = useRef<Record<string, number>>({});
+  const fieldViewRefs = useRef<Record<string, View | null>>({});
+  const inputRefs = useRef<Record<string, any>>({});
   const latestErrorsRef = useRef<FormErrors>({});
   const latestTractorsRef = useRef<TractorDetails[]>([]);
   const latestSubQuestionAnswersRef = useRef<Record<string, any>>({});
@@ -270,12 +274,200 @@ export default function AddFarmerScreen() {
   const domYYYYRef = useRef<any>(null);
   const purchaseDateRefs = useRef<Record<string, {dd: any, mm: any, yyyy: any}>>({});
   
+  // Refs for address fields
+  const houseNumberRef = useRef<any>(null);
+  const streetNameRef = useRef<any>(null);
+  const pincodeRef = useRef<any>(null);
+  
+  // Refs for tractor fields (dynamic - stored by field key like "tractor_1_modelName")
+  const tractorInputRefs = useRef<Record<string, any>>({});
+  
+  // Track keyboard height
+  const keyboardHeight = useRef<number>(0);
+  
+  // Set up keyboard listeners
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        keyboardHeight.current = e.endCoordinates.height;
+      }
+    );
+    const keyboardDidHideListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        keyboardHeight.current = 0;
+      }
+    );
+
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
+  
   // Function to register field position
   const registerFieldPosition = (fieldName: string) => {
     return (event: any) => {
       const {y} = event.nativeEvent.layout;
       fieldPositions.current[fieldName] = y;
     };
+  };
+
+  // Helper function to create ref for input field
+  const getInputRef = (fieldName: string) => {
+    if (!inputRefs.current[fieldName]) {
+      inputRefs.current[fieldName] = React.createRef();
+    }
+    return inputRefs.current[fieldName];
+  };
+  
+  // Helper function to scroll to field and focus
+  const scrollToFieldAndFocus = (fieldName: string) => {
+    // Map field names to their refs
+    const fieldRefMap: Record<string, any> = {
+      'houseNumber': houseNumberRef,
+      'streetName': streetNameRef,
+      'pincode': pincodeRef,
+    };
+    
+    // Check if it's a tractor field (format: tractor_${id}_${fieldName})
+    let inputRef = fieldRefMap[fieldName];
+    if (!inputRef && fieldName.startsWith('tractor_')) {
+      // Check if it's a purchase date field (format: tractor_${id}_purchaseDateDD)
+      if (fieldName.includes('_purchaseDateDD')) {
+        // Extract tractor ID from field name (format: tractor_${id}_purchaseDateDD)
+        const match = fieldName.match(/^tractor_(\d+)_purchaseDateDD$/);
+        if (match && match[1]) {
+          const tractorId = match[1];
+          const dateRefs = purchaseDateRefs.current[tractorId];
+          if (dateRefs && dateRefs.dd) {
+            inputRef = dateRefs.dd; // Focus on DD field (first date field)
+          }
+        }
+      } else {
+        // Extract tractor field ref from dynamic storage
+        inputRef = tractorInputRefs.current[fieldName];
+      }
+    }
+    
+    const fieldViewRef = fieldViewRefs.current[fieldName];
+    const storedY = fieldPositions.current[fieldName] || 0;
+    
+    // Store ref in inputRefs for consistency
+    if (inputRef) {
+      inputRefs.current[fieldName] = inputRef;
+    }
+    
+    if (fieldViewRef && scrollViewRef.current) {
+      try {
+        // Use measureLayout to get accurate position relative to ScrollView
+        (fieldViewRef as any).measureLayout(
+          scrollViewRef.current as any,
+          (x: number, y: number, width: number, height: number) => {
+            // First focus the field to open keyboard
+            if (inputRef) {
+              if (typeof inputRef.current?.focus === 'function') {
+                inputRef.current.focus();
+              } else if (typeof inputRef.focus === 'function') {
+                inputRef.focus();
+              }
+            }
+            
+            // Wait for keyboard to open, then scroll
+            setTimeout(() => {
+              const {height: screenHeight} = Dimensions.get('window');
+              const kbHeight = keyboardHeight.current;
+              // Available screen height (screen height minus keyboard height)
+              const availableHeight = screenHeight - (kbHeight || 0);
+              // Calculate position to show field above keyboard
+              // Position field in the upper portion of available space (about 1/3 from top)
+              const targetY = Math.max(0, y - (availableHeight / 3));
+              
+              scrollViewRef.current?.scrollTo({
+                y: targetY,
+                animated: true,
+              });
+            }, Platform.OS === 'ios' ? 300 : 100);
+          },
+          (error: any) => {
+            // Fallback to using stored position if measureLayout fails
+            console.warn(`measureLayout failed for ${fieldName}, using stored position:`, error);
+            if (storedY > 0) {
+              // First focus the field to open keyboard
+              if (inputRef) {
+                if (typeof inputRef.current?.focus === 'function') {
+                  inputRef.current.focus();
+                } else if (typeof inputRef.focus === 'function') {
+                  inputRef.focus();
+                }
+              }
+              
+              // Wait for keyboard to open, then scroll
+              setTimeout(() => {
+                const {height: screenHeight} = Dimensions.get('window');
+                const kbHeight = keyboardHeight.current;
+                const availableHeight = screenHeight - (kbHeight || 0);
+                const targetY = Math.max(0, storedY - (availableHeight / 3));
+                scrollViewRef.current?.scrollTo({
+                  y: targetY,
+                  animated: true,
+                });
+              }, Platform.OS === 'ios' ? 300 : 100);
+            }
+          }
+        );
+      } catch (error) {
+        console.warn(`Error in measureLayout for ${fieldName}:`, error);
+        // Fallback to using stored position
+        if (storedY > 0) {
+          // First focus the field to open keyboard
+          if (inputRef) {
+            if (typeof inputRef.current?.focus === 'function') {
+              inputRef.current.focus();
+            } else if (typeof inputRef.focus === 'function') {
+              inputRef.focus();
+            }
+          }
+          
+          // Wait for keyboard to open, then scroll
+          setTimeout(() => {
+            const {height: screenHeight} = Dimensions.get('window');
+            const kbHeight = keyboardHeight.current;
+            const availableHeight = screenHeight - (kbHeight || 0);
+            const targetY = Math.max(0, storedY - (availableHeight / 3));
+            scrollViewRef.current?.scrollTo({
+              y: targetY,
+              animated: true,
+            });
+          }, Platform.OS === 'ios' ? 300 : 100);
+        }
+      }
+    } else {
+      // Fallback to using stored position
+      if (storedY > 0) {
+        // First focus the field to open keyboard
+        if (inputRef) {
+          if (typeof inputRef.current?.focus === 'function') {
+            inputRef.current.focus();
+          } else if (typeof inputRef.focus === 'function') {
+            inputRef.focus();
+          }
+        }
+        
+        // Wait for keyboard to open, then scroll
+        setTimeout(() => {
+          const {height: screenHeight} = Dimensions.get('window');
+          const kbHeight = keyboardHeight.current;
+          const availableHeight = screenHeight - (kbHeight || 0);
+          const targetY = Math.max(0, storedY - (availableHeight / 3));
+          scrollViewRef.current?.scrollTo({
+            y: targetY,
+            animated: true,
+          });
+        }, Platform.OS === 'ios' ? 300 : 100);
+      }
+    }
   };
   
   // Helper function to validate date
@@ -439,7 +631,7 @@ export default function AddFarmerScreen() {
         console.log('[AddFarmerScreen] Profile data:', JSON.stringify(profileData, null, 2));
         
         // Try multiple possible field names for dealer name
-        const name = profileData.name || 
+        const name = profileData.firm_name || profileData.name || 
                      profileData.dealer_name || 
                      profileData.dealerName ||
                      profileData.full_name ||
@@ -454,9 +646,9 @@ export default function AddFarmerScreen() {
       } else if (response?.data) {
         // Handle case where response.data exists but status might not be true
         const profileData = response.data;
-        const name = profileData.name || 
+        const name = profileData.firm_name || profileData.name || 
                      profileData.dealer_name || 
-                     profileData.dealerName ||
+                     profileData.dealerName 
                      'Dealer';
         console.log('[AddFarmerScreen] Extracted dealer name (no status check):', name);
         setDealerName(name);
@@ -2437,11 +2629,8 @@ export default function AddFarmerScreen() {
         }
         
         // Scroll to first error field
-        if (firstErrorField && firstErrorY > 0) {
-          scrollViewRef.current?.scrollTo({
-            y: Math.max(0, firstErrorY - 100),
-            animated: true,
-          });
+        if (firstErrorField) {
+          scrollToFieldAndFocus(firstErrorField);
         } else {
           scrollViewRef.current?.scrollTo({y: 0, animated: true});
         }
@@ -3229,13 +3418,7 @@ export default function AddFarmerScreen() {
         
         for (const fieldName of errorFieldOrder) {
           if (currentErrors[fieldName as keyof FormErrors]) {
-            const firstErrorY = fieldPositions.current[fieldName] || 0;
-            if (firstErrorY > 0) {
-              scrollViewRef.current?.scrollTo({
-                y: Math.max(0, firstErrorY - 100),
-                animated: true,
-              });
-            }
+            scrollToFieldAndFocus(fieldName);
             break;
           }
         }
@@ -3407,13 +3590,10 @@ export default function AddFarmerScreen() {
           }
         }
         
-        // Scroll to first error field
-        if (firstErrorField && firstErrorY > 0) {
-          console.log(`Scrolling to error field: ${firstErrorField} at position: ${firstErrorY}`);
-          scrollViewRef.current?.scrollTo({
-            y: Math.max(0, firstErrorY - 100), // Offset by 100px to show field clearly
-            animated: true,
-          });
+        // Scroll to first error field and center it on screen
+        if (firstErrorField) {
+          console.log(`Scrolling to error field: ${firstErrorField}`);
+          scrollToFieldAndFocus(firstErrorField);
         } else {
           // Fallback: scroll to top if field position not found
           console.log('Field position not found, scrolling to top');
@@ -4528,8 +4708,12 @@ export default function AddFarmerScreen() {
           {/* Address Section */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>{t('addFarmer.address')}</Text>
-            <View onLayout={registerFieldPosition('houseNumber')}>
+            <View 
+              ref={(ref) => { fieldViewRefs.current['houseNumber'] = ref; }}
+              onLayout={registerFieldPosition('houseNumber')}
+            >
               <SimpleBoxInput
+                ref={houseNumberRef}
                 label={t('addFarmer.houseNumber')}
                 value={houseNumber}
                 onChangeText={text => {
@@ -4542,8 +4726,12 @@ export default function AddFarmerScreen() {
                 required={true}
               />
             </View>
-            <View onLayout={registerFieldPosition('streetName')}>
+            <View 
+              ref={(ref) => { fieldViewRefs.current['streetName'] = ref; }}
+              onLayout={registerFieldPosition('streetName')}
+            >
               <SimpleBoxInput
+                ref={streetNameRef}
                 label={t('addFarmer.streetName')}
                 value={streetName}
                 onChangeText={text => {
@@ -4563,7 +4751,10 @@ export default function AddFarmerScreen() {
               placeholder={t('addFarmer.enterLandmark')}
               numberOfLinesLabel={1}
             />
-            <View onLayout={registerFieldPosition('state')}>
+            <View 
+              ref={(ref) => { fieldViewRefs.current['state'] = ref; }}
+              onLayout={registerFieldPosition('state')}
+            >
               <SearchableDropdown
                 label={t('addFarmer.state')}
                 value={stateId}
@@ -4578,7 +4769,10 @@ export default function AddFarmerScreen() {
                 required={true}
               />
             </View>
-            <View onLayout={registerFieldPosition('district')}>
+            <View 
+              ref={(ref) => { fieldViewRefs.current['district'] = ref; }}
+              onLayout={registerFieldPosition('district')}
+            >
               <SearchableDropdown
                 label={t('addFarmer.district')}
                 value={districtId}
@@ -4593,7 +4787,10 @@ export default function AddFarmerScreen() {
                 required={true}
               />
             </View>
-            <View onLayout={registerFieldPosition('village')}>
+            <View 
+              ref={(ref) => { fieldViewRefs.current['village'] = ref; }}
+              onLayout={registerFieldPosition('village')}
+            >
               <SearchableDropdown
                 label={t('addFarmer.village')}
                 value={villageId}
@@ -4608,8 +4805,12 @@ export default function AddFarmerScreen() {
                 required={true}
               />
             </View>
-            <View onLayout={registerFieldPosition('pincode')}>
+            <View 
+              ref={(ref) => { fieldViewRefs.current['pincode'] = ref; }}
+              onLayout={registerFieldPosition('pincode')}
+            >
               <SimpleBoxInput
+                ref={pincodeRef}
                 label={t('addFarmer.pincode')}
                 value={pincode}
                 onChangeText={text => {
@@ -4648,6 +4849,7 @@ export default function AddFarmerScreen() {
 
               {/* Tractor Images Section */}
               <View 
+                ref={(ref) => { fieldViewRefs.current[`tractor_${tractor.id}_tractorImages`] = ref; }}
                 style={styles.tractorImagesContainer}
                 onLayout={registerFieldPosition(`tractor_${tractor.id}_tractorImages`)}
               >
@@ -4769,7 +4971,11 @@ export default function AddFarmerScreen() {
               </View> */}
 
               {/* RC Front and Back Images */}
-              <View style={styles.imageUploadContainer}>
+              <View 
+                ref={(ref) => { fieldViewRefs.current[`tractor_${tractor.id}_rcFront`] = ref; }}
+                onLayout={registerFieldPosition(`tractor_${tractor.id}_rcFront`)}
+                style={styles.imageUploadContainer}
+              >
                 {/* RC Front Image with OCR Loading Overlay */}
                 <View style={{flex: 1, marginRight: moderateScale(8)}}>
                   {renderImageUpload(
@@ -4930,8 +5136,12 @@ export default function AddFarmerScreen() {
               )}
 
               {/* Tractor Fields */}
-              <View onLayout={registerFieldPosition(`tractor_${tractor.id}_modelName`)}>
+              <View 
+                ref={(ref) => { fieldViewRefs.current[`tractor_${tractor.id}_modelName`] = ref; }}
+                onLayout={registerFieldPosition(`tractor_${tractor.id}_modelName`)}
+              >
                 <SimpleBoxInput
+                  ref={(ref) => { tractorInputRefs.current[`tractor_${tractor.id}_modelName`] = ref; }}
                   label={t('addFarmer.modelName')}
                   value={tractor.modelName}
                   onChangeText={text =>
@@ -4971,8 +5181,12 @@ export default function AddFarmerScreen() {
                     </View>
                   )}
               </View>
-              <View onLayout={registerFieldPosition(`tractor_${tractor.id}_vehicleNumber`)}>
+              <View 
+                ref={(ref) => { fieldViewRefs.current[`tractor_${tractor.id}_vehicleNumber`] = ref; }}
+                onLayout={registerFieldPosition(`tractor_${tractor.id}_vehicleNumber`)}
+              >
                 <SimpleBoxInput
+                  ref={(ref) => { tractorInputRefs.current[`tractor_${tractor.id}_vehicleNumber`] = ref; }}
                   label={t('addFarmer.vehicleNumber')}
                   value={tractor.vehicleNumber}
                   onChangeText={text =>
@@ -5012,8 +5226,12 @@ export default function AddFarmerScreen() {
                     </View>
                   )}
               </View>
-              <View onLayout={registerFieldPosition(`tractor_${tractor.id}_ownerName`)}>
+              <View 
+                ref={(ref) => { fieldViewRefs.current[`tractor_${tractor.id}_ownerName`] = ref; }}
+                onLayout={registerFieldPosition(`tractor_${tractor.id}_ownerName`)}
+              >
                 <SimpleBoxInput
+                  ref={(ref) => { tractorInputRefs.current[`tractor_${tractor.id}_ownerName`] = ref; }}
                   label={t('addFarmer.ownerName')}
                   value={tractor.ownerName}
                   onChangeText={text =>
@@ -5053,8 +5271,12 @@ export default function AddFarmerScreen() {
                     </View>
                   )}
               </View>
-              <View onLayout={registerFieldPosition(`tractor_${tractor.id}_chassisNumber`)}>
+              <View 
+                ref={(ref) => { fieldViewRefs.current[`tractor_${tractor.id}_chassisNumber`] = ref; }}
+                onLayout={registerFieldPosition(`tractor_${tractor.id}_chassisNumber`)}
+              >
                 <SimpleBoxInput
+                  ref={(ref) => { tractorInputRefs.current[`tractor_${tractor.id}_chassisNumber`] = ref; }}
                   label={t('addFarmer.chassisNumber')}
                   value={tractor.chassisNumber}
                   onChangeText={text =>
@@ -5094,8 +5316,12 @@ export default function AddFarmerScreen() {
                     </View>
                   )}
               </View>
-              <View onLayout={registerFieldPosition(`tractor_${tractor.id}_engineNumber`)}>
+              <View 
+                ref={(ref) => { fieldViewRefs.current[`tractor_${tractor.id}_engineNumber`] = ref; }}
+                onLayout={registerFieldPosition(`tractor_${tractor.id}_engineNumber`)}
+              >
                 <SimpleBoxInput
+                  ref={(ref) => { tractorInputRefs.current[`tractor_${tractor.id}_engineNumber`] = ref; }}
                   label={t('addFarmer.engineNumber')}
                   value={tractor.engineNumber}
                   onChangeText={text =>
@@ -5135,7 +5361,10 @@ export default function AddFarmerScreen() {
                     </View>
                   )}
               </View>
-              <View onLayout={registerFieldPosition(`tractor_${tractor.id}_purchaseDateDD`)}>
+              <View 
+                ref={(ref) => { fieldViewRefs.current[`tractor_${tractor.id}_purchaseDateDD`] = ref; }}
+                onLayout={registerFieldPosition(`tractor_${tractor.id}_purchaseDateDD`)}
+              >
                 {(() => {
                   // Initialize refs for this tractor if not exists
                   if (!purchaseDateRefs.current[tractor.id]) {
@@ -5217,8 +5446,12 @@ export default function AddFarmerScreen() {
                     })()
                   )}
               </View>
-              <View onLayout={registerFieldPosition(`tractor_${tractor.id}_whoFrom`)}>
+              <View 
+                ref={(ref) => { fieldViewRefs.current[`tractor_${tractor.id}_whoFrom`] = ref; }}
+                onLayout={registerFieldPosition(`tractor_${tractor.id}_whoFrom`)}
+              >
                 <SimpleBoxInput
+                  ref={(ref) => { tractorInputRefs.current[`tractor_${tractor.id}_whoFrom`] = ref; }}
                   label={t('addFarmer.whoDrives')}
                   value={tractor.whoFrom}
                   onChangeText={text =>

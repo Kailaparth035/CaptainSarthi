@@ -154,11 +154,15 @@
   "events": {
     "title": "घटनाएँ",
     "textToSpeech": "टेक्स्ट टू स्पीच",
-    "noEventsFound": "कोई इवेंट नहीं मिला"
+    "noEventsFound": "कोई इवेंट नहीं मिला",
+    "noEventFound": "कोई इवेंट नहीं मिला",
+    "goToHome": "होम पर जाएं"
   },
   "stories": {
     "title": "कहानियां",
-    "noStoriesFound": "कोई कहानी नहीं मिली"
+    "noStoriesFound": "कोई कहानी नहीं मिली",
+    "noStoryFound": "कोई कहानी नहीं मिली",
+    "goToHome": "होम पर जाएं"
   },
   "farmerHome": {
     "greeting": "नमस्ते",
@@ -199,6 +203,7 @@
     "dateOfMarriage": "विवाह की तारीख",
     "dealershipName": "डीलरशिप का नाम",
     "dealershipAddress": "डीलरशिप पता",
+    "farmerAddress": "किसान का पता",
     "tractorDetails": "ट्रैक्टर विवरण",
     "tractorCount": "ट्रैक्टर संख्या",
     "modelName": "मॉडल नाम",
@@ -208,7 +213,8 @@
     "engineNo": "इंजन नंबर",
     "dateOfInvoice": "चालान की तारीख",
     "dateOfRegistration": "पंजीकरण की तारीख",
-    "whoDrives": "कौन चलाता है"
+    "whoDrives": "कौन चलाता है",
+    "noImageFound": "कोई छवि नहीं मिली"
   },
   "reviewProfile": {
     "personalDetails": "व्यक्तिगत विवरण",

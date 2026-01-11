@@ -8,9 +8,12 @@ import {
   TextInput,
   ActivityIndicator,
   RefreshControl,
+  BackHandler,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
+import {TabParamList} from '../navigation/TabNavigator';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
@@ -86,6 +89,7 @@ export default function FarmerScreen() {
   const { moderateScale } = useDeviceMetrics();
   const {t} = useLanguage();
   const navigation = useNavigation<NavigationProp>();
+  const tabNavigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('name');
@@ -246,7 +250,15 @@ export default function FarmerScreen() {
     React.useCallback(() => {
       fetchFarmers();
       fetchCategories();
-    }, [])
+
+      // Handle back button - navigate to Home tab
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+        tabNavigation.navigate(SCREEN_NAMES.Home);
+        return true;
+      });
+
+      return () => backHandler.remove();
+    }, [tabNavigation])
   );
 
   // Filter categories for the modal - dynamically generated from API

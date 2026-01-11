@@ -8,6 +8,7 @@ const PROFILE_COMPLETED_KEY = '@profile_completed';
 const PROFILE_REVIEWED_KEY = '@profile_reviewed';
 const TERMS_ACCEPTED_KEY = '@terms_accepted';
 const LANGUAGE_SELECTED_KEY = '@language_selected';
+const ONBOARDING_SHOWN_KEY = '@onboarding_shown';
 const FARMER_PROFILE_DATA_KEY = '@farmer_profile_data';
 const PENDING_NAVIGATION_KEY = '@pending_navigation';
 
@@ -398,6 +399,32 @@ export const clearLanguageSelected = async (): Promise<void> => {
     await AsyncStorage.removeItem(LANGUAGE_SELECTED_KEY);
   } catch (error) {
     console.error('Error clearing language selection status:', error);
+    throw error;
+  }
+};
+
+/**
+ * Check if onboarding has been shown
+ */
+export const isOnboardingShown = async (): Promise<boolean> => {
+  try {
+    const shown = await AsyncStorage.getItem(ONBOARDING_SHOWN_KEY);
+    return shown === 'true';
+  } catch (error) {
+    console.error('Error checking onboarding shown status:', error);
+    return false;
+  }
+};
+
+/**
+ * Save onboarding shown status
+ */
+export const saveOnboardingShown = async (): Promise<void> => {
+  try {
+    await AsyncStorage.setItem(ONBOARDING_SHOWN_KEY, 'true');
+    console.log('Onboarding shown status saved to AsyncStorage');
+  } catch (error) {
+    console.error('Error saving onboarding shown status:', error);
     throw error;
   }
 };

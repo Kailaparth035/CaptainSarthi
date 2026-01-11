@@ -9,9 +9,12 @@ import {
   Image,
   RefreshControl,
   ImageBackground,
+  BackHandler,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation, useFocusEffect} from '@react-navigation/native';
+import {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
+import {FarmerTabParamList} from '../navigation/FarmerTabNavigator';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import colors from '../utils/colors';
@@ -75,6 +78,7 @@ export default function FarmerTractorsScreen() {
   const {moderateScale} = useDeviceMetrics();
   const {t} = useLanguage();
   const navigation = useNavigation();
+  const tabNavigation = useNavigation<BottomTabNavigationProp<FarmerTabParamList>>();
   const [tractors, setTractors] = useState<any[]>([]);
   const [loadingTractors, setLoadingTractors] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -176,7 +180,15 @@ export default function FarmerTractorsScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchTractors();
-    }, [])
+
+      // Handle back button - navigate to Home tab
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+        tabNavigation.navigate(SCREEN_NAMES.Home);
+        return true;
+      });
+
+      return () => backHandler.remove();
+    }, [tabNavigation])
   );
 
  const dynamicStyles = useMemo(

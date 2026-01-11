@@ -112,7 +112,7 @@ export function useImagePicker(): UseImagePickerReturn {
     try {
       const defaultOptions: ImagePickerOptions = {
         mediaType: 'photo',
-        quality: 1.0,
+        quality: 0.8,
         maxWidth: 2000,
         maxHeight: 2000,
         ...options,

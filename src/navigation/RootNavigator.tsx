@@ -7,7 +7,7 @@ import FarmerTabNavigator from './FarmerTabNavigator';
 import LoginScreen from '../screens/LoginScreen';
 import TermsScreen from '../screens/TermsScreen';
 import {SCREEN_NAMES} from '../constants/screenNames';
-import {isLoggedIn, getSession, isTermsAccepted, getUserRole, getUserData, isLanguageSelected, isProfileCompleted} from '../utils/session';
+import {isLoggedIn, getSession, isTermsAccepted, getUserRole, getUserData, isLanguageSelected, isProfileCompleted, isOnboardingShown} from '../utils/session';
 import {isFarmerRole} from '../utils/userRole';
 import ReviewProfileScreen from '../screens/ReviewProfileScreen';
 import LanguageSelectScreen from '../screens/LanguageSelectScreen';
@@ -40,16 +40,16 @@ export default function RootNavigator() {
 
   const checkSession = async () => {
     try {
-      // First check if terms have been accepted (onboarding)
-      const termsAccepted = await isTermsAccepted();
-      if (!termsAccepted) {
-        console.log('[RootNavigator] Terms not accepted - navigating to Onboarding');
+      // First check if onboarding has been shown (first time app install)
+      const onboardingShown = await isOnboardingShown();
+      if (!onboardingShown) {
+        console.log('[RootNavigator] Onboarding not shown - navigating to Onboarding');
         setInitialRoute(SCREEN_NAMES.Onboarding);
         setIsLoading(false);
         return;
       }
 
-      // Check if language has been selected (for first-time users)
+      // Check if language has been selected (after onboarding)
       const languageSelected = await isLanguageSelected();
       if (!languageSelected) {
         console.log('[RootNavigator] Language not selected - navigating to LanguageSelect');

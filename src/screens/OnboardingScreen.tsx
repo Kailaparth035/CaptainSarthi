@@ -18,7 +18,7 @@ import {Typography} from '../utils/typography';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import {useLanguage} from '../contexts/LanguageContext';
 import Button from '../components/Button';
-import {saveTermsAccepted} from '../utils/session';
+import {saveOnboardingShown} from '../utils/session';
 import {SCREEN_NAMES} from '../constants/screenNames';
 import {ImagePath} from '../assets/images';
 
@@ -38,10 +38,14 @@ export default function OnboardingScreen() {
   });
 
   const handleGetStarted = async () => {
-    if (termsAccepted) {
-      // Save terms acceptance
-      await saveTermsAccepted();
-      // Navigate to language selection screen first
+    try {
+      // Save onboarding shown status
+      await saveOnboardingShown();
+      // Navigate to language selection screen
+      navigation.replace(SCREEN_NAMES.LanguageSelect);
+    } catch (error) {
+      console.error('Error saving onboarding shown status:', error);
+      // Still navigate even if saving fails
       navigation.replace(SCREEN_NAMES.LanguageSelect);
     }
   };
@@ -149,12 +153,12 @@ export default function OnboardingScreen() {
             <Button
               title={t('onboarding.getStarted') || 'Get started'}
               onPress={handleGetStarted}
-              disabled={!termsAccepted}
+              // disabled={!termsAccepted}
               style={dynamicStyles.getStartedButton}
             />
 
             {/* Terms & Conditions */}
-            <View style={dynamicStyles.termsContainer}>
+            {/* <View style={dynamicStyles.termsContainer}>
               <TouchableOpacity
                 onPress={() => setTermsAccepted(!termsAccepted)}
                 activeOpacity={0.7}
@@ -179,7 +183,7 @@ export default function OnboardingScreen() {
                   {t('onboarding.beforeContinue') || 'before you continue.'}
                 </Text>
               </TouchableOpacity>
-            </View>
+            </View> */}
           </View>
         </View>
       </ImageBackground>
