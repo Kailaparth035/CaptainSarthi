@@ -1129,14 +1129,14 @@ export default function ReviewProfileScreen() {
               <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.engineNo')}</Text>
               <Text style={dynamicStyles.detailValue}>{tractor.engineNo}</Text>
             </View>
-            <View style={dynamicStyles.detailRow}>
+            {/* <View style={dynamicStyles.detailRow}>
               <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.mobileNo')}</Text>
               <Text style={dynamicStyles.detailValue}>{tractor.tractorMobileNo}</Text>
             </View>
             <View style={dynamicStyles.detailRow}>
               <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.dateOfInvoice')}</Text>
               <Text style={dynamicStyles.detailValue}>{tractor.dateOfInvoice}</Text>
-            </View>
+            </View> */}
             <View style={dynamicStyles.detailRow}>
               <Text style={dynamicStyles.detailLabel}>{t('farmerProfile.dateOfRegistration')}</Text>
               <Text style={dynamicStyles.detailValue}>{tractor.dateOfRegistration}</Text>

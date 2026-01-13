@@ -231,6 +231,11 @@ export default function FarmerTractorDetails() {
           paddingBottom: moderateScale(12),
           backgroundColor: colors.backgroundLight,
         },
+           headerLeft: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          flex: 1,
+        },
         backButton: {
           width: moderateScale(40),
           height: moderateScale(40),
@@ -411,26 +416,31 @@ export default function FarmerTractorDetails() {
   return (
       <View style={[dynamicStyles.container]}>
         {/* Header */}
+         {/* Header */}
         <View style={dynamicStyles.header}>
-          <TouchableOpacity
-            style={dynamicStyles.backButton}
-            onPress={() => {
-              // If coming from Home, navigate back to Home tab
-              // If coming from List, use goBack() to return to list
-              if (params?.fromScreen === 'Home') {
-                tabNavigation.navigate(SCREEN_NAMES.Home);
-              } else {
-                navigation.goBack();
-              }
-            }}
-            activeOpacity={0.7}>
-            <Ionicons
-              name="arrow-back"
-              size={moderateScale(20)}
-              color={colors.textPrimary}
-            />
-          </TouchableOpacity>
+          <View style={dynamicStyles.headerLeft}>
+            <TouchableOpacity
+              style={dynamicStyles.backButton}
+              onPress={() => {
+                // If coming from Home, navigate back to Home tab
+                // If coming from List, use goBack() to return to list
+                if (params?.fromScreen === 'Home') {
+                  tabNavigation.navigate(SCREEN_NAMES.Home);
+                } else {
+                  navigation.goBack();
+                }
+              }}
+              activeOpacity={0.7}>
+              <Ionicons
+                name="arrow-back"
+                size={moderateScale(20)}
+                color={colors.textPrimary}
+              />
+            </TouchableOpacity>
+            <Text style={dynamicStyles.headerTitle}>{t("farmerProfile.tractorDetails")}</Text>
+          </View>
         </View>
+
 
       {/* Scrollable Content */}
       {loading ? (
@@ -559,7 +569,7 @@ export default function FarmerTractorDetails() {
               onPress={() => setShowFullDescription(!showFullDescription)}
               activeOpacity={0.7}>
               <Text style={dynamicStyles.readMoreLink}>
-                {showFullDescription ? 'Read less' : 'Read more'}
+                {showFullDescription ? t('common.readLess') : t('common.readMore')}
               </Text>
             </TouchableOpacity>
           )}

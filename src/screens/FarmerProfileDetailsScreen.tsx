@@ -218,7 +218,7 @@ export default function FarmerProfileDetailsScreen() {
         // Dealership details
         const dealershipName = dealershipDetails.firm_name || dealershipDetails.dealership_name || '';
         const dealershipAddress = dealershipDetails.dealership_address || '';
-        const dealerShipNo = dealershipDetails.delaership_mobile_no || '';        
+        const dealerShipNo = `+91 ${dealershipDetails.delaership_mobile_no}` || '';        
         
         // Tractor details - map tractor_list to tractors array
         const tractors: Array<{
@@ -903,11 +903,11 @@ export default function FarmerProfileDetailsScreen() {
             value={profileDetails.lastName}
             moderateScale={moderateScale}
           />
-          <InfoRow
+          {/* <InfoRow
             label={t('farmerProfile.mobileNo')}
             value={profileDetails.mobile}
             moderateScale={moderateScale}
-          />
+          /> */}
           <InfoRow
             label={t('farmerProfile.dateOfBirth')}
             value={profileDetails.dateOfBirth}
@@ -924,7 +924,7 @@ export default function FarmerProfileDetailsScreen() {
             moderateScale={moderateScale}
           />
           <InfoRow
-            label={t('farmerProfile.dealershipName')}
+            label={t('farmerProfile.dealershipNumber')}
             value={profileDetails.dealerShipNo}
             moderateScale={moderateScale}
           />

@@ -665,7 +665,7 @@ export default function StoryDetailsScreen() {
               color={colors.textPrimary}
             />
           </TouchableOpacity>
-          <Text style={dynamicStyles.headerTitle}>Story detail</Text>
+          <Text style={dynamicStyles.headerTitle}>{t('stories.storyDetail')}</Text>
         </View>
         
         {/* Error State */}
@@ -709,7 +709,7 @@ export default function StoryDetailsScreen() {
               color={colors.textPrimary}
             />
           </TouchableOpacity>
-          <Text style={dynamicStyles.headerTitle}>Story detail</Text>
+          <Text style={dynamicStyles.headerTitle}>{t('stories.storyDetail')}</Text>
         </View>
         {renderSkeleton()}
       </View>
@@ -738,7 +738,7 @@ export default function StoryDetailsScreen() {
             color={colors.textPrimary}
           />
         </TouchableOpacity>
-        <Text style={dynamicStyles.headerTitle}>Story detail</Text>
+        <Text style={dynamicStyles.headerTitle}>{t('stories.storyDetail')}</Text>
       </View>
 
       {/* Scrollable Content */}
@@ -884,7 +884,7 @@ export default function StoryDetailsScreen() {
         {/* Story Title and Date Card */}
         <View style={dynamicStyles.card}>
           <Text style={dynamicStyles.storyTitle}>
-            {params?.title || storyDetails.title}
+            {storyDetails.title}
           </Text>
 
           {/* Date */}

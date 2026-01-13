@@ -211,7 +211,7 @@ export default function LanguageScreen() {
             color={colors.textPrimary}
           />
         </TouchableOpacity>
-        <Text style={dynamicStyles.headerTitle}>Language</Text>
+        <Text style={dynamicStyles.headerTitle}>{t('language.title')}</Text>
       </View>
 
       <ScrollView

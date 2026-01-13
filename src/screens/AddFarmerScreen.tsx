@@ -1307,10 +1307,20 @@ export default function AddFarmerScreen() {
         if (Array.isArray(tractorsData) && tractorsData.length > 0) {
           console.log('[AddFarmerScreen] Prefilling tractors:', tractorsData.length);
           const prefilledTractors: TractorDetails[] = tractorsData.map((tractor: any, index: number) => {
+            // Extract tractor_id from API response - check multiple possible field names
+            // This is critical for update operations
+            const apiTractorId = tractor.tractor_id || 
+                                tractor.id || 
+                                tractor.tractorId ||
+                                (tractor.tractor_id && String(tractor.tractor_id)) ||
+                                undefined;
+            
             console.log(`[AddFarmerScreen] Processing tractor ${index + 1}:`, {
-              tractor_id: tractor.tractor_id || tractor.id,
+              tractor_id: apiTractorId,
+              tractor_id_type: typeof apiTractorId,
               model: tractor.model_name || tractor.model,
               vehicle_no: tractor.vehicle_number || tractor.vehicleNo,
+              all_tractor_fields: Object.keys(tractor),
             });
             
             // Parse purchase date - check multiple field names
@@ -1452,7 +1462,7 @@ export default function AddFarmerScreen() {
             
             return {
               id: String(index + 1), // Keep local ID for UI operations
-              tractorId: tractor.tractor_id || tractor.id || undefined, // Store API's tractor_id
+              tractorId: apiTractorId ? String(apiTractorId) : undefined, // Store API's tractor_id as string for consistency
               tractorImages: tractorImages,
               rcFront: rcFront,
               rcBack: rcBack,
@@ -1471,13 +1481,19 @@ export default function AddFarmerScreen() {
           
           setTractors(prefilledTractors);
           console.log('[AddFarmerScreen] Prefilled tractors:', prefilledTractors.length);
+          console.log('[AddFarmerScreen] Tractor IDs verification:', prefilledTractors.map(t => ({
+            local_id: t.id,
+            tractor_id: t.tractorId,
+            model: t.modelName,
+            has_tractor_id: !!t.tractorId,
+          })));
         } else {
           console.log('[AddFarmerScreen] No tractor data found in API response');
         }
       }
     } catch (error) {
       console.error('Error fetching farmer details for edit:', error);
-      showToastMessage('Failed to load farmer details. Please try again.', 'error');
+      showToastMessage(t('addFarmer.errors.failedToLoadFarmerDetails'), 'error');
     } finally {
       setCategoriesLoading(false);
     }
@@ -1907,7 +1923,7 @@ export default function AddFarmerScreen() {
               tractorImages: newImages,
             };
           } else {
-            showToastMessage('At least one tractor image is required');
+            showToastMessage(t('addFarmer.errors.atLeastOneTractorImageRequired'));
           }
         }
         return tractor;
@@ -1935,7 +1951,7 @@ export default function AddFarmerScreen() {
     // Validate at least one image exists
     if (!rcFront && !rcBack) {
       console.log('[AddFarmerScreen] At least one RC image required for OCR processing');
-      showToastMessage('Please upload at least one RC Book image to extract data', 'error');
+      showToastMessage(t('addFarmer.errors.uploadRcImageToExtract'), 'error');
       return;
     }
 
@@ -2169,7 +2185,7 @@ export default function AddFarmerScreen() {
     if (tractors.length > 1) {
       setTractors(prev => prev.filter(t => t.id !== tractorId));
     } else {
-      showToastMessage('At least one tractor is required');
+      showToastMessage(t('addFarmer.errors.atLeastOneTractorRequired'));
     }
   };
 
@@ -2229,7 +2245,7 @@ export default function AddFarmerScreen() {
     if (!isEditMode) {
       console.log('Checking category:', category || '✗ Missing');
       if (!category) {
-        newErrors.category = 'Category is required';
+        newErrors.category = t('addFarmer.errors.categoryRequired');
         console.log('ERROR: Category is required');
       }
     }
@@ -2326,7 +2342,11 @@ export default function AddFarmerScreen() {
       if (unansweredQuestions.length > 0) {
         console.log('Unanswered question IDs:', unansweredQuestions.map(q => q.id));
         console.log('Unanswered question texts:', unansweredQuestions.map(q => q.question_text));
-        newErrors.selectedSubQuestion = `Please answer all ${questions.length} sub-question${questions.length > 1 ? 's' : ''}`;
+        const plural = questions.length > 1 ? 's' : '';
+        newErrors.selectedSubQuestion = t('addFarmer.errors.answerAllQuestions', {
+          count: questions.length,
+          plural: plural,
+        });
         console.log(`ERROR: ${unansweredQuestions.length} out of ${questions.length} questions are unanswered`);
       } else {
         console.log('✓ All questions answered successfully');
@@ -2340,37 +2360,37 @@ export default function AddFarmerScreen() {
     console.log('=== PERSONAL DETAILS VALIDATION ===');
     console.log('First name:', firstName || '✗ Missing');
     if (!firstName || !firstName.trim()) {
-      newErrors.firstName = 'First name is required';
+      newErrors.firstName = t('addFarmer.errors.firstNameRequired');
       console.log('ERROR: First name is required');
     }
     
     console.log('Last name:', lastName || '✗ Missing');
     if (!lastName || !lastName.trim()) {
-      newErrors.lastName = 'Last name is required';
+      newErrors.lastName = t('addFarmer.errors.lastNameRequired');
       console.log('ERROR: Last name is required');
     }
     
     console.log('Country code:', countryCode || '✗ Missing');
     if (!countryCode || !countryCode.trim()) {
-      newErrors.countryCode = 'Country code is required';
+      newErrors.countryCode = t('addFarmer.errors.countryCodeRequired');
       console.log('ERROR: Country code is required');
     }
     
     console.log('Phone number:', phoneNumber || '✗ Missing');
     if (!phoneNumber || !phoneNumber.trim()) {
-      newErrors.phoneNumber = 'Phone number is required';
+      newErrors.phoneNumber = t('addFarmer.errors.phoneNumberRequired');
       console.log('ERROR: Phone number is required');
     }
     
     console.log('Date of birth - DD:', dobDD, 'MM:', dobMM, 'YYYY:', dobYYYY);
     if (!dobDD || !dobDD.trim() || !dobMM || !dobMM.trim() || !dobYYYY || !dobYYYY.trim()) {
-      newErrors.dobDD = 'Date of birth is required';
+      newErrors.dobDD = t('addFarmer.errors.dateOfBirthRequired');
       console.log('ERROR: Date of birth is required');
     }
     
     console.log('Date of marriage - DD:', domDD, 'MM:', domMM, 'YYYY:', domYYYY);
     if (!domDD || !domDD.trim() || !domMM || !domMM.trim() || !domYYYY || !domYYYY.trim()) {
-      newErrors.domDD = 'Date of marriage is required';
+      newErrors.domDD = t('addFarmer.errors.dateOfMarriageRequired');
       console.log('ERROR: Date of marriage is required');
     }
     
@@ -2384,37 +2404,37 @@ export default function AddFarmerScreen() {
     console.log('=== ADDRESS VALIDATION ===');
     console.log('House number:', houseNumber || '✗ Missing');
     if (!houseNumber || !houseNumber.trim()) {
-      newErrors.houseNumber = 'House number is required';
+      newErrors.houseNumber = t('addFarmer.errors.houseNumberRequired');
       console.log('ERROR: House number is required');
     }
     
     console.log('Street name:', streetName || '✗ Missing');
     if (!streetName || !streetName.trim()) {
-      newErrors.streetName = 'Street name is required';
+      newErrors.streetName = t('addFarmer.errors.streetNameRequired');
       console.log('ERROR: Street name is required');
     }
     
     console.log('State ID:', stateId || '✗ Missing');
     if (!stateId || !stateId.trim()) {
-      newErrors.state = 'State is required';
+      newErrors.state = t('addFarmer.errors.stateRequired');
       console.log('ERROR: State is required');
     }
     
     console.log('District ID:', districtId || '✗ Missing');
     if (!districtId || !districtId.trim()) {
-      newErrors.district = 'District is required';
+      newErrors.district = t('addFarmer.errors.districtRequired');
       console.log('ERROR: District is required');
     }
     
     console.log('Village ID:', villageId || '✗ Missing');
     if (!villageId || !villageId.trim()) {
-      newErrors.village = 'Village is required';
+      newErrors.village = t('addFarmer.errors.villageRequired');
       console.log('ERROR: Village is required');
     }
     
     console.log('Pincode:', pincode || '✗ Missing');
     if (!pincode || !pincode.trim()) {
-      newErrors.pincode = 'Pincode is required';
+      newErrors.pincode = t('addFarmer.errors.pincodeRequired');
       console.log('ERROR: Pincode is required');
     }
 
@@ -2436,7 +2456,7 @@ export default function AddFarmerScreen() {
       );
       console.log('Tractor images:', uploadedTractorImages.length, 'uploaded out of', (tractor.tractorImages || []).length, 'slots');
       if (uploadedTractorImages.length === 0) {
-        tractorErrorsObj.tractorImages = 'At least one tractor image is required';
+        tractorErrorsObj.tractorImages = t('addFarmer.errors.atLeastOneTractorImageRequired');
         tractorErrors = true;
         console.log('ERROR: At least one tractor image is required');
       } else {
@@ -2445,42 +2465,42 @@ export default function AddFarmerScreen() {
 
       console.log('Model name:', tractor.modelName || '✗ Missing');
       if (!tractor.modelName || !tractor.modelName.trim()) {
-        tractorErrorsObj.modelName = 'Model name is required';
+        tractorErrorsObj.modelName = t('addFarmer.errors.modelNameRequired');
         tractorErrors = true;
         console.log('ERROR: Model name is required');
       }
       
       console.log('Chassis number:', tractor.chassisNumber || '✗ Missing');
       if (!tractor.chassisNumber || !tractor.chassisNumber.trim()) {
-        tractorErrorsObj.chassisNumber = 'Chassis number is required';
+        tractorErrorsObj.chassisNumber = t('addFarmer.errors.chassisNumberRequired');
         tractorErrors = true;
         console.log('ERROR: Chassis number is required');
       }
       
       console.log('Engine number:', tractor.engineNumber || '✗ Missing');
       if (!tractor.engineNumber || !tractor.engineNumber.trim()) {
-        tractorErrorsObj.engineNumber = 'Engine number is required';
+        tractorErrorsObj.engineNumber = t('addFarmer.errors.engineNumberRequired');
         tractorErrors = true;
         console.log('ERROR: Engine number is required');
       }
       
       console.log('Owner name:', tractor.ownerName || '✗ Missing');
       if (!tractor.ownerName || !tractor.ownerName.trim()) {
-        tractorErrorsObj.ownerName = 'Owner name is required';
+        tractorErrorsObj.ownerName = t('addFarmer.errors.ownerNameRequired');
         tractorErrors = true;
         console.log('ERROR: Owner name is required');
       }
       
       console.log('Vehicle number:', tractor.vehicleNumber || '✗ Missing');
       if (!tractor.vehicleNumber || !tractor.vehicleNumber.trim()) {
-        tractorErrorsObj.vehicleNumber = 'Vehicle number is required';
+        tractorErrorsObj.vehicleNumber = t('addFarmer.errors.vehicleNumberRequired');
         tractorErrors = true;
         console.log('ERROR: Vehicle number is required');
       } else {
         // Validate vehicle number format (e.g., "GJ 27 AJ 9314" or "GJ27AJ9314")
         const vehicleNumberRegex = /^[A-Z]{2}\s?\d{1,2}\s?[A-Z]{1,2}\s?\d{1,4}$/i;
         if (!vehicleNumberRegex.test(tractor.vehicleNumber.trim())) {
-          tractorErrorsObj.vehicleNumber = 'Please enter a valid vehicle number (e.g., GJ 27 AJ 9314)';
+          tractorErrorsObj.vehicleNumber = t('addFarmer.errors.validVehicleNumberRequired');
           tractorErrors = true;
           console.log('ERROR: Invalid vehicle number format');
         }
@@ -2490,7 +2510,7 @@ export default function AddFarmerScreen() {
       if (!tractor.purchaseDateDD || !tractor.purchaseDateDD.trim() || 
           !tractor.purchaseDateMM || !tractor.purchaseDateMM.trim() || 
           !tractor.purchaseDateYYYY || !tractor.purchaseDateYYYY.trim()) {
-        tractorErrorsObj.purchaseDateDD = 'Date of purchase is required';
+        tractorErrorsObj.purchaseDateDD = t('addFarmer.errors.dateOfPurchaseRequired');
         tractorErrors = true;
         console.log('ERROR: Date of purchase is required');
       }
@@ -2697,59 +2717,46 @@ export default function AddFarmerScreen() {
             
             console.log(`[AddFarmerScreen] Separated files - Existing: ${existingFiles.length}, New: ${newFiles.length}`);
             
-            // Always add an answer entry for file questions
-            // For rejected update, we need to send ALL files (existing + new) properly
-            // Send existing file URLs in answer_text so API preserves them
-            // New files will be uploaded via FormData and API should merge them with existing
+            // For rejected update: Handle existing and new files separately to prevent duplicates
+            // Existing files (URLs) -> include in answer_text and answer_documents (NOT uploaded via FormData)
+            // New files (local URIs) -> upload via FormData, include count in answer_text
             if (existingFiles.length > 0 || newFiles.length > 0) {
-              // Send ALL existing file URLs in answer_text (comma-separated)
-              // This ensures API preserves these files and merges with newly uploaded ones
-              // Format: "url1, url2, url3" - all existing URLs comma-separated
-              // New files are uploaded separately via FormData with question_docs_{index} key
+              // Prepare answer_text based on what we have
               let answerText = '';
               
-              if (existingFiles.length > 0) {
-                // Send existing document URLs in answer_text (comma-separated)
-                // This tells API to preserve these documents and keep them
+              if (existingFiles.length > 0 && newFiles.length > 0) {
+                // Both existing and new files
+                // Send existing URLs in answer_text, new files will be uploaded via FormData
                 answerText = existingFiles.join(', ');
-                console.log(`[AddFarmerScreen] Existing files URLs (${existingFiles.length}) in answer_text:`, answerText.substring(0, 150));
+                console.log(`[AddFarmerScreen] Question ${index}: Both existing (${existingFiles.length}) and new (${newFiles.length}) files - existing URLs in answer_text, new files will be uploaded`);
+              } else if (existingFiles.length > 0) {
+                // Only existing files - no changes made
+                // Send existing URLs in answer_text, NO upload via FormData (prevents duplicates)
+                answerText = existingFiles.join(', ');
+                console.log(`[AddFarmerScreen] Question ${index}: Only existing files (${existingFiles.length}) - URLs in answer_text, NO upload to prevent duplicates`);
+              } else if (newFiles.length > 0) {
+                // Only new files - user removed all existing and added new
+                // Send count message, new files will be uploaded via FormData
+                answerText = `${newFiles.length} file(s) uploaded`;
+                console.log(`[AddFarmerScreen] Question ${index}: Only new files (${newFiles.length}) - will be uploaded via FormData`);
               }
-              
-              // Note: New files are uploaded via FormData separately
-              // API should merge existing URLs from answer_text with new files from FormData
-              // We don't add count message here because existing URLs should be enough
-              // The API will see question_docs_{index} files in FormData and merge them
               
               // Always add answer entry for file questions (required for API)
-              // Include existing URLs so API knows to preserve them
-              if (answerText || newFiles.length > 0) {
-                // If we have existing files, send them with answer_documents array
-                // If we only have new files, still add an entry (API will use FormData files)
-                if (answerText && existingFiles.length > 0) {
-                  // Send existing URLs - API should preserve these
-                  // Include both answer_text (comma-separated) and answer_documents array
-                  // This ensures API preserves existing files and merges with new ones
-                  const answerObj: any = {
-                    id: question.id || Date.now(),
-                    answer_text: answerText, // Existing file URLs comma-separated
-                  };
-                  
-                  // Also include answer_documents array at answer level (if API supports it)
-                  if (existingFiles.length > 0) {
-                    answerObj.answer_documents = existingFiles;
-                  }
-                  
-                  answers.push(answerObj);
-                  console.log(`[AddFarmerScreen] Added answer entry with ${existingFiles.length} existing file URL(s) and answer_documents array for question ${index}`);
-                } else if (newFiles.length > 0) {
-                  // Only new files - add count message (same as add farmer)
-                  answers.push({
-                    id: question.id || Date.now(),
-                    answer_text: `${newFiles.length} file(s) uploaded`,
-                  });
-                  console.log(`[AddFarmerScreen] Added answer entry with ${newFiles.length} new file(s) for question ${index}`);
-                }
+              const answerObj: any = {
+                id: question.id || Date.now(),
+                answer_text: answerText,
+              };
+              
+              // Include answer_documents array with existing file URLs (if any)
+              // This tells API to preserve these documents
+              // New files are uploaded separately via FormData
+              if (existingFiles.length > 0) {
+                answerObj.answer_documents = existingFiles;
+                console.log(`[AddFarmerScreen] Added answer_documents array with ${existingFiles.length} existing file URL(s) for question ${index}`);
               }
+              
+              answers.push(answerObj);
+              console.log(`[AddFarmerScreen] Added answer entry for question ${index} with answer_text:`, answerText.substring(0, 100));
             } else {
               console.warn(`[AddFarmerScreen] Question ${index} has file type but no valid files found`);
             }
@@ -2878,38 +2885,76 @@ export default function AddFarmerScreen() {
           
           if (!apiTractorId) {
             console.error(`[AddFarmerScreen] ERROR: Tractor ${tractor.id} at index ${tractorIndex} has no tractorId! This should not happen.`);
+            console.error(`[AddFarmerScreen] Tractor object:`, JSON.stringify(tractor, null, 2));
+          }
+          
+          // Convert tractor_id to number if it's a numeric string (API might expect number)
+          // Otherwise keep as string
+          let formattedTractorId: string | number;
+          if (!apiTractorId) {
+            // If no tractor_id, this should not happen (filtered above), but handle gracefully
+            formattedTractorId = '';
+            console.error(`[AddFarmerScreen] WARNING: Tractor ${tractor.id} has no tractorId, using empty string`);
+          } else if (typeof apiTractorId === 'string' && !isNaN(parseInt(apiTractorId))) {
+            // If it's a numeric string, convert to number for API
+            formattedTractorId = parseInt(apiTractorId, 10);
+          } else if (typeof apiTractorId === 'number') {
+            // Already a number, use as is
+            formattedTractorId = apiTractorId;
+          } else {
+            // Keep as string
+            formattedTractorId = String(apiTractorId);
           }
           
           const tractorDetail: any = {
             // Include tractor_id FIRST - this is the key field that tells API which tractor to update
             // This comes from the API response (farmerDetails -> tractors array -> tractor_id)
-            tractor_id: apiTractorId, // Use tractor_id field - this is from API response
-            id: apiTractorId, // Also include id for compatibility
+            // CRITICAL: tractor_id must be present and correct for update to work
+            tractor_id: formattedTractorId, // Use formatted tractor_id - API needs this to identify which tractor to update
+            id: formattedTractorId, // Also include id for compatibility
             
             // Include all tractor details fields that can be updated
-            model_name: tractor.modelName,
-            vehicle_number: tractor.vehicleNumber,
-            chassis_number: tractor.chassisNumber,
-            engine_number: tractor.engineNumber,
-            invoice_day: tractor.purchaseDateDD,
-            invoice_month: tractor.purchaseDateMM,
-            invoice_year: tractor.purchaseDateYYYY,
-            registration_day: tractor.purchaseDateDD,
-            registration_month: tractor.purchaseDateMM,
-            registration_year: tractor.purchaseDateYYYY,
-            who_drives: tractor.whoFrom,
+            model_name: tractor.modelName || '',
+            vehicle_number: tractor.vehicleNumber || '',
+            chassis_number: tractor.chassisNumber || '',
+            engine_number: tractor.engineNumber || '',
+            invoice_day: tractor.purchaseDateDD || '',
+            invoice_month: tractor.purchaseDateMM || '',
+            invoice_year: tractor.purchaseDateYYYY || '',
+            registration_day: tractor.purchaseDateDD || '',
+            registration_month: tractor.purchaseDateMM || '',
+            registration_year: tractor.purchaseDateYYYY || '',
+            who_drives: tractor.whoFrom || '',
             owner_name: tractor.ownerName || '',
           };
           
-          console.log(`[AddFarmerScreen] Including existing tractor ${tractorIndex + 1}:`, {
-            local_id: tractor.id,
-            api_tractor_id: apiTractorId,
-            model_name: tractor.modelName,
-            vehicle_number: tractor.vehicleNumber,
-            has_images: (tractor.tractorImages || []).filter((img: string) => img && img.trim() !== '').length,
-            has_rc_front: !!tractor.rcFront,
-            has_rc_back: !!tractor.rcBack,
-          });
+          console.log(
+            `[AddFarmerScreen] Including existing tractor ${
+              tractorIndex + 1
+            } for update:`,
+            {
+              local_id: tractor.id,
+              api_tractor_id: apiTractorId,
+              formatted_tractor_id: formattedTractorId,
+              tractor_id_type: typeof formattedTractorId,
+              model_name: tractor.modelName,
+              vehicle_number: tractor.vehicleNumber,
+              chassis_number: tractor.chassisNumber,
+              engine_number: tractor.engineNumber,
+              owner_name: tractor.ownerName,
+              registration_day: tractor.purchaseDateDD, // Use purchase date for registration
+              registration_month: tractor.purchaseDateMM, // Use purchase date for registration
+              registration_year: tractor.purchaseDateYYYY, // Use pu
+              // purchase_date: `${tractor.purchaseDateDD}/${tractor.purchaseDateMM}/${tractor.purchaseDateYYYY}`,
+              has_images: (tractor.tractorImages || []).filter(
+                (img: string) => img && img.trim() !== ""
+              ).length,
+              has_rc_front: !!tractor.rcFront,
+              has_rc_back: !!tractor.rcBack,
+            }
+          );
+          
+          console.log(`[AddFarmerScreen] Tractor detail object for API:`, JSON.stringify(tractorDetail, null, 2));
           
           return tractorDetail;
         });
@@ -2929,6 +2974,10 @@ export default function AddFarmerScreen() {
       const selectedVillage = villages.find(v => v.value === villageId);
 
       // Prepare the data object according to API structure (same as handleUpdateFarmer but for rejected update)
+      // Use numeric ID if available, otherwise use clientId format
+      const updateFarmerId = farmerNumericId || routeParams?.farmerId;
+      console.log("updateFarmerId ::",updateFarmerId);
+      
       const farmerData = {
         farmer_id: routeParams?.farmerId, // Include farmer_id for update
         first_name: firstName,
@@ -2965,21 +3014,47 @@ export default function AddFarmerScreen() {
       // Add data as JSON string
       formData.append('data', JSON.stringify(farmerData));
       
-      // Add profile photo (if it's a new local image)
-      if (profilePhoto && (profilePhoto.startsWith('file://') || profilePhoto.startsWith('content://'))) {
-        const profileUriParts = profilePhoto.split('.');
-        const profileFileExtension = profileUriParts.length > 1 ? profileUriParts[profileUriParts.length - 1].toLowerCase() : 'jpg';
-        const profileMimeType = profileFileExtension === 'png' ? 'image/png' : 'image/jpeg';
-        const profileFileName = `profile-photo-${Date.now()}.${profileFileExtension}`;
+      // Add profile photo (if it exists - new local image or existing URL)
+      // For rejected update, include profile photo even if it's an existing URL to ensure it's preserved
+      if (profilePhoto) {
+        const isLocalImage = profilePhoto.startsWith('file://') || profilePhoto.startsWith('content://');
         
-        formData.append('profile_photo', {
-          uri: profilePhoto,
-          type: profileMimeType,
-          name: profileFileName,
-        } as any);
+        if (isLocalImage) {
+          // New local image - upload it
+          const profileUriParts = profilePhoto.split('.');
+          const profileFileExtension = profileUriParts.length > 1 ? profileUriParts[profileUriParts.length - 1].toLowerCase() : 'jpg';
+          const profileMimeType = profileFileExtension === 'png' ? 'image/png' : 'image/jpeg';
+          const profileFileName = `profile-photo-${Date.now()}.${profileFileExtension}`;
+          
+          formData.append('profile_photo', {
+            uri: profilePhoto,
+            type: profileMimeType,
+            name: profileFileName,
+          } as any);
+          console.log('[AddFarmerScreen] Uploading new profile photo (local URI)');
+        } else {
+          // Existing URL - include it in data so API knows to preserve it
+          // Also try to include it in FormData if API supports it
+          console.log('[AddFarmerScreen] Profile photo is existing URL, including in data:', profilePhoto.substring(0, 50));
+          // The profile photo URL should be included in the farmerData if API expects it
+          // For now, we'll also try to append it to FormData - API should handle existing URLs
+          const profileUriParts = profilePhoto.split('.');
+          const profileFileExtension = profileUriParts.length > 1 ? profileUriParts[profileUriParts.length - 1].toLowerCase() : 'jpg';
+          const profileMimeType = profileFileExtension === 'png' ? 'image/png' : 'image/jpeg';
+          const profileFileName = `profile-photo-${Date.now()}.${profileFileExtension}`;
+          
+          // Try to append existing URL - API might handle it or we might need to download it first
+          // For now, we'll include it - if API doesn't support URLs directly, we may need to download first
+          formData.append('profile_photo', {
+            uri: profilePhoto,
+            type: profileMimeType,
+            name: profileFileName,
+          } as any);
+        }
       }
 
       // Helper function to append file (image or document) to FormData
+      // Same behavior as add farmer - upload ALL images (both new local URIs and existing URLs)
       const appendFile = (key: string, fileUri: string, fileType: 'image' | 'document', index?: number) => {
         console.log('[AddFarmerScreen] appendFile called:', { key, fileUri: fileUri?.substring(0, 50) + '...', fileType, index });
         
@@ -2988,11 +3063,10 @@ export default function AddFarmerScreen() {
           return;
         }
         
-        // Only append new files (local URIs), skip existing URLs
-        if (!fileUri.startsWith('file://') && !fileUri.startsWith('content://')) {
-          console.warn('[AddFarmerScreen] appendFile: Not a local URI, skipping:', fileUri.substring(0, 50));
-          return; // Skip existing URLs
-        }
+        // Same as add farmer - upload ALL images (both new local URIs and existing URLs)
+        // API will handle both types correctly
+        const isLocalUri = fileUri.startsWith('file://') || fileUri.startsWith('content://');
+        console.log(`[AddFarmerScreen] appendFile: ${isLocalUri ? 'Local URI (new image)' : 'URL (existing image)'} - uploading both types like add farmer`);
         
         const uriParts = fileUri.split('.');
         const fileExtension = uriParts.length > 1 ? uriParts[uriParts.length - 1].toLowerCase() : 'jpg';
@@ -3079,26 +3153,28 @@ export default function AddFarmerScreen() {
             answer: answer,
           });
           
-          // Filter valid files - only new files (local URIs) will be uploaded
-          // Existing files (URLs) are already sent in answer_text for preservation
+          // For rejected update: Only upload NEW files (local URIs), NOT existing URLs
+          // Existing URLs are already included in answer_text and answer_documents array
+          // Uploading existing URLs again would cause duplicates
+          // Filter to only include NEW files (local URIs) for upload
           const validFiles = answer.filter((file: any) => {
             if (file && typeof file === 'object' && file.uri) {
               const isNewFile = file.uri && (file.uri.startsWith('file://') || file.uri.startsWith('content://'));
-              console.log(`[AddFarmerScreen] File check:`, {
+              console.log(`[AddFarmerScreen] File check for rejected update:`, {
                 uri: file.uri?.substring(0, 50) + '...',
-                isNewFile,
+                isNewFile: isNewFile ? 'New/changed file - WILL UPLOAD' : 'Existing/unchanged file URL - SKIP UPLOAD (already in answer_text)',
                 type: file.type,
                 name: file.name,
               });
-              // Only include new files (local URIs) - these need to be uploaded
-              return isNewFile;
+              // Only upload NEW files (local URIs), skip existing URLs to prevent duplicates
+              return isNewFile; // Only upload new files, not existing URLs
             }
             return false;
           });
           
-          console.log(`[AddFarmerScreen] Valid new files to upload for question ${questionIndex}:`, validFiles.length);
+          console.log(`[AddFarmerScreen] Valid NEW files to upload for question ${questionIndex} (existing URLs skipped to prevent duplicates):`, validFiles.length);
           
-          // Upload each new file
+          // Upload only NEW files (local URIs) - existing URLs are already in answer_text
           validFiles.forEach((file: any, fileIndex: number) => {
             const fileKey = `question_docs_${questionIndex}`;
             // Detect file type from file.type or from filename extension
@@ -3165,70 +3241,73 @@ export default function AddFarmerScreen() {
             const isNewFile = imageUri.startsWith('file://') || imageUri.startsWith('content://');
             console.log(`[AddFarmerScreen] Tractor ${tractorIndex}, Image ${imageIndex}:`, {
               uri: imageUri?.substring(0, 50) + '...',
-              isNewFile,
+              isNewFile: isNewFile ? 'Local URI (new/changed)' : 'URL (existing/unchanged)',
             });
             
-            // Only upload new files (local URIs), existing URLs should be preserved by API
-            if (isNewFile) {
-              // Use same key format as add farmer flow
-              // IMPORTANT: The tractorIndex here should match the index in tractorDetailsArray
-              // Both arrays filter existing tractors, so order should match
-              // When tractor count is 1 (tractorIndex = 0): both images use tractor_images_0
-              // When tractor count is 2 (tractorIndex = 1): first image uses tractor_images_1, second uses tractor_images_2
-              // The API will match these keys to the tractor at the same index in tractorDetailsArray
-              // So tractor_images_0 -> first tractor in tractorDetailsArray (with its tractor_id)
-              //    tractor_images_1 -> second tractor in tractorDetailsArray (with its tractor_id)
-              let imageKey = '';
-              if (tractorIndex === 0) {
-                // First tractor: both images use tractor_images_0
-                // This matches first tractor in tractorDetailsArray
-                imageKey = 'tractor_images_0';
-              } else if (tractorIndex === 1) {
-                // Second tractor: first image uses tractor_images_1
-                // This matches second tractor in tractorDetailsArray
-                imageKey = 'tractor_images_1';
-              } else {
-                // Fallback for any additional tractors
-                imageKey = `tractor_images_${tractorIndex}`;
-              }
-              
-              console.log(`[AddFarmerScreen] Uploading new tractor image:`, {
-                tractorIndex: tractorIndex,
-                api_tractor_id: tractor.tractorId,
-                imageIndex: imageIndex,
-                imageKey: imageKey,
-                uri: imageUri?.substring(0, 50) + '...',
-                note: `This image will be matched to tractor at index ${tractorIndex} in tractorDetailsArray (tractor_id: ${tractor.tractorId})`,
-              });
-              appendFile(imageKey, imageUri, 'image', imageIndex);
+            // Same as add farmer - upload ALL images (both new local URIs and existing URLs)
+            // If changed (new local URI) -> upload it
+            // If unchanged (existing URL) -> upload URL so API can preserve it
+            // Use same key format as add farmer flow
+            // IMPORTANT: The tractorIndex here should match the index in tractorDetailsArray
+            // Both arrays filter existing tractors, so order should match
+            // When tractor count is 1 (tractorIndex = 0): both images use tractor_images_0
+            // When tractor count is 2 (tractorIndex = 1): first image uses tractor_images_1, second uses tractor_images_2
+            // The API will match these keys to the tractor at the same index in tractorDetailsArray
+            // So tractor_images_0 -> first tractor in tractorDetailsArray (with its tractor_id)
+            //    tractor_images_1 -> second tractor in tractorDetailsArray (with its tractor_id)
+            let imageKey = '';
+            if (tractorIndex === 0) {
+              // First tractor: both images use tractor_images_0
+              // This matches first tractor in tractorDetailsArray
+              imageKey = 'tractor_images_0';
+            } else if (tractorIndex === 1) {
+              // Second tractor: first image uses tractor_images_1
+              // This matches second tractor in tractorDetailsArray
+              imageKey = 'tractor_images_1';
             } else {
-              console.log(`[AddFarmerScreen] Skipping existing tractor image URL (will be preserved by API)`);
+              // Fallback for any additional tractors
+              imageKey = `tractor_images_${tractorIndex}`;
             }
+            
+            console.log(`[AddFarmerScreen] Uploading tractor image (same as add farmer - uploads both new and existing):`, {
+              tractorIndex: tractorIndex,
+              api_tractor_id: tractor.tractorId,
+              imageIndex: imageIndex,
+              imageKey: imageKey,
+              uri: imageUri?.substring(0, 50) + '...',
+              isNewFile: isNewFile ? 'New/changed image' : 'Existing/unchanged image URL',
+              note: `This image will be matched to tractor at index ${tractorIndex} in tractorDetailsArray (tractor_id: ${tractor.tractorId})`,
+            });
+            appendFile(imageKey, imageUri, 'image', imageIndex);
           });
         }
 
-        // Add RC front image (only if it's a new file)
+        // Add RC front image - same as add farmer (upload ALL images - both new and existing)
         if (tractor.rcFront && tractor.rcFront.trim() !== '') {
           const isNewFile = tractor.rcFront.startsWith('file://') || tractor.rcFront.startsWith('content://');
-          if (isNewFile) {
-            // Use same format as add farmer: tractor_rc_front_{tractorIndex}
-            console.log(`[AddFarmerScreen] Uploading new RC front image for tractor ${tractorIndex}`);
-            appendFile(`tractor_rc_front_${tractorIndex}`, tractor.rcFront, 'image');
-          } else {
-            console.log(`[AddFarmerScreen] Skipping existing RC front image URL (will be preserved by API)`);
-          }
+          // Same as add farmer - upload ALL images (both new local URIs and existing URLs)
+          // If changed (new local URI) -> upload it
+          // If unchanged (existing URL) -> upload URL so API can preserve it
+          console.log(`[AddFarmerScreen] Uploading RC front image for tractor ${tractorIndex} (same as add farmer - uploads both new and existing):`, {
+            isNewFile: isNewFile ? 'New/changed image' : 'Existing/unchanged image URL',
+            uri: tractor.rcFront?.substring(0, 50) + '...',
+          });
+          // Use same format as add farmer: tractor_rc_front_{tractorIndex}
+          appendFile(`tractor_rc_front_${tractorIndex}`, tractor.rcFront, 'image');
         }
 
-        // Add RC back image (only if it's a new file)
+        // Add RC back image - same as add farmer (upload ALL images - both new and existing)
         if (tractor.rcBack && tractor.rcBack.trim() !== '') {
           const isNewFile = tractor.rcBack.startsWith('file://') || tractor.rcBack.startsWith('content://');
-          if (isNewFile) {
-            // Use same format as add farmer: tractor_rc_back_{tractorIndex}
-            console.log(`[AddFarmerScreen] Uploading new RC back image for tractor ${tractorIndex}`);
-            appendFile(`tractor_rc_back_${tractorIndex}`, tractor.rcBack, 'image');
-          } else {
-            console.log(`[AddFarmerScreen] Skipping existing RC back image URL (will be preserved by API)`);
-          }
+          // Same as add farmer - upload ALL images (both new local URIs and existing URLs)
+          // If changed (new local URI) -> upload it
+          // If unchanged (existing URL) -> upload URL so API can preserve it
+          console.log(`[AddFarmerScreen] Uploading RC back image for tractor ${tractorIndex} (same as add farmer - uploads both new and existing):`, {
+            isNewFile: isNewFile ? 'New/changed image' : 'Existing/unchanged image URL',
+            uri: tractor.rcBack?.substring(0, 50) + '...',
+          });
+          // Use same format as add farmer: tractor_rc_back_{tractorIndex}
+          appendFile(`tractor_rc_back_${tractorIndex}`, tractor.rcBack, 'image');
         }
       });
 
@@ -3340,7 +3419,7 @@ export default function AddFarmerScreen() {
     
     if (!updateId) {
       console.error('No valid numeric ID available for update API');
-      showToastMessage('Invalid farmer ID. Please try again.', 'error');
+      showToastMessage(t('addFarmer.errors.invalidFarmerId'), 'error');
       return;
     }
     
@@ -3354,42 +3433,42 @@ export default function AddFarmerScreen() {
 
     // Personal details validation
     if (!firstName || !firstName.trim()) {
-      newErrors.firstName = 'First name is required';
+      newErrors.firstName = t('addFarmer.errors.firstNameRequired');
     }
     if (!lastName || !lastName.trim()) {
-      newErrors.lastName = 'Last name is required';
+      newErrors.lastName = t('addFarmer.errors.lastNameRequired');
     }
     if (!countryCode || !countryCode.trim()) {
-      newErrors.countryCode = 'Country code is required';
+      newErrors.countryCode = t('addFarmer.errors.countryCodeRequired');
     }
     if (!phoneNumber || !phoneNumber.trim()) {
-      newErrors.phoneNumber = 'Phone number is required';
+      newErrors.phoneNumber = t('addFarmer.errors.phoneNumberRequired');
     }
     if (!dobDD || !dobDD.trim() || !dobMM || !dobMM.trim() || !dobYYYY || !dobYYYY.trim()) {
-      newErrors.dobDD = 'Date of birth is required';
+      newErrors.dobDD = t('addFarmer.errors.dateOfBirthRequired');
     }
     if (!domDD || !domDD.trim() || !domMM || !domMM.trim() || !domYYYY || !domYYYY.trim()) {
-      newErrors.domDD = 'Date of marriage is required';
+      newErrors.domDD = t('addFarmer.errors.dateOfMarriageRequired');
     }
 
     // Address validation
     if (!houseNumber || !houseNumber.trim()) {
-      newErrors.houseNumber = 'House number is required';
+      newErrors.houseNumber = t('addFarmer.errors.houseNumberRequired');
     }
     if (!streetName || !streetName.trim()) {
-      newErrors.streetName = 'Street name is required';
+      newErrors.streetName = t('addFarmer.errors.streetNameRequired');
     }
     if (!stateId || !stateId.trim()) {
-      newErrors.state = 'State is required';
+      newErrors.state = t('addFarmer.errors.stateRequired');
     }
     if (!districtId || !districtId.trim()) {
-      newErrors.district = 'District is required';
+      newErrors.district = t('addFarmer.errors.districtRequired');
     }
     if (!villageId || !villageId.trim()) {
-      newErrors.village = 'Village is required';
+      newErrors.village = t('addFarmer.errors.villageRequired');
     }
     if (!pincode || !pincode.trim()) {
-      newErrors.pincode = 'Pincode is required';
+      newErrors.pincode = t('addFarmer.errors.pincodeRequired');
     }
 
     setErrors(newErrors);
@@ -3469,7 +3548,7 @@ export default function AddFarmerScreen() {
         // Upload profile image first
         const imageResponse = await postDataWithImage(Apis.DEALER_PROFILE_IMAGE, imageFormData);
         if (imageResponse?.status !== true) {
-          showToastMessage('Failed to upload profile image. Please try again.', 'error');
+          showToastMessage(t('addFarmer.errors.failedToUploadProfileImage'), 'error');
           setSubmitting(false);
           return;
         }
@@ -3800,17 +3879,19 @@ export default function AddFarmerScreen() {
         } as any);
       };
 
-      // Add question document files with question_docs_{index} key
+      // Add question document files with question_docs_{questionId} key
       questions.forEach((question, questionIndex) => {
         const questionKey = `question_${question.id}_${questionIndex}`;
         const answer = subQuestionAnswers[questionKey];
         const questionType = question.question_type?.toLowerCase() || 'textbox';
-        
+        console.log("questionIndex ::",questionIndex);
         // Handle file/document type questions
         if ((questionType === 'file' || questionType === 'document') && Array.isArray(answer)) {
           const validFiles = answer.filter((file: any) => file && file.uri && file.uri.trim() !== '');
           validFiles.forEach((file: any, fileIndex: number) => {
+            // Use question ID instead of array index for the key            
             const fileKey = `question_docs_${questionIndex}`;
+            console.log("fileKey ::",fileKey);            
             appendFile(fileKey, file.uri, file.type || 'image', fileIndex);
           });
         }
@@ -3958,7 +4039,7 @@ export default function AddFarmerScreen() {
       // Validate month first
       if (monthNum < 1 || monthNum > 12) {
         if (setDateError) {
-          setDateError('Invalid month. Please enter a value between 01 and 12');
+          setDateError(t('addFarmer.errors.invalidMonth'));
         }
         return;
       }
@@ -3966,7 +4047,7 @@ export default function AddFarmerScreen() {
       // Validate date format
       if (!isValidDate(day, month, year)) {
         if (setDateError) {
-          setDateError('Invalid date. Please enter a valid date');
+          setDateError(t('addFarmer.errors.invalidDate'));
         }
         return;
       }
@@ -3976,7 +4057,7 @@ export default function AddFarmerScreen() {
         // Birth date must be less than current date
         if (compareDates(day, month, year, currentDD, currentMM, currentYYYY) >= 0) {
           if (setDateError) {
-            setDateError('Date of birth must be before today\'s date');
+            setDateError(t('addFarmer.errors.dobBeforeToday'));
           }
         } else {
           if (setDateError) {
@@ -3988,11 +4069,11 @@ export default function AddFarmerScreen() {
         if (dobDD && dobMM && dobYYYY) {
           if (compareDates(day, month, year, dobDD, dobMM, dobYYYY) < 0) {
             if (setDateError) {
-              setDateError('Date of marriage must be after date of birth');
+              setDateError(t('addFarmer.errors.domAfterDob'));
             }
           } else if (compareDates(day, month, year, currentDD, currentMM, currentYYYY) >= 0) {
             if (setDateError) {
-              setDateError('Date of marriage must be before today\'s date');
+              setDateError(t('addFarmer.errors.domBeforeToday'));
             }
           } else {
             if (setDateError) {
@@ -4003,7 +4084,7 @@ export default function AddFarmerScreen() {
           // If birth date not set yet, just check it's before current date
           if (compareDates(day, month, year, currentDD, currentMM, currentYYYY) >= 0) {
             if (setDateError) {
-              setDateError('Date of marriage must be before today\'s date');
+              setDateError(t('addFarmer.errors.domBeforeToday'));
             }
           } else {
             if (setDateError) {
@@ -4015,7 +4096,7 @@ export default function AddFarmerScreen() {
         // Purchase date should be reasonable (not in future, not too old)
         if (compareDates(day, month, year, currentDD, currentMM, currentYYYY) > 0) {
           if (setDateError) {
-            setDateError('Purchase date cannot be in the future');
+            setDateError(t('addFarmer.errors.purchaseDateNotFuture'));
           }
         } else {
           if (setDateError) {
@@ -4026,7 +4107,7 @@ export default function AddFarmerScreen() {
         // Registration date should be reasonable (not in future)
         if (compareDates(day, month, year, currentDD, currentMM, currentYYYY) > 0) {
           if (setDateError) {
-            setDateError('Registration date cannot be in the future');
+            setDateError(t('addFarmer.errors.registrationDateNotFuture'));
           }
         } else {
           if (setDateError) {
@@ -4063,14 +4144,14 @@ export default function AddFarmerScreen() {
       const numericText = text.replace(/[^0-9]/g, '');
       setMM(numericText);
       
-      // Validate month (1-12) immediately
-      if (numericText.length === 2) {
-        const month = parseInt(numericText, 10);
-        if (month < 1 || month > 12) {
-          if (setDateError) {
-            setDateError('Invalid month. Please enter a value between 01 and 12');
-          }
-        } else {
+        // Validate month (1-12) immediately
+        if (numericText.length === 2) {
+          const month = parseInt(numericText, 10);
+          if (month < 1 || month > 12) {
+            if (setDateError) {
+              setDateError(t('addFarmer.errors.invalidMonth'));
+            }
+          } else {
           // Auto-focus to YYYY when MM reaches maxLength
           if (yyyyRef?.current) {
             yyyyRef.current.focus();
@@ -4219,7 +4300,7 @@ export default function AddFarmerScreen() {
           />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          {isRejectedUpdate ? 'Update rejected farmer' : isEditMode ? 'Edit farmer' : 'Add new farmer'}
+          {isRejectedUpdate ? t('addFarmer.updateRejectedFarmer') : isEditMode ? t('addFarmer.editFarmer') : t('addFarmer.addNewFarmer')}
         </Text>
       </View>
 
@@ -4842,7 +4923,7 @@ export default function AddFarmerScreen() {
                     onPress={() => removeTractor(tractor.id)}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.removeTractorText}>Remove</Text>
+                    <Text style={styles.removeTractorText}>{t('addFarmer.remove')}</Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -4902,7 +4983,7 @@ export default function AddFarmerScreen() {
                               style={[styles.removeTractorButton, {marginTop: moderateScale(4)}]}
                               onPress={() => removeTractorImage(tractor.id, 0)}
                               activeOpacity={0.7}>
-                              <Text style={styles.removeTractorText}>Remove</Text>
+                              <Text style={styles.removeTractorText}>{t('addFarmer.remove')}</Text>
                             </TouchableOpacity>
                           )}
                         </View>
@@ -4923,7 +5004,7 @@ export default function AddFarmerScreen() {
                                 style={[styles.removeTractorButton, {marginTop: moderateScale(4)}]}
                                 onPress={() => removeTractorImage(tractor.id, 1)}
                                 activeOpacity={0.7}>
-                                <Text style={styles.removeTractorText}>Remove</Text>
+                                <Text style={styles.removeTractorText}>{t('addFarmer.remove')}</Text>
                               </TouchableOpacity>
                             )}
                           </View>
@@ -4979,7 +5060,7 @@ export default function AddFarmerScreen() {
                 {/* RC Front Image with OCR Loading Overlay */}
                 <View style={{flex: 1, marginRight: moderateScale(8)}}>
                   {renderImageUpload(
-                    t('uploadRcFront'),
+                    t('addFarmer.uploadRcFront'),
                     tractor.rcFront,
                     () => handleImagePicker('rcFront', tractor.id),
                     true,
@@ -5020,7 +5101,7 @@ export default function AddFarmerScreen() {
                 {/* RC Back Image with OCR Loading Overlay */}
                 <View style={{flex: 1, marginLeft: moderateScale(8)}}>
                   {renderImageUpload(
-                    t('uploadRcBack'),
+                    t('addFarmer.uploadRcBack'),
                     tractor.rcBack,
                     () => handleImagePicker('rcBack', tractor.id),
                     true,
@@ -5487,9 +5568,9 @@ export default function AddFarmerScreen() {
           <Button
             title={
               isRejectedUpdate 
-                ? 'Update rejected form' 
+                ? t('addFarmer.updateRejectedForm') 
                 : isEditMode 
-                  ? 'Update for verification' 
+                  ? t('addFarmer.updateForVerification')
                   : t('addFarmer.sendForVerification')
             }
             onPress={

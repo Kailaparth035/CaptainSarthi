@@ -1405,8 +1405,10 @@ export default function FarmerHomeScreen() {
             style={dynamicStyles.bellIcon}
             activeOpacity={0.7}
             onPress={() => {
-              // Navigate to Profile screen
-              tabNavigation.navigate(SCREEN_NAMES.Profile as any);
+              // Navigate to Profile screen - ensure it goes to root of FarmerProfileStack
+              tabNavigation.navigate(SCREEN_NAMES.Profile, {
+                screen: SCREEN_NAMES.Profile,
+              } as any);
             }}>
             <Ionicons
               name="person-outline"

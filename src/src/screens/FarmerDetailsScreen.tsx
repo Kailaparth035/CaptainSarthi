@@ -703,7 +703,7 @@ export default function FarmerDetailsScreen() {
               } as never);
             }
           }}>
-          <Text style={dynamicStyles.editButtonText}>Edit</Text>
+          <Text style={dynamicStyles.editButtonText}>{t('common.edit')}</Text>
         </TouchableOpacity>
       </View>
 
@@ -1067,7 +1067,7 @@ export default function FarmerDetailsScreen() {
                 moderateScale={moderateScale}
               />
               <InfoRow
-                label="Date of invoice"
+                label="Date of Registration"
                 value={tractor.dateOfInvoice}
                 moderateScale={moderateScale}
               />
