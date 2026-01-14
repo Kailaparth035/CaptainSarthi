@@ -6,10 +6,12 @@ import {
   Text,
   StyleSheet,
   Platform,
+  Image,
 } from "react-native";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import MaterialCommunityIcons from "react-native-vector-icons/MaterialCommunityIcons";
 import { SCREEN_NAMES } from "../../constants/screenNames";
+import { ImagePath } from "../../assets/images";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -34,38 +36,43 @@ function getIconForRoute(
   routeName: string,
   { focused, color, size }: IconProps
 ): React.ReactNode {
+  const iconSize = size;
+  
   switch (routeName) {
     case SCREEN_NAMES.Home:
+      // Use home_illed.png when focused, home_new.png when not focused
       return (
-        <Ionicons
-          name={focused ? "home-sharp" : "home-outline"}
-          size={size}
-          color={color}
+        <Image
+          source={focused ? ImagePath.home_illed : ImagePath.home_new}
+          style={{width: iconSize, height: iconSize}}
+          resizeMode="contain"
         />
       );
     case SCREEN_NAMES.Farmer:
+      // Use clients_fill.png when focused, farmertab.png when not focused
       return (
-        <Ionicons
-          name={focused ? "people" : "people-outline"}
-          size={size}
-          color={color}
+        <Image
+          source={focused ? ImagePath.clients_fill : ImagePath.farmertab}
+          style={{width: iconSize, height: iconSize}}
+          resizeMode="contain"
         />
       );
     case SCREEN_NAMES.Tractors:
+      // Use same images as farmer tractor tab (third tab)
       return (
-        <MaterialCommunityIcons
-          name="tractor"
-          size={size + 2}
-          color={color}
-          style={{ marginLeft: focused ? 15 : 0 }}
+        <Image
+          source={focused ? ImagePath.tractorSelected : ImagePath.tractorTab}
+          style={{width: iconSize, height: iconSize}}
+          resizeMode="contain"
         />
       );
     case SCREEN_NAMES.Profile:
+      // Use account_fill.png when focused, profile_unfilled.png when not focused
       return (
-        <Ionicons
-          name={focused ? "person" : "person-outline"}
-          size={size}
-          color={color}
+        <Image
+          source={focused ? ImagePath.account_fill : ImagePath.profile_unfilled}
+          style={{width: iconSize, height: iconSize}}
+          resizeMode="contain"
         />
       );
     default:
