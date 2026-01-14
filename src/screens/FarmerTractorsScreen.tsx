@@ -1,4 +1,4 @@
-import React, {useMemo, useState, useCallback} from 'react';
+import React, {useMemo, useState, useCallback, useEffect} from 'react';
 import {
   View,
   Text,
@@ -76,7 +76,7 @@ const TractorThumbnail = ({
 export default function FarmerTractorsScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
-  const {t} = useLanguage();
+  const {t, currentLanguage} = useLanguage();
   const navigation = useNavigation();
   const tabNavigation = useNavigation<BottomTabNavigationProp<FarmerTabParamList>>();
   const [tractors, setTractors] = useState<any[]>([]);
@@ -105,10 +105,25 @@ export default function FarmerTractorsScreen() {
       
       if (response?.status === true && response?.data) {
         // Check if data has tractors array (new structure)
-        const tractorsArray = response.data.tractors || 
+        const allTractorsArray = response.data.tractors || 
                            (Array.isArray(response.data) ? response.data : []);
         
-        console.log('[FarmerTractorsScreen] Tractors array extracted:', tractorsArray?.length || 0, 'tractors');
+        // Map language code to language_id
+        // 'en' -> 1, 'hi' -> 2, 'gu' -> 3
+        const languageIdMap: Record<string, number> = {
+          'en': 1,
+          'hi': 2,
+          'gu': 3,
+        };
+        
+        const currentLanguageId = languageIdMap[currentLanguage] || 1; // Default to English (1)
+        
+        // Filter tractors based on current language (exclude null language_id)
+        const tractorsArray = allTractorsArray.filter((tractor: any) => {
+          return tractor.language_id === currentLanguageId;
+        });
+        
+        console.log('[FarmerTractorsScreen] Tractors array extracted (filtered by language):', tractorsArray?.length || 0, 'tractors');
         
         if (Array.isArray(tractorsArray) && tractorsArray.length > 0) {
           const transformedTractors = tractorsArray.map((tractor: any, index: number) => {
@@ -140,7 +155,21 @@ export default function FarmerTractorsScreen() {
         }
       } else if (Array.isArray(response)) {
         // Fallback: if response is directly an array
-        const transformedTractors = response.map((tractor: any, index: number) => {
+        // Map language code to language_id
+        const languageIdMap: Record<string, number> = {
+          'en': 1,
+          'hi': 2,
+          'gu': 3,
+        };
+        
+        const currentLanguageId = languageIdMap[currentLanguage] || 1; // Default to English (1)
+        
+        // Filter tractors based on current language (exclude null language_id)
+        const filteredTractors = response.filter((tractor: any) => {
+          return tractor.language_id === currentLanguageId;
+        });
+        
+        const transformedTractors = filteredTractors.map((tractor: any, index: number) => {
           const colorsArray = [colors.tractorGreen, colors.tractorOrange, colors.tractorGreen];
           const color = colorsArray[index % colorsArray.length];
           const modelName = tractor.title || tractor.series || tractor.description || 'Unknown Model';
@@ -188,8 +217,13 @@ export default function FarmerTractorsScreen() {
       });
 
       return () => backHandler.remove();
-    }, [tabNavigation])
+    }, [tabNavigation, currentLanguage])
   );
+
+  // Refetch tractors when language changes
+  useEffect(() => {
+    fetchTractors();
+  }, [currentLanguage]);
 
  const dynamicStyles = useMemo(
     () =>

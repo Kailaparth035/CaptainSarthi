@@ -110,6 +110,7 @@ export default function VideoPlayer({
           height: screenHeight * 0.7,
           justifyContent: 'center',
           alignItems: 'center',
+          alignSelf: 'center',
         },
         videoPlayer: {
           width: '100%',
@@ -494,26 +495,28 @@ export default function VideoPlayer({
                   />
                 </View>
               ) : (
-                <TouchableOpacity
-                  style={dynamicStyles.videoContainer}
-                  activeOpacity={1}
-                  onPress={handleVideoPress}>
-                  <Video
-                    ref={videoRef}
-                    source={{uri: videoUri}}
-                    style={dynamicStyles.videoPlayer}
-                    paused={!isPlaying}
-                    resizeMode="contain"
-                    onLoad={handleVideoLoad}
-                    onError={handleVideoError}
-                    onProgress={handleProgress}
-                    controls={false}
-                    playInBackground={false}
-                    playWhenInactive={false}
-                    volume={volume}
-                    muted={volume === 0}
-                  />
-                </TouchableOpacity>
+                <View style={dynamicStyles.videoContainer}>
+                  <TouchableOpacity
+                    style={{width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center'}}
+                    activeOpacity={1}
+                    onPress={handleVideoPress}>
+                    <Video
+                      ref={videoRef}
+                      source={{uri: videoUri}}
+                      style={dynamicStyles.videoPlayer}
+                      paused={!isPlaying}
+                      resizeMode="contain"
+                      onLoad={handleVideoLoad}
+                      onError={handleVideoError}
+                      onProgress={handleProgress}
+                      controls={false}
+                      playInBackground={false}
+                      playWhenInactive={false}
+                      volume={volume}
+                      muted={volume === 0}
+                    />
+                  </TouchableOpacity>
+                </View>
               )}
               
               {isVideoLoading && !isYouTubeVideo && (
