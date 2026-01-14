@@ -229,7 +229,7 @@ export default function AddFarmerScreen() {
   const {moderateScale} = useDeviceMetrics();
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute();
-  const {t} = useLanguage();
+  const {t, currentLanguage} = useLanguage();
   const scrollViewRef = useRef<ScrollView>(null);
   const {pickImage} = useImagePicker();
   
@@ -800,12 +800,28 @@ export default function AddFarmerScreen() {
       const response = await getData(Apis.DEALER_CATEGORIES, {});
       
       if (response?.status === true && response?.data) {
-        const categories = response.data.map((cat: any) => ({
+        // Map language code to language_id
+        // 'en' -> 1, 'hi' -> 2, 'gu' -> 3
+        const languageIdMap: Record<string, number> = {
+          'en': 1,
+          'hi': 2,
+          'gu': 3,
+        };
+        
+        const currentLanguageId = languageIdMap[currentLanguage] || 1; // Default to English (1)
+        
+        // Filter categories based on current language
+        const filteredCategories = response.data.filter((cat: any) => {
+          // Show only categories with matching language_id (exclude null language_id)
+          return cat.language_id === currentLanguageId;
+        });
+        
+        const categories = filteredCategories.map((cat: any) => ({
           label: cat.name || '',
           value: cat.id?.toString() || '',
         }));
         setCategoryOptions(categories);
-        console.log('Categories loaded:', categories);
+        console.log('Categories loaded (filtered by language):', categories);
       } else {
         console.warn('Failed to fetch categories:', response);
         showToastMessage('Failed to load categories. Please try again.');
@@ -849,8 +865,13 @@ export default function AddFarmerScreen() {
     React.useCallback(() => {
       console.log('[AddFarmerScreen] Screen focused - fetching latest categories');
       fetchCategories();
-    }, [])
+    }, [currentLanguage])
   );
+
+  // Refetch categories when language changes
+  useEffect(() => {
+    fetchCategories();
+  }, [currentLanguage]);
 
   // Fetch farmer details in edit mode or rejected update mode
   const fetchFarmerDetailsForEdit = async () => {
