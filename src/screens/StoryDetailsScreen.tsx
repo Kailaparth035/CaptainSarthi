@@ -180,10 +180,41 @@ export default function StoryDetailsScreen() {
         const galleryImages: any[] = [];
         if (storyData.media?.images && Array.isArray(storyData.media.images)) {
           storyData.media.images.forEach((imgObj: any) => {
-            const imgUrl = imgObj.image_url ? getImageUrl(imgObj.image_url) : null;
-            if (imgUrl) {
-              galleryImages.push({uri: imgUrl});
+            let imageUrls: string[] = [];
+            
+            // Check if image_url is a JSON string (current API format)
+            if (imgObj.image_url) {
+              if (typeof imgObj.image_url === 'string' && imgObj.image_url.trim().startsWith('[')) {
+                // Parse JSON string to array
+                try {
+                  const parsedUrls = JSON.parse(imgObj.image_url);
+                  if (Array.isArray(parsedUrls)) {
+                    imageUrls = parsedUrls;
+                  } else {
+                    // If it's a single string, add it to array
+                    imageUrls = [imgObj.image_url];
+                  }
+                } catch (e) {
+                  // If parsing fails, treat as single string
+                  console.warn('[StoryDetailsScreen] Failed to parse image_url JSON:', e);
+                  imageUrls = [imgObj.image_url];
+                }
+              } else if (Array.isArray(imgObj.image_url)) {
+                // Future API format: already an array
+                imageUrls = imgObj.image_url;
+              } else {
+                // Single string URL
+                imageUrls = [imgObj.image_url];
+              }
             }
+            
+            // Process all image URLs
+            imageUrls.forEach((url: string) => {
+              const imgUrl = getImageUrl(url);
+              if (imgUrl) {
+                galleryImages.push({uri: imgUrl});
+              }
+            });
           });
         }
         // If no gallery images, use thumbnail
@@ -320,53 +351,33 @@ export default function StoryDetailsScreen() {
           overflow: 'hidden',
           backgroundColor: 'transparent',
         },
-        thumbnailContainer: {
+        thumbnailRow: {
           flexDirection: 'row',
           gap: moderateScale(8),
           marginTop: moderateScale(8),
-          height: moderateScale(128),
-        },
-        thumbnailLeft: {
-          flex: 1.8,
-          borderRadius: moderateScale(8),
-          overflow: 'hidden',
-          backgroundColor: 'transparent',
-        },
-        thumbnailRight: {
-          flex: 1,
-          gap: moderateScale(8),
-          justifyContent: 'space-between',
         },
         thumbnail: {
+          flex: 1,
+          aspectRatio: 16 / 9,
           borderRadius: moderateScale(8),
-          backgroundColor: 'transparent',
+          backgroundColor: colors.backgroundGray,
           overflow: 'hidden',
         },
         thumbnailImage: {
           width: '100%',
-          height: moderateScale(60),
-          borderRadius: moderateScale(8),
-        },
-        thumbnailLeftImage: {
-          width: '100%',
           height: '100%',
-          borderRadius: moderateScale(8),
+          backgroundColor: colors.backgroundGray,
         },
         thumbnailMore: {
           width: '100%',
           height: '100%',
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          backgroundColor: colors.textSecondary,
           alignItems: 'center',
           justifyContent: 'center',
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
         },
         thumbnailMoreText: {
-          ...Typography.semiBoldMd,
-          fontSize: moderateScale(14),
+          ...Typography.regularMd,
+          fontSize: moderateScale(12),
           color: colors.textWhite,
         },
         storyTitle: {
@@ -829,34 +840,14 @@ export default function StoryDetailsScreen() {
           )
         )}
 
-          {/* Thumbnails Grid - Left: Full height, Right: 2 stacked - Only show when video exists */}
-          {storyDetails.videoUri && storyDetails.videoUri.trim() !== '' && (
-            <View style={dynamicStyles.thumbnailContainer}>
-            {/* Left: Full height image */}
-            {storyDetails.images && storyDetails.images.length > 0 && (
-              <TouchableOpacity
-                style={dynamicStyles.thumbnailLeft}
-                onPress={() => handleImagePress(0)}
-                activeOpacity={0.7}>
-                <Image
-                  source={
-                    typeof storyDetails.images[0] === 'object' && storyDetails.images[0]?.uri
-                      ? {uri: storyDetails.images[0].uri}
-                      : storyDetails.images[0] || ImagePath.eventImage
-                  }
-                  style={dynamicStyles.thumbnailLeftImage}
-                  resizeMode="cover"
-                />
-              </TouchableOpacity>
-            )}
-
-            {/* Right: 2 stacked images */}
-            <View style={dynamicStyles.thumbnailRight}>
-              {storyDetails.images?.slice(1, 3).map((image: any, index: number) => (
+          {/* Thumbnails Row - Show when there are multiple images (regardless of video) */}
+          {storyDetails.images && storyDetails.images.length > 1 && (
+            <View style={dynamicStyles.thumbnailRow}>
+              {storyDetails.images.slice(0, 5).map((image: any, index: number) => (
                 <TouchableOpacity
-                  key={index + 1}
-                  style={[dynamicStyles.thumbnail]}
-                  onPress={() => handleImagePress(index + 1)}
+                  key={index}
+                  style={dynamicStyles.thumbnail}
+                  onPress={() => handleImagePress(index)}
                   activeOpacity={0.7}>
                   <Image
                     source={
@@ -867,17 +858,21 @@ export default function StoryDetailsScreen() {
                     style={dynamicStyles.thumbnailImage}
                     resizeMode="cover"
                   />
-                  {index === 1 && storyDetails.images && storyDetails.images.length > 3 && (
-                    <View style={dynamicStyles.thumbnailMore}>
-                      <Text style={dynamicStyles.thumbnailMoreText}>
-                        + {storyDetails.images.length - 3} more
-                      </Text>
-                    </View>
-                  )}
                 </TouchableOpacity>
               ))}
+              {storyDetails.images.length > 5 && (
+                <TouchableOpacity
+                  style={dynamicStyles.thumbnail}
+                  onPress={() => handleImagePress(5)}
+                  activeOpacity={0.7}>
+                  <View style={dynamicStyles.thumbnailMore}>
+                    <Text style={dynamicStyles.thumbnailMoreText}>
+                      + {storyDetails.images.length - 5} more
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              )}
             </View>
-          </View>
           )}
         {/* </View> */}
 

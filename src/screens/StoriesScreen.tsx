@@ -77,22 +77,81 @@ export default function StoriesScreen() {
         videoUrl = story.video_url || story.videoUrl;
       }
       
-      // Priority: cover_image_url > YouTube thumbnail > image_url > default
+      // Priority: multiple images[0] > cover_image_url > YouTube thumbnail > image_url > default
       let imageUrl = null;
       
-      // First check for cover_image_url
-      if (story.cover_image_url) {
-        imageUrl = getImageUrl(story.cover_image_url);
-      } else if (story.media?.cover_image_url) {
-        imageUrl = getImageUrl(story.media.cover_image_url);
+      // First check for multiple images in media.images - use first image
+      if (story.media?.images && Array.isArray(story.media.images) && story.media.images.length > 0) {
+        const firstImageObj = story.media.images[0];
+        if (firstImageObj?.image_url) {
+          // Handle JSON string format (current API) or array format (future API)
+          let imageUrls: string[] = [];
+          if (typeof firstImageObj.image_url === 'string' && firstImageObj.image_url.trim().startsWith('[')) {
+            // Parse JSON string to array
+            try {
+              const parsedUrls = JSON.parse(firstImageObj.image_url);
+              if (Array.isArray(parsedUrls) && parsedUrls.length > 0) {
+                imageUrls = parsedUrls;
+              } else {
+                imageUrls = [firstImageObj.image_url];
+              }
+            } catch (e) {
+              imageUrls = [firstImageObj.image_url];
+            }
+          } else if (Array.isArray(firstImageObj.image_url)) {
+            // Future API format: already an array
+            imageUrls = firstImageObj.image_url;
+          } else {
+            // Single string URL
+            imageUrls = [firstImageObj.image_url];
+          }
+          
+          // Use first image from the array
+          if (imageUrls.length > 0) {
+            imageUrl = getImageUrl(imageUrls[0]);
+          }
+        }
       }
+      
+      // If no multiple images, check for cover_image_url
+      if (!imageUrl) {
+        let coverImageUrl = story.cover_image_url || story.media?.cover_image_url;
+        if (coverImageUrl) {
+          // Handle JSON string format (multiple images) or single string
+          if (typeof coverImageUrl === 'string' && coverImageUrl.trim().startsWith('[')) {
+            // Parse JSON string to array
+            try {
+              const parsedUrls = JSON.parse(coverImageUrl);
+              if (Array.isArray(parsedUrls) && parsedUrls.length > 0) {
+                // Use first image from the array
+                imageUrl = getImageUrl(parsedUrls[0]);
+              } else {
+                imageUrl = getImageUrl(coverImageUrl);
+              }
+            } catch (e) {
+              // If parsing fails, treat as single string
+              imageUrl = getImageUrl(coverImageUrl);
+            }
+          } else if (Array.isArray(coverImageUrl)) {
+            // Future API format: already an array
+            if (coverImageUrl.length > 0) {
+              imageUrl = getImageUrl(coverImageUrl[0]);
+            }
+          } else {
+            // Single string URL
+            imageUrl = getImageUrl(coverImageUrl);
+          }
+        }
+      }
+      
       // If no cover_image_url, check for YouTube thumbnail
-      else if (videoUrl && isYouTubeUrl(videoUrl)) {
+      if (!imageUrl && videoUrl && isYouTubeUrl(videoUrl)) {
         const youtubeThumbnail = getYouTubeThumbnailUrl(videoUrl, 'maxresdefault');
         imageUrl = youtubeThumbnail;
       }
+      
       // If no YouTube thumbnail, check for image_url
-      else if (story.image_url) {
+      if (!imageUrl && story.image_url) {
         imageUrl = getImageUrl(story.image_url);
       }
       
