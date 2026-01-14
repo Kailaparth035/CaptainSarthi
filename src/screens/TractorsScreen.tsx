@@ -1,4 +1,4 @@
-import React, {useMemo, useState} from 'react';
+import React, {useMemo, useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -81,7 +81,7 @@ const TractorThumbnail = ({
 export default function TractorsScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
-  const {t} = useLanguage();
+  const {t, currentLanguage} = useLanguage();
   const navigation = useNavigation<NavigationProp>();
   const tabNavigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
   const [tractors, setTractors] = useState<any[]>([]);
@@ -110,10 +110,25 @@ export default function TractorsScreen() {
       
       if (response?.status === true && response?.data) {
         // Check if data has tractors array (new structure)
-        const tractorsArray = response.data.tractors || 
+        const allTractorsArray = response.data.tractors || 
                             (Array.isArray(response.data) ? response.data : []);
         
-        console.log('[TractorsScreen] Tractors array extracted:', tractorsArray?.length || 0, 'tractors');
+        // Map language code to language_id
+        // 'en' -> 1, 'hi' -> 2, 'gu' -> 3
+        const languageIdMap: Record<string, number> = {
+          'en': 1,
+          'hi': 2,
+          'gu': 3,
+        };
+        
+        const currentLanguageId = languageIdMap[currentLanguage] || 1; // Default to English (1)
+        
+        // Filter tractors based on current language (exclude null language_id)
+        const tractorsArray = allTractorsArray.filter((tractor: any) => {
+          return tractor.language_id === currentLanguageId;
+        });
+        
+        console.log('[TractorsScreen] Tractors array extracted (filtered by language):', tractorsArray?.length || 0, 'tractors');
         
         if (Array.isArray(tractorsArray) && tractorsArray.length > 0) {
           const transformedTractors = tractorsArray.map((tractor: any, index: number) => {
@@ -193,8 +208,13 @@ export default function TractorsScreen() {
       });
 
       return () => backHandler.remove();
-    }, [tabNavigation])
+    }, [tabNavigation, currentLanguage])
   );
+
+  // Refetch tractors when language changes
+  useEffect(() => {
+    fetchTractors();
+  }, [currentLanguage]);
 
 
  const dynamicStyles = useMemo(

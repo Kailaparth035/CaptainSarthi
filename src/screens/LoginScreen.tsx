@@ -501,15 +501,18 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
               console.log('[LoginScreen] Profile completed - navigating to FarmerTabs');
               navigation.replace(SCREEN_NAMES.FarmerTabs);
               
-              // If there's a pending notification navigation, navigate to Notifications screen
-              if (hasPendingNotificationNav) {
-                console.log('[LoginScreen] Pending notification navigation detected - will navigate to Notifications');
-                // Wait a bit for navigation to complete, then navigate to Notifications
+              // If there's a pending notification navigation, navigate to EventDetails screen (same as OPEN_EVENT_DETAIL)
+              if (hasPendingNotificationNav && pendingNav?.params?.eventId) {
+                console.log('[LoginScreen] Pending notification navigation detected - will navigate to EventDetails with notification_id:', pendingNav.params.eventId);
+                // Wait a bit for navigation to complete, then navigate to EventDetails
                 setTimeout(() => {
                   (navigation as any).navigate(SCREEN_NAMES.FarmerTabs, {
-                    screen: SCREEN_NAMES.Home,
+                    screen: SCREEN_NAMES.Events,
                     params: {
-                      screen: SCREEN_NAMES.Notifications,
+                      screen: SCREEN_NAMES.EventDetails,
+                      params: {
+                        eventId: pendingNav.params.eventId,
+                      },
                     },
                   });
                   // Clear pending navigation
@@ -577,14 +580,17 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
                 console.log('[LoginScreen] Profile completed (fallback) - navigating to FarmerTabs');
                 navigation.replace(SCREEN_NAMES.FarmerTabs);
                 
-                // If there's a pending notification navigation, navigate to Notifications screen
-                if (hasPendingNotificationNav) {
-                  console.log('[LoginScreen] Pending notification navigation detected (fallback) - will navigate to Notifications');
+                // If there's a pending notification navigation, navigate to EventDetails screen (same as OPEN_EVENT_DETAIL)
+                if (hasPendingNotificationNav && pendingNav?.params?.eventId) {
+                  console.log('[LoginScreen] Pending notification navigation detected (fallback) - will navigate to EventDetails with notification_id:', pendingNav.params.eventId);
                   setTimeout(() => {
                     (navigation as any).navigate(SCREEN_NAMES.FarmerTabs, {
-                      screen: SCREEN_NAMES.Home,
+                      screen: SCREEN_NAMES.Events,
                       params: {
-                        screen: SCREEN_NAMES.Notifications,
+                        screen: SCREEN_NAMES.EventDetails,
+                        params: {
+                          eventId: pendingNav.params.eventId,
+                        },
                       },
                     });
                     clearPendingNavigation();

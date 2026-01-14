@@ -59,6 +59,16 @@ function App() {
                 console.log('App: 📬 Notification click action detected: OPEN_NOTIFICATION_DETAIL');
                 
                 try {
+                  // Extract notification_id from notification data
+                  const notificationId = remoteMessage.data.notification_id || remoteMessage.data.notificationId;
+                  
+                  if (!notificationId) {
+                    console.error('App: ❌ No notification_id found in notification data');
+                    return;
+                  }
+                  
+                  console.log('App: 📬 Notification ID:', notificationId);
+                  
                   // Check if user is logged in
                   const loggedIn = await isLoggedIn();
                   
@@ -68,24 +78,27 @@ function App() {
                     const isFarmer = userRole === 'farmer';
                     
                     if (isFarmer) {
-                      console.log('App: ✅ Farmer logged in - navigating to Notifications screen');
+                      console.log('App: ✅ Farmer logged in - navigating to Event Details screen with notification_id');
                       
                       // Function to attempt navigation
                       const attemptNavigation = (retries = 0) => {
                         if (navigationRef.current?.isReady()) {
-                          // Navigate to FarmerTabs first, then to Notifications
+                          // Navigate to FarmerTabs -> Events -> EventDetails with notification_id as eventId
                           navigationRef.current?.dispatch(
                             CommonActions.navigate({
                               name: SCREEN_NAMES.FarmerTabs,
                               params: {
-                                screen: SCREEN_NAMES.Home,
+                                screen: SCREEN_NAMES.Events,
                                 params: {
-                                  screen: SCREEN_NAMES.Notifications,
+                                  screen: SCREEN_NAMES.EventDetails,
+                                  params: {
+                                    eventId: notificationId,
+                                  },
                                 },
                               },
                             })
                           );
-                          console.log('App: ✅ Navigated to Notifications screen');
+                          console.log('App: ✅ Navigated to Event Details screen with notification_id:', notificationId);
                         } else if (retries < 5) {
                           // Retry after a short delay (max 5 retries)
                           console.log(`App: ⚠️ Navigation not ready yet, retrying... (${retries + 1}/5)`);
@@ -94,7 +107,10 @@ function App() {
                           console.log('App: ⚠️ Navigation not ready after retries, storing pending navigation');
                           savePendingNavigation({
                             action: 'OPEN_NOTIFICATION_DETAIL',
-                            screen: SCREEN_NAMES.Notifications,
+                            screen: SCREEN_NAMES.EventDetails,
+                            params: {
+                              eventId: notificationId,
+                            },
                           });
                         }
                       };
@@ -109,7 +125,10 @@ function App() {
                     // Store pending navigation to handle after login
                     await savePendingNavigation({
                       action: 'OPEN_NOTIFICATION_DETAIL',
-                      screen: SCREEN_NAMES.Notifications,
+                      screen: SCREEN_NAMES.EventDetails,
+                      params: {
+                        eventId: notificationId,
+                      },
                     });
                   }
                 } catch (error) {

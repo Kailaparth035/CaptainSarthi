@@ -566,14 +566,17 @@ export default function ReviewProfileScreen() {
         setTimeout(() => {
           navigation.replace(SCREEN_NAMES.FarmerTabs);
           
-          // If there's a pending notification navigation, navigate to Notifications screen
-          if (hasPendingNotificationNav) {
-            console.log('[ReviewProfileScreen] Pending notification navigation detected - will navigate to Notifications');
+          // If there's a pending notification navigation, navigate to EventDetails screen (same as OPEN_EVENT_DETAIL)
+          if (hasPendingNotificationNav && pendingNav?.params?.eventId) {
+            console.log('[ReviewProfileScreen] Pending notification navigation detected - will navigate to EventDetails with notification_id:', pendingNav.params.eventId);
             setTimeout(() => {
               (navigation as any).navigate(SCREEN_NAMES.FarmerTabs, {
-                screen: SCREEN_NAMES.Home,
+                screen: SCREEN_NAMES.Events,
                 params: {
-                  screen: SCREEN_NAMES.Notifications,
+                  screen: SCREEN_NAMES.EventDetails,
+                  params: {
+                    eventId: pendingNav.params.eventId,
+                  },
                 },
               });
               // Clear pending navigation
