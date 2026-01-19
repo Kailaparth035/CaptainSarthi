@@ -45,7 +45,7 @@ type LoginScreenProps = NativeStackScreenProps<RootStackParamList, 'Login'>;
 export default function LoginScreen({ navigation }: LoginScreenProps) {
   const insets = useSafeAreaInsets();
   const { moderateScale } = useDeviceMetrics();
-  const { t } = useLanguage();
+  const { t, currentLanguage } = useLanguage();
   const [dealerId, setDealerId] = useState('');
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
@@ -674,7 +674,13 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           {/* Logo Section */}
           <View style={styles.logoContainer}>
             <Image
-              source={ImagePath.gujratiLogo}
+              source={
+                currentLanguage === 'en'
+                  ? ImagePath.Mainlogo_english
+                  : currentLanguage === 'hi'
+                  ? ImagePath.Mainlogo_hindi
+                  : ImagePath.gujratiLogo
+              }
               style={styles.topLogo}
               resizeMode="contain"
             />

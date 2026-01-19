@@ -6,6 +6,8 @@
 export const ImagePath = {
   gujratiLogo: require('../images/captionSarthiLogo.png'),
   captainEnglishLogo: require('../images/captainTractorLogo.png'),
+  Mainlogo_english: require('../images/Mainlogo_english.png'),
+  Mainlogo_hindi: require('../images/Mainlogo_hindi.png'),
   hidePassword: require('../images/hidePassword.png'),
   showPassword: require('../images/showPassword.png'),
   tractor: require('../images/tractor.png'),
