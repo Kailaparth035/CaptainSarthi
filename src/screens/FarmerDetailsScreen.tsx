@@ -1041,7 +1041,7 @@ export default function FarmerDetailsScreen() {
                         )}
 
                         {/* RC Book Images */}
-                        <View style={dynamicStyles.documentImagesContainer}>
+                        {/* <View style={dynamicStyles.documentImagesContainer}>
                           <TouchableOpacity
                             style={dynamicStyles.documentImage}
                             onPress={() => {
@@ -1114,7 +1114,7 @@ export default function FarmerDetailsScreen() {
                               </View>
                             )}
                           </TouchableOpacity>
-                        </View>
+                        </View> */}
                       </View>
 
                       {/* Tractor Specifications */}
