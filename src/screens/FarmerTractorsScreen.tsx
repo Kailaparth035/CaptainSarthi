@@ -407,7 +407,6 @@ export default function FarmerTractorsScreen() {
                 justifyContent: "center",
               }}
             >
-              {" "}
               <MaterialCommunityIcons
                 name="tractor"
                 size={moderateScale(80)}

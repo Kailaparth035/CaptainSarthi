@@ -58,15 +58,6 @@ export default function StoriesScreen() {
 
   // Helper function to transform stories with language-specific titles
   const transformStoriesWithLanguage = useCallback((storiesArray: any[], language: string) => {
-    // Map language code to language_id (en -> 1, hi -> 2, gu -> 3)
-    const languageIdMap: Record<string, number> = {
-      'en': 1,
-      'hi': 2,
-      'gu': 3,
-    };
-    
-    const currentLanguageId = languageIdMap[language] || 1;
-    
     // Transform API stories to match UI structure
     return storiesArray.map((story: any) => {
       // Check for video URL - prioritize YouTube thumbnail if video is YouTube
@@ -163,7 +154,7 @@ export default function StoriesScreen() {
       let displayTitle = story.title || 'Story';
       if (story.languages && Array.isArray(story.languages) && story.languages.length > 0) {
         const languageSpecificContent = story.languages.find(
-          (lang: any) => lang.language_id === currentLanguageId
+          (lang: any) => lang.language_code === language || lang.language === language
         );
         // Use language-specific title if found, otherwise use default title
         if (languageSpecificContent?.title) {

@@ -318,14 +318,6 @@ export default function FarmerHomeScreen() {
         const eventsArray = dashboardData.recent_events?.list || 
                            (Array.isArray(dashboardData.recent_events) ? dashboardData.recent_events : []);
         if (Array.isArray(eventsArray) && eventsArray.length > 0) {
-          // Map language code to language_id (en -> 1, hi -> 2, gu -> 3)
-          const languageIdMap: Record<string, number> = {
-            'en': 1,
-            'hi': 2,
-            'gu': 3,
-          };
-          const currentLanguageId = languageIdMap[currentLanguage] || 1;
-          
           // Limit to first 5 events
           const limitedEventsArray = eventsArray.slice(0, 5);
           
@@ -356,7 +348,7 @@ export default function FarmerHomeScreen() {
             let displayTitle = event.title || '';
             if (event.languages && Array.isArray(event.languages) && event.languages.length > 0) {
               const languageSpecificContent = event.languages.find(
-                (lang: any) => lang.language_id === currentLanguageId
+                (lang: any) => lang.language_code === currentLanguage || lang.language === currentLanguage
               );
               // Use language-specific title if found, otherwise use default title
               if (languageSpecificContent?.title) {
@@ -381,14 +373,6 @@ export default function FarmerHomeScreen() {
         const storiesArray = dashboardData.recent_stories?.list || 
                             (Array.isArray(dashboardData.recent_stories) ? dashboardData.recent_stories : []);
         if (Array.isArray(storiesArray) && storiesArray.length > 0) {
-          // Map language code to language_id (en -> 1, hi -> 2, gu -> 3)
-          const languageIdMap: Record<string, number> = {
-            'en': 1,
-            'hi': 2,
-            'gu': 3,
-          };
-          const currentLanguageId = languageIdMap[currentLanguage] || 1;
-          
           // Limit to first 5 stories
           const limitedStoriesArray = storiesArray.slice(0, 5);
           
@@ -419,7 +403,7 @@ export default function FarmerHomeScreen() {
             let displayTitle = story.title || '';
             if (story.languages && Array.isArray(story.languages) && story.languages.length > 0) {
               const languageSpecificContent = story.languages.find(
-                (lang: any) => lang.language_id === currentLanguageId
+                (lang: any) => lang.language_code === currentLanguage || lang.language === currentLanguage
               );
               // Use language-specific title if found, otherwise use default title
               if (languageSpecificContent?.title) {
