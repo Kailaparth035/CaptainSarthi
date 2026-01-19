@@ -5,7 +5,7 @@
  * @format
  */
 
-import { StyleSheet, Platform } from 'react-native';
+import { StyleSheet, Platform, AppState, AppStateStatus } from 'react-native';
 import {
   SafeAreaProvider,
   SafeAreaView,
@@ -371,8 +371,49 @@ function AppContent() {
       }
     };
     
-    // Small delay to ensure app initialization is complete
-    setTimeout(hideSplash, 100);
+    // Increased delay to ensure app initialization is complete
+    setTimeout(hideSplash, 500);
+  }, []);
+
+  // Monitor app state to show splash when app comes to foreground
+  useEffect(() => {
+    const appState = AppState.currentState;
+    
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      // When app comes to foreground from background
+      if (appState.match(/inactive|background/) && nextAppState === 'active') {
+        console.log('App: App came to foreground - showing splash screen');
+        // Show splash screen when app comes to foreground
+        SplashScreen.show();
+        
+        // Hide splash after navigation is ready
+        const hideSplash = () => {
+          if (navigationRef.current?.isReady()) {
+            SplashScreen.hide();
+          } else {
+            const checkNavigation = setInterval(() => {
+              if (navigationRef.current?.isReady()) {
+                SplashScreen.hide();
+                clearInterval(checkNavigation);
+              }
+            }, 100);
+            
+            setTimeout(() => {
+              SplashScreen.hide();
+              clearInterval(checkNavigation);
+            }, 2000);
+          }
+        };
+        
+        setTimeout(hideSplash, 500);
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    
+    return () => {
+      subscription.remove();
+    };
   }, []);
 
   return (
