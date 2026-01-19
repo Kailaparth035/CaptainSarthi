@@ -11,7 +11,8 @@ import { API_BASE_URL } from '../Service/constant';
  * @returns Full URL string or null if path is invalid
  */
 export const getImageUrl = (imagePath: string | null | undefined): string | null => {
-  if (!imagePath || imagePath.trim() === '') {
+  // Check if imagePath is valid and is a string
+  if (!imagePath || typeof imagePath !== 'string' || imagePath.trim() === '') {
     return null;
   }
 

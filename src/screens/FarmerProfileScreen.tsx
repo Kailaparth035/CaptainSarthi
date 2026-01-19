@@ -17,6 +17,7 @@ import useDeviceMetrics from '../utils/responsiveCustom';
 import {Typography} from '../utils/typography';
 import LogoutModal from '../components/LogoutModal';
 import UpdateNumberModal from '../components/UpdateNumberModal';
+import ContactUsModal from '../components/ContactUsModal';
 import {SCREEN_NAMES} from '../constants/screenNames';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import {clearSession, getSession} from '../utils/session';
@@ -36,6 +37,7 @@ export default function FarmerProfileScreen() {
   const navigation = useNavigation();
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
   const [updateNumberModalVisible, setUpdateNumberModalVisible] = useState(false);
+  const [contactModalVisible, setContactModalVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [imagePickerVisible, setImagePickerVisible] = useState(false);
@@ -616,6 +618,36 @@ export default function FarmerProfileScreen() {
               color={colors.textTertiary}
             />
           </TouchableOpacity>
+
+          {/* Divider */}
+          <View style={dynamicStyles.divider} />
+
+          {/* Contact Us Option */}
+          <TouchableOpacity
+            style={dynamicStyles.optionRow}
+            onPress={() => setContactModalVisible(true)}
+            activeOpacity={0.7}>
+            <View style={dynamicStyles.optionLeft}>
+              <View style={dynamicStyles.optionIcon}>
+                <Ionicons
+                  name="call-outline"
+                  size={moderateScale(20)}
+                  color={colors.textPrimary}
+                />
+              </View>
+              <View style={dynamicStyles.optionContent}>
+                <Text style={dynamicStyles.optionLabel}>Contact Us</Text>
+                <Text style={dynamicStyles.optionText}>
+                  Get in touch with us
+                </Text>
+              </View>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={moderateScale(20)}
+              color={colors.textTertiary}
+            />
+          </TouchableOpacity>
         </View>
 
         {/* Log Out Card */}
@@ -648,6 +680,15 @@ export default function FarmerProfileScreen() {
         visible={logoutModalVisible}
         onClose={() => setLogoutModalVisible(false)}
         onConfirm={handleConfirmLogout}
+      />
+
+      {/* Contact Us Modal */}
+      <ContactUsModal
+        visible={contactModalVisible}
+        onClose={() => setContactModalVisible(false)}
+        tollFreeNumber="1800 212 2129"
+        whatsappNumber="9714148897"
+        whatsappMessage=""
       />
 
       {/* Update Number Modal */}

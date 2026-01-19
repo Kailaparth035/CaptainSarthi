@@ -338,10 +338,43 @@ export default function StoryDetailsScreen() {
         videoContainer: {
           width: '100%',
           aspectRatio: 16 / 9,
-          marginBottom: moderateScale(8),
-          borderRadius: moderateScale(10),
+          marginBottom: moderateScale(12),
+          borderRadius: moderateScale(12),
           overflow: 'hidden',
           backgroundColor: 'transparent',
+        },
+        mainImageContainer: {
+          width: '100%',
+          height: '100%',
+          borderRadius: moderateScale(12),
+          overflow: 'hidden',
+          position: 'relative',
+        },
+        playButtonOverlay: {
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'rgba(0, 0, 0, 0.1)',
+        },
+        playButton: {
+          width: moderateScale(60),
+          height: moderateScale(60),
+          borderRadius: moderateScale(30),
+          backgroundColor: '#FFD700',
+          alignItems: 'center',
+          justifyContent: 'center',
+          shadowColor: '#000',
+          shadowOffset: {width: 0, height: 2},
+          shadowOpacity: 0.3,
+          shadowRadius: 4,
+          elevation: 5,
+        },
+        playIcon: {
+          marginLeft: moderateScale(3),
         },
         bannerImageContainer: {
           width: '100%',
@@ -354,12 +387,12 @@ export default function StoryDetailsScreen() {
         thumbnailRow: {
           flexDirection: 'row',
           gap: moderateScale(8),
-          marginTop: moderateScale(8),
+          marginTop: moderateScale(0),
         },
         thumbnail: {
           flex: 1,
-          aspectRatio: 16 / 9,
-          borderRadius: moderateScale(8),
+          aspectRatio: 1,
+          borderRadius: moderateScale(12),
           backgroundColor: colors.backgroundGray,
           overflow: 'hidden',
         },
@@ -371,13 +404,18 @@ export default function StoryDetailsScreen() {
         thumbnailMore: {
           width: '100%',
           height: '100%',
-          backgroundColor: colors.textSecondary,
+          backgroundColor: 'rgba(0, 0, 0, 0.6)',
           alignItems: 'center',
           justifyContent: 'center',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
         },
         thumbnailMoreText: {
-          ...Typography.regularMd,
-          fontSize: moderateScale(12),
+          ...Typography.semiBoldMd,
+          fontSize: moderateScale(14),
           color: colors.textWhite,
         },
         storyTitle: {
@@ -774,7 +812,7 @@ export default function StoryDetailsScreen() {
             {isYouTubeUrl(storyDetails.videoUri) ? (
               // YouTube video - show thumbnail with play button, open modal on tap
               <TouchableOpacity
-                style={{width: '100%', height: '100%'}}
+                style={dynamicStyles.mainImageContainer}
                 activeOpacity={0.9}
                 onPress={() => {
                   const videoId = extractYouTubeVideoId(storyDetails.videoUri);
@@ -786,16 +824,25 @@ export default function StoryDetailsScreen() {
                 {typeof storyDetails.thumbnailUri === 'object' && storyDetails.thumbnailUri?.uri ? (
                   <Image
                     source={{uri: storyDetails.thumbnailUri.uri}}
-                    style={{width: '100%', height: '100%', borderRadius: moderateScale(10)}}
+                    style={{width: '100%', height: '100%'}}
                     resizeMode="cover"
                   />
                 ) : (
-                  <View style={{width: '100%', height: '100%', backgroundColor: colors.backgroundGray, borderRadius: moderateScale(10), justifyContent: 'center', alignItems: 'center'}}>
-                    <Ionicons name="play-circle" size={moderateScale(60)} color={colors.textWhite} />
-                  </View>
+                  <Image
+                    source={{uri: getYouTubeThumbnailUrl(storyDetails.videoUri) || ''}}
+                    style={{width: '100%', height: '100%'}}
+                    resizeMode="cover"
+                  />
                 )}
-                <View style={{position: 'absolute', top: '50%', left: '50%', transform: [{translateX: -moderateScale(30)}, {translateY: -moderateScale(30)}]}}>
-                  <Ionicons name="play-circle" size={moderateScale(60)} color={colors.textWhite} style={{opacity: 0.9}} />
+                <View style={dynamicStyles.playButtonOverlay}>
+                  <View style={dynamicStyles.playButton}>
+                    <Ionicons
+                      name="play"
+                      size={moderateScale(30)}
+                      color={colors.textWhite}
+                      style={dynamicStyles.playIcon}
+                    />
+                  </View>
                 </View>
               </TouchableOpacity>
             ) : (
@@ -819,59 +866,91 @@ export default function StoryDetailsScreen() {
         ) : (
           // Banner Image Section - Show when video is not available
           storyDetails.images && storyDetails.images.length > 0 && (
-            <TouchableOpacity
-              style={dynamicStyles.bannerImageContainer}
-              onPress={() => handleImagePress(0)}
-              activeOpacity={0.9}>
-              <Image
-                source={
-                  typeof storyDetails.images[0] === 'object' && storyDetails.images[0]?.uri
-                    ? {uri: storyDetails.images[0].uri}
-                    : typeof storyDetails.thumbnailUri === 'object' && storyDetails.thumbnailUri?.uri
-                    ? {uri: storyDetails.thumbnailUri.uri}
-                    : typeof storyDetails.thumbnailUri === 'number'
-                    ? storyDetails.thumbnailUri
-                    : storyDetails.images[0] || ImagePath.eventImage
-                }
-                style={{width: '100%', height: '100%', borderRadius: moderateScale(10)}}
-                resizeMode="cover"
-              />
-            </TouchableOpacity>
+            <View style={dynamicStyles.videoContainer}>
+              <TouchableOpacity
+                style={dynamicStyles.mainImageContainer}
+                onPress={() => handleImagePress(0)}
+                activeOpacity={0.7}>
+                <Image
+                  source={
+                    typeof storyDetails.images[0] === 'object' && storyDetails.images[0]?.uri
+                      ? {uri: storyDetails.images[0].uri}
+                      : typeof storyDetails.thumbnailUri === 'object' && storyDetails.thumbnailUri?.uri
+                      ? {uri: storyDetails.thumbnailUri.uri}
+                      : typeof storyDetails.thumbnailUri === 'number'
+                      ? storyDetails.thumbnailUri
+                      : storyDetails.images[0] || ImagePath.eventImage
+                  }
+                  style={{width: '100%', height: '100%'}}
+                  resizeMode="cover"
+                />
+              </TouchableOpacity>
+            </View>
           )
         )}
 
-          {/* Thumbnails Row - Show when there are multiple images (regardless of video) */}
-          {storyDetails.images && storyDetails.images.length > 1 && (
+          {/* Thumbnails Row - Show only first 3, with "+ X more" if more exist */}
+          {/* Show thumbnails: if video exists show when 1+ images, if no video show when 2+ images */}
+          {((storyDetails.videoUri && storyDetails.videoUri.trim() !== '' && previewImages.length > 0) || 
+            ((!storyDetails.videoUri || storyDetails.videoUri.trim() === '') && previewImages.length > 1)) && (
             <View style={dynamicStyles.thumbnailRow}>
-              {storyDetails.images.slice(0, 5).map((image: any, index: number) => (
-                <TouchableOpacity
-                  key={index}
-                  style={dynamicStyles.thumbnail}
-                  onPress={() => handleImagePress(index)}
-                  activeOpacity={0.7}>
-                  <Image
-                    source={
-                      typeof image === 'object' && image?.uri
-                        ? {uri: image.uri}
-                        : image || ImagePath.eventImage
-                    }
-                    style={dynamicStyles.thumbnailImage}
-                    resizeMode="cover"
-                  />
-                </TouchableOpacity>
-              ))}
-              {storyDetails.images.length > 5 && (
-                <TouchableOpacity
-                  style={dynamicStyles.thumbnail}
-                  onPress={() => handleImagePress(5)}
-                  activeOpacity={0.7}>
-                  <View style={dynamicStyles.thumbnailMore}>
-                    <Text style={dynamicStyles.thumbnailMoreText}>
-                      + {storyDetails.images.length - 5} more
-                    </Text>
-                  </View>
-                </TouchableOpacity>
-              )}
+              {previewImages.slice(0, 3).map((img: ImageItem, index: number) => {
+                const remainingCount = previewImages.length - 3;
+                const showMoreOverlay = index === 2 && remainingCount > 0;
+
+                return (
+                  <TouchableOpacity
+                    key={img.id || index}
+                    style={dynamicStyles.thumbnail}
+                    onPress={() => handleImagePress(index)}
+                    activeOpacity={0.7}>
+                    {img.uri ? (
+                      <>
+                        <Image
+                          source={{uri: img.uri}}
+                          style={dynamicStyles.thumbnailImage}
+                          resizeMode="cover"
+                        />
+                        {showMoreOverlay && (
+                          <View style={dynamicStyles.thumbnailMore}>
+                            <Text style={dynamicStyles.thumbnailMoreText}>
+                              + {remainingCount} more
+                            </Text>
+                          </View>
+                        )}
+                      </>
+                    ) : img.source ? (
+                      <>
+                        <Image
+                          source={img.source}
+                          style={dynamicStyles.thumbnailImage}
+                          resizeMode="cover"
+                        />
+                        {showMoreOverlay && (
+                          <View style={dynamicStyles.thumbnailMore}>
+                            <Text style={dynamicStyles.thumbnailMoreText}>
+                              + {remainingCount} more
+                            </Text>
+                          </View>
+                        )}
+                      </>
+                    ) : (
+                      <View style={[dynamicStyles.thumbnailImage, {backgroundColor: colors.backgroundGray, alignItems: 'center', justifyContent: 'center'}]}>
+                        <Text
+                          style={[
+                            Typography.regularSm,
+                            {
+                              fontSize: moderateScale(10),
+                              color: colors.textTertiary,
+                            },
+                          ]}>
+                          Image {index + 1}
+                        </Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           )}
         {/* </View> */}

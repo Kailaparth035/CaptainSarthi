@@ -338,10 +338,43 @@ export default function TractorDetailsScreen() {
         videoContainer: {
           width: '100%',
           aspectRatio: 16 / 9,
-          marginBottom: moderateScale(8),
-          borderRadius: moderateScale(10),
+          marginBottom: moderateScale(12),
+          borderRadius: moderateScale(12),
           overflow: 'hidden',
           backgroundColor: 'transparent',
+        },
+        mainImageContainer: {
+          width: '100%',
+          height: '100%',
+          borderRadius: moderateScale(12),
+          overflow: 'hidden',
+          position: 'relative',
+        },
+        playButtonOverlay: {
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'rgba(0, 0, 0, 0.1)',
+        },
+        playButton: {
+          width: moderateScale(60),
+          height: moderateScale(60),
+          borderRadius: moderateScale(30),
+          backgroundColor: '#FFD700',
+          alignItems: 'center',
+          justifyContent: 'center',
+          shadowColor: '#000',
+          shadowOffset: {width: 0, height: 2},
+          shadowOpacity: 0.3,
+          shadowRadius: 4,
+          elevation: 5,
+        },
+        playIcon: {
+          marginLeft: moderateScale(3),
         },
         videoModalOverlay: {
           flex: 1,
@@ -371,12 +404,12 @@ export default function TractorDetailsScreen() {
         thumbnailRow: {
           flexDirection: 'row',
           gap: moderateScale(8),
-          marginTop: moderateScale(4),
+          marginTop: moderateScale(0),
         },
         thumbnail: {
           flex: 1,
-          aspectRatio: 16 / 9,
-          borderRadius: moderateScale(8),
+          aspectRatio: 1,
+          borderRadius: moderateScale(12),
           backgroundColor: colors.backgroundGray,
           overflow: 'hidden',
         },
@@ -388,13 +421,18 @@ export default function TractorDetailsScreen() {
         thumbnailMore: {
           width: '100%',
           height: '100%',
-          backgroundColor: colors.textSecondary,
+          backgroundColor: 'rgba(0, 0, 0, 0.6)',
           alignItems: 'center',
           justifyContent: 'center',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
         },
         thumbnailMoreText: {
-          ...Typography.regularMd,
-          fontSize: moderateScale(12),
+          ...Typography.semiBoldMd,
+          fontSize: moderateScale(14),
           color: colors.textWhite,
         },
         productTitle: {
@@ -774,7 +812,7 @@ export default function TractorDetailsScreen() {
               isYouTubeUrl(tractorDetails.videoUri) ? (
                 // YouTube video - show thumbnail with play button, open modal on tap
                 <TouchableOpacity
-                  style={{width: '100%', height: '100%'}}
+                  style={dynamicStyles.mainImageContainer}
                   activeOpacity={0.9}
                   onPress={() => {
                     const videoId = extractYouTubeVideoId(tractorDetails.videoUri);
@@ -786,16 +824,25 @@ export default function TractorDetailsScreen() {
                   {tractorDetails.thumbnailUri ? (
                     <Image
                       source={{uri: tractorDetails.thumbnailUri}}
-                      style={{width: '100%', height: '100%', borderRadius: moderateScale(10)}}
+                      style={{width: '100%', height: '100%'}}
                       resizeMode="cover"
                     />
                   ) : (
-                    <View style={{width: '100%', height: '100%', backgroundColor: colors.backgroundGray, borderRadius: moderateScale(10), justifyContent: 'center', alignItems: 'center'}}>
-                      <Ionicons name="play-circle" size={moderateScale(60)} color={colors.textWhite} />
-                    </View>
+                    <Image
+                      source={{uri: getYouTubeThumbnailUrl(tractorDetails.videoUri) || ''}}
+                      style={{width: '100%', height: '100%'}}
+                      resizeMode="cover"
+                    />
                   )}
-                  <View style={{position: 'absolute', top: '50%', left: '50%', transform: [{translateX: -moderateScale(30)}, {translateY: -moderateScale(30)}]}}>
-                    <Ionicons name="play-circle" size={moderateScale(60)} color={colors.textWhite} style={{opacity: 0.9}} />
+                  <View style={dynamicStyles.playButtonOverlay}>
+                    <View style={dynamicStyles.playButton}>
+                      <Ionicons
+                        name="play"
+                        size={moderateScale(30)}
+                        color={colors.textWhite}
+                        style={dynamicStyles.playIcon}
+                      />
+                    </View>
                   </View>
                 </TouchableOpacity>
               ) : (
@@ -808,6 +855,7 @@ export default function TractorDetailsScreen() {
               )
             ) : (
               <TouchableOpacity
+                style={dynamicStyles.mainImageContainer}
                 onPress={() => {
                   // Open image preview modal with first image (main image)
                   if (previewImages.length > 0) {
@@ -815,12 +863,11 @@ export default function TractorDetailsScreen() {
                     setPreviewModalVisible(true);
                   }
                 }}
-                activeOpacity={0.9}
-                style={{width: '100%', height: '100%'}}>
+                activeOpacity={0.7}>
                 {tractorDetails.thumbnailUri || tractorDetails.main_image ? (
                   <Image
                     source={{uri: tractorDetails.thumbnailUri || tractorDetails.main_image}}
-                    style={{width: '100%', height: '100%', borderRadius: moderateScale(8)}}
+                    style={{width: '100%', height: '100%'}}
                     resizeMode="cover"
                   />
                 ) : (
@@ -829,7 +876,6 @@ export default function TractorDetailsScreen() {
                       width: '100%',
                       height: '100%',
                       backgroundColor: colors.backgroundGray,
-                      borderRadius: moderateScale(8),
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}>
@@ -844,50 +890,36 @@ export default function TractorDetailsScreen() {
             )}
           </View>
 
-          {/* Thumbnails Row */}
-          <View style={dynamicStyles.thumbnailRow}>
-            {tractorDetails.thumbnails.map((thumb: any, index: number) => {
-              // Calculate image index in previewImages array for click handler
-              let imageIndexInPreview = 0;
-              if (thumb.type === 'image') {
-                let count = 0;
-                for (let i = 0; i < index; i++) {
-                  if (tractorDetails.thumbnails[i].type === 'image') {
-                    count++;
-                  }
-                }
-                imageIndexInPreview = count;
-              }
+          {/* Thumbnails Row - Show only first 3, with "+ X more" if more exist */}
+          {previewImages.length > 0 && (
+            <View style={dynamicStyles.thumbnailRow}>
+              {previewImages.slice(0, 3).map((img: ImageItem, index: number) => {
+                const remainingCount = previewImages.length - 3;
+                const showMoreOverlay = index === 2 && remainingCount > 0;
 
-              return (
-                <TouchableOpacity
-                  key={thumb.id}
-                  style={dynamicStyles.thumbnail}
-                  onPress={() => thumb.type === 'image' && handleImagePress(imageIndexInPreview)}
-                  activeOpacity={thumb.type === 'image' ? 0.7 : 1}
-                  disabled={thumb.type === 'more'}>
-                  {thumb.type === 'more' ? (
-                    <View style={dynamicStyles.thumbnailMore}>
-                      <Text style={dynamicStyles.thumbnailMoreText}>
-                        + {thumb.count} more
-                      </Text>
-                    </View>
-                  ) : thumb.uri ? (
-                    <Image
-                      source={{uri: thumb.uri}}
-                      style={dynamicStyles.thumbnailImage}
-                      resizeMode="cover"
-                    />
-                  ) : (
-                    <View style={dynamicStyles.thumbnailImage}>
-                      <View
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          backgroundColor: colors.backgroundGray,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}>
+                return (
+                  <TouchableOpacity
+                    key={img.id || index}
+                    style={dynamicStyles.thumbnail}
+                    onPress={() => handleImagePress(index)}
+                    activeOpacity={0.7}>
+                    {img.uri ? (
+                      <>
+                        <Image
+                          source={{uri: img.uri}}
+                          style={dynamicStyles.thumbnailImage}
+                          resizeMode="cover"
+                        />
+                        {showMoreOverlay && (
+                          <View style={dynamicStyles.thumbnailMore}>
+                            <Text style={dynamicStyles.thumbnailMoreText}>
+                              + {remainingCount} more
+                            </Text>
+                          </View>
+                        )}
+                      </>
+                    ) : (
+                      <View style={[dynamicStyles.thumbnailImage, {backgroundColor: colors.backgroundGray, alignItems: 'center', justifyContent: 'center'}]}>
                         <Text
                           style={[
                             Typography.regularSm,
@@ -899,12 +931,12 @@ export default function TractorDetailsScreen() {
                           Image {index + 1}
                         </Text>
                       </View>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
         </View>
 
         {/* Product Information Card */}
