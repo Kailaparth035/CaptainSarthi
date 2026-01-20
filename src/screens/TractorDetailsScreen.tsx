@@ -896,11 +896,16 @@ export default function TractorDetailsScreen() {
               {previewImages.slice(0, 3).map((img: ImageItem, index: number) => {
                 const remainingCount = previewImages.length - 3;
                 const showMoreOverlay = index === 2 && remainingCount > 0;
+                // If there's a video and only 1 image, reduce thumbnail height by 10
+                const hasVideoAndSingleImage = tractorDetails.videoUri && previewImages.length === 1;
+                const thumbnailStyle = hasVideoAndSingleImage
+                  ? [dynamicStyles.thumbnail, {aspectRatio: undefined, height: ((screenWidth - moderateScale(32)) - moderateScale(10))}]
+                  : dynamicStyles.thumbnail;
 
                 return (
                   <TouchableOpacity
                     key={img.id || index}
-                    style={dynamicStyles.thumbnail}
+                    style={thumbnailStyle}
                     onPress={() => handleImagePress(index)}
                     activeOpacity={0.7}>
                     {img.uri ? (

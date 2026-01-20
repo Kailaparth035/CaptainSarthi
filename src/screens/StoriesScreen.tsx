@@ -150,15 +150,31 @@ export default function StoriesScreen() {
       const bannerImage = imageUrl ? {uri: imageUrl} : (videoUrl ? undefined : ImagePath.storycard);
       
       // Handle language-specific title
+      // Map language code to language_id (en -> 1, hi -> 2, gu -> 3)
+      const languageIdMap: Record<string, number> = {
+        'en': 1,
+        'hi': 2,
+        'gu': 3,
+      };
+      const currentLanguageId = languageIdMap[language] || 1;
+      
       // Check if languages array exists and find matching language
       let displayTitle = story.title || 'Story';
       if (story.languages && Array.isArray(story.languages) && story.languages.length > 0) {
         const languageSpecificContent = story.languages.find(
-          (lang: any) => lang.language_code === language || lang.language === language
+          (lang: any) => lang.language_id === currentLanguageId
         );
         // Use language-specific title if found, otherwise use default title
         if (languageSpecificContent?.title) {
           displayTitle = languageSpecificContent.title;
+        } else if (!story.title) {
+          // Fallback to English if no title found for selected language
+          const englishContent = story.languages.find(
+            (lang: any) => lang.language_id === 1
+          );
+          if (englishContent?.title) {
+            displayTitle = englishContent.title;
+          }
         }
       }
       

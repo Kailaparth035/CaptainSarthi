@@ -313,7 +313,15 @@ export default function EventDetailsScreen() {
       );
       
       // Update title and description based on selected language
-      const displayTitle = languageSpecificContent?.title || eventApiData.title || params?.title || 'Event';
+      // Use language-specific title if available, otherwise fallback to English, then default
+      let displayTitle = languageSpecificContent?.title;
+      if (!displayTitle) {
+        // Fallback to English if no title found for selected language
+        const englishContent = eventApiData.languages?.find(
+          (lang: any) => lang.language_id === 1
+        );
+        displayTitle = englishContent?.title || eventApiData.title || params?.title || 'Event';
+      }
       const defaultDescription = eventApiData.description?.text || eventApiData.description || '';
       const displayDescription = languageSpecificContent?.description || defaultDescription;
       
@@ -1022,11 +1030,19 @@ export default function EventDetailsScreen() {
               {previewImages.slice(0, 3).map((img: ImageItem, index: number) => {
                 const remainingCount = previewImages.length - 3;
                 const showMoreOverlay = index === 2 && remainingCount > 0;
+                // When there's a video and only 1 image, use same size as multiple images
+                const hasVideoAndSingleImage = eventDetails.videoUri && eventDetails.videoUri.trim() !== '' && previewImages.length === 1;
+                const thumbnailWidth = hasVideoAndSingleImage 
+                  ? ((screenWidth - moderateScale(32)) - (moderateScale(8) * 2)) / 3 
+                  : undefined;
+                const thumbnailStyle = hasVideoAndSingleImage
+                  ? [dynamicStyles.thumbnail, {flex: undefined, width: thumbnailWidth}]
+                  : dynamicStyles.thumbnail;
 
                 return (
                   <TouchableOpacity
                     key={img.id || index}
-                    style={dynamicStyles.thumbnail}
+                    style={thumbnailStyle}
                     onPress={() => handleImagePress(index)}
                     activeOpacity={0.7}>
                     {img.uri ? (
@@ -1083,7 +1099,7 @@ export default function EventDetailsScreen() {
         {/* Event Details Card */}
         <View style={dynamicStyles.card}>
           <Text style={dynamicStyles.eventTitle}>
-            {params?.title || eventDetails.title}
+            {eventDetails.title || params?.title || 'Event'}
           </Text>
 
           {/* Date/Time */}

@@ -269,7 +269,15 @@ export default function StoryDetailsScreen() {
       );
       
       // Update title and description with language-specific content
-      const displayTitle = languageSpecificContent?.title || storyApiData.title || params?.title || 'Story';
+      // Use language-specific title if available, otherwise fallback to English, then default
+      let displayTitle = languageSpecificContent?.title;
+      if (!displayTitle) {
+        // Fallback to English if no title found for selected language
+        const englishContent = storyApiData.languages?.find(
+          (lang: any) => lang.language_id === 1
+        );
+        displayTitle = englishContent?.title || storyApiData.title || params?.title || 'Story';
+      }
       const defaultDescription = storyApiData.content?.full_description || storyApiData.content?.short_description || storyApiData.description?.text || storyApiData.description || '';
       const displayDescription = languageSpecificContent?.description || defaultDescription;
       
@@ -808,7 +816,7 @@ export default function StoryDetailsScreen() {
           }>
         {/* Video Player Section - Only show if video exists */}
         {storyDetails.videoUri && storyDetails.videoUri.trim() !== '' ? (
-          <View style={dynamicStyles.videoContainer}>
+          <View style={previewImages.length === 1 ? [dynamicStyles.videoContainer, {aspectRatio: undefined, height: ((screenWidth - moderateScale(32)) * (9 / 16)) - moderateScale(25)}] : dynamicStyles.videoContainer}>
             {isYouTubeUrl(storyDetails.videoUri) ? (
               // YouTube video - show thumbnail with play button, open modal on tap
               <TouchableOpacity
@@ -897,11 +905,19 @@ export default function StoryDetailsScreen() {
               {previewImages.slice(0, 3).map((img: ImageItem, index: number) => {
                 const remainingCount = previewImages.length - 3;
                 const showMoreOverlay = index === 2 && remainingCount > 0;
+                // When there's a video and only 1 image, use same size as multiple images
+                const hasVideoAndSingleImage = storyDetails.videoUri && storyDetails.videoUri.trim() !== '' && previewImages.length === 1;
+                const thumbnailWidth = hasVideoAndSingleImage 
+                  ? ((screenWidth - moderateScale(32)) - (moderateScale(8) * 2)) / 3 
+                  : undefined;
+                const thumbnailStyle = hasVideoAndSingleImage
+                  ? [dynamicStyles.thumbnail, {flex: undefined, width: thumbnailWidth}]
+                  : dynamicStyles.thumbnail;
 
                 return (
                   <TouchableOpacity
                     key={img.id || index}
-                    style={dynamicStyles.thumbnail}
+                    style={thumbnailStyle}
                     onPress={() => handleImagePress(index)}
                     activeOpacity={0.7}>
                     {img.uri ? (
