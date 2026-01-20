@@ -8,6 +8,8 @@ import {
   Image,
   ActivityIndicator,
   RefreshControl,
+  Modal,
+  Dimensions,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useRoute, useNavigation} from '@react-navigation/native';
@@ -26,7 +28,11 @@ import {useLanguage} from '../contexts/LanguageContext';
 import {getData} from '../Service/Apimethod';
 import Apis, {API_BASE_URL} from '../Service/constant';
 import {getImageUrl} from '../utils/imageUtils';
-import {isYouTubeUrl, getYouTubeThumbnailUrl} from '../utils/youtubeUtils';
+import {isYouTubeUrl, getYouTubeThumbnailUrl, extractYouTubeVideoId} from '../utils/youtubeUtils';
+import YoutubePlayer from 'react-native-youtube-iframe';
+
+const screenWidth = Dimensions.get('window').width;
+const screenHeight = Dimensions.get('window').height;
 
 type TractorDetailsRouteParams = {
   tractorId: string;
@@ -99,6 +105,8 @@ export default function FarmerTractorDetails() {
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
+  const [showVideoModal, setShowVideoModal] = useState(false);
+  const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
 
   // Fetch tractor details from API
   const fetchTractorDetails = async (showRefreshing = false) => {
@@ -404,8 +412,33 @@ export default function FarmerTractorDetails() {
           color: colors.textWhite,
           ...Typography.semiBoldMd,
         },
+        videoModalOverlay: {
+          flex: 1,
+          backgroundColor: 'rgba(0, 0, 0, 0.9)',
+          justifyContent: 'center',
+          alignItems: 'center',
+        },
+        videoModalContainer: {
+          width: screenWidth,
+          bottom: moderateScale(30),
+          justifyContent: 'center',
+          alignItems: 'center',
+          position: 'absolute',
+          backgroundColor: 'transparent',
+        },
+        videoModalCloseButton: {
+          position: 'absolute',
+          top: insets.top,
+          right: moderateScale(20),
+          width: moderateScale(40),
+          height: moderateScale(40),
+          borderRadius: moderateScale(20),
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'rgba(255, 255, 255, 0.3)',
+        },
       }),
-    [moderateScale, insets],
+    [moderateScale, insets, screenWidth, screenHeight],
   );
 
   const currentSpecs = tractorDetails
@@ -505,36 +538,50 @@ export default function FarmerTractorDetails() {
         <View style={dynamicStyles.card}>
           <View style={dynamicStyles.videoContainer}>
             {tractorDetails.videoUri ? (
-              <TouchableOpacity
-                style={dynamicStyles.mainImageContainer}
-                onPress={() => {
-                  // Open video in preview or play video
-                  const videoIndex = previewImages.findIndex(img => img.uri === tractorDetails.videoUri);
-                  if (videoIndex >= 0) {
-                    handleImagePress(videoIndex);
-                  }
-                }}
-                activeOpacity={0.9}>
-                <Image
-                  source={{
-                    uri: isYouTubeUrl(tractorDetails.videoUri)
-                      ? getYouTubeThumbnailUrl(tractorDetails.videoUri) || tractorDetails.thumbnailUri
-                      : tractorDetails.thumbnailUri || tractorDetails.main_image
-                  }}
-                  style={{width: '100%', height: '100%'}}
-                  resizeMode="cover"
-                />
-                <View style={dynamicStyles.playButtonOverlay}>
-                  <View style={dynamicStyles.playButton}>
-                    <Ionicons
-                      name="play"
-                      size={moderateScale(30)}
-                      color={colors.textWhite}
-                      style={dynamicStyles.playIcon}
+              isYouTubeUrl(tractorDetails.videoUri) ? (
+                // YouTube video - show thumbnail with play button, open modal on tap
+                <TouchableOpacity
+                  style={dynamicStyles.mainImageContainer}
+                  activeOpacity={0.9}
+                  onPress={() => {
+                    const videoId = extractYouTubeVideoId(tractorDetails.videoUri);
+                    if (videoId) {
+                      setSelectedVideoId(videoId);
+                      setShowVideoModal(true);
+                    }
+                  }}>
+                  {tractorDetails.thumbnailUri ? (
+                    <Image
+                      source={{uri: tractorDetails.thumbnailUri}}
+                      style={{width: '100%', height: '100%'}}
+                      resizeMode="cover"
                     />
+                  ) : (
+                    <Image
+                      source={{uri: getYouTubeThumbnailUrl(tractorDetails.videoUri) || ''}}
+                      style={{width: '100%', height: '100%'}}
+                      resizeMode="cover"
+                    />
+                  )}
+                  <View style={dynamicStyles.playButtonOverlay}>
+                    <View style={dynamicStyles.playButton}>
+                      <Ionicons
+                        name="play"
+                        size={moderateScale(30)}
+                        color={colors.textWhite}
+                        style={dynamicStyles.playIcon}
+                      />
+                    </View>
                   </View>
-                </View>
-              </TouchableOpacity>
+                </TouchableOpacity>
+              ) : (
+                // Non-YouTube video - use VideoPlayer component
+                <VideoPlayer
+                  thumbnailUri={tractorDetails.thumbnailUri}
+                  videoUri={tractorDetails.videoUri}
+                  title={tractorDetails.model}
+                />
+              )
             ) : tractorDetails.main_image || tractorDetails.thumbnailUri ? (
               <TouchableOpacity
                 style={dynamicStyles.mainImageContainer}
@@ -690,6 +737,57 @@ export default function FarmerTractorDetails() {
         onClose={handleCloseModal}
         onReplaceImage={handleReplaceImage}
       />
+
+      {/* YouTube Video Modal */}
+      <Modal
+        visible={showVideoModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => {
+          setShowVideoModal(false);
+          setSelectedVideoId(null);
+        }}>
+        <View style={dynamicStyles.videoModalOverlay}>
+          <TouchableOpacity
+            style={dynamicStyles.videoModalCloseButton}
+            onPress={() => {
+              setShowVideoModal(false);
+              setSelectedVideoId(null);
+            }}
+            activeOpacity={0.7}>
+            <Ionicons
+              name="close"
+              size={moderateScale(24)}
+              color={colors.textWhite}
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={() => {
+              setShowVideoModal(false);
+              setSelectedVideoId(null);
+            }}
+          />
+          {selectedVideoId && (
+            <View style={dynamicStyles.videoModalContainer}>
+              <View style={{
+                width: screenWidth * 0.9,
+                height: screenHeight * 0.6,
+                justifyContent: 'center',
+                alignItems: 'center',
+                backgroundColor: 'transparent',
+              }}>
+                <YoutubePlayer
+                  height={screenHeight * 0.6}
+                  width={screenWidth * 0.9}
+                  play={true}
+                  videoId={selectedVideoId}
+                />
+              </View>
+            </View>
+          )}
+        </View>
+      </Modal>
 
       </View>
   );

@@ -393,24 +393,55 @@ class FirebaseService {
       // Note: Firebase app auto-initializes from native config files
       // (google-services.json for Android, GoogleService-Info.plist for iOS)
 
-      // Request permission
-      console.log('Firebase: Requesting notification permissions...');
-      const hasPermission = await this.requestPermission();
-      if (!hasPermission) {
-        console.warn('Firebase: ⚠️ Notification permission not granted. Notifications may not work.');
+      // Delay permission request for Android 15+ (API 35+) to avoid blocking UI on first launch
+      // Request permission after a delay to ensure app UI is loaded first
+      const androidVersion = Platform.OS === 'android' 
+        ? (typeof Platform.Version === 'number' ? Platform.Version : parseInt(Platform.Version as string, 10))
+        : 0;
+      
+      let hasPermission = false;
+      let token: string | null = null;
+      
+      if (androidVersion >= 35) {
+        // For Android 15+, delay permission request to avoid blocking onboarding
+        console.log('Firebase: Android 15+ detected - delaying permission request to avoid blocking UI');
+        setTimeout(async () => {
+          console.log('Firebase: Requesting notification permissions (delayed)...');
+          const permissionGranted = await this.requestPermission();
+          if (!permissionGranted) {
+            console.warn('Firebase: ⚠️ Notification permission not granted. Notifications may not work.');
+          } else {
+            console.log('Firebase: ✅ Notification permission granted');
+            // Get token after permission is granted
+            const fcmToken = await this.getToken();
+            if (fcmToken) {
+              console.log('Firebase: ✅ FCM token obtained after permission grant');
+            }
+          }
+        }, 2000); // Delay 2 seconds to allow app to load
+        // For Android 15+, skip immediate permission request and token retrieval
+        hasPermission = false; // Will be set in delayed callback
+        token = null; // Will be requested after permission
       } else {
-        console.log('Firebase: ✅ Notification permission granted');
-      }
-
-      // Get initial token with retry logic
-      console.log('Firebase: Getting FCM token...');
-      const token = await this.getToken();
-      if (token) {
-        console.log('Firebase: ✅ Initial FCM token obtained successfully');
-        console.log('Firebase: 📱 Token (first 20 chars):', token.substring(0, 20) + '...');
-        // You can send this token to your backend here
-      } else {
-        console.error('Firebase: ❌ Failed to obtain FCM token after retries');
+        // For older Android versions, request permission immediately
+        console.log('Firebase: Requesting notification permissions...');
+        hasPermission = await this.requestPermission();
+        if (!hasPermission) {
+          console.warn('Firebase: ⚠️ Notification permission not granted. Notifications may not work.');
+        } else {
+          console.log('Firebase: ✅ Notification permission granted');
+        }
+        
+        // Get initial token with retry logic for older versions
+        console.log('Firebase: Getting FCM token...');
+        token = await this.getToken();
+        if (token) {
+          console.log('Firebase: ✅ Initial FCM token obtained successfully');
+          console.log('Firebase: 📱 Token (first 20 chars):', token.substring(0, 20) + '...');
+          // You can send this token to your backend here
+        } else {
+          console.error('Firebase: ❌ Failed to obtain FCM token after retries');
+        }
       }
 
       // Set up token refresh listener (always set up, but use callback if provided)
