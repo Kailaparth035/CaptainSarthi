@@ -1003,7 +1003,7 @@ export default function FarmerProfileDetailsScreen() {
             )}
 
             {/* RC Book Images */}
-            {(tractor.rcFrontImage || tractor.rcBackImage) && (
+            {/* {(tractor.rcFrontImage || tractor.rcBackImage) && (
               <>
                 {tractor.rcFrontImage && tractor.rcBackImage ? (
                   <View style={dynamicStyles.rcImageRow}>
@@ -1082,7 +1082,7 @@ export default function FarmerProfileDetailsScreen() {
                   </TouchableOpacity>
                 )}
               </>
-            )}
+            )} */}
 
             {/* Tractor Specifications */}
             <InfoRow
