@@ -1017,7 +1017,7 @@ export default function ReviewProfileScreen() {
             )}
 
             {/* RC Book Images */}
-            {(tractor.rcFrontImage || tractor.rcBackImage) && (
+            {/* {(tractor.rcFrontImage || tractor.rcBackImage) && (
               <>
                 {tractor.rcFrontImage && tractor.rcBackImage ? (
                   <View style={dynamicStyles.rcImageRow}>
@@ -1109,7 +1109,7 @@ export default function ReviewProfileScreen() {
                   </TouchableOpacity>
                 )}
               </>
-            )}
+            )} */}
 
             {/* Tractor Details */}
             <View style={dynamicStyles.detailRow}>
