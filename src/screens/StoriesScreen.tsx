@@ -143,7 +143,32 @@ export default function StoriesScreen() {
       
       // If no YouTube thumbnail, check for image_url
       if (!imageUrl && story.image_url) {
-        imageUrl = getImageUrl(story.image_url);
+        // Handle JSON string format (current API) or array format (future API)
+        let imageUrls: string[] = [];
+        if (typeof story.image_url === 'string' && story.image_url.trim().startsWith('[')) {
+          // Parse JSON string to array
+          try {
+            const parsedUrls = JSON.parse(story.image_url);
+            if (Array.isArray(parsedUrls) && parsedUrls.length > 0) {
+              imageUrls = parsedUrls;
+            } else {
+              imageUrls = [story.image_url];
+            }
+          } catch (e) {
+            console.warn('[StoriesScreen] Failed to parse image_url JSON:', e);
+            imageUrls = [story.image_url];
+          }
+        } else if (Array.isArray(story.image_url)) {
+          // Future API format: already an array
+          imageUrls = story.image_url;
+        } else {
+          // Single string URL
+          imageUrls = [story.image_url];
+        }
+        // Use first image from the array
+        if (imageUrls.length > 0) {
+          imageUrl = getImageUrl(imageUrls[0]);
+        }
       }
       
       // Only use default thumbnail if no video URL or image URL

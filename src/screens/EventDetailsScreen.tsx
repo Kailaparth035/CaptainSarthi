@@ -150,8 +150,60 @@ export default function EventDetailsScreen() {
           thumbnailUrl = youtubeThumbnail;
         } else if (eventData.media?.cover_video?.thumbnail_url) {
           thumbnailUrl = getImageUrl(eventData.media.cover_video.thumbnail_url);
+        } else if (eventData.media?.image) {
+          // Handle media.image JSON string format (current API) or array format (future API)
+          let imageUrls: string[] = [];
+          if (typeof eventData.media.image === 'string' && eventData.media.image.trim().startsWith('[')) {
+            // Parse JSON string to array
+            try {
+              const parsedUrls = JSON.parse(eventData.media.image);
+              if (Array.isArray(parsedUrls) && parsedUrls.length > 0) {
+                imageUrls = parsedUrls;
+              } else {
+                imageUrls = [eventData.media.image];
+              }
+            } catch (e) {
+              console.warn('[EventDetailsScreen] Failed to parse media.image JSON:', e);
+              imageUrls = [eventData.media.image];
+            }
+          } else if (Array.isArray(eventData.media.image)) {
+            // Future API format: already an array
+            imageUrls = eventData.media.image;
+          } else {
+            // Single string URL
+            imageUrls = [eventData.media.image];
+          }
+          // Use first image from the array
+          if (imageUrls.length > 0) {
+            thumbnailUrl = getImageUrl(imageUrls[0]);
+          }
         } else if (eventData.image_url) {
-          thumbnailUrl = getImageUrl(eventData.image_url);
+          // Handle JSON string format (current API) or array format (future API)
+          let imageUrls: string[] = [];
+          if (typeof eventData.image_url === 'string' && eventData.image_url.trim().startsWith('[')) {
+            // Parse JSON string to array
+            try {
+              const parsedUrls = JSON.parse(eventData.image_url);
+              if (Array.isArray(parsedUrls) && parsedUrls.length > 0) {
+                imageUrls = parsedUrls;
+              } else {
+                imageUrls = [eventData.image_url];
+              }
+            } catch (e) {
+              console.warn('[EventDetailsScreen] Failed to parse image_url JSON:', e);
+              imageUrls = [eventData.image_url];
+            }
+          } else if (Array.isArray(eventData.image_url)) {
+            // Future API format: already an array
+            imageUrls = eventData.image_url;
+          } else {
+            // Single string URL
+            imageUrls = [eventData.image_url];
+          }
+          // Use first image from the array
+          if (imageUrls.length > 0) {
+            thumbnailUrl = getImageUrl(imageUrls[0]);
+          }
         }
         // Only use default thumbnail if no video URL or if video is not YouTube
         const thumbnailUri = thumbnailUrl ? {uri: thumbnailUrl} : (videoUrl ? undefined : ImagePath.eventImage);

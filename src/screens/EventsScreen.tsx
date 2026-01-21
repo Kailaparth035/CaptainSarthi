@@ -74,7 +74,32 @@ export default function EventsScreen() {
         const youtubeThumbnail = getYouTubeThumbnailUrl(videoUrl, 'maxresdefault');
         imageUrl = youtubeThumbnail;
       } else if (event.image_url) {
-        imageUrl = getImageUrl(event.image_url);
+        // Handle JSON string format (current API) or array format (future API)
+        let imageUrls: string[] = [];
+        if (typeof event.image_url === 'string' && event.image_url.trim().startsWith('[')) {
+          // Parse JSON string to array
+          try {
+            const parsedUrls = JSON.parse(event.image_url);
+            if (Array.isArray(parsedUrls) && parsedUrls.length > 0) {
+              imageUrls = parsedUrls;
+            } else {
+              imageUrls = [event.image_url];
+            }
+          } catch (e) {
+            console.warn('[EventsScreen] Failed to parse image_url JSON:', e);
+            imageUrls = [event.image_url];
+          }
+        } else if (Array.isArray(event.image_url)) {
+          // Future API format: already an array
+          imageUrls = event.image_url;
+        } else {
+          // Single string URL
+          imageUrls = [event.image_url];
+        }
+        // Use first image from the array
+        if (imageUrls.length > 0) {
+          imageUrl = getImageUrl(imageUrls[0]);
+        }
       }
       
       // Only use default thumbnail if no video URL or image URL

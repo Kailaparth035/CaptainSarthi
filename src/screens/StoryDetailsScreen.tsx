@@ -160,8 +160,60 @@ export default function StoryDetailsScreen() {
           thumbnailUrl = youtubeThumbnail;
         } else if (storyData.media?.cover_video?.thumbnail_url) {
           thumbnailUrl = getImageUrl(storyData.media.cover_video.thumbnail_url);
+        } else if (storyData.media?.image) {
+          // Handle media.image JSON string format (current API) or array format (future API)
+          let imageUrls: string[] = [];
+          if (typeof storyData.media.image === 'string' && storyData.media.image.trim().startsWith('[')) {
+            // Parse JSON string to array
+            try {
+              const parsedUrls = JSON.parse(storyData.media.image);
+              if (Array.isArray(parsedUrls) && parsedUrls.length > 0) {
+                imageUrls = parsedUrls;
+              } else {
+                imageUrls = [storyData.media.image];
+              }
+            } catch (e) {
+              console.warn('[StoryDetailsScreen] Failed to parse media.image JSON:', e);
+              imageUrls = [storyData.media.image];
+            }
+          } else if (Array.isArray(storyData.media.image)) {
+            // Future API format: already an array
+            imageUrls = storyData.media.image;
+          } else {
+            // Single string URL
+            imageUrls = [storyData.media.image];
+          }
+          // Use first image from the array
+          if (imageUrls.length > 0) {
+            thumbnailUrl = getImageUrl(imageUrls[0]);
+          }
         } else if (storyData.image_url) {
-          thumbnailUrl = getImageUrl(storyData.image_url);
+          // Handle JSON string format (current API) or array format (future API)
+          let imageUrls: string[] = [];
+          if (typeof storyData.image_url === 'string' && storyData.image_url.trim().startsWith('[')) {
+            // Parse JSON string to array
+            try {
+              const parsedUrls = JSON.parse(storyData.image_url);
+              if (Array.isArray(parsedUrls) && parsedUrls.length > 0) {
+                imageUrls = parsedUrls;
+              } else {
+                imageUrls = [storyData.image_url];
+              }
+            } catch (e) {
+              console.warn('[StoryDetailsScreen] Failed to parse image_url JSON:', e);
+              imageUrls = [storyData.image_url];
+            }
+          } else if (Array.isArray(storyData.image_url)) {
+            // Future API format: already an array
+            imageUrls = storyData.image_url;
+          } else {
+            // Single string URL
+            imageUrls = [storyData.image_url];
+          }
+          // Use first image from the array
+          if (imageUrls.length > 0) {
+            thumbnailUrl = getImageUrl(imageUrls[0]);
+          }
         }
         // Only use default thumbnail if no video URL or if video is not YouTube
         const thumbnailUri = thumbnailUrl ? {uri: thumbnailUrl} : (videoUrl ? undefined : ImagePath.eventImage);
