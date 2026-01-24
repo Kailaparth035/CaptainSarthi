@@ -364,6 +364,13 @@
     "uploadRcImage": "RC છબી અપલોડ કરો",
     "noRcFront": "કોઈ RC ફ્રન્ટ નથી",
     "noRcBack": "કોઈ RC બેક નથી"
+  },
+  "contactUs": {
+    "title": "અમારો સંપર્ક કરો",
+    "contactTollFree": "અમારા ટોલ ફ્રી નંબર પર સંપર્ક કરો",
+    "whatsappUs": "અમને Whatsapp કરો",
+    "call": "કૉલ કરો",
+    "textNow": "હવે ટેક્સ્ટ કરો"
   }
 }
 

@@ -274,6 +274,14 @@ export default function FarmerHomeScreen() {
       if (response?.status === true && response?.data) {
         const dashboardData = response.data;
         
+        // Map language code to language_id (en -> 1, hi -> 2, gu -> 3)
+        const languageIdMap: Record<string, number> = {
+          'en': 1,
+          'hi': 2,
+          'gu': 3,
+        };
+        const currentLanguageId = languageIdMap[currentLanguage] || 1;
+        
         // Transform top videos for carousel
         if (dashboardData.top_videos && Array.isArray(dashboardData.top_videos.list)) {
           const videos = dashboardData.top_videos.list.map((video: any, index: number) => {
@@ -348,7 +356,7 @@ export default function FarmerHomeScreen() {
             let displayTitle = event.title || '';
             if (event.languages && Array.isArray(event.languages) && event.languages.length > 0) {
               const languageSpecificContent = event.languages.find(
-                (lang: any) => lang.language_code === currentLanguage || lang.language === currentLanguage
+                (lang: any) => lang.language_id === currentLanguageId
               );
               // Use language-specific title if found, otherwise use default title
               if (languageSpecificContent?.title) {
@@ -403,7 +411,7 @@ export default function FarmerHomeScreen() {
             let displayTitle = story.title || '';
             if (story.languages && Array.isArray(story.languages) && story.languages.length > 0) {
               const languageSpecificContent = story.languages.find(
-                (lang: any) => lang.language_code === currentLanguage || lang.language === currentLanguage
+                (lang: any) => lang.language_id === currentLanguageId
               );
               // Use language-specific title if found, otherwise use default title
               if (languageSpecificContent?.title) {

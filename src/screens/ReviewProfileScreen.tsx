@@ -141,8 +141,8 @@ export default function ReviewProfileScreen() {
           }
           
           // Personal details
-          if (dealershipDetails.dealership_name) {
-            setDealershipName(dealershipDetails.dealership_name);
+          if (dealershipDetails.dealership_firm) {
+            setDealershipName(dealershipDetails.dealership_firm);
           }
           if (personalDetails.first_name) {
             setFirstName(personalDetails.first_name);

@@ -34,6 +34,7 @@
     "react-i18next": "^16.4.1",
     "react-native": "0.82.1",
     "react-native-device-info": "^15.0.1",
+    "react-native-fast-image": "^8.6.3",
     "react-native-floating-label-input": "^1.4.3",
     "react-native-gesture-handler": "^2.29.0",
     "react-native-image-crop-picker": "^0.51.1",

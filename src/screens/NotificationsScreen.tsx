@@ -166,12 +166,13 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
     const notificationData = item.data || {};
     const timestampData = formatTimestamp(item.createdAt || item.created_at || item.timestamp || item.date || '');
     
-    // Extract status from data.status ("0" = pending, "1" = complete, "2" = failed/rejected)
+    // Extract status from data.status ("0" or "pending" = pending, "1" = complete, "2" = failed/rejected)
     let status: NotificationStatus | undefined;
     const statusCode = notificationData.status?.toString() || item.status?.toString();
+    const statusCodeLower = statusCode?.toLowerCase();
     if (statusCode === '1') {
       status = 'complete';
-    } else if (statusCode === '0') {
+    } else if (statusCode === '0' || statusCodeLower === 'pending') {
       status = 'pending';
     } else if (statusCode === '2') {
       status = 'failed';
@@ -940,13 +941,13 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
                 {getStatusIcon(status)}
               </View>
               {/* Status Message with dot separator */}
-              <Text
-                numberOfLines={1}
-                ellipsizeMode="tail"
-                style={styles.dealerNotificationDescription}
-              >
-                {statusMessage}
-              </Text>
+                <Text
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                  style={styles.dealerNotificationDescription}
+                >
+                  {statusMessage}
+                </Text>
             </View>
 
             {/* Right Side: Date, Time, and Status Icon */}

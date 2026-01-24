@@ -87,7 +87,7 @@ const Avatar = ({
 export default function FarmerScreen() {
   const insets = useSafeAreaInsets();
   const { moderateScale } = useDeviceMetrics();
-  const {t} = useLanguage();
+  const {t, currentLanguage} = useLanguage();
   const navigation = useNavigation<NavigationProp>();
   const tabNavigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
   const [searchQuery, setSearchQuery] = useState('');
@@ -229,10 +229,11 @@ export default function FarmerScreen() {
         const categoriesData = response.data.map((cat: any) => ({
           id: cat.id?.toString() || '',
           name: cat.name || '',
+          language_id: cat.language_id || null,
         }));
         setCategories(categoriesData);
         console.log('[FarmerScreen] Categories loaded:', categoriesData);
-        console.log('[FarmerScreen] Category IDs:', categoriesData.map(c => c.id));
+        console.log('[FarmerScreen] Category IDs:', categoriesData.map((c: any) => c.id));
       } else {
         console.warn('[FarmerScreen] Failed to fetch categories:', response);
         setCategories([]);
@@ -282,11 +283,25 @@ export default function FarmerScreen() {
       },
     ];
 
-    // Add category filter if categories are available
-    if (categories.length > 0) {
+    // Map language code to language_id (en -> 1, hi -> 2, gu -> 3)
+    const languageIdMap: Record<string, number> = {
+      'en': 1,
+      'hi': 2,
+      'gu': 3,
+    };
+    
+    const currentLanguageId = languageIdMap[currentLanguage] || 1; // Default to English (1)
+    
+    // Filter categories based on current language_id
+    const filteredCategories = categories.filter(cat => {
+      return cat.language_id === currentLanguageId;
+    });
+
+    // Add category filter if filtered categories are available
+    if (filteredCategories.length > 0) {
       const categoryOptions = [
         {id: 'all', label: t('farmer.allCategories'), value: 'all'},
-        ...categories.map(cat => ({
+        ...filteredCategories.map(cat => ({
           id: `cat-${cat.id}`,
           label: cat.name,
           value: cat.id,
@@ -301,7 +316,7 @@ export default function FarmerScreen() {
     }
 
     return categoriesList;
-  }, [categories]);
+  }, [categories, currentLanguage, t]);
 
   const filteredFarmers = useMemo(() => {
     let filtered = [...allFarmers]; // Start with all farmers

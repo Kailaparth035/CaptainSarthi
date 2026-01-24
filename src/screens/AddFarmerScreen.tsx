@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Dimensions,
   Keyboard,
+  RefreshControl,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useNavigation, useRoute, useFocusEffect} from '@react-navigation/native';
@@ -611,6 +612,9 @@ export default function AddFarmerScreen() {
 
   // Errors
   const [errors, setErrors] = useState<FormErrors>({});
+  
+  // Pull to refresh
+  const [refreshing, setRefreshing] = useState(false);
 
   useDynamicStatusBar({
     backgroundColor: colors.backgroundLight,
@@ -2447,11 +2451,12 @@ export default function AddFarmerScreen() {
       console.log('ERROR: District is required');
     }
     
-    console.log('Village ID:', villageId || '✗ Missing');
-    if (!villageId || !villageId.trim()) {
-      newErrors.village = t('addFarmer.errors.villageRequired');
-      console.log('ERROR: Village is required');
-    }
+    // Village validation removed as per requirements
+    // console.log('Village ID:', villageId || '✗ Missing');
+    // if (!villageId || !villageId.trim()) {
+    //   newErrors.village = t('addFarmer.errors.villageRequired');
+    //   console.log('ERROR: Village is required');
+    // }
     
     console.log('Pincode:', pincode || '✗ Missing');
     if (!pincode || !pincode.trim()) {
@@ -3486,7 +3491,8 @@ export default function AddFarmerScreen() {
       newErrors.district = t('addFarmer.errors.districtRequired');
     }
     if (!villageId || !villageId.trim()) {
-      newErrors.village = t('addFarmer.errors.villageRequired');
+      // Village validation removed as per requirements
+      // newErrors.village = t('addFarmer.errors.villageRequired');
     }
     if (!pincode || !pincode.trim()) {
       newErrors.pincode = t('addFarmer.errors.pincodeRequired');
@@ -4337,6 +4343,22 @@ export default function AddFarmerScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           nestedScrollEnabled={true}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={async () => {
+                setRefreshing(true);
+                await Promise.all([
+                  fetchDealerName(),
+                  fetchCategories(),
+                  fetchStates(),
+                ]);
+                setRefreshing(false);
+              }}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
         >
           {/* Personal Details Section */}
           <View style={styles.section}>
@@ -4904,7 +4926,7 @@ export default function AddFarmerScreen() {
                 placeholder={districtId ? t('addFarmer.selectVillage') : t('addFarmer.selectDistrictFirst')}
                 error={errors.village}
                 loading={villagesLoading}
-                required={true}
+                required={false}
               />
             </View>
             <View 
@@ -4968,7 +4990,7 @@ export default function AddFarmerScreen() {
                     return (
                       <View>
                         {renderImageUpload(
-                          t('addFarmer.uploadTractorImage'),
+                          t('addFarmer.uploadTractorImage') + ' *',
                           undefined,
                           () => {
                             ensureFirstTractorImageSlot(tractor.id);
@@ -4990,7 +5012,7 @@ export default function AddFarmerScreen() {
                         {/* First Uploaded Image */}
                         <View style={styles.tractorImageItem}>
                           {renderImageUpload(
-                            t('addFarmer.uploadTractorImage'),
+                            t('addFarmer.uploadTractorImage') + ' *',
                             hasFirstImage ? firstImage : undefined,
                             () => {
                               ensureFirstTractorImageSlot(tractor.id);
@@ -5014,7 +5036,7 @@ export default function AddFarmerScreen() {
                           // Show second uploaded image
                           <View style={styles.tractorImageItem}>
                             {renderImageUpload(
-                              t('addFarmer.uploadTractorImage'),
+                              t('addFarmer.uploadTractorImage') + ' *',
                               hasSecondImage ? secondImage : undefined,
                               () => handleImagePicker('tractor', tractor.id, 1),
                               true,
@@ -5081,7 +5103,7 @@ export default function AddFarmerScreen() {
                 {/* RC Front Image with OCR Loading Overlay */}
                 <View style={{flex: 1, marginRight: moderateScale(8)}}>
                   {renderImageUpload(
-                    t('addFarmer.uploadRcFront'),
+                    t('addFarmer.uploadRcFront') + ' *',
                     tractor.rcFront,
                     () => handleImagePicker('rcFront', tractor.id),
                     true,
@@ -5122,7 +5144,7 @@ export default function AddFarmerScreen() {
                 {/* RC Back Image with OCR Loading Overlay */}
                 <View style={{flex: 1, marginLeft: moderateScale(8)}}>
                   {renderImageUpload(
-                    t('addFarmer.uploadRcBack'),
+                    t('addFarmer.uploadRcBack') + ' *',
                     tractor.rcBack,
                     () => handleImagePicker('rcBack', tractor.id),
                     true,

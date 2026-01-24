@@ -216,7 +216,7 @@ export default function FarmerProfileDetailsScreen() {
           : '';
         
         // Dealership details
-        const dealershipName = dealershipDetails.firm_name || dealershipDetails.dealership_name || '';
+        const dealershipName = dealershipDetails.dealership_firm || dealershipDetails.dealership_name || '';
         const dealershipAddress = dealershipDetails.dealership_address || '';
         const dealerShipNo = `+91 ${dealershipDetails.delaership_mobile_no}` || '';        
         

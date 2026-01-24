@@ -16,6 +16,7 @@ import colors from '../utils/colors';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import {Typography} from '../utils/typography';
 import { ImagePath } from '../assets/images';
+import {useLanguage} from '../contexts/LanguageContext';
 
 type ContactUsModalProps = {
   visible: boolean;
@@ -34,6 +35,7 @@ export default function ContactUsModal({
 }: ContactUsModalProps) {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
+  const {t} = useLanguage();
 
   const styles = useMemo(
     () =>
@@ -201,7 +203,7 @@ export default function ContactUsModal({
         >
           {/* Header */}
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Contact us</Text>
+            <Text style={styles.modalTitle}>{t('contactUs.title')}</Text>
             <TouchableOpacity
               style={styles.closeButton}
               onPress={onClose}
@@ -239,7 +241,7 @@ export default function ContactUsModal({
             <View style={styles.contactInfo}>
               <Text style={styles.contactNumber}>{tollFreeNumber}</Text>
               <Text style={styles.contactLabel}>
-                Contact our toll free number
+                {t('contactUs.contactTollFree')}
               </Text>
             </View>
             <TouchableOpacity
@@ -247,7 +249,7 @@ export default function ContactUsModal({
               onPress={() => handleCall(tollFreeNumber)}
               activeOpacity={0.7}
             >
-              <Text style={styles.actionButtonText}>Call</Text>
+              <Text style={styles.actionButtonText}>{t('contactUs.call')}</Text>
             </TouchableOpacity>
           </View>
 
@@ -269,14 +271,14 @@ export default function ContactUsModal({
                       5
                     )}`}
               </Text>
-              <Text style={styles.contactLabel}>Whatsapp us!</Text>
+              <Text style={styles.contactLabel}>{t('contactUs.whatsappUs')}</Text>
             </View>
             <TouchableOpacity
               style={styles.actionButton}
               onPress={handleWhatsApp}
               activeOpacity={0.7}
             >
-              <Text style={styles.actionButtonText}>Text now</Text>
+              <Text style={styles.actionButtonText}>{t('contactUs.textNow')}</Text>
             </TouchableOpacity>
           </View>
         </Pressable>

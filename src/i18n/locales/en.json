@@ -366,6 +366,13 @@
     "uploadRcImage": "Upload RC image",
     "noRcFront": "No RC Front",
     "noRcBack": "No RC Back"
+  },
+  "contactUs": {
+    "title": "Contact us",
+    "contactTollFree": "Contact our toll free number",
+    "whatsappUs": "Whatsapp us!",
+    "call": "Call",
+    "textNow": "Text now"
   }
 }
 
