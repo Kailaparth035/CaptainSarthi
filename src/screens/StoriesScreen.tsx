@@ -12,6 +12,7 @@ import {
   Platform,
   BackHandler,
 } from 'react-native';
+import FastImage from 'react-native-fast-image';
 import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -542,14 +543,35 @@ export default function StoriesScreen() {
         {/* Banner Section */}
         <View style={dynamicStyles.bannerContainer}>
           {story.bannerImage ? (
-            <Image
-              source={
-                typeof story.bannerImage === 'object' && story.bannerImage?.uri
-                  ? {uri: story.bannerImage.uri}
-                  : story.bannerImage
-              }
-              style={{height: moderateScale(170), width: '100%', resizeMode: 'cover'}}
-            />
+            typeof story.bannerImage === 'object' && story.bannerImage?.uri && typeof story.bannerImage.uri === 'string' ? (
+              <FastImage
+                source={{
+                  uri: story.bannerImage.uri,
+                  priority: FastImage.priority.normal,
+                  cache: FastImage.cacheControl.immutable,
+                }}
+                style={{height: moderateScale(170), width: '100%'}}
+                resizeMode={FastImage.resizeMode.cover}
+                defaultSource={ImagePath.storycard}
+              />
+            ) : typeof story.bannerImage === 'string' ? (
+              <FastImage
+                source={{
+                  uri: story.bannerImage,
+                  priority: FastImage.priority.normal,
+                  cache: FastImage.cacheControl.immutable,
+                }}
+                style={{height: moderateScale(170), width: '100%'}}
+                resizeMode={FastImage.resizeMode.cover}
+                defaultSource={ImagePath.storycard}
+              />
+            ) : (
+              <Image
+                source={story.bannerImage}
+                style={{height: moderateScale(170), width: '100%', resizeMode: 'cover'}}
+                resizeMode="cover"
+              />
+            )
           ) : null}
         </View>
 

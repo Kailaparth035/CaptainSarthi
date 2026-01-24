@@ -14,6 +14,7 @@ import {
   ActivityIndicator,
   Dimensions,
 } from 'react-native';
+import FastImage from 'react-native-fast-image';
 import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useRoute, useNavigation, useFocusEffect, CommonActions, StackActions} from '@react-navigation/native';
@@ -1006,17 +1007,27 @@ export default function EventDetailsScreen() {
                     setShowVideoModal(true);
                   }
                 }}>
-                {typeof eventDetails.thumbnailUri === 'object' && eventDetails.thumbnailUri?.uri ? (
-                  <Image
-                    source={{uri: eventDetails.thumbnailUri.uri}}
+                {typeof eventDetails.thumbnailUri === 'object' && eventDetails.thumbnailUri?.uri && typeof eventDetails.thumbnailUri.uri === 'string' ? (
+                  <FastImage
+                    source={{
+                      uri: eventDetails.thumbnailUri.uri,
+                      priority: FastImage.priority.normal,
+                      cache: FastImage.cacheControl.immutable,
+                    }}
                     style={{width: '100%', height: '100%'}}
-                    resizeMode="cover"
+                    resizeMode={FastImage.resizeMode.cover}
+                    defaultSource={ImagePath.eventImage}
                   />
                 ) : (
-                  <Image
-                    source={{uri: getYouTubeThumbnailUrl(eventDetails.videoUri) || ''}}
+                  <FastImage
+                    source={{
+                      uri: getYouTubeThumbnailUrl(eventDetails.videoUri) || '',
+                      priority: FastImage.priority.normal,
+                      cache: FastImage.cacheControl.immutable,
+                    }}
                     style={{width: '100%', height: '100%'}}
-                    resizeMode="cover"
+                    resizeMode={FastImage.resizeMode.cover}
+                    defaultSource={ImagePath.eventImage}
                   />
                 )}
                 <View style={dynamicStyles.playButtonOverlay}>
@@ -1056,19 +1067,39 @@ export default function EventDetailsScreen() {
                 style={dynamicStyles.mainImageContainer}
                 onPress={() => handleImagePress(0)}
                 activeOpacity={0.7}>
-                <Image
-                  source={
-                    typeof eventDetails.images[0] === 'object' && eventDetails.images[0]?.uri
-                      ? {uri: eventDetails.images[0].uri}
-                      : typeof eventDetails.thumbnailUri === 'object' && eventDetails.thumbnailUri?.uri
-                      ? {uri: eventDetails.thumbnailUri.uri}
-                      : typeof eventDetails.thumbnailUri === 'number'
-                      ? eventDetails.thumbnailUri
-                      : eventDetails.images[0] || ImagePath.eventImage
-                  }
-                  style={{width: '100%', height: '100%'}}
-                  resizeMode="cover"
-                />
+                {typeof eventDetails.images[0] === 'object' && eventDetails.images[0]?.uri && typeof eventDetails.images[0].uri === 'string' ? (
+                  <FastImage
+                    source={{
+                      uri: eventDetails.images[0].uri,
+                      priority: FastImage.priority.normal,
+                      cache: FastImage.cacheControl.immutable,
+                    }}
+                    style={{width: '100%', height: '100%'}}
+                    resizeMode={FastImage.resizeMode.cover}
+                    defaultSource={ImagePath.eventImage}
+                  />
+                ) : typeof eventDetails.thumbnailUri === 'object' && eventDetails.thumbnailUri?.uri && typeof eventDetails.thumbnailUri.uri === 'string' ? (
+                  <FastImage
+                    source={{
+                      uri: eventDetails.thumbnailUri.uri,
+                      priority: FastImage.priority.normal,
+                      cache: FastImage.cacheControl.immutable,
+                    }}
+                    style={{width: '100%', height: '100%'}}
+                    resizeMode={FastImage.resizeMode.cover}
+                    defaultSource={ImagePath.eventImage}
+                  />
+                ) : (
+                  <Image
+                    source={
+                      typeof eventDetails.thumbnailUri === 'number'
+                        ? eventDetails.thumbnailUri
+                        : eventDetails.images[0] || ImagePath.eventImage
+                    }
+                    style={{width: '100%', height: '100%'}}
+                    resizeMode="cover"
+                  />
+                )}
               </TouchableOpacity>
             </View>
           )
@@ -1097,12 +1128,17 @@ export default function EventDetailsScreen() {
                     style={thumbnailStyle}
                     onPress={() => handleImagePress(index)}
                     activeOpacity={0.7}>
-                    {img.uri ? (
+                    {img.uri && typeof img.uri === 'string' ? (
                       <>
-                        <Image
-                          source={{uri: img.uri}}
+                        <FastImage
+                          source={{
+                            uri: img.uri,
+                            priority: FastImage.priority.normal,
+                            cache: FastImage.cacheControl.immutable,
+                          }}
                           style={dynamicStyles.thumbnailImage}
-                          resizeMode="cover"
+                          resizeMode={FastImage.resizeMode.cover}
+                          defaultSource={ImagePath.eventImage}
                         />
                         {showMoreOverlay && (
                           <View style={dynamicStyles.thumbnailMore}>

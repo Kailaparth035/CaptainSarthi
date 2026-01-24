@@ -480,6 +480,28 @@ export default function FarmerProfileScreen() {
     bottomBarColor: colors.backgroundLight,
   });
 
+  // Get Contact Us text based on language
+  const getContactUsText = useMemo(() => {
+    switch (currentLanguage) {
+      case 'gu':
+        return {
+          title: 'અમારો સંપર્ક કરો',
+          description: 'સંપર્કમાં રહો',
+        };
+      case 'hi':
+        return {
+          title: 'हमसे संपर्क करें',
+          description: 'हमारे साथ जुड़े',
+        };
+      case 'en':
+      default:
+        return {
+          title: 'Contact Us',
+          description: 'Get in touch with us',
+        };
+    }
+  }, [currentLanguage]);
+
   return (
     <View style={dynamicStyles.container}>
       <ScrollView
@@ -636,9 +658,9 @@ export default function FarmerProfileScreen() {
                 />
               </View>
               <View style={dynamicStyles.optionContent}>
-                <Text style={dynamicStyles.optionLabel}>Contact Us</Text>
+                <Text style={dynamicStyles.optionLabel}>{getContactUsText.title}</Text>
                 <Text style={dynamicStyles.optionText}>
-                  Get in touch with us
+                  {getContactUsText.description}
                 </Text>
               </View>
             </View>

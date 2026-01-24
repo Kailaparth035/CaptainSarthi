@@ -11,6 +11,7 @@ import {
   Platform,
   BackHandler,
 } from 'react-native';
+import FastImage from 'react-native-fast-image';
 import LinearGradient from 'react-native-linear-gradient';
 import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -603,11 +604,35 @@ export default function EventsScreen() {
             {/* Event Image */}
             <View style={dynamicStyles.eventImage}>
               {event.imageUri ? (
-                <Image
-                  source={event.imageUri}
-                  style={dynamicStyles.eventImagePlaceholder}
-                  resizeMode="cover"
-                />
+                typeof event.imageUri === 'object' && event.imageUri?.uri && typeof event.imageUri.uri === 'string' ? (
+                  <FastImage
+                    source={{
+                      uri: event.imageUri.uri,
+                      priority: FastImage.priority.normal,
+                      cache: FastImage.cacheControl.immutable,
+                    }}
+                    style={dynamicStyles.eventImagePlaceholder}
+                    resizeMode={FastImage.resizeMode.cover}
+                    defaultSource={ImagePath.eventImage}
+                  />
+                ) : typeof event.imageUri === 'string' ? (
+                  <FastImage
+                    source={{
+                      uri: event.imageUri,
+                      priority: FastImage.priority.normal,
+                      cache: FastImage.cacheControl.immutable,
+                    }}
+                    style={dynamicStyles.eventImagePlaceholder}
+                    resizeMode={FastImage.resizeMode.cover}
+                    defaultSource={ImagePath.eventImage}
+                  />
+                ) : (
+                  <Image
+                    source={event.imageUri}
+                    style={dynamicStyles.eventImagePlaceholder}
+                    resizeMode="cover"
+                  />
+                )
               ) : null}
             </View>
 
