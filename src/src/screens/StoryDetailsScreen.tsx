@@ -55,12 +55,9 @@ const getStoryDetails = (storyId: string) => {
     fullDescription:
       'Choosing the right tractor horsepower is crucial for efficient farming operations. The horsepower of a tractor determines its ability to handle various farming tasks, from plowing and tilling to harvesting and transportation.\n\nCaptain Tractors proudly organized its National Dealer Meet 2025 on the 9th and 10th of September in the royal city of Udaipur, Rajasthan. This grand assembly brought together over 175+ of our valued dealer partners from every corner of India, celebrating the strength, trust, and growth of the Captain Tractors family.\n\nThe first day was a vibrant celebration. Dealers were welcomed with traditional Rajasthani hospitality, creating a festive atmosphere. An unforgettable evening of folk dance, music, and cultural performances perfectly embodied the event\'s theme, \'Chhalaang\', binding the Captain family in a shared spirit of unity and enthusiasm.\n\nWhen selecting a tractor, consider factors such as field size, soil type, and the specific tasks you need to perform. Smaller farms may benefit from 12-20 HP tractors, while larger operations might require 25-35 HP or more for heavy-duty work.',
     videoUri: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-    thumbnailUri: ImagePath.eventImage,
+    thumbnailUri: ImagePath.no_image,
     images: [
-      ImagePath.eventImage,
-      ImagePath.eventImage2,
-      ImagePath.eventImage,
-      ImagePath.eventImage2,
+      ImagePath.no_image,
     ],
   };
 
@@ -151,7 +148,7 @@ export default function StoryDetailsScreen() {
           thumbnailUrl = getImageUrl(storyData.image_url);
         }
         // Only use default thumbnail if no video URL or if video is not YouTube
-        const thumbnailUri = thumbnailUrl ? {uri: thumbnailUrl} : (videoUrl ? undefined : ImagePath.eventImage);
+        const thumbnailUri = thumbnailUrl ? {uri: thumbnailUrl} : (videoUrl ? undefined : ImagePath.no_image);
         
         // Handle date - use display_datetime or display_date
         const date = storyData.display_datetime || storyData.display_date || storyData.story_date || storyData.date || '';
@@ -179,7 +176,7 @@ export default function StoryDetailsScreen() {
         }
         // Final fallback
         if (galleryImages.length === 0) {
-          galleryImages.push(ImagePath.eventImage);
+          galleryImages.push(ImagePath.no_image);
         }
         
         setStoryDetails({
@@ -750,7 +747,7 @@ export default function StoryDetailsScreen() {
                   source={
                     typeof storyDetails.images[0] === 'object' && storyDetails.images[0]?.uri
                       ? {uri: storyDetails.images[0].uri}
-                      : storyDetails.images[0] || ImagePath.eventImage
+                      : storyDetails.images[0] || ImagePath.no_image
                   }
                   style={dynamicStyles.thumbnailLeftImage}
                   resizeMode="cover"
@@ -770,7 +767,7 @@ export default function StoryDetailsScreen() {
                     source={
                       typeof image === 'object' && image?.uri
                         ? {uri: image.uri}
-                        : image || ImagePath.eventImage
+                        : image || ImagePath.no_image
                     }
                     style={dynamicStyles.thumbnailImage}
                     resizeMode="cover"

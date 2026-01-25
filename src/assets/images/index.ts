@@ -49,6 +49,7 @@ export const ImagePath = {
   nofarmerfound : require('../images/nofarmerfound.png'),
   noItemBgColor : require('../images/noItemBgColor.png'),
   verificationPending : require('../images/verification_penfding.png'),
+  no_image : require('../images/no_image.jpg'),
   
 
   

@@ -536,7 +536,7 @@ export default function StoriesScreen() {
             title: story.title,
             date: story.date,
             bannerImage: story.bannerImage,
-            images: [story.bannerImage, ImagePath.eventImage, ImagePath.eventImage2],
+            images: [story.bannerImage, ImagePath.no_image, ],
             fromScreen: 'List',
           });
         }}>

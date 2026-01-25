@@ -40,6 +40,7 @@ export const ImagePath = {
   eventNotification : require('../images/eventNotification.png'),
   nofarmerfound : require('../images/nofarmerfound.png'),
   noItemBgColor : require('../images/noItemBgColor.png'),
+  no_image : require('../images/no_image.jpg'),
   
 
   

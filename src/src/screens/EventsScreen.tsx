@@ -83,7 +83,7 @@ export default function EventsScreen() {
       }
       
       // Only use default thumbnail if no video URL or image URL
-      const imageUri = imageUrl ? {uri: imageUrl} : (videoUrl ? undefined : ImagePath.eventImage);
+      const imageUri = imageUrl ? {uri: imageUrl} : (videoUrl ? undefined : ImagePath.no_image);
       
       // Handle language-specific title
       // Check if languages array exists and find matching language
