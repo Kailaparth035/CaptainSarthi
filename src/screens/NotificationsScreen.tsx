@@ -61,6 +61,7 @@ interface NotificationItem {
   eventId?: string;
   storyId?: string;
   dataType?: string; // data.type from API response
+  originalData?: any; // Store complete original API response
 }
 
 const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
@@ -236,6 +237,7 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
       eventId: notificationData.event_id || notificationData.eventId,
       storyId: notificationData.story_id || notificationData.storyId,
       dataType: notificationData.type || item.type || 'other', // data.type from API response
+      originalData: item, // Store complete original API response
     };
   };
 
@@ -720,6 +722,7 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
   );
 
   const handleNotificationPress = async (notification: NotificationItem) => {
+    console.log('dataType:: 999',notification);
     // Handle notification press - navigate to details or show modal
     // For dealer role, show failed modal for failed status
     if (userRole === 'dealer' && notification.status === 'failed') {
@@ -750,21 +753,31 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
       const eventId = notification.eventId;
       const storyId = notification.storyId;
       
-      if (dataType === 'event' && eventId) {
+      // Check originalData for event_id or story_id (for custom type notifications)
+      const originalEventId = notification.originalData?.event_id;
+      const originalStoryId = notification.originalData?.story_id;
+      
+      // Use eventId from transformed data or originalData (check if not null/undefined)
+      const finalEventId = eventId || (originalEventId != null ? originalEventId.toString() : null);
+      // Use storyId from transformed data or originalData (check if not null/undefined)
+      const finalStoryId = storyId || (originalStoryId != null ? originalStoryId.toString() : null);
+      
+      // Navigate to EventDetails if eventId exists (either from dataType='event' or originalData.event_id)
+      if (finalEventId && (dataType === 'event' || originalEventId != null)) {
         // Navigate to Events tab and then to EventDetails
         tabNavigation.navigate(SCREEN_NAMES.Events, {
           screen: SCREEN_NAMES.EventDetails,
           params: {
-            eventId: eventId,
+            eventId: finalEventId,
             fromScreen: 'Notifications',
           },
         } as any);
-      } else if (dataType === 'story' && storyId) {
+      } else if (finalStoryId && (dataType === 'story' || originalStoryId != null)) {
         // Navigate to Stories tab and then to StoryDetails
         tabNavigation.navigate(SCREEN_NAMES.Stories, {
           screen: SCREEN_NAMES.StoryDetails,
           params: {
-            storyId: storyId,
+            storyId: finalStoryId,
             fromScreen: 'Notifications',
           },
         } as any);
@@ -985,6 +998,9 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
 
   // Render notification item (farmer or dealer)
   const renderNotificationItem = ({item, index}: {item: NotificationItem; index: number}) => {
+
+
+    console.log(' 888',item);
     // Use dealer UI if user is a dealer
     if (userRole === 'dealer') {
       return renderDealerNotificationItem({item, index});
