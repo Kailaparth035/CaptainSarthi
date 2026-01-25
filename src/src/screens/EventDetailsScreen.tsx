@@ -750,7 +750,7 @@ export default function EventDetailsScreen() {
             style={dynamicStyles.contactButton}
             onPress={handleContactUs}
             activeOpacity={0.7}>
-            <Text style={dynamicStyles.contactButtonText}>Contact us</Text>
+            <Text style={dynamicStyles.contactButtonText}>{t('contactUs.title')}</Text>
           </TouchableOpacity>
         </View>
         {renderSkeleton()}
@@ -786,7 +786,7 @@ export default function EventDetailsScreen() {
           style={dynamicStyles.contactButton}
           onPress={handleContactUs}
           activeOpacity={0.7}>
-          <Text style={dynamicStyles.contactButtonText}>Contact us</Text>
+          <Text style={dynamicStyles.contactButtonText}>{t('contactUs.title')}</Text>
         </TouchableOpacity>
       </View>
 

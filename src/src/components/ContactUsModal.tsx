@@ -16,6 +16,7 @@ import colors from '../utils/colors';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import {Typography} from '../utils/typography';
 import { ImagePath } from '../assets/images';
+import {useLanguage} from '../contexts/LanguageContext';
 
 type ContactUsModalProps = {
   visible: boolean;
@@ -34,6 +35,7 @@ export default function ContactUsModal({
 }: ContactUsModalProps) {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
+  const {t} = useLanguage();
 
   const styles = useMemo(
     () =>
@@ -201,7 +203,7 @@ export default function ContactUsModal({
         >
           {/* Header */}
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Contact us</Text>
+            <Text style={styles.modalTitle}>{t('contactUs.title')}</Text>
             <TouchableOpacity
               style={styles.closeButton}
               onPress={onClose}
