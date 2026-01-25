@@ -264,8 +264,20 @@ export default function EventDetailsScreen() {
         const displayTitle = languageSpecificContent?.title || eventData.title || params?.title || 'Event';
         const displayDescription = languageSpecificContent?.description || defaultDescription;
         
-        // Handle gallery images from media.images
+        // Handle gallery images from media.gallery_images or media.images
         const galleryImages: any[] = [];
+        
+        // First, check for media.gallery_images (new API format - array of strings)
+        if (eventData.media?.gallery_images && Array.isArray(eventData.media.gallery_images)) {
+          eventData.media.gallery_images.forEach((url: string) => {
+            const imgUrl = getImageUrl(url);
+            if (imgUrl) {
+              galleryImages.push({uri: imgUrl});
+            }
+          });
+        }
+        
+        // Also check for media.images (old API format - array of objects)
         if (eventData.media?.images && Array.isArray(eventData.media.images)) {
           eventData.media.images.forEach((imgObj: any) => {
             let imageUrls: string[] = [];
@@ -305,14 +317,19 @@ export default function EventDetailsScreen() {
             });
           });
         }
-        // If no gallery images, use thumbnail
-        if (galleryImages.length === 0 && thumbnailUrl) {
-          galleryImages.push({uri: thumbnailUrl});
+        console.log('[EventDetailsScreen] Gallery images count:', galleryImages.length);
+        // If thumbnail exists and is not already in gallery images, add it at the beginning
+        if (thumbnailUrl) {
+          const thumbnailExists = galleryImages.some((img: any) => img.uri === thumbnailUrl);
+          if (!thumbnailExists) {
+            galleryImages.unshift({uri: thumbnailUrl});
+          }
         }
-        // Final fallback
+        // If no images at all, use fallback
         if (galleryImages.length === 0) {
           galleryImages.push(ImagePath.eventImage);
         }
+        console.log('[EventDetailsScreen] Final images count:', galleryImages.length);
         
         setEventDetails({
           id: eventData.event_id || eventData.id || eventId,
