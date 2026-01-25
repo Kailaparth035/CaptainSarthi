@@ -1116,8 +1116,15 @@ export default function EventDetailsScreen() {
           {((eventDetails.videoUri && eventDetails.videoUri.trim() !== '' && previewImages.length > 0) || 
             ((!eventDetails.videoUri || eventDetails.videoUri.trim() === '') && previewImages.length > 1)) && (
             <View style={dynamicStyles.thumbnailRow}>
-              {previewImages.slice(0, 3).map((img: ImageItem, index: number) => {
-                const remainingCount = previewImages.length - 3;
+              {(eventDetails.videoUri && eventDetails.videoUri.trim() !== '' 
+                ? previewImages.slice(0, 3) 
+                : previewImages.slice(1, 4)
+              ).map((img: ImageItem, index: number) => {
+                // Calculate the actual index in previewImages array
+                const actualIndex = (eventDetails.videoUri && eventDetails.videoUri.trim() !== '') ? index : index + 1;
+                // Calculate remaining count based on whether we're skipping first image
+                const startIndex = (eventDetails.videoUri && eventDetails.videoUri.trim() !== '') ? 0 : 1;
+                const remainingCount = previewImages.length - (startIndex + 3);
                 const showMoreOverlay = index === 2 && remainingCount > 0;
                 // When there's a video and only 1 image, use same size as multiple images
                 const hasVideoAndSingleImage = eventDetails.videoUri && eventDetails.videoUri.trim() !== '' && previewImages.length === 1;
@@ -1130,9 +1137,9 @@ export default function EventDetailsScreen() {
 
                 return (
                   <TouchableOpacity
-                    key={img.id || index}
+                    key={img.id || actualIndex}
                     style={thumbnailStyle}
-                    onPress={() => handleImagePress(index)}
+                    onPress={() => handleImagePress(actualIndex)}
                     activeOpacity={0.7}>
                     {img.uri && typeof img.uri === 'string' ? (
                       <>
