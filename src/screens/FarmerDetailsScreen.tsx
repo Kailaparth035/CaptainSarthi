@@ -293,21 +293,7 @@ export default function FarmerDetailsScreen() {
       });
     }
     
-    // Add RC front image if available
-    if (tractor.rcImagesFront) {
-      images.push({
-        id: 'rc-front',
-        uri: tractor.rcImagesFront,
-      });
-    }
-    
-    // Add RC back image if available
-    if (tractor.rcImagesBack) {
-      images.push({
-        id: 'rc-back',
-        uri: tractor.rcImagesBack,
-      });
-    }
+    // RC book images are not included in preview modal
     
     return images;
   }, [farmerDetails, selectedTractorIndex]);
