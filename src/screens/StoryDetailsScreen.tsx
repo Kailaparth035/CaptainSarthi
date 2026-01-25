@@ -1002,11 +1002,17 @@ export default function StoryDetailsScreen() {
                 const showMoreOverlay = index === 2 && remainingCount > 0;
                 // When there's a video and only 1 image, use same size as multiple images
                 const hasVideoAndSingleImage = storyDetails.videoUri && storyDetails.videoUri.trim() !== '' && previewImages.length === 1;
+                // When there's no video and only 1 gallery image (previewImages.length === 2), reduce height and width
+                const hasNoVideoAndSingleGalleryImage = (!storyDetails.videoUri || storyDetails.videoUri.trim() === '') && previewImages.length === 2;
                 const thumbnailWidth = hasVideoAndSingleImage 
                   ? ((screenWidth - moderateScale(32)) - (moderateScale(8) * 2)) / 3 
+                  : hasNoVideoAndSingleGalleryImage
+                  ? moderateScale(170)
                   : undefined;
                 const thumbnailStyle = hasVideoAndSingleImage
                   ? [dynamicStyles.thumbnail, {flex: undefined, width: thumbnailWidth}]
+                  : hasNoVideoAndSingleGalleryImage
+                  ? [dynamicStyles.thumbnail, {flex: undefined, width: thumbnailWidth, aspectRatio: undefined, height: moderateScale(170)}]
                   : dynamicStyles.thumbnail;
 
                 return (
