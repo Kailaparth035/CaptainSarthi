@@ -29,6 +29,7 @@ import FirebaseService from '../Service/FirebaseService';
 import {pickAndCropImageFromCamera, pickAndCropImageFromGallery} from '../utils/imageCropUtils';
 import ImagePickerModal from '../components/ImagePickerModal';
 import Toast, {ToastType} from '../components/Toast';
+import { ImagePath } from '../assets/images';
 
 export default function FarmerProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -651,11 +652,19 @@ export default function FarmerProfileScreen() {
             activeOpacity={0.7}>
             <View style={dynamicStyles.optionLeft}>
               <View style={dynamicStyles.optionIcon}>
-                <Ionicons
+                {/* <Ionicons
                   name="call-outline"
                   size={moderateScale(20)}
                   color={colors.textPrimary}
-                />
+                /> */}
+                <Image source={ImagePath.contactUs} style={[dynamicStyles.optionIcon,{
+                  height: moderateScale(25),
+                  width: moderateScale(25),
+                  resizeMode: 'contain',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: moderateScale(0),
+                }]} />
               </View>
               <View style={dynamicStyles.optionContent}>
                 <Text style={dynamicStyles.optionLabel}>{getContactUsText.title}</Text>

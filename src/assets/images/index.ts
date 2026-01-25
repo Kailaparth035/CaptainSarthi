@@ -50,7 +50,7 @@ export const ImagePath = {
   noItemBgColor : require('../images/noItemBgColor.png'),
   verificationPending : require('../images/verification_penfding.png'),
   no_image : require('../images/no_image.jpg'),
-  
+  contactUs : require('../images/contact_us_icon.png'),
 
   
 };
