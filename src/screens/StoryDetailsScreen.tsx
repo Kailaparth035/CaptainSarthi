@@ -229,8 +229,20 @@ export default function StoryDetailsScreen() {
         // Use language-specific title if available, otherwise use default title
         const displayTitle = languageSpecificContent?.title || storyData.title || params?.title || 'Story';
         
-        // Handle gallery images from media.images
+        // Handle gallery images from media.gallery_images or media.images
         const galleryImages: any[] = [];
+        
+        // First, check for media.gallery_images (new API format - array of strings)
+        if (storyData.media?.gallery_images && Array.isArray(storyData.media.gallery_images)) {
+          storyData.media.gallery_images.forEach((url: string) => {
+            const imgUrl = getImageUrl(url);
+            if (imgUrl) {
+              galleryImages.push({uri: imgUrl});
+            }
+          });
+        }
+        
+        // Also check for media.images (old API format - array of objects)
         if (storyData.media?.images && Array.isArray(storyData.media.images)) {
           storyData.media.images.forEach((imgObj: any) => {
             let imageUrls: string[] = [];
@@ -270,11 +282,15 @@ export default function StoryDetailsScreen() {
             });
           });
         }
-        // If no gallery images, use thumbnail
-        if (galleryImages.length === 0 && thumbnailUrl) {
-          galleryImages.push({uri: thumbnailUrl});
+        console.log('[StoryDetailsScreen] Gallery images count:', galleryImages.length);
+        // If thumbnail exists and is not already in gallery images, add it at the beginning
+        if (thumbnailUrl) {
+          const thumbnailExists = galleryImages.some((img: any) => img.uri === thumbnailUrl);
+          if (!thumbnailExists) {
+            galleryImages.unshift({uri: thumbnailUrl});
+          }
         }
-        // Final fallback
+        // If no images at all, use fallback
         if (galleryImages.length === 0) {
           galleryImages.push(ImagePath.eventImage);
         }
