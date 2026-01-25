@@ -61,10 +61,8 @@ const getEventDetails = (eventId: string) => {
     fullDescription:
       'Captain Tractors proudly organized its National Dealer Meet 2025 on the 9th and 10th of September in the royal city of Udaipur, Rajasthan. This grand assembly brought together over 175+ of our valued dealer partners from every corner of India, celebrating the strength, trust, and growth of the Captain Tractors family.\n\nThe first day was a vibrant celebration. Dealers were welcomed with traditional Rajasthani hospitality, creating a festive atmosphere. An unforgettable evening of folk dance, music, and cultural performances perfectly embodied the event\'s theme, \'Chhalaang\', binding the Captain family in a shared spirit of unity and enthusiasm.',
     videoUri: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-    thumbnailUri: ImagePath.no_image,
-    images: [
-      ImagePath.no_image,
-    ],
+    thumbnailUri: undefined,
+    images: [],
   };
 
   return defaultData;
@@ -138,7 +136,7 @@ export default function EventDetailsScreen() {
           thumbnailUrl = getImageUrl(eventData.image_url);
         }
         // Only use default thumbnail if no video URL or if video is not YouTube
-        const thumbnailUri = thumbnailUrl ? {uri: thumbnailUrl} : (videoUrl ? undefined : ImagePath.no_image);
+        const thumbnailUri = thumbnailUrl ? {uri: thumbnailUrl} : undefined;
         
         // Handle location
         let location = 'Location not specified';
@@ -210,9 +208,7 @@ export default function EventDetailsScreen() {
           galleryImages.push({uri: thumbnailUrl});
         }
         // Final fallback
-        if (galleryImages.length === 0) {
-          galleryImages.push(ImagePath.no_image);
-        }
+        // galleryImages will remain empty if no images are available
         
         setEventDetails({
           id: eventData.event_id || eventData.id || eventId,
@@ -871,7 +867,7 @@ export default function EventDetailsScreen() {
                   source={
                     typeof eventDetails.images[0] === 'object' && eventDetails.images[0]?.uri
                       ? {uri: eventDetails.images[0].uri}
-                      : eventDetails.images[0] || ImagePath.no_image
+                      : eventDetails.images[0]
                   }
                   style={dynamicStyles.thumbnailLeftImage}
                   resizeMode="cover"
@@ -891,7 +887,7 @@ export default function EventDetailsScreen() {
                     source={
                       typeof image === 'object' && image?.uri
                         ? {uri: image.uri}
-                        : image || ImagePath.no_image
+                        : image
                     }
                     style={dynamicStyles.thumbnailImage}
                     resizeMode="cover"

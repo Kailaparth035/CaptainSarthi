@@ -63,10 +63,8 @@ const getEventDetails = (eventId: string) => {
     fullDescription:
       'Captain Tractors proudly organized its National Dealer Meet 2025 on the 9th and 10th of September in the royal city of Udaipur, Rajasthan. This grand assembly brought together over 175+ of our valued dealer partners from every corner of India, celebrating the strength, trust, and growth of the Captain Tractors family.\n\nThe first day was a vibrant celebration. Dealers were welcomed with traditional Rajasthani hospitality, creating a festive atmosphere. An unforgettable evening of folk dance, music, and cultural performances perfectly embodied the event\'s theme, \'Chhalaang\', binding the Captain family in a shared spirit of unity and enthusiasm.',
     videoUri: '', // Removed static video - only show video if API provides it
-    thumbnailUri: ImagePath.no_image,
-    images: [
-      ImagePath.no_image,
-    ],
+    thumbnailUri: undefined,
+    images: [],
   };
 
   return defaultData;
@@ -204,7 +202,7 @@ export default function EventDetailsScreen() {
           }
         }
         // Only use default thumbnail if no video URL or if video is not YouTube
-        const thumbnailUri = thumbnailUrl ? {uri: thumbnailUrl} : (videoUrl ? undefined : ImagePath.no_image);
+        const thumbnailUri = thumbnailUrl ? {uri: thumbnailUrl} : undefined;
         
         // Handle location
         let location = 'Location not specified';
@@ -322,10 +320,8 @@ export default function EventDetailsScreen() {
             galleryImages.unshift({uri: thumbnailUrl});
           }
         }
-        // If no images at all, use fallback
-        if (galleryImages.length === 0) {
-          galleryImages.push(ImagePath.no_image);
-        }
+        // If no images at all, leave empty
+        // galleryImages will remain empty if no images are available
         console.log('[EventDetailsScreen] Final images count:', galleryImages.length);
         
         setEventDetails({
@@ -1030,7 +1026,6 @@ export default function EventDetailsScreen() {
                     }}
                     style={{width: '100%', height: '100%'}}
                     resizeMode={FastImage.resizeMode.cover}
-                    defaultSource={ImagePath.no_image}
                   />
                 ) : (
                   <FastImage
@@ -1041,7 +1036,6 @@ export default function EventDetailsScreen() {
                     }}
                     style={{width: '100%', height: '100%'}}
                     resizeMode={FastImage.resizeMode.cover}
-                    defaultSource={ImagePath.no_image}
                   />
                 )}
                 <View style={dynamicStyles.playButtonOverlay}>
@@ -1090,7 +1084,6 @@ export default function EventDetailsScreen() {
                     }}
                     style={{width: '100%', height: '100%'}}
                     resizeMode={FastImage.resizeMode.cover}
-                    defaultSource={ImagePath.no_image}
                   />
                 ) : typeof eventDetails.thumbnailUri === 'object' && eventDetails.thumbnailUri?.uri && typeof eventDetails.thumbnailUri.uri === 'string' ? (
                   <FastImage
@@ -1101,14 +1094,13 @@ export default function EventDetailsScreen() {
                     }}
                     style={{width: '100%', height: '100%'}}
                     resizeMode={FastImage.resizeMode.cover}
-                    defaultSource={ImagePath.no_image}
                   />
                 ) : (
                   <Image
                     source={
                       typeof eventDetails.thumbnailUri === 'number'
                         ? eventDetails.thumbnailUri
-                        : eventDetails.images[0] || ImagePath.no_image
+                        : eventDetails.images[0]
                     }
                     style={{width: '100%', height: '100%'}}
                     resizeMode="cover"
@@ -1152,7 +1144,6 @@ export default function EventDetailsScreen() {
                           }}
                           style={dynamicStyles.thumbnailImage}
                           resizeMode={FastImage.resizeMode.cover}
-                          defaultSource={ImagePath.no_image}
                         />
                         {showMoreOverlay && (
                           <View style={dynamicStyles.thumbnailMore}>

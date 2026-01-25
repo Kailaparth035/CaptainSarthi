@@ -1,5 +1,6 @@
 import React, {createContext, useContext, useState, useRef, ReactNode} from 'react';
 import Tts from 'react-native-tts';
+import {Platform} from 'react-native';
 import {useLanguage} from './LanguageContext';
 
 type TTSState = {
@@ -33,6 +34,7 @@ export function TTSProvider({children}: {children: ReactNode}) {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<number>(0);
   const pausedPositionRef = useRef<number>(0);
+  const ttsReadyRef = useRef<boolean>(false);
   const {currentLanguage} = useLanguage();
 
   // Map app language codes to TTS language codes
@@ -45,20 +47,52 @@ export function TTSProvider({children}: {children: ReactNode}) {
     return languageMap[lang] || 'en-IN';
   };
 
+  // Initialize TTS engine - critical for Android 11+
+  const initializeTTS = React.useCallback(async () => {
+    try {
+      // Stop any existing playback
+      await Tts.stop();
+      
+      // Set default settings
+      const ttsLanguage = getTTSLanguage(currentLanguage);
+      
+      // For Android 11+, we need to set language and wait for it to be ready
+      if (Platform.OS === 'android') {
+        try {
+          // Set language first
+          await Tts.setDefaultLanguage(ttsLanguage);
+          // Small delay to ensure language is set (Android 11+ requirement)
+          await new Promise(resolve => setTimeout(resolve, 100));
+        } catch (langError) {
+          console.warn('TTS Language setting error:', langError);
+        }
+      } else {
+        await Tts.setDefaultLanguage(ttsLanguage);
+      }
+      
+      // Set rate and pitch
+      Tts.setDefaultRate(0.5);
+      Tts.setDefaultPitch(1.0);
+      
+      // Mark TTS as ready
+      ttsReadyRef.current = true;
+    } catch (error) {
+      console.error('TTS Initialization Error:', error);
+      ttsReadyRef.current = false;
+    }
+  }, [currentLanguage]);
+
   React.useEffect(() => {
-    // Initialize TTS with default settings
-    const ttsLanguage = getTTSLanguage(currentLanguage);
-    Tts.setDefaultLanguage(ttsLanguage);
-    Tts.setDefaultRate(0.5);
-    Tts.setDefaultPitch(1.0);
+    // Initialize TTS on mount and when language changes
+    initializeTTS();
 
     // Set up event listeners
-    Tts.addEventListener('tts-start', () => {
+    const onTtsStart = () => {
       setState(prev => ({...prev, isPlaying: true}));
       startTimeRef.current = Date.now();
-    });
+    };
 
-    Tts.addEventListener('tts-finish', () => {
+    const onTtsFinish = () => {
       setState(prev => ({
         ...prev,
         isPlaying: false,
@@ -69,9 +103,9 @@ export function TTSProvider({children}: {children: ReactNode}) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
-    });
+    };
 
-    Tts.addEventListener('tts-cancel', () => {
+    const onTtsCancel = () => {
       setState(prev => ({
         ...prev,
         isPlaying: false,
@@ -82,7 +116,11 @@ export function TTSProvider({children}: {children: ReactNode}) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
-    });
+    };
+
+    Tts.addEventListener('tts-start', onTtsStart);
+    Tts.addEventListener('tts-finish', onTtsFinish);
+    Tts.addEventListener('tts-cancel', onTtsCancel);
 
     return () => {
       Tts.removeAllListeners('tts-start');
@@ -92,11 +130,17 @@ export function TTSProvider({children}: {children: ReactNode}) {
         clearInterval(intervalRef.current);
       }
       Tts.stop();
+      ttsReadyRef.current = false;
     };
-  }, [currentLanguage]);
+  }, [currentLanguage, initializeTTS]);
 
   const playTTS = React.useCallback(async (text: string) => {
     try {
+      if (!text || text.trim() === '') {
+        console.warn('TTS: Empty text provided');
+        return;
+      }
+
       // Stop any existing playback
       await Tts.stop();
       
@@ -109,11 +153,24 @@ export function TTSProvider({children}: {children: ReactNode}) {
         currentPosition: 0,
       });
 
+      // Ensure TTS is initialized (Android 11+ requirement)
+      if (!ttsReadyRef.current) {
+        await initializeTTS();
+        // Wait a bit more for Android 11+ to ensure TTS engine is ready
+        if (Platform.OS === 'android') {
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      }
+
       // Set language based on current language before speaking
-      // This is crucial for Android 12+ to work properly with non-English languages
+      // This is crucial for Android 11+ to work properly with non-English languages
       const ttsLanguage = getTTSLanguage(currentLanguage);
       try {
         await Tts.setDefaultLanguage(ttsLanguage);
+        // Small delay for Android 11+ to ensure language is set before speaking
+        if (Platform.OS === 'android') {
+          await new Promise(resolve => setTimeout(resolve, 150));
+        }
       } catch (langError) {
         console.warn('TTS Language setting error, using default:', langError);
       }
@@ -127,7 +184,7 @@ export function TTSProvider({children}: {children: ReactNode}) {
         duration: estimatedDuration,
       }));
 
-      // Start TTS (language is already set via setDefaultLanguage above)
+      // Start TTS - for Android 11+, ensure language is set and wait before speaking
       await Tts.speak(text);
 
       // Update progress periodically
@@ -156,7 +213,7 @@ export function TTSProvider({children}: {children: ReactNode}) {
       console.error('TTS Error:', error);
       setState(prev => ({...prev, isPlaying: false}));
     }
-  }, [currentLanguage]);
+  }, [currentLanguage, initializeTTS]);
 
   const stopTTS = React.useCallback(async () => {
     try {
@@ -201,10 +258,27 @@ export function TTSProvider({children}: {children: ReactNode}) {
       const remainingText = state.text;
       const currentPos = pausedPositionRef.current;
       
+      if (!remainingText || remainingText.trim() === '') {
+        console.warn('TTS Resume: No text to resume');
+        return;
+      }
+
+      // Ensure TTS is initialized
+      if (!ttsReadyRef.current) {
+        await initializeTTS();
+        if (Platform.OS === 'android') {
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      }
+      
       // Set language based on current language before speaking
       const ttsLanguage = getTTSLanguage(currentLanguage);
       try {
         await Tts.setDefaultLanguage(ttsLanguage);
+        // Small delay for Android 11+ to ensure language is set
+        if (Platform.OS === 'android') {
+          await new Promise(resolve => setTimeout(resolve, 150));
+        }
       } catch (langError) {
         console.warn('TTS Language setting error, using default:', langError);
       }
@@ -217,13 +291,13 @@ export function TTSProvider({children}: {children: ReactNode}) {
 
       if (remainingWords.trim()) {
         startTimeRef.current = Date.now() - pausedPositionRef.current * 1000;
-        // Language is already set via setDefaultLanguage above
+        // Start TTS - language is already set above
         await Tts.speak(remainingWords);
       }
     } catch (error) {
       console.error('TTS Resume Error:', error);
     }
-  }, [state.text, currentLanguage]);
+  }, [state.text, currentLanguage, initializeTTS]);
 
   return (
     <TTSContext.Provider

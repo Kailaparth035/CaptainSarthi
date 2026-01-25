@@ -104,7 +104,7 @@ export default function EventsScreen() {
       }
       
       // Only use default thumbnail if no video URL or image URL
-      const imageUri = imageUrl ? {uri: imageUrl} : (videoUrl ? undefined : ImagePath.no_image);
+      const imageUri = imageUrl ? {uri: imageUrl} : undefined;
       
       // Handle language-specific title
       // Map language code to language_id (en -> 1, hi -> 2, gu -> 3)
@@ -613,7 +613,6 @@ export default function EventsScreen() {
                     }}
                     style={dynamicStyles.eventImagePlaceholder}
                     resizeMode={FastImage.resizeMode.cover}
-                    defaultSource={ImagePath.no_image}
                   />
                 ) : typeof event.imageUri === 'string' ? (
                   <FastImage
@@ -624,7 +623,6 @@ export default function EventsScreen() {
                     }}
                     style={dynamicStyles.eventImagePlaceholder}
                     resizeMode={FastImage.resizeMode.cover}
-                    defaultSource={ImagePath.no_image}
                   />
                 ) : (
                   <Image

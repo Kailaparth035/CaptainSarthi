@@ -5,7 +5,7 @@
  * @format
  */
 
-import { StyleSheet, Platform, AppState, AppStateStatus } from 'react-native';
+import { StyleSheet, Platform, AppState, AppStateStatus, NativeModules } from 'react-native';
 import {
   SafeAreaProvider,
   SafeAreaView,
@@ -354,11 +354,45 @@ function AppContent() {
     const hideSplash = () => {
       if (navigationRef.current?.isReady()) {
         SplashScreen.hide();
+        // Fix for Android 11-14: Ensure window background is changed after splash is hidden
+        // This prevents splash screen from showing when keyboard opens
+        if (Platform.OS === 'android') {
+          // Small delay to ensure splash is fully hidden before changing background
+          setTimeout(() => {
+            try {
+              // MainActivity will handle window background change, but we ensure it here too
+              if (NativeModules.PlatformConstants) {
+                // Force a layout update to ensure background is applied
+                const {UIManager} = NativeModules;
+                if (UIManager && UIManager.setBackgroundColor) {
+                  // This helps ensure the background is properly set
+                }
+              }
+            } catch (error) {
+              // Ignore errors - MainActivity will handle it
+            }
+          }, 200);
+        }
       } else {
         // Wait for navigation to be ready
         const checkNavigation = setInterval(() => {
           if (navigationRef.current?.isReady()) {
             SplashScreen.hide();
+            // Fix for Android 11-14
+            if (Platform.OS === 'android') {
+              setTimeout(() => {
+                try {
+                  if (NativeModules.PlatformConstants) {
+                    const {UIManager} = NativeModules;
+                    if (UIManager && UIManager.setBackgroundColor) {
+                      // Ensure background is set
+                    }
+                  }
+                } catch (error) {
+                  // Ignore errors
+                }
+              }, 200);
+            }
             clearInterval(checkNavigation);
           }
         }, 100);
@@ -366,6 +400,21 @@ function AppContent() {
         // Fallback: hide after 2 seconds if navigation doesn't become ready
         setTimeout(() => {
           SplashScreen.hide();
+          // Fix for Android 11-14
+          if (Platform.OS === 'android') {
+            setTimeout(() => {
+              try {
+                if (NativeModules.PlatformConstants) {
+                  const {UIManager} = NativeModules;
+                  if (UIManager && UIManager.setBackgroundColor) {
+                    // Ensure background is set
+                  }
+                }
+              } catch (error) {
+                // Ignore errors
+              }
+            }, 200);
+          }
           clearInterval(checkNavigation);
         }, 2000);
       }

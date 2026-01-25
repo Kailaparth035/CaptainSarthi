@@ -1,5 +1,8 @@
 package com.farmer
 
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
@@ -10,6 +13,17 @@ class MainActivity : ReactActivity() {
   override fun onCreate(savedInstanceState: android.os.Bundle?) {
     SplashScreen.show(this)  // Show splash screen on every app launch/reopen
     super.onCreate(savedInstanceState)
+    
+    // Fix for Android 11-14: Change window background after splash is hidden
+    // This prevents splash screen from showing when keyboard opens
+    Handler(Looper.getMainLooper()).postDelayed({
+      try {
+        // Change window background to white to prevent splash from showing on keyboard open
+        window.setBackgroundDrawableResource(com.farmer.R.drawable.white_background)
+      } catch (e: Exception) {
+        // Ignore if drawable not found
+      }
+    }, 1000) // Delay to ensure splash is hidden first
   }
 
   /**
