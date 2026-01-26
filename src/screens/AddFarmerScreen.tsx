@@ -3885,17 +3885,23 @@ export default function AddFarmerScreen() {
         } as any);
       }
 
-      // Helper function to append file (image) to FormData
-      const appendFile = (key: string, fileUri: string, fileType: 'image', index?: number) => {
+      // Helper function to append file (image or document) to FormData
+      const appendFile = (key: string, fileUri: string, fileType: 'image' | 'document', index?: number) => {
         console.log("file upload key and value:", key, fileUri, fileType, index);
         
         if (!fileUri || fileUri.trim() === '') return;
         
         const uriParts = fileUri.split('.');
-        const fileExtension = uriParts.length > 1 ? uriParts[uriParts.length - 1].toLowerCase() : 'jpg';
+        const fileExtension = uriParts.length > 1 ? uriParts[uriParts.length - 1].toLowerCase() : (fileType === 'document' ? 'pdf' : 'jpg');
         
         let mimeType: string;
-        mimeType = fileExtension === 'png' ? 'image/png' : 'image/jpeg';
+        if (fileType === 'document' || fileExtension === 'pdf') {
+          mimeType = 'application/pdf';
+        } else if (fileExtension === 'png') {
+          mimeType = 'image/png';
+        } else {
+          mimeType = 'image/jpeg';
+        }
         
         const fileName = `${key}-${Date.now()}-${index || 0}.${fileExtension}`;
         

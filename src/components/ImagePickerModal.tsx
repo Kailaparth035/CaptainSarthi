@@ -19,6 +19,7 @@ type ImagePickerModalProps = {
   onClose: () => void;
   onCameraPress: () => Promise<void>;
   onGalleryPress: () => Promise<void>;
+  onDocumentPress?: () => Promise<void>;
 };
 
 export default function ImagePickerModal({
@@ -26,6 +27,7 @@ export default function ImagePickerModal({
   onClose,
   onCameraPress,
   onGalleryPress,
+  onDocumentPress,
 }: ImagePickerModalProps) {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
@@ -145,6 +147,31 @@ export default function ImagePickerModal({
             />
             <Text style={styles.optionText}>{t('imagePicker.gallery')}</Text>
           </TouchableOpacity>
+
+          {onDocumentPress && (
+            <TouchableOpacity
+              style={styles.optionButton}
+              onPress={async () => {
+                onClose();
+                // Wait for modal to close before opening document picker (300ms delay)
+                setTimeout(async () => {
+                  try {
+                    await onDocumentPress();
+                  } catch (error) {
+                    console.error('Error opening document picker:', error);
+                  }
+                }, 300);
+              }}
+              activeOpacity={0.7}>
+              <Ionicons
+                name="document-text"
+                size={moderateScale(24)}
+                color={colors.primary}
+                style={styles.optionIcon}
+              />
+              <Text style={styles.optionText}>Document</Text>
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity
             style={styles.cancelButton}

@@ -9,6 +9,7 @@ import {
   Image,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import DocumentPicker from 'react-native-document-picker';
 import colors from '../utils/colors';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import {Typography} from '../utils/typography';
@@ -451,6 +452,46 @@ export function FileUploadQuestion({
     }
   };
 
+  const handleDocumentPress = async () => {
+    try {
+      // Check if max documents reached
+      if (uploadedFiles.length >= maxDocuments) {
+        if (onError) {
+          onError(`Maximum ${maxDocuments} file${maxDocuments > 1 ? 's' : ''} allowed`);
+        }
+        return;
+      }
+
+      const result = await DocumentPicker.pick({
+        type: [DocumentPicker.types.pdf],
+        allowMultiSelection: false,
+      });
+
+      if (result && result.length > 0) {
+        const pickedFile = result[0];
+        const fileUri = pickedFile.uri;
+        const fileName = pickedFile.name || fileUri.split('/').pop() || 'document.pdf';
+        
+        const newFile: FileItem = {
+          uri: fileUri,
+          type: 'document',
+          name: fileName,
+        };
+        const updatedFiles = [...uploadedFiles, newFile];
+        onUpload(updatedFiles);
+      }
+    } catch (error: any) {
+      console.error('Error in handleDocumentPress:', error);
+      if (DocumentPicker.isCancel(error)) {
+        // User cancelled, do nothing
+        return;
+      }
+      if (onError) {
+        onError('Failed to pick document. Please try again.');
+      }
+    }
+  };
+
 
   const handleRemoveFile = (index: number) => {
     const updatedFiles = uploadedFiles.filter((_, i) => i !== index);
@@ -622,7 +663,7 @@ export function FileUploadQuestion({
         />
         <Text style={styles.uploadText}>Upload document</Text>
               <Text style={styles.hintText}>
-                Upload images. Max {maxDocuments} file{maxDocuments > 1 ? 's' : ''}. 5 mb max size
+                Upload images or PDF. Max {maxDocuments} file{maxDocuments > 1 ? 's' : ''}. 5 mb max size
               </Text>
         {uploadedFiles.length > 0 && (
           <Text style={styles.fileNameText}>
@@ -682,6 +723,7 @@ export function FileUploadQuestion({
         onClose={() => setImagePickerVisible(false)}
         onCameraPress={handleCameraPress}
         onGalleryPress={handleGalleryPress}
+        onDocumentPress={handleDocumentPress}
       />
     </View>
   );
