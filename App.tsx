@@ -59,15 +59,23 @@ function App() {
                 console.log('App: 📬 Notification click action detected: OPEN_NOTIFICATION_DETAIL');
                 
                 try {
-                  // Extract notification_id from notification data
+                  // Extract event_id first (if exists), otherwise use notification_id
+                  const eventId = remoteMessage.data.event_id;
                   const notificationId = remoteMessage.data.notification_id || remoteMessage.data.notificationId;
                   
-                  if (!notificationId) {
-                    console.error('App: ❌ No notification_id found in notification data');
+                  // Use event_id if available, otherwise fall back to notification_id
+                  const finalEventId = eventId || notificationId;
+                  
+                  if (!finalEventId) {
+                    console.error('App: ❌ No event_id or notification_id found in notification data');
                     return;
                   }
                   
-                  console.log('App: 📬 Notification ID:', notificationId);
+                  if (eventId) {
+                    console.log('App: 📅 Event ID found:', eventId);
+                  } else {
+                    console.log('App: 📬 Notification ID:', notificationId);
+                  }
                   
                   // Check if user is logged in
                   const loggedIn = await isLoggedIn();
@@ -78,12 +86,12 @@ function App() {
                     const isFarmer = userRole === 'farmer';
                     
                     if (isFarmer) {
-                      console.log('App: ✅ Farmer logged in - navigating to Event Details screen with notification_id');
+                      console.log('App: ✅ Farmer logged in - navigating to Event Details screen');
                       
                       // Function to attempt navigation
                       const attemptNavigation = (retries = 0) => {
                         if (navigationRef.current?.isReady()) {
-                          // Navigate to FarmerTabs -> Events -> EventDetails with notification_id as eventId
+                          // Navigate to FarmerTabs -> Events -> EventDetails with eventId (event_id or notification_id)
                           navigationRef.current?.dispatch(
                             CommonActions.navigate({
                               name: SCREEN_NAMES.FarmerTabs,
@@ -92,13 +100,13 @@ function App() {
                                 params: {
                                   screen: SCREEN_NAMES.EventDetails,
                                   params: {
-                                    eventId: notificationId,
+                                    eventId: finalEventId,
                                   },
                                 },
                               },
                             })
                           );
-                          console.log('App: ✅ Navigated to Event Details screen with notification_id:', notificationId);
+                          console.log('App: ✅ Navigated to Event Details screen with eventId:', finalEventId);
                         } else if (retries < 5) {
                           // Retry after a short delay (max 5 retries)
                           console.log(`App: ⚠️ Navigation not ready yet, retrying... (${retries + 1}/5)`);
@@ -109,7 +117,7 @@ function App() {
                             action: 'OPEN_NOTIFICATION_DETAIL',
                             screen: SCREEN_NAMES.EventDetails,
                             params: {
-                              eventId: notificationId,
+                              eventId: finalEventId,
                             },
                           });
                         }
@@ -127,7 +135,7 @@ function App() {
                       action: 'OPEN_NOTIFICATION_DETAIL',
                       screen: SCREEN_NAMES.EventDetails,
                       params: {
-                        eventId: notificationId,
+                        eventId: finalEventId,
                       },
                     });
                   }
