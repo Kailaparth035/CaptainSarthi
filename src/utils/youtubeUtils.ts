@@ -85,4 +85,3 @@ export const getYouTubeThumbnailUrl = (
 
   return `https://img.youtube.com/vi/${videoId}/${quality}.jpg`;
 };
-

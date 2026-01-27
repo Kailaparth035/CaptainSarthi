@@ -140,10 +140,12 @@ export default function EventDetailsScreen() {
         
         // Handle thumbnail - prioritize YouTube thumbnail if video is YouTube
         let thumbnailUrl = null;
+        let isYouTubeThumbnail = false; // Track if thumbnail is from YouTube
         if (videoUrl && isYouTubeUrl(videoUrl)) {
           // Use YouTube thumbnail for YouTube videos
           const youtubeThumbnail = getYouTubeThumbnailUrl(videoUrl, 'maxresdefault');
           thumbnailUrl = youtubeThumbnail;
+          isYouTubeThumbnail = true; // Mark as YouTube thumbnail
         } else if (eventData.media?.cover_video?.thumbnail_url) {
           thumbnailUrl = getImageUrl(eventData.media.cover_video.thumbnail_url);
         } else if (eventData.media?.image) {
@@ -262,6 +264,35 @@ export default function EventDetailsScreen() {
         // Handle gallery images from media.gallery_images or media.images
         const galleryImages: any[] = [];
         
+        // Add media.image images to gallery (if not already added)
+        if (eventData.media?.image) {
+          let imageUrls: string[] = [];
+          if (typeof eventData.media.image === 'string' && eventData.media.image.trim().startsWith('[')) {
+            try {
+              const parsedUrls = JSON.parse(eventData.media.image);
+              if (Array.isArray(parsedUrls) && parsedUrls.length > 0) {
+                imageUrls = parsedUrls;
+              } else {
+                imageUrls = [eventData.media.image];
+              }
+            } catch (e) {
+              console.warn('[EventDetailsScreen] Failed to parse media.image JSON:', e);
+              imageUrls = [eventData.media.image];
+            }
+          } else if (Array.isArray(eventData.media.image)) {
+            imageUrls = eventData.media.image;
+          } else {
+            imageUrls = [eventData.media.image];
+          }
+          // Add all images from media.image to gallery
+          imageUrls.forEach((url: string) => {
+            const imgUrl = getImageUrl(url);
+            if (imgUrl) {
+              galleryImages.push({uri: imgUrl});
+            }
+          });
+        }
+        
         // First, check for media.gallery_images (new API format - array of strings)
         if (eventData.media?.gallery_images && Array.isArray(eventData.media.gallery_images)) {
           eventData.media.gallery_images.forEach((url: string) => {
@@ -313,8 +344,9 @@ export default function EventDetailsScreen() {
           });
         }
         console.log('[EventDetailsScreen] Gallery images count:', galleryImages.length);
-        // If thumbnail exists and is not already in gallery images, add it at the beginning
-        if (thumbnailUrl) {
+        // Only add thumbnail to gallery if it's NOT a YouTube thumbnail
+        // YouTube thumbnails should only be used for video player, not in gallery
+        if (thumbnailUrl && !isYouTubeThumbnail) {
           const thumbnailExists = galleryImages.some((img: any) => img.uri === thumbnailUrl);
           if (!thumbnailExists) {
             galleryImages.unshift({uri: thumbnailUrl});
