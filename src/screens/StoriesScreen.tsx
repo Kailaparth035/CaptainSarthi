@@ -172,8 +172,8 @@ export default function StoriesScreen() {
         }
       }
       
-      // Only use default thumbnail if no video URL or image URL
-      const bannerImage = imageUrl ? {uri: imageUrl} : (videoUrl ? undefined : ImagePath.storycard);
+      // Only use image URL if available, otherwise undefined
+      const bannerImage = imageUrl ? {uri: imageUrl} : undefined;
       
       // Handle language-specific title
       // Map language code to language_id (en -> 1, hi -> 2, gu -> 3)
@@ -552,7 +552,6 @@ export default function StoriesScreen() {
                 }}
                 style={{height: moderateScale(170), width: '100%'}}
                 resizeMode={FastImage.resizeMode.cover}
-                defaultSource={ImagePath.storycard}
               />
             ) : typeof story.bannerImage === 'string' ? (
               <FastImage
@@ -563,7 +562,6 @@ export default function StoriesScreen() {
                 }}
                 style={{height: moderateScale(170), width: '100%'}}
                 resizeMode={FastImage.resizeMode.cover}
-                defaultSource={ImagePath.storycard}
               />
             ) : (
               <Image
