@@ -44,7 +44,12 @@ const createTabPressListener = (screenName: string) => {
       // Check if we're switching from another tab
       const isSwitchingTabs = currentTabIndex !== targetTabIndex;
       
-      // Always reset if we're not at root OR if we're switching tabs
+      // Check if we're pressing the same tab that's already active
+      const isSameTab = currentTabIndex === targetTabIndex;
+      
+      // Always reset if:
+      // 1. We're not at root (on a details screen) - even if same tab
+      // 2. We're switching tabs
       const needsReset = isNotAtRoot || isSwitchingTabs;
       
       if (needsReset) {

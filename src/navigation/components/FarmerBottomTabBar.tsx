@@ -189,7 +189,22 @@ export default function FarmerBottomTabBar({
               canPreventDefault: true,
             });
 
-            if (!isFocused && !event.defaultPrevented) {
+            // If tab is already focused, check if we need to reset to root
+            if (isFocused) {
+              const currentRoute = state.routes[state.index];
+              const stackState = currentRoute?.state as any;
+              
+              // If we're on a details screen (not at root), reset to root
+              if (stackState && (stackState.index > 0 || (stackState.routes && stackState.routes.length > 1))) {
+                // Reset to root screen
+                const rootScreenName = stackState.routes[0]?.name;
+                if (rootScreenName) {
+                  navigation.navigate(route.name, {
+                    screen: rootScreenName,
+                  } as any);
+                }
+              }
+            } else if (!event.defaultPrevented) {
               navigation.navigate(route.name);
             }
           };
