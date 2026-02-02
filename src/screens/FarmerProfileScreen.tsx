@@ -421,7 +421,7 @@ export default function FarmerProfileScreen() {
           };
           
           // Call FCM unregister API
-          const response = await postData(Apis.FARMER_FCM_UNREGISTER, bodyData);
+          const response = await postData(Apis.DEALER_FCM_UNREGISTER, bodyData);
           
           if (response) {
             console.log('[FarmerProfileScreen] FCM token unregistered successfully:', response);

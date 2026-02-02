@@ -158,8 +158,9 @@ SummaryCard = ({
 }) => {
   const CardWrapper = onPress ? TouchableOpacity : View;
   return (
-    <View
+    <CardWrapper
       style={dynamicStyles.summaryCard}
+      {...(onPress ? { onPress, activeOpacity: 0.7 } : {})}
     >
       <View
         style={[
@@ -192,7 +193,7 @@ SummaryCard = ({
         <Text style={dynamicStyles.summaryValue}>{value}</Text>
         <Text style={dynamicStyles.summaryLabel}>{label}</Text>
       </View>
-    </View>
+    </CardWrapper>
   );
 };
 
@@ -946,6 +947,7 @@ export default function HomeScreen() {
             iconBgColor={colors.light_blue}
             moderateScale={moderateScale}
             dynamicStyles={dynamicStyles}
+            onPress={() => tabNavigation.navigate(SCREEN_NAMES.Farmer)}
           />
           <SummaryCard
             icon="tractor"
@@ -956,6 +958,7 @@ export default function HomeScreen() {
             iconType="material"
             moderateScale={moderateScale}
             dynamicStyles={dynamicStyles}
+            onPress={() => tabNavigation.navigate(SCREEN_NAMES.Tractors)}
           />
         </View>
 

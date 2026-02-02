@@ -8,6 +8,7 @@ import {
   FlatList,
   Pressable,
   TextInput,
+  Keyboard,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -198,6 +199,19 @@ export default function SearchableDropdown({
   };
 
   const handleOpen = () => {
+    Keyboard.dismiss();
+    // Blur any currently focused TextInput
+    try {
+      if (TextInput.State && TextInput.State.currentlyFocusedInput) {
+        const focusedInput = TextInput.State.currentlyFocusedInput();
+        if (focusedInput) {
+          TextInput.State.blurTextInput(focusedInput);
+        }
+      }
+    } catch (e) {
+      // TextInput.State might not be available in all React Native versions
+      // Keyboard.dismiss() should handle it
+    }
     setIsOpen(true);
     setIsFocused(true);
     setSearchQuery('');
