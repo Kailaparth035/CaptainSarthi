@@ -2414,10 +2414,7 @@ export default function AddFarmerScreen() {
     }
     
     console.log('Date of marriage - DD:', domDD, 'MM:', domMM, 'YYYY:', domYYYY);
-    if (!domDD || !domDD.trim() || !domMM || !domMM.trim() || !domYYYY || !domYYYY.trim()) {
-      newErrors.domDD = t('addFarmer.errors.dateOfMarriageRequired');
-      console.log('ERROR: Date of marriage is required');
-    }
+    // Date of marriage is optional - no required validation
     
     // console.log('Who from:', whoFrom || '✗ Missing');
     // if (!whoFrom || !whoFrom.trim()) {
@@ -3473,9 +3470,7 @@ export default function AddFarmerScreen() {
     if (!dobDD || !dobDD.trim() || !dobMM || !dobMM.trim() || !dobYYYY || !dobYYYY.trim()) {
       newErrors.dobDD = t('addFarmer.errors.dateOfBirthRequired');
     }
-    if (!domDD || !domDD.trim() || !domMM || !domMM.trim() || !domYYYY || !domYYYY.trim()) {
-      newErrors.domDD = t('addFarmer.errors.dateOfMarriageRequired');
-    }
+    // Date of marriage is optional - no required validation
 
     // Address validation
     if (!houseNumber || !houseNumber.trim()) {
@@ -4820,7 +4815,7 @@ export default function AddFarmerScreen() {
                 'dom',
                 domDateError,
                 setDomDateError,
-                true, // required
+                false, // date of marriage is optional
               )}
             </View>
             {/* <SimpleBoxInput
