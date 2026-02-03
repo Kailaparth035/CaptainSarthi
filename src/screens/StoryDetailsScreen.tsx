@@ -1140,7 +1140,7 @@ export default function StoryDetailsScreen() {
                 color={colors.primary}
               />
               <Text style={dynamicStyles.textToSpeechButtonText}>
-                Text to speech
+                {t('stories.textToSpeech')}
               </Text>
             </TouchableOpacity>
           )}

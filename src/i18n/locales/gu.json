@@ -6,37 +6,37 @@
     "Tractors": "ટ્રેક્ટર",
     "More": "વધુ",
     "Profile": "પ્રોફાઇલ",
-    "Events": "ઘટનાઓ",
+    "Events": "કાર્યક્રમ",
     "History": "ઇતિહાસ",
-    "Stories": "વાર્તાઓ"
+    "Stories": "અનુભવો"
   },
   "home": {
     "title": "હોમ",
-    "welcome": "ખેડૂત એપ્લિકેશનમાં આપનું સ્વાગત છે.",
+    "welcome": "કેપ્ટન સાથી એપ તમારું સ્વાગત છે.",
     "greeting": "નમસ્તે",
-    "activeClients": "સક્રિય ક્લાયન્ટ્સ",
+    "activeClients": "બધા કેપ્ટન સાથી",
     "tractorModels": "ટ્રેક્ટર મોડલ્સ",
     "syncsPending": "સમન્વય બાકી",
     "syncNow": "હવે સમન્વય કરો",
-    "clients": "ક્લાયન્ટ્સ",
+    "clients": "સાથી",
     "tractors": "ટ્રેક્ટર",
-    "seeAll": "બધું જુઓ",
-    "farmers": "ખેડૂત",
+    "seeAll": "બધા જુઓ",
+    "farmers": " કેપ્ટન સાથી",
     "unknownModel": "અજ્ઞાત મોડલ",
     "notAvailable": "ઉપલબ્ધ નથી",
-    "noFarmerAdded": "કોઈ ખેડૂત ઉમેરાયો નથી",
-    "noFarmerDescription": "એવું લાગે છે કે અહીં હજુ સુધી કોઈ ખેડૂત નથી. શરૂ કરવા માટે તમારો પહેલો ખેડૂત ઉમેરો.",
-    "addFarmer": "ખેડૂત ઉમેરો",
+    "noFarmerAdded": "કોઈ કેપ્ટન સાથી ઉમેરાયા નથી",
+    "noFarmerDescription": "એવું લાગે છે કે અહીં હજુ સુધી કોઈ કેપ્ટન સાથી નથી. આજે જ તમારો પહેલો કેપ્ટન સાથી ઉમેરો.",
+    "addFarmer": "સાથી ઉમેરો",
     "noTractors": "કોઈ ટ્રેક્ટર મળ્યું નથી"
   },
   "farmer": {
-    "title": "ખેડૂત",
-    "addNew": "નવું ઉમેરો",
+    "title": "કેપ્ટન સાથી",
+    "addNew": "સાથી ઉમેરો",
     "name": "નામ",
     "category": "શ્રેણી",
     "allCategories": "બધી શ્રેણીઓ",
-    "details": "ખેડૂત માહિતી",
-    "noDetailsFound": "કોઈ ખેડૂત માહિતી મળી નથી"
+    "details": "માહિતી",
+    "noDetailsFound": "કોઈ કેપ્ટન સાથીની માહિતી મળી નથી"
   },
   "tractors": {
     "title": "ટ્રેક્ટર",
@@ -60,14 +60,14 @@
     "yes": "હા",
     "dealerName": "ડીલરનું નામ",
     "dealerId": "ડીલર આઈડી",
-    "nameOfFirm": "ફર્મનું નામ",
+    "nameOfFirm": "ડીલરશિપનું નામ",
     "email": "ઇમેઇલ",
     "mobileNo": "મોબાઇલ નંબર",
     "dateOfMarriage": "લગ્નની તારીખ",
     "dealershipAddress": "ડીલરશિપ સરનામું",
     "apartmentBuilding": "એપાર્ટમેન્ટ/બિલ્ડિંગ",
     "streetName": "માર્ગનું નામ",
-    "landmark": "લેન્ડમાર્ક",
+    "landmark": "જાણીતી જગ્યા ",
     "village": "ગામ",
     "district": "જિલ્લો",
     "state": "રાજ્ય",
@@ -115,20 +115,20 @@
   "notifications": {
     "title": "સૂચનાઓ",
     "verificationFailed": "ચકાસણી નિષ્ફળ",
-    "firstName": "પ્રથમ નામ",
-    "lastName": "છેલ્લું નામ",
+    "firstName": "તમારું નામ",
+    "lastName": "અટક",
     "rejectionReason": "નકારવાનું કારણ",
     "viewForm": "ફોર્મ જુઓ",
-    "enterFirstName": "પ્રથમ નામ દાખલ કરો",
-    "enterLastName": "છેલ્લું નામ દાખલ કરો",
+    "enterFirstName": "તમારું નામ દાખલ કરો",
+    "enterLastName": "અટક દાખલ કરો",
     "enterRejectionReason": "નકારવાનું કારણ દાખલ કરો",
     "noNotificationsFound": "કોઈ સૂચનાઓ મળી નથી"
   },
   "language": {
     "title": "ભાષા",
-    "english": "અંગ્રેજી",
+    "english": "English",
     "gujarati": "ગુજરાતી",
-    "hindi": "હિંદી",
+    "hindi": "हिन्दी",
     "selectLanguage": "ભાષા પસંદ કરો",
     "save": "સાચવો"
   },
@@ -155,7 +155,7 @@
   },
   "events": {
     "title": "ઘટનાઓ",
-    "textToSpeech": "ટેક્સ્ટ ટુ સ્પીચ",
+    "textToSpeech": "વિગત સાંભળો",
     "noEventsFound": "કોઈ ઇવેન્ટ્સ મળી નથી",
     "noEventFound": "કોઈ ઇવેન્ટ મળી નથી",
     "goToHome": "હોમ પર જાઓ"
@@ -163,6 +163,7 @@
   "stories": {
     "title": "વાર્તાઓ",
     "storyDetail": "વાર્તા વિગત",
+    "textToSpeech": "વિગત સાંભળો",
     "noStoriesFound": "કોઈ વાર્તા મળી નથી",
     "noStoryFound": "કોઈ વાર્તા મળી નથી",
     "goToHome": "હોમ પર જાઓ"
@@ -186,21 +187,21 @@
         "description": "અમારી મુખ્ય ટીમનો સંપર્ક કરો"
       },
       "specialInvite": {
-        "title": "ઘટનાઓમાં વિશેષ આમંત્રણ",
-        "description": "અમારી ઘટનાઓમાં વિશેષ આમંત્રણ"
+        "title": "કંપની કાર્યક્રમમાં વિશેષ આમંત્રણ",
+        "description": "કંપની દ્વારા યોજાયેલ કાર્યક્રમમાં વિશેષ આમંત્રણ "
       },
       "specialDiscount": {
         "title": "વિશેષ ડિસ્કાઉન્ટ",
-        "description": "ટ્રેક્ટર સેવાઓ, ચાર્જ, સ્પેર પર"
+        "description": "ટ્રેક્ટર સેવાઓ, ચાર્જ, સ્પેર ખરીદી પર"
       }
     }
   },
   "farmerProfile": {
     "updateNumber": "નંબર અપડેટ કરો",
     "updateNumberDescription": "તમારો મોબાઇલ નંબર અપડેટ કરો.",
-    "firstName": "પ્રથમ નામ",
-    "middleName": "મધ્યમ નામ",
-    "lastName": "છેલ્લું નામ",
+    "firstName": "તમારું નામ",
+    "middleName": "પિતા નું નામ",
+    "lastName": "અટક",
     "mobileNo": "મોબાઇલ નંબર",
     "dateOfBirth": "જન્મ તારીખ",
     "dateOfMarriage": "લગ્નની તારીખ",
@@ -215,7 +216,7 @@
     "ownerName": "માલિકનું નામ",
     "chassisNo": "ચેસિસ નંબર",
     "engineNo": "એન્જિન નંબર",
-    "dateOfInvoice": "ઇન્વૉઇસની તારીખ",
+    "dateOfInvoice": "બિલ ની તારીખ",
     "dateOfRegistration": "નોંધણીની તારીખ",
     "whoDrives": "કોણ ચલાવે છે",
     "noImageFound": "કોઈ છબી મળી નથી"
@@ -235,7 +236,7 @@
   },
   "updateNumberModal": {
     "title": "નંબર અપડેટ કરો",
-    "description": "ડીલરને નંબર અપડેટ કરવા માટે વિનંતી મોકલવામાં આવશે. ડીલર OTP ચકાસણી માટે તમારો સંપર્ક કરી શકે છે.",
+    "description": "કંપનીને નંબર અપડેટ કરવા માટે વિનંતી મોકલવામાં આવશે. કંપનીમાંથી OTP ચકાસણી માટે તમારો સંપર્ક કરી શકે છે.",
     "existingNumber": "હાલનો નંબર",
     "newNumber": "નવો નંબર",
     "enterMobileNumber": "મોબાઇલ નંબર દાખલ કરો",
@@ -245,10 +246,10 @@
     "newNumberMustBeDifferent": "નવો નંબર હાલના નંબરથી અલગ હોવો જોઈએ"
   },
   "addFarmer": {
-    "title": "ખેડૂત ઉમેરો",
-    "addNewFarmer": "નવા ખેડૂત ઉમેરો",
-    "editFarmer": "ખેડૂત સંપાદિત કરો",
-    "updateRejectedFarmer": "અસ્વીકૃત ખેડૂતને અપડેટ કરો",
+    "title": "સાથી  ઉમેરો",
+    "addNewFarmer": "નવા સાથી ઉમેરો",
+    "editFarmer": "સાથી સંપાદિત કરો",
+    "updateRejectedFarmer": "અસ્વીકૃત ફોર્મને અપડેટ કરો",
     "personalDetails": "વ્યક્તિગત વિગતો",
     "address": "સરનામું",
     "tractorDetails": "ટ્રેક્ટર માહિતી",
@@ -257,12 +258,12 @@
     "dealerName": "ડીલરનું નામ",
     "selectCategory": "શ્રેણી પસંદ કરો",
     "loadingCategories": "શ્રેણીઓ લોડ થઈ રહી છે...",
-    "firstName": "પ્રથમ નામ",
-    "enterFirstName": "પ્રથમ નામ દાખલ કરો",
-    "middleName": "મધ્યમ નામ",
-    "enterMiddleName": "મધ્યમ નામ દાખલ કરો",
-    "lastName": "છેલ્લું નામ",
-    "enterLastName": "છેલ્લું નામ દાખલ કરો",
+    "firstName": "નામ",
+    "enterFirstName": "તમારું નામ દાખલ કરો",
+    "middleName": "પિતાનું નામ",
+    "enterMiddleName": "પિતાનું નામ દાખલ કરો",
+    "lastName": "અટક",
+    "enterLastName": "અટક દાખલ કરો",
     "phoneCode": "કોડ",
     "phoneNumber": "નંબર",
     "phonePlaceholder": "01234 56789",
@@ -274,8 +275,8 @@
     "enterHouseNumber": "ઘર નંબર / નામ દાખલ કરો",
     "streetName": "માર્ગનું નામ",
     "enterStreetName": "માર્ગનું નામ દાખલ કરો",
-    "landmark": "લેન્ડમાર્ક",
-    "enterLandmark": "લેન્ડમાર્ક દાખલ કરો",
+    "landmark": "જાણીતી જગ્યા",
+    "enterLandmark": "ઘર નજીકની જાણીતી જગ્યા દાખલ કરો",
     "state": "રાજ્ય",
     "selectState": "રાજ્ય પસંદ કરો",
     "district": "જિલ્લો",
@@ -318,8 +319,8 @@
     "errors": {
       "categoryRequired": "શ્રેણી જરૂરી છે",
       "answerAllQuestions": "કૃપા કરીને બધા {{count}} ઉપ-પ્રશ્ન{{plural}} નો જવાબ આપો",
-      "firstNameRequired": "પ્રથમ નામ જરૂરી છે",
-      "lastNameRequired": "છેલ્લું નામ જરૂરી છે",
+      "firstNameRequired": "તમારું નામ જરૂરી છે",
+      "lastNameRequired": "અટક જરૂરી છે",
       "countryCodeRequired": "દેશ કોડ જરૂરી છે",
       "phoneNumberRequired": "ફોન નંબર જરૂરી છે",
       "dateOfBirthRequired": "જન્મ તારીખ જરૂરી છે",
@@ -336,7 +337,7 @@
       "engineNumberRequired": "એન્જિન નંબર જરૂરી છે",
       "ownerNameRequired": "માલિકનું નામ જરૂરી છે",
       "vehicleNumberRequired": "વાહન નંબર જરૂરી છે",
-      "validVehicleNumberRequired": "કૃપા કરીને માન્ય વાહન નંબર દાખલ કરો (ઉદાહરણ: GJ 27 AJ 9314)",
+      "validVehicleNumberRequired": "કૃપા કરીને માન્ય વાહન નંબર દાખલ કરો (ઉદાહરણ: GJ 27 AJ 93xx)",
       "dateOfPurchaseRequired": "ખરીદીની તારીખ જરૂરી છે",
       "atLeastOneTractorRequired": "ઓછામાં ઓછું એક ટ્રેક્ટર જરૂરી છે",
       "invalidMonth": "અમાન્ય મહિનો. કૃપા કરીને 01 અને 12 વચ્ચેનું મૂલ્ય દાખલ કરો",

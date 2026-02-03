@@ -165,6 +165,7 @@
   "stories": {
     "title": "Stories",
     "storyDetail": "Story detail",
+    "textToSpeech": "Text to speech",
     "noStoriesFound": "No story found",
     "noStoryFound": "No story found",
     "goToHome": "Go to Home"

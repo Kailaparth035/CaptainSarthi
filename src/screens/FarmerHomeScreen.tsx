@@ -851,23 +851,21 @@ export default function FarmerHomeScreen() {
           borderRadius: moderateScale(12),
           borderWidth: 1,
           borderColor: colors.borderDefault,
-          flexDirection: 'row',
+          flexDirection: 'column',
+          alignItems: 'center',
           padding: moderateScale(10),
           overflow: 'hidden',
         },
         eventThumbnail: {
-          width: moderateScale(55),
-          height: moderateScale(55),
+          width: moderateScale(175),
+          height: moderateScale(100),
           borderRadius: moderateScale(8),
-          backgroundColor: colors.backgroundGray,
-          marginRight: moderateScale(10),
-          flexShrink: 0,
+          // backgroundColor: colors.backgroundGray,
+          marginBottom: moderateScale(8),
+          alignSelf: 'center',
         },
         eventContent: {
-          flex: 1,
-          justifyContent: 'center',
-          minWidth: 0,
-          flexShrink: 1,
+          width: '100%',
         },
         eventTitle: {
           ...Typography.semiBoldMd,
@@ -1036,7 +1034,7 @@ export default function FarmerHomeScreen() {
         <Image
           source={item.thumbnail}
           style={dynamicStyles.eventThumbnail}
-          resizeMode="cover"
+          resizeMode='contain'
         />
       ) : null}
       <View style={dynamicStyles.eventContent}>
