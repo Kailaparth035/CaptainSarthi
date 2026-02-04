@@ -12,6 +12,7 @@ import org.devio.rn.splashscreen.SplashScreen
 class MainActivity : ReactActivity() {
   override fun onCreate(savedInstanceState: android.os.Bundle?) {
     SplashScreen.show(this)  // Show splash screen on every app launch/reopen
+    setTheme(R.style.AppTheme) // Switch away from LaunchTheme so keyboard redraws don't show splash
     super.onCreate(savedInstanceState)
     
     // Fix for Android 11-14: Change window background after splash is hidden
