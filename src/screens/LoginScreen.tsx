@@ -269,11 +269,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           setMemberId(response.data.member_id);
         }
 
-        // Show success message with OTP included
-        let message = response?.message || 'OTP sent successfully. Please check your mobile.';
-        if (response?.otp) {
-          message = `${message} Your OTP is: ${response.otp}`;
-        }
+        const message = response?.message || 'OTP sent successfully. Please check your mobile.';
         showToastMessage(message, 'success');
         
         // Focus on OTP input
@@ -332,11 +328,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           setMemberId(response.data.member_id);
         }
 
-        // Show success message with OTP included
-        let message = response?.message || 'OTP resent successfully.';
-        if (response?.otp) {
-          message = `${message} Your OTP is: ${response.otp}`;
-        }
+        const message = response?.message || 'OTP resent successfully.';
         showToastMessage(message, 'success');
       } else {
         // If success is false, don't start timer
