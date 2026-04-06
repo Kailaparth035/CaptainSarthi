@@ -1,4 +1,4 @@
-  import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -87,7 +87,7 @@ const Avatar = ({
 export default function FarmerScreen() {
   const insets = useSafeAreaInsets();
   const { moderateScale } = useDeviceMetrics();
-  const {t, currentLanguage} = useLanguage();
+  const {t, currentLanguage, currentLanguageId} = useLanguage();
   const navigation = useNavigation<NavigationProp>();
   const tabNavigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
   const [searchQuery, setSearchQuery] = useState('');
@@ -100,6 +100,17 @@ export default function FarmerScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [categories, setCategories] = useState<any[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
+  // Location filter: state/district/taluka/village lists and modal working state
+  const [stateList, setStateList] = useState<{id: string; label: string; value: string}[]>([]);
+  const [districtList, setDistrictList] = useState<{id: string; label: string; value: string}[]>([]);
+  const [talukaList, setTalukaList] = useState<{id: string; label: string; value: string}[]>([]);
+  const [villageList, setVillageList] = useState<{id: string; label: string; value: string}[]>([]);
+  const [loadingStates, setLoadingStates] = useState(false);
+  const [loadingDistricts, setLoadingDistricts] = useState(false);
+  const [loadingTalukas, setLoadingTalukas] = useState(false);
+  const [loadingVillages, setLoadingVillages] = useState(false);
+  const [modalSelectedOptions, setModalSelectedOptions] = useState<Record<string, string>>({});
+  const [modalSelectedCategory, setModalSelectedCategory] = useState<string>('name');
 
   // Update StatusBar and bottom bar to match screen background color
   useDynamicStatusBar({
@@ -154,6 +165,10 @@ export default function FarmerScreen() {
               phone: farmer.mobile || '',
               initials: getInitials(fullName),
               categoryId: categoryId ? categoryId.toString() : null, // Store category ID as string
+              stateId: farmer.state != null ? String(farmer.state) : null,
+              districtId: farmer.district != null ? String(farmer.district) : null,
+              talukaId: farmer.taluka != null ? String(farmer.taluka) : null,
+              villageId: farmer.village != null ? String(farmer.village) : null,
             };
           });
           setAllFarmers(transformedFarmers); // Store all farmers first
@@ -194,6 +209,10 @@ export default function FarmerScreen() {
             phone: farmer.mobile || '',
             initials: getInitials(fullName),
             categoryId: categoryId ? categoryId.toString() : null, // Store category ID as string
+            stateId: farmer.state != null ? String(farmer.state) : null,
+            districtId: farmer.district != null ? String(farmer.district) : null,
+            talukaId: farmer.taluka != null ? String(farmer.taluka) : null,
+            villageId: farmer.village != null ? String(farmer.village) : null,
           };
         });
         setFarmers(transformedFarmers);
@@ -224,12 +243,15 @@ export default function FarmerScreen() {
       setLoadingCategories(true);
       console.log('[FarmerScreen] Fetching categories');
       const response = await getData(Apis.DEALER_CATEGORIES, {});
-      
+
       if (response?.status === true && response?.data) {
         const categoriesData = response.data.map((cat: any) => ({
           id: cat.id?.toString() || '',
           name: cat.name || '',
           language_id: cat.language_id || null,
+          farmer_count: typeof cat.farmer_count === 'number'
+            ? cat.farmer_count
+            : parseInt(cat.farmer_count ?? '0') || 0,
         }));
         setCategories(categoriesData);
         console.log('[FarmerScreen] Categories loaded:', categoriesData);
@@ -245,6 +267,164 @@ export default function FarmerScreen() {
       setLoadingCategories(false);
     }
   };
+
+  // Fetch states for location filter
+  const fetchStates = useCallback(async () => {
+    try {
+      setLoadingStates(true);
+      const response = await getData(Apis.GET_STATES, {});
+      if (response?.status === true && response?.data) {
+        const list = (response.data as {id: number; name: string}[]).map(item => ({
+          id: item.id.toString(),
+          label: item.name,
+          value: item.id.toString(),
+        }));
+        setStateList(list);
+      } else {
+        setStateList([]);
+      }
+    } catch (error) {
+      console.error('[FarmerScreen] Error fetching states:', error);
+      setStateList([]);
+    } finally {
+      setLoadingStates(false);
+    }
+  }, []);
+
+  // Fetch districts by state ID
+  const fetchDistricts = useCallback(async (stateId: string) => {
+    if (!stateId) {
+      setDistrictList([]);
+      return;
+    }
+    try {
+      setLoadingDistricts(true);
+      const url = `${Apis.GET_DISTRICTS}/${stateId}`;
+      const response = await getData(url, {});
+      if (response?.status === true && response?.data) {
+        const list = (response.data as {id: number; name: string}[]).map(item => ({
+          id: item.id.toString(),
+          label: item.name,
+          value: item.id.toString(),
+        }));
+        setDistrictList(list);
+      } else {
+        setDistrictList([]);
+      }
+    } catch (error) {
+      console.error('[FarmerScreen] Error fetching districts:', error);
+      setDistrictList([]);
+    } finally {
+      setLoadingDistricts(false);
+    }
+  }, []);
+
+  // Fetch talukas by district ID
+  const fetchTalukas = useCallback(async (districtId: string) => {
+    if (!districtId) {
+      setTalukaList([]);
+      return;
+    }
+    try {
+      setLoadingTalukas(true);
+      const url = `${Apis.GET_TALUKAS}/${districtId}`;
+      const response = await getData(url, {});
+      if (response?.status === true && response?.data) {
+        const list = (response.data as {id: number; name: string}[]).map(item => ({
+          id: item.id.toString(),
+          label: item.name,
+          value: item.id.toString(),
+        }));
+        setTalukaList(list);
+      } else {
+        setTalukaList([]);
+      }
+    } catch (error) {
+      console.error('[FarmerScreen] Error fetching talukas:', error);
+      setTalukaList([]);
+    } finally {
+      setLoadingTalukas(false);
+    }
+  }, []);
+
+  // Fetch villages by taluka ID
+  const fetchVillages = useCallback(async (talukaId: string) => {
+    if (!talukaId) {
+      setVillageList([]);
+      return;
+    }
+    try {
+      setLoadingVillages(true);
+      const url = `${Apis.GET_VILLAGES}/${talukaId}`;
+      const response = await getData(url, {});
+      if (response?.status === true && response?.data) {
+        const list = (response.data as {id: number; name: string}[]).map(item => ({
+          id: item.id.toString(),
+          label: item.name,
+          value: item.id.toString(),
+        }));
+        setVillageList(list);
+      } else {
+        setVillageList([]);
+      }
+    } catch (error) {
+      console.error('[FarmerScreen] Error fetching villages:', error);
+      setVillageList([]);
+    } finally {
+      setLoadingVillages(false);
+    }
+  }, []);
+
+  // When filter modal opens, sync modal state and load location lists
+  const prevFilterModalVisible = React.useRef(false);
+  useEffect(() => {
+    const justOpened = isFilterModalVisible && !prevFilterModalVisible.current;
+    prevFilterModalVisible.current = isFilterModalVisible;
+    if (justOpened) {
+      setModalSelectedOptions(selectedOptions);
+      setModalSelectedCategory(selectedCategory);
+      if (stateList.length === 0) fetchStates();
+      const stateId = selectedOptions['state'];
+      if (stateId) fetchDistricts(stateId);
+      else setDistrictList([]);
+      const districtId = selectedOptions['district'];
+      if (districtId) fetchTalukas(districtId);
+      else setTalukaList([]);
+      const talukaId = selectedOptions['taluka'];
+      if (talukaId) fetchVillages(talukaId);
+      else setVillageList([]);
+    }
+  }, [isFilterModalVisible, selectedOptions, selectedCategory, stateList.length, fetchStates, fetchDistricts, fetchTalukas, fetchVillages]);
+
+  // When user selects an option in filter modal (for location cascading)
+  const handleFilterOptionSelect = useCallback(
+    (categoryId: string, value: string) => {
+      setModalSelectedOptions(prev => {
+        const next = { ...prev, [categoryId]: value };
+        if (categoryId === 'state') {
+          next['district'] = '';
+          next['taluka'] = '';
+          next['village'] = '';
+          setDistrictList([]);
+          setTalukaList([]);
+          setVillageList([]);
+          if (value) fetchDistricts(value);
+        } else if (categoryId === 'district') {
+          next['taluka'] = '';
+          next['village'] = '';
+          setTalukaList([]);
+          setVillageList([]);
+          if (value) fetchTalukas(value);
+        } else if (categoryId === 'taluka') {
+          next['village'] = '';
+          setVillageList([]);
+          if (value) fetchVillages(value);
+        }
+        return next;
+      });
+    },
+    [fetchDistricts, fetchTalukas, fetchVillages],
+  );
 
   // Fetch data on mount and whenever screen comes into focus
   useFocusEffect(
@@ -283,29 +463,27 @@ export default function FarmerScreen() {
       },
     ];
 
-    // Map language code to language_id (en -> 1, hi -> 2, gu -> 3)
-    const languageIdMap: Record<string, number> = {
-      'en': 1,
-      'hi': 2,
-      'gu': 3,
-    };
-    
-    const currentLanguageId = languageIdMap[currentLanguage] || 1; // Default to English (1)
+    const selectedLanguageId = currentLanguageId || 1; // Default to English (1)
     
     // Filter categories based on current language_id
     const filteredCategories = categories.filter(cat => {
-      return cat.language_id === currentLanguageId;
+      return cat.language_id === selectedLanguageId;
     });
 
     // Add category filter if filtered categories are available
     if (filteredCategories.length > 0) {
       const categoryOptions = [
         {id: 'all', label: t('farmer.allCategories'), value: 'all'},
-        ...filteredCategories.map(cat => ({
-          id: `cat-${cat.id}`,
-          label: cat.name,
-          value: cat.id,
-        })),
+        ...filteredCategories.map(cat => {
+          const farmerWord = t('farmer.farmerWord');
+          const label = `${cat.name} (${farmerWord} - ${cat.farmer_count})`;
+
+          return {
+            id: `cat-${cat.id}`,
+            label,
+            value: cat.id,
+          };
+        }),
       ];
 
       categoriesList.push({
@@ -315,8 +493,45 @@ export default function FarmerScreen() {
       });
     }
 
+    // State – options from API
+    categoriesList.push({
+      id: 'state',
+      label: t('addFarmer.state'),
+      options: stateList.map(s => ({ id: `state-${s.value}`, label: s.label, value: s.value })),
+    });
+    // District – depends on state; show message if state not selected
+    const stateId = modalSelectedOptions['state'];
+    categoriesList.push({
+      id: 'district',
+      label: t('addFarmer.district'),
+      options: stateId
+        ? districtList.map(d => ({ id: `district-${d.value}`, label: d.label, value: d.value }))
+        : [],
+      emptyMessage: stateId ? undefined : t('addFarmer.selectStateFirst'),
+    });
+    // Taluka – depends on district
+    const districtId = modalSelectedOptions['district'];
+    categoriesList.push({
+      id: 'taluka',
+      label: t('addFarmer.taluka'),
+      options: districtId
+        ? talukaList.map(tk => ({ id: `taluka-${tk.value}`, label: tk.label, value: tk.value }))
+        : [],
+      emptyMessage: districtId ? undefined : t('addFarmer.selectDistrictFirst'),
+    });
+    // Village – depends on taluka
+    const talukaId = modalSelectedOptions['taluka'];
+    categoriesList.push({
+      id: 'village',
+      label: t('addFarmer.village'),
+      options: talukaId
+        ? villageList.map(v => ({ id: `village-${v.value}`, label: v.label, value: v.value }))
+        : [],
+      emptyMessage: talukaId ? undefined : t('addFarmer.selectTalukaFirst'),
+    });
+
     return categoriesList;
-  }, [categories, currentLanguage, t]);
+  }, [categories, currentLanguage, t, stateList, districtList, talukaList, villageList, modalSelectedOptions]);
 
   const filteredFarmers = useMemo(() => {
     let filtered = [...allFarmers]; // Start with all farmers
@@ -325,21 +540,35 @@ export default function FarmerScreen() {
     const categoryOption = selectedOptions['category'];
     if (categoryOption && categoryOption !== 'all') {
       const selectedCategoryId = categoryOption.toString();
-      console.log('[FarmerScreen] Filtering by category ID:', selectedCategoryId);
-      console.log('[FarmerScreen] Total farmers before filter:', filtered.length);
-      
-      filtered = filtered.filter(farmer => {
-        const farmerCategoryId = farmer.categoryId?.toString();
-        const matches = farmerCategoryId === selectedCategoryId;
-        
-        if (matches) {
-          console.log(`[FarmerScreen] Farmer ${farmer.name} matches category ${selectedCategoryId} (farmer category: ${farmerCategoryId})`);
-        }
-        
-        return matches;
-      });
-      
-      console.log('[FarmerScreen] Total farmers after category filter:', filtered.length);
+      filtered = filtered.filter(
+        farmer => farmer.categoryId?.toString() === selectedCategoryId,
+      );
+    }
+
+    // Apply location filters (state, district, taluka, village)
+    const stateId = selectedOptions['state'];
+    if (stateId) {
+      filtered = filtered.filter(
+        farmer => farmer.stateId != null && farmer.stateId === stateId,
+      );
+    }
+    const districtId = selectedOptions['district'];
+    if (districtId) {
+      filtered = filtered.filter(
+        farmer => farmer.districtId != null && farmer.districtId === districtId,
+      );
+    }
+    const talukaId = selectedOptions['taluka'];
+    if (talukaId) {
+      filtered = filtered.filter(
+        farmer => farmer.talukaId != null && farmer.talukaId === talukaId,
+      );
+    }
+    const villageId = selectedOptions['village'];
+    if (villageId) {
+      filtered = filtered.filter(
+        farmer => farmer.villageId != null && farmer.villageId === villageId,
+      );
     }
 
     // Apply search filter
@@ -739,8 +968,10 @@ export default function FarmerScreen() {
         }}
         title={t('common.filters')}
         categories={filterCategories}
-        selectedCategory={selectedCategory}
-        selectedOptions={selectedOptions}
+        selectedCategory={modalSelectedCategory}
+        selectedOptions={modalSelectedOptions}
+        onOptionSelect={handleFilterOptionSelect}
+        onCategorySelect={setModalSelectedCategory}
       />
     </View>
   );

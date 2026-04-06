@@ -42,6 +42,7 @@ const Apis = {
   FARMER_STORIES_BY_LOCATION:`${API_BASE_URL}/api/farmers/storiesbylocation`,
   FARMER_EVENT_BY_ID:`${API_BASE_URL}/api/farmers/events`,
   FARMER_STORY_BY_ID:`${API_BASE_URL}/api/farmers/stories`,
+  FARMER_EVENT_RESPOND:`${API_BASE_URL}/api/farmers/events`,
   FARMER_FCM_REGISTER:`${API_BASE_URL}/api/farmers/fcm/register`,
   FARMER_FCM_UNREGISTER:`${API_BASE_URL}/api/farmers/fcm/unregister`,
   FARMER_PUSH_NOTIFICATIONS:`${API_BASE_URL}/api/farmers/push-notifications`,
@@ -50,8 +51,13 @@ const Apis = {
   // Location APIs
   GET_STATES:`${API_BASE_URL}/api/dealers/locations/states`,
   GET_DISTRICTS:`${API_BASE_URL}/api/dealers/locations/districts`,
+  GET_TALUKAS:`${API_BASE_URL}/api/dealers/locations/talukas`,
   GET_VILLAGES:`${API_BASE_URL}/api/dealers/locations/villages`,
-
+  // Admin / Settings
+  ADMIN_SETTINGS_DISCOUNTS: `${API_BASE_URL}/api/admin/settings/discounts`,
+  ADMIN_FARMER_SAVINGS: `${API_BASE_URL}/api/dealers/settings/farmer-savings`,
+  FARMER_SAVINGS_GET: `${API_BASE_URL}/api/farmers/settings/farmer-savings`,
+  
 };
 
 export default Apis;

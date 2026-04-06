@@ -35,6 +35,7 @@
     "name": "નામ",
     "category": "શ્રેણી",
     "allCategories": "બધી શ્રેણીઓ",
+    "farmerWord": "કેપ્ટન સાથી",
     "details": "માહિતી",
     "noDetailsFound": "કોઈ કેપ્ટન સાથીની માહિતી મળી નથી"
   },
@@ -110,7 +111,10 @@
     "pleaseEnterValidMobileNumber": "કૃપા કરીને માન્ય મોબાઇલ નંબર દાખલ કરો",
     "pleaseEnterOtp": "કૃપા કરીને OTP દાખલ કરો",
     "pleaseEnterValidOtp": "કૃપા કરીને માન્ય OTP દાખલ કરો",
-    "invalidOtp": "અમાન્ય OTP. કૃપા કરીને સાચો OTP દાખલ કરો."
+    "invalidOtp": "અમાન્ય OTP. કૃપા કરીને સાચો OTP દાખલ કરો.",
+    "otpSentSuccess": "OTP સફળતાપૂર્વક મોકલાયું",
+    "otpResentSuccess": "OTP ફરીથી મોકલાયું",
+    "yourOtpIs": "તમારો OTP છે"
   },
   "notifications": {
     "title": "સૂચનાઓ",
@@ -158,7 +162,10 @@
     "textToSpeech": "વિગત સાંભળો",
     "noEventsFound": "કોઈ ઇવેન્ટ્સ મળી નથી",
     "noEventFound": "કોઈ ઇવેન્ટ મળી નથી",
-    "goToHome": "હોમ પર જાઓ"
+    "goToHome": "હોમ પર જાઓ",
+    "yes": "હા",
+    "no": "ના",
+    "attendingQuestion": "શું તમે આ ઇવેન્ટમાં હાજર થશો?"
   },
   "stories": {
     "title": "વાર્તાઓ",
@@ -172,27 +179,35 @@
     "greeting": "નમસ્તે",
     "recentEvents": "તાજેતરની ઘટનાઓ",
     "recentStories": "તાજેતરની વાર્તાઓ",
-    "membershipServices": "સભ્યપદ સેવાઓ",
+    "membershipServices": "કેપ્ટન સાથી ના વિશેષ લાભો",
     "services": {
-      "quickProblemSolution": {
-        "title": "ઝડપી સમસ્યા સોલ્યુશન",
-        "description": "24/7 સક્રિય સપોર્ટ"
+      "one": {
+        "title": "કેપ્ટન સાથી સાથે જોડાતા ખાસ ભેટ",
+        "description": "દરેક સભ્ય માટે વિશેષ સ્વાગત ભેટ"
       },
-      "prioritySupport": {
-        "title": "પ્રાથમિકતા ગ્રાહક સપોર્ટ",
-        "description": "અમારી ટીમ તરફથી પ્રાથમિકતા સપોર્ટ"
+      "two": {
+        "title": "કંપનીના કાર્યક્રમોમાં વિશેષ આમંત્રણ",
+        "description": "⁠કંપની દ્વારા આયોજિત કાર્યક્રમોમાં ખાસ આમંત્રણ"
       },
-      "directContact": {
+      "three": {
+        "title": "મફત વાર્ષિક ટ્રેક્ટર હેલ્થ ચેક-અપ",
+        "description": "⁠દર વર્ષે મફત ટ્રેક્ટર હેલ્થ ચેક-અપ અને પ્રાથમિક service નો લાભ"
+      },
+      "four": {
+        "title": "તહેવારો પર ખાસ ભેટ",
+        "description": "કેપ્ટન સાથી સભ્યો માટે સ્પેશ્યલ તહેવારો પર ખાસ ભેટ"
+      },
+      "five": {
+        "title": "પ્લાન્ટ વિઝિટનો અવસર",
+        "description": "કંપનીના આધુનિક મેન્યુફેક્ચરિંગ પ્લાન્ટની મુલાકાત લેવાનો અવસર"
+      },
+      "six": {
+        "title": "ટ્રેક્ટર સ્પેર પાર્ટ્સ પર ખાસ છૂટ",
+        "description": "સ્પેર પાર્ટ્સની ખરીદી પર ખાસ ડિસ્કાઉન્ટ"
+      },
+      "seven": {
         "title": "કંપની સાથે સીધો સંપર્ક",
-        "description": "અમારી મુખ્ય ટીમનો સંપર્ક કરો"
-      },
-      "specialInvite": {
-        "title": "કંપની કાર્યક્રમમાં વિશેષ આમંત્રણ",
-        "description": "કંપની દ્વારા યોજાયેલ કાર્યક્રમમાં વિશેષ આમંત્રણ "
-      },
-      "specialDiscount": {
-        "title": "વિશેષ ડિસ્કાઉન્ટ",
-        "description": "ટ્રેક્ટર સેવાઓ, ચાર્જ, સ્પેર ખરીદી પર"
+        "description": "કંપની સાથે સીધો સંપર્ક કરવાની સુવિધ"
       }
     }
   },
@@ -282,9 +297,11 @@
     "district": "જિલ્લો",
     "selectDistrict": "જિલ્લો પસંદ કરો",
     "selectStateFirst": "પહેલા રાજ્ય પસંદ કરો",
+    "taluka": "તાલુકો",
+    "selectTaluka": "તાલુકો પસંદ કરો",
     "village": "ગામ",
     "selectVillage": "ગામ પસંદ કરો",
-    "selectDistrictFirst": "પહેલા જિલ્લો પસંદ કરો",
+    "selectTalukaFirst": "પહેલા તાલુકો પસંદ કરો",
     "pincode": "પિન કોડ",
     "enterPincode": "પિન કોડ દાખલ કરો",
     "modelName": "મોડલ નામ દાખલ કરો",
@@ -329,6 +346,7 @@
       "streetNameRequired": "માર્ગનું નામ જરૂરી છે",
       "stateRequired": "રાજ્ય જરૂરી છે",
       "districtRequired": "જિલ્લો જરૂરી છે",
+      "talukaRequired": "તાલુકો જરૂરી છે",
       "villageRequired": "ગામ જરૂરી છે",
       "pincodeRequired": "પિન કોડ જરૂરી છે",
       "atLeastOneTractorImageRequired": "ઓછામાં ઓછું એક ટ્રેક્ટર છબી જરૂરી છે",
@@ -372,6 +390,35 @@
     "whatsappUs": "અમને Whatsapp કરો",
     "call": "કૉલ કરો",
     "textNow": "હવે ટેક્સ્ટ કરો"
+  },
+  "offer": {
+    "addOffer": "ઓફર ઉમેરો",
+    "addOfferSubtitle": "સેવાઓ અથવા ઉત્પાદ પર ડિસ્કાઉન્ટ ઉમેરો.",
+    "applyOfferOn": "ઓફર લાગુ કરો",
+    "selectProductService": "ઉત્પાદ / સેવા પસંદ કરો",
+    "product": "ઉત્પાદ",
+    "service": "સેવા",
+    "productDetail": "ઉત્પાદ વિગત",
+    "serviceDetail": "સેવા વિગત",
+    "productName": "ઉત્પાદનું નામ",
+    "productCode": "ઉત્પાદ કોડ",
+    "serviceName": "સેવાનું નામ",
+    "serviceDescription": "સેવા વર્ણન",
+    "amount": "રકમ",
+    "discount": "ડિસ્કાઉન્ટ",
+    "amountPayable": "ચુકવવાની રકમ",
+    "apply": "લાગુ કરો",
+    "productNamePlaceholder": "ઉત્પાદનું નામ અહીં",
+    "productCodePlaceholder": "ઉત્પાદ કોડ અહીં",
+    "serviceNamePlaceholder": "સેવાનું નામ અહીં",
+    "serviceDescriptionPlaceholder": "સેવા વર્ણન અહીં",
+    "amountPlaceholder": "રકમ દાખલ કરો",
+    "offerAddedSuccess": "ઑફર સફળતાપૂર્વક ઉમેરાયું"
+  },
+  "savings": {
+    "title": "બચત",
+    "viewSavings": "બચત જુઓ",
+    "saved": "બચત થઈ",
+    "noSavings": "હજુ સુધી કોઈ બચત નથી."
   }
 }
-

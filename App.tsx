@@ -5,7 +5,7 @@
  * @format
  */
 
-import { StyleSheet, Platform, AppState, AppStateStatus, NativeModules } from 'react-native';
+import { StyleSheet, Platform, NativeModules } from 'react-native';
 import {
   SafeAreaProvider,
   SafeAreaView,
@@ -23,6 +23,7 @@ import {isLoggedIn, getUserRole, savePendingNavigation} from './src/utils/sessio
 import {SCREEN_NAMES} from './src/constants/screenNames';
 import {CommonActions} from '@react-navigation/native';
 import SplashScreen from 'react-native-splash-screen';
+import colors from './src/utils/colors';
 
 function App() {
   useEffect(() => {
@@ -432,46 +433,9 @@ function AppContent() {
     setTimeout(hideSplash, 500);
   }, []);
 
-  // Monitor app state to show splash when app comes to foreground
-  useEffect(() => {
-    const appState = AppState.currentState;
-    
-    const handleAppStateChange = (nextAppState: AppStateStatus) => {
-      // When app comes to foreground from background
-      if (appState.match(/inactive|background/) && nextAppState === 'active') {
-        console.log('App: App came to foreground - showing splash screen');
-        // Show splash screen when app comes to foreground
-        SplashScreen.show();
-        
-        // Hide splash after navigation is ready
-        const hideSplash = () => {
-          if (navigationRef.current?.isReady()) {
-            SplashScreen.hide();
-          } else {
-            const checkNavigation = setInterval(() => {
-              if (navigationRef.current?.isReady()) {
-                SplashScreen.hide();
-                clearInterval(checkNavigation);
-              }
-            }, 100);
-            
-            setTimeout(() => {
-              SplashScreen.hide();
-              clearInterval(checkNavigation);
-            }, 2000);
-          }
-        };
-        
-        setTimeout(hideSplash, 500);
-      }
-    };
-
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
-    
-    return () => {
-      subscription.remove();
-    };
-  }, []);
+  // Do not re-show splash on app state transitions.
+  // Android 13 permission dialogs can trigger inactive/active transitions and
+  // re-showing splash there may block first-launch navigation.
 
   return (
     <>
@@ -492,6 +456,7 @@ function AppContent() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.backgroundWhite,
   },
 });
 

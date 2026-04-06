@@ -1,0 +1,141 @@
+{
+  "buildFiles": [
+    "/Users/abcom/Documents/kanna2/node_modules/@react-native-async-storage/async-storage/android/build/generated/source/codegen/jni/CMakeLists.txt",
+    "/Users/abcom/Documents/kanna2/node_modules/@react-native-community/slider/android/src/main/jni/CMakeLists.txt",
+    "/Users/abcom/Documents/kanna2/node_modules/@react-native-documents/picker/android/build/generated/source/codegen/jni/CMakeLists.txt",
+    "/Users/abcom/Documents/kanna2/node_modules/react-native-gesture-handler/android/build/generated/source/codegen/jni/CMakeLists.txt",
+    "/Users/abcom/Documents/kanna2/node_modules/react-native-image-crop-picker/android/build/generated/source/codegen/jni/CMakeLists.txt",
+    "/Users/abcom/Documents/kanna2/node_modules/react-native-image-picker/android/build/generated/source/codegen/jni/CMakeLists.txt",
+    "/Users/abcom/Documents/kanna2/node_modules/react-native-permissions/android/build/generated/source/codegen/jni/CMakeLists.txt",
+    "/Users/abcom/Documents/kanna2/node_modules/react-native-reanimated/android/build/generated/source/codegen/jni/CMakeLists.txt",
+    "/Users/abcom/Documents/kanna2/node_modules/react-native-safe-area-context/android/src/main/jni/CMakeLists.txt",
+    "/Users/abcom/Documents/kanna2/node_modules/react-native-screens/android/src/main/jni/CMakeLists.txt",
+    "/Users/abcom/Documents/kanna2/node_modules/react-native-vector-icons/android/build/generated/source/codegen/jni/CMakeLists.txt",
+    "/Users/abcom/Documents/kanna2/node_modules/react-native-webview/android/build/generated/source/codegen/jni/CMakeLists.txt",
+    "/Users/abcom/Documents/kanna2/node_modules/react-native-worklets/android/build/generated/source/codegen/jni/CMakeLists.txt",
+    "/Users/abcom/Documents/kanna2/node_modules/react-native/ReactAndroid/cmake-utils/default-app-setup/CMakeLists.txt"
+  ],
+  "cleanCommandsComponents": [
+    [
+      "/Users/abcom/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+      "-C",
+      "/Users/abcom/Documents/kanna2/android/app/.cxx/Debug/2i4l3322/x86",
+      "clean"
+    ]
+  ],
+  "buildTargetsCommandComponents": [
+    "/Users/abcom/Library/Android/sdk/cmake/3.22.1/bin/ninja",
+    "-C",
+    "/Users/abcom/Documents/kanna2/android/app/.cxx/Debug/2i4l3322/x86",
+    "{LIST_OF_TARGETS_TO_BUILD}"
+  ],
+  "libraries": {
+    "appmodules::@6890427a1f51a3e7e1df": {
+      "toolchain": "toolchain",
+      "abi": "x86",
+      "artifactName": "appmodules",
+      "output": "/Users/abcom/Documents/kanna2/android/app/build/intermediates/cxx/Debug/2i4l3322/obj/x86/libappmodules.so",
+      "runtimeFiles": [
+        "/Users/abcom/Documents/kanna2/android/app/build/intermediates/cxx/Debug/2i4l3322/obj/x86/libreact_codegen_RNCSlider.so",
+        "/Users/abcom/Documents/kanna2/android/app/build/intermediates/cxx/Debug/2i4l3322/obj/x86/libreact_codegen_safeareacontext.so",
+        "/Users/abcom/Documents/kanna2/android/app/build/intermediates/cxx/Debug/2i4l3322/obj/x86/libreact_codegen_rnscreens.so",
+        "/private/var/folders/0j/r0zk9g3n38j1x__vl88gtb6m0000gn/T/cursor-sandbox-cache/a0bacb133618670fae975d13ee59d827/gradle/caches/8.13/transforms/b60c1380c227a6ffbce61b3c3b53d3af/transformed/fbjni-0.7.0/prefab/modules/fbjni/libs/android.x86/libfbjni.so",
+        "/private/var/folders/0j/r0zk9g3n38j1x__vl88gtb6m0000gn/T/cursor-sandbox-cache/a0bacb133618670fae975d13ee59d827/gradle/caches/8.13/transforms/161e9dfa4b5204375f69b69c8b60834d/transformed/react-android-0.82.1-debug/prefab/modules/jsi/libs/android.x86/libjsi.so",
+        "/private/var/folders/0j/r0zk9g3n38j1x__vl88gtb6m0000gn/T/cursor-sandbox-cache/a0bacb133618670fae975d13ee59d827/gradle/caches/8.13/transforms/161e9dfa4b5204375f69b69c8b60834d/transformed/react-android-0.82.1-debug/prefab/modules/reactnative/libs/android.x86/libreactnative.so"
+      ]
+    },
+    "react_codegen_RNCImageCropPickerSpec::@702b02f8d2524609d414": {
+      "toolchain": "toolchain",
+      "abi": "x86",
+      "artifactName": "react_codegen_RNCImageCropPickerSpec"
+    },
+    "react_codegen_RNCSlider::@4898bc4726ecf1751b6a": {
+      "toolchain": "toolchain",
+      "abi": "x86",
+      "artifactName": "react_codegen_RNCSlider",
+      "output": "/Users/abcom/Documents/kanna2/android/app/build/intermediates/cxx/Debug/2i4l3322/obj/x86/libreact_codegen_RNCSlider.so",
+      "runtimeFiles": [
+        "/private/var/folders/0j/r0zk9g3n38j1x__vl88gtb6m0000gn/T/cursor-sandbox-cache/a0bacb133618670fae975d13ee59d827/gradle/caches/8.13/transforms/b60c1380c227a6ffbce61b3c3b53d3af/transformed/fbjni-0.7.0/prefab/modules/fbjni/libs/android.x86/libfbjni.so",
+        "/private/var/folders/0j/r0zk9g3n38j1x__vl88gtb6m0000gn/T/cursor-sandbox-cache/a0bacb133618670fae975d13ee59d827/gradle/caches/8.13/transforms/161e9dfa4b5204375f69b69c8b60834d/transformed/react-android-0.82.1-debug/prefab/modules/jsi/libs/android.x86/libjsi.so",
+        "/private/var/folders/0j/r0zk9g3n38j1x__vl88gtb6m0000gn/T/cursor-sandbox-cache/a0bacb133618670fae975d13ee59d827/gradle/caches/8.13/transforms/161e9dfa4b5204375f69b69c8b60834d/transformed/react-android-0.82.1-debug/prefab/modules/reactnative/libs/android.x86/libreactnative.so"
+      ]
+    },
+    "react_codegen_RNCWebViewSpec::@eb48929f9f7453740a6c": {
+      "toolchain": "toolchain",
+      "abi": "x86",
+      "artifactName": "react_codegen_RNCWebViewSpec"
+    },
+    "react_codegen_RNImagePickerSpec::@f66ee9a2efecfb28bee4": {
+      "toolchain": "toolchain",
+      "abi": "x86",
+      "artifactName": "react_codegen_RNImagePickerSpec"
+    },
+    "react_codegen_RNPermissionsSpec::@7ad697819b753921c957": {
+      "toolchain": "toolchain",
+      "abi": "x86",
+      "artifactName": "react_codegen_RNPermissionsSpec"
+    },
+    "react_codegen_RNVectorIconsSpec::@479809fae146501fd34d": {
+      "toolchain": "toolchain",
+      "abi": "x86",
+      "artifactName": "react_codegen_RNVectorIconsSpec"
+    },
+    "react_codegen_rnasyncstorage::@1596841e19ec5b9eeffe": {
+      "toolchain": "toolchain",
+      "abi": "x86",
+      "artifactName": "react_codegen_rnasyncstorage"
+    },
+    "react_codegen_rndocumentpickerCGen::@aac1846a245ca418eb66": {
+      "toolchain": "toolchain",
+      "abi": "x86",
+      "artifactName": "react_codegen_rndocumentpickerCGen"
+    },
+    "react_codegen_rngesturehandler_codegen::@39f233abcd2c728bc6ec": {
+      "toolchain": "toolchain",
+      "abi": "x86",
+      "artifactName": "react_codegen_rngesturehandler_codegen"
+    },
+    "react_codegen_rnreanimated::@8afabad14bfffa3f8b9a": {
+      "toolchain": "toolchain",
+      "abi": "x86",
+      "artifactName": "react_codegen_rnreanimated"
+    },
+    "react_codegen_rnscreens::@25bcbd507e98d3a854ad": {
+      "toolchain": "toolchain",
+      "abi": "x86",
+      "artifactName": "react_codegen_rnscreens",
+      "output": "/Users/abcom/Documents/kanna2/android/app/build/intermediates/cxx/Debug/2i4l3322/obj/x86/libreact_codegen_rnscreens.so",
+      "runtimeFiles": [
+        "/private/var/folders/0j/r0zk9g3n38j1x__vl88gtb6m0000gn/T/cursor-sandbox-cache/a0bacb133618670fae975d13ee59d827/gradle/caches/8.13/transforms/161e9dfa4b5204375f69b69c8b60834d/transformed/react-android-0.82.1-debug/prefab/modules/reactnative/libs/android.x86/libreactnative.so",
+        "/private/var/folders/0j/r0zk9g3n38j1x__vl88gtb6m0000gn/T/cursor-sandbox-cache/a0bacb133618670fae975d13ee59d827/gradle/caches/8.13/transforms/161e9dfa4b5204375f69b69c8b60834d/transformed/react-android-0.82.1-debug/prefab/modules/jsi/libs/android.x86/libjsi.so",
+        "/private/var/folders/0j/r0zk9g3n38j1x__vl88gtb6m0000gn/T/cursor-sandbox-cache/a0bacb133618670fae975d13ee59d827/gradle/caches/8.13/transforms/b60c1380c227a6ffbce61b3c3b53d3af/transformed/fbjni-0.7.0/prefab/modules/fbjni/libs/android.x86/libfbjni.so"
+      ]
+    },
+    "react_codegen_rnworklets::@68f58d84d4754f193387": {
+      "toolchain": "toolchain",
+      "abi": "x86",
+      "artifactName": "react_codegen_rnworklets"
+    },
+    "react_codegen_safeareacontext::@7984cd80db47aa7b952a": {
+      "toolchain": "toolchain",
+      "abi": "x86",
+      "artifactName": "react_codegen_safeareacontext",
+      "output": "/Users/abcom/Documents/kanna2/android/app/build/intermediates/cxx/Debug/2i4l3322/obj/x86/libreact_codegen_safeareacontext.so",
+      "runtimeFiles": [
+        "/private/var/folders/0j/r0zk9g3n38j1x__vl88gtb6m0000gn/T/cursor-sandbox-cache/a0bacb133618670fae975d13ee59d827/gradle/caches/8.13/transforms/b60c1380c227a6ffbce61b3c3b53d3af/transformed/fbjni-0.7.0/prefab/modules/fbjni/libs/android.x86/libfbjni.so",
+        "/private/var/folders/0j/r0zk9g3n38j1x__vl88gtb6m0000gn/T/cursor-sandbox-cache/a0bacb133618670fae975d13ee59d827/gradle/caches/8.13/transforms/161e9dfa4b5204375f69b69c8b60834d/transformed/react-android-0.82.1-debug/prefab/modules/jsi/libs/android.x86/libjsi.so",
+        "/private/var/folders/0j/r0zk9g3n38j1x__vl88gtb6m0000gn/T/cursor-sandbox-cache/a0bacb133618670fae975d13ee59d827/gradle/caches/8.13/transforms/161e9dfa4b5204375f69b69c8b60834d/transformed/react-android-0.82.1-debug/prefab/modules/reactnative/libs/android.x86/libreactnative.so"
+      ]
+    }
+  },
+  "toolchains": {
+    "toolchain": {
+      "cCompilerExecutable": "/Users/abcom/Library/Android/sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang.lld",
+      "cppCompilerExecutable": "/Users/abcom/Library/Android/sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang++.lld"
+    }
+  },
+  "cFileExtensions": [],
+  "cppFileExtensions": [
+    "cpp"
+  ]
+}

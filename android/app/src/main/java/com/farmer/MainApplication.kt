@@ -1,4 +1,4 @@
-package com.farmer
+package com.captainsaathi.farmerapp
 
 import android.app.Application
 import android.app.NotificationChannel

@@ -51,14 +51,14 @@ export default function StoriesScreen() {
   const {moderateScale} = useDeviceMetrics();
   const navigation = useNavigation();
   const tabNavigation = useNavigation<BottomTabNavigationProp<FarmerTabParamList>>();
-  const {currentLanguage, t} = useLanguage();
+  const {currentLanguage, currentLanguageId, t} = useLanguage();
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [stories, setStories] = useState<any[]>([]);
   const [rawStories, setRawStories] = useState<any[]>([]); // Store raw stories for language re-transformation
 
   // Helper function to transform stories with language-specific titles
-  const transformStoriesWithLanguage = useCallback((storiesArray: any[], language: string) => {
+  const transformStoriesWithLanguage = useCallback((storiesArray: any[], languageId: number) => {
     // Transform API stories to match UI structure
     return storiesArray.map((story: any) => {
       // Check for video URL - prioritize YouTube thumbnail if video is YouTube
@@ -176,19 +176,11 @@ export default function StoriesScreen() {
       const bannerImage = imageUrl ? {uri: imageUrl} : undefined;
       
       // Handle language-specific title
-      // Map language code to language_id (en -> 1, hi -> 2, gu -> 3)
-      const languageIdMap: Record<string, number> = {
-        'en': 1,
-        'hi': 2,
-        'gu': 3,
-      };
-      const currentLanguageId = languageIdMap[language] || 1;
-      
       // Check if languages array exists and find matching language
       let displayTitle = story.title || 'Story';
       if (story.languages && Array.isArray(story.languages) && story.languages.length > 0) {
         const languageSpecificContent = story.languages.find(
-          (lang: any) => lang.language_id === currentLanguageId
+          (lang: any) => lang.language_id === languageId
         );
         // Use language-specific title if found, otherwise use default title
         if (languageSpecificContent?.title) {
@@ -267,7 +259,7 @@ export default function StoriesScreen() {
       
       // Always use stories by location API when we have profile data
       // Use location API if we have any location parameters, otherwise use regular API
-      const apiEndpoint = Apis.FARMER_STORIES_BY_LOCATION + urlParams
+      const apiEndpoint = Apis.FARMER_STORIES_BY_LOCATION;
       
       // Build URL string to verify order: state=1&district=2&village=3&category=1
       // const urlParams = new URLSearchParams();
@@ -296,7 +288,7 @@ export default function StoriesScreen() {
           setRawStories(storiesArray);
           
           // Transform stories with current language
-          const transformedStories = transformStoriesWithLanguage(storiesArray, currentLanguage);
+          const transformedStories = transformStoriesWithLanguage(storiesArray, currentLanguageId || 1);
           
           setStories(transformedStories);
         } else {
@@ -317,15 +309,15 @@ export default function StoriesScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [transformStoriesWithLanguage, currentLanguage]);
+  }, [transformStoriesWithLanguage, currentLanguageId]);
 
   // Re-transform stories when language changes (if stories are already loaded)
   useEffect(() => {
     if (rawStories.length > 0) {
-      const transformedStories = transformStoriesWithLanguage(rawStories, currentLanguage);
+      const transformedStories = transformStoriesWithLanguage(rawStories, currentLanguageId || 1);
       setStories(transformedStories);
     }
-  }, [currentLanguage, rawStories, transformStoriesWithLanguage]);
+  }, [currentLanguageId, rawStories, transformStoriesWithLanguage]);
 
   // Handle pull to refresh
   const onRefresh = React.useCallback(() => {

@@ -37,6 +37,7 @@ export default function FarmerProfileScreen() {
   const {t, currentLanguage} = useLanguage();
   const navigation = useNavigation();
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [updateNumberModalVisible, setUpdateNumberModalVisible] = useState(false);
   const [contactModalVisible, setContactModalVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -51,6 +52,7 @@ export default function FarmerProfileScreen() {
     phone: '+91 54852 26478',
     initials: 'HW',
   });
+  const [farmerId, setFarmerId] = useState<string | number | undefined>(undefined);
 
   // Fetch farmer profile data from API
   const fetchFarmerProfile = React.useCallback(async (showRefreshing = false) => {
@@ -66,7 +68,9 @@ export default function FarmerProfileScreen() {
       if (response?.status === true && response?.data) {
         const data = response.data;
         const personalDetails = data.personal_details || {};
-        
+        const id = data?.id ?? data?.farmer_id ?? personalDetails?.id ?? personalDetails?.farmer_id;
+        if (id != null) setFarmerId(id);
+
         // Profile photo
         if (personalDetails.profile_photo_url) {
           const imageUrl = getImageUrl(personalDetails.profile_photo_url);
@@ -294,12 +298,12 @@ export default function FarmerProfileScreen() {
           marginBottom: moderateScale(16),
         },
         profileHeader: {
-          flexDirection: 'row',
-          alignItems: 'center',
+          flexDirection: "row",
+          alignItems: "center",
           marginBottom: moderateScale(20),
         },
         profileImageContainer: {
-          position: 'relative',
+          position: "relative",
           marginRight: moderateScale(16),
         },
         profileImage: {
@@ -307,8 +311,8 @@ export default function FarmerProfileScreen() {
           height: moderateScale(60),
           borderRadius: moderateScale(30),
           backgroundColor: colors.light_dark_yellow,
-          alignItems: 'center',
-          justifyContent: 'center',
+          alignItems: "center",
+          justifyContent: "center",
         },
         profileImageText: {
           ...Typography.boldXl,
@@ -316,15 +320,15 @@ export default function FarmerProfileScreen() {
           color: colors.textSecondary,
         },
         cameraIconContainer: {
-          position: 'absolute',
+          position: "absolute",
           bottom: 0,
           right: 0,
           width: moderateScale(22),
           height: moderateScale(22),
           borderRadius: moderateScale(11),
           backgroundColor: colors.primary,
-          alignItems: 'center',
-          justifyContent: 'center',
+          alignItems: "center",
+          justifyContent: "center",
           borderWidth: 2,
           borderColor: colors.backgroundWhite,
         },
@@ -336,7 +340,7 @@ export default function FarmerProfileScreen() {
           fontSize: moderateScale(18),
           color: colors.textPrimary,
           marginBottom: moderateScale(4),
-          textTransform: 'capitalize',
+          textTransform: "capitalize",
         },
         profilePhone: {
           ...Typography.regularMd,
@@ -344,14 +348,14 @@ export default function FarmerProfileScreen() {
           color: colors.textTertiary,
         },
         optionRow: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
           paddingVertical: moderateScale(12),
         },
         optionLeft: {
-          flexDirection: 'row',
-          alignItems: 'center',
+          flexDirection: "row",
+          alignItems: "center",
           flex: 1,
         },
         optionIcon: {
@@ -360,8 +364,8 @@ export default function FarmerProfileScreen() {
           height: moderateScale(40),
           borderRadius: moderateScale(20),
           backgroundColor: colors.backgroundGray,
-          alignItems: 'center',
-          justifyContent: 'center',
+          alignItems: "center",
+          justifyContent: "center",
         },
         optionContent: {
           flex: 1,
@@ -383,13 +387,13 @@ export default function FarmerProfileScreen() {
           marginVertical: moderateScale(4),
         },
         logoutRow: {
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
+          flexDirection: "row",
+          alignItems: "center",
+          justifyContent: "space-between",
         },
         logoutLeft: {
-          flexDirection: 'row',
-          alignItems: 'center',
+          flexDirection: "row",
+          alignItems: "center",
           flex: 1,
         },
         logoutIcon: {
@@ -400,6 +404,20 @@ export default function FarmerProfileScreen() {
           fontSize: moderateScale(16),
           color: colors.statusError,
         },
+        iconBackground: {
+          width: moderateScale(44),
+          height: moderateScale(44),
+          borderRadius: moderateScale(40),
+          backgroundColor: "#F5F5F5",
+          alignItems: "center",
+          justifyContent: "center",
+          marginRight: moderateScale(12),
+        },
+        iconStyle: {
+          width: moderateScale(24),
+          height: moderateScale(24),
+          resizeMode: "contain",
+        },
       }),
     [moderateScale, insets.top],
   );
@@ -409,6 +427,8 @@ export default function FarmerProfileScreen() {
   };
 
   const handleConfirmLogout = async () => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
     try {
       // Unregister FCM token before logout
       try {
@@ -445,11 +465,8 @@ export default function FarmerProfileScreen() {
       });
     } catch (error) {
       console.error('Error during logout:', error);
-      setLogoutModalVisible(false);
-      (navigation as any).reset({
-        index: 0,
-        routes: [{name: SCREEN_NAMES.Login}],
-      });
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 
@@ -506,7 +523,7 @@ export default function FarmerProfileScreen() {
   return (
     <View style={dynamicStyles.container}>
       <ScrollView
-        style={{flex: 1}}
+        style={{ flex: 1 }}
         contentContainerStyle={dynamicStyles.scrollContent}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -516,7 +533,8 @@ export default function FarmerProfileScreen() {
             colors={[colors.primary]}
             tintColor={colors.primary}
           />
-        }>
+        }
+      >
         {/* Profile Information Card */}
         <View style={dynamicStyles.card}>
           {/* Profile Header */}
@@ -524,11 +542,14 @@ export default function FarmerProfileScreen() {
             <View style={dynamicStyles.profileImageContainer}>
               {uploading ? (
                 <View style={dynamicStyles.profileImage}>
-                  <ActivityIndicator size="small" color={colors.textSecondary} />
+                  <ActivityIndicator
+                    size="small"
+                    color={colors.textSecondary}
+                  />
                 </View>
               ) : profileImage ? (
                 <Image
-                  source={{uri: profileImage}}
+                  source={{ uri: profileImage }}
                   style={dynamicStyles.profileImage}
                   resizeMode="cover"
                 />
@@ -543,7 +564,8 @@ export default function FarmerProfileScreen() {
                 style={dynamicStyles.cameraIconContainer}
                 onPress={handleProfileImagePress}
                 activeOpacity={0.7}
-                disabled={uploading}>
+                disabled={uploading}
+              >
                 <Ionicons
                   name="camera"
                   size={moderateScale(14)}
@@ -561,18 +583,22 @@ export default function FarmerProfileScreen() {
           <TouchableOpacity
             style={dynamicStyles.optionRow}
             onPress={handleViewProfile}
-            activeOpacity={0.7}>
+            activeOpacity={0.7}
+          >
             <View style={dynamicStyles.optionLeft}>
-              <View style={dynamicStyles.optionIcon}>
-                <Ionicons
-                  name="person-outline"
-                  size={moderateScale(20)}
-                  color={colors.textPrimary}
+              <View style={dynamicStyles.iconBackground}>
+                <Image
+                  source={ImagePath.profileDetails}
+                  style={dynamicStyles.iconStyle}
                 />
               </View>
               <View style={dynamicStyles.optionContent}>
-                <Text style={dynamicStyles.optionLabel}>{t('profile.title')}</Text>
-                <Text style={dynamicStyles.optionText}>{t('profile.viewProfile')}</Text>
+                <Text style={dynamicStyles.optionLabel}>
+                  {t("profile.title")}
+                </Text>
+                <Text style={dynamicStyles.optionText}>
+                  {t("profile.viewProfile")}
+                </Text>
               </View>
             </View>
             <Ionicons
@@ -589,19 +615,21 @@ export default function FarmerProfileScreen() {
           <TouchableOpacity
             style={dynamicStyles.optionRow}
             onPress={handleUpdateNumber}
-            activeOpacity={0.7}>
+            activeOpacity={0.7}
+          >
             <View style={dynamicStyles.optionLeft}>
-              <View style={dynamicStyles.optionIcon}>
-                <Ionicons
-                  name="call-outline"
-                  size={moderateScale(20)}
-                  color={colors.textPrimary}
+              <View style={dynamicStyles.iconBackground}>
+                <Image
+                  source={ImagePath.updateNumber}
+                  style={dynamicStyles.iconStyle}
                 />
               </View>
               <View style={dynamicStyles.optionContent}>
-                <Text style={dynamicStyles.optionLabel}>{t('farmerProfile.updateNumber')}</Text>
+                <Text style={dynamicStyles.optionLabel}>
+                  {t("farmerProfile.updateNumber")}
+                </Text>
                 <Text style={dynamicStyles.optionText}>
-                  {t('farmerProfile.updateNumberDescription')}
+                  {t("farmerProfile.updateNumberDescription")}
                 </Text>
               </View>
             </View>
@@ -619,19 +647,21 @@ export default function FarmerProfileScreen() {
           <TouchableOpacity
             style={dynamicStyles.optionRow}
             onPress={() => navigation.navigate(SCREEN_NAMES.Language as never)}
-            activeOpacity={0.7}>
+            activeOpacity={0.7}
+          >
             <View style={dynamicStyles.optionLeft}>
-              <View style={dynamicStyles.optionIcon}>
-                <Ionicons
-                  name="language-outline"
-                  size={moderateScale(20)}
-                  color={colors.textPrimary}
+              <View style={dynamicStyles.iconBackground}>
+                <Image
+                  source={ImagePath.languagesType}
+                  style={dynamicStyles.iconStyle}
                 />
               </View>
               <View style={dynamicStyles.optionContent}>
-                <Text style={dynamicStyles.optionLabel}>{t('language.title')}</Text>
+                <Text style={dynamicStyles.optionLabel}>
+                  {t("language.title")}
+                </Text>
                 <Text style={dynamicStyles.optionText}>
-                {t('language.selectLanguage')}
+                  {t("language.selectLanguage")}
                 </Text>
               </View>
             </View>
@@ -649,7 +679,8 @@ export default function FarmerProfileScreen() {
           <TouchableOpacity
             style={dynamicStyles.optionRow}
             onPress={() => setContactModalVisible(true)}
-            activeOpacity={0.7}>
+            activeOpacity={0.7}
+          >
             <View style={dynamicStyles.optionLeft}>
               <View style={dynamicStyles.optionIcon}>
                 {/* <Ionicons
@@ -657,19 +688,63 @@ export default function FarmerProfileScreen() {
                   size={moderateScale(20)}
                   color={colors.textPrimary}
                 /> */}
-                <Image source={ImagePath.contactUs} style={[dynamicStyles.optionIcon,{
-                  height: moderateScale(25),
-                  width: moderateScale(25),
-                  resizeMode: 'contain',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginRight: moderateScale(0),
-                }]} />
+                <Image
+                  source={ImagePath.contactUs}
+                  style={[
+                    dynamicStyles.optionIcon,
+                    {
+                      height: moderateScale(25),
+                      width: moderateScale(25),
+                      resizeMode: "contain",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginRight: moderateScale(0),
+                    },
+                  ]}
+                />
               </View>
               <View style={dynamicStyles.optionContent}>
-                <Text style={dynamicStyles.optionLabel}>{getContactUsText.title}</Text>
+                <Text style={dynamicStyles.optionLabel}>
+                  {getContactUsText.title}
+                </Text>
                 <Text style={dynamicStyles.optionText}>
                   {getContactUsText.description}
+                </Text>
+              </View>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={moderateScale(20)}
+              color={colors.textTertiary}
+            />
+          </TouchableOpacity>
+          {/* Divider */}
+          <View style={dynamicStyles.divider} />
+          {/* Savings Card */}
+          <TouchableOpacity
+            style={dynamicStyles.optionRow}
+            activeOpacity={0.7}
+            onPress={() =>
+              (navigation as any).navigate(SCREEN_NAMES.FarmerSavings, {
+                farmerId: farmerId ?? undefined,
+                farmer_id: farmerId ?? undefined,
+              })
+            }
+          >
+            <View style={dynamicStyles.optionLeft}>
+              {/* Icon Box */}
+              <View style={dynamicStyles.iconBackground}>
+                <Image
+                  source={ImagePath.offerIcon}
+                  style={dynamicStyles.iconStyle}
+                />
+              </View>
+              <View style={dynamicStyles.optionContent}>
+                <Text style={dynamicStyles.optionLabel}>
+                  {t("savings.title")}
+                </Text>
+                <Text style={dynamicStyles.optionText}>
+                  {t("savings.viewSavings")}
                 </Text>
               </View>
             </View>
@@ -686,7 +761,8 @@ export default function FarmerProfileScreen() {
           <TouchableOpacity
             style={dynamicStyles.logoutRow}
             onPress={handleLogout}
-            activeOpacity={0.7}>
+            activeOpacity={0.7}
+          >
             <View style={dynamicStyles.logoutLeft}>
               <View style={dynamicStyles.logoutIcon}>
                 <Ionicons
@@ -695,7 +771,9 @@ export default function FarmerProfileScreen() {
                   color={colors.statusError}
                 />
               </View>
-              <Text style={dynamicStyles.logoutText}>{t('profile.logOut')}</Text>
+              <Text style={dynamicStyles.logoutText}>
+                {t("profile.logOut")}
+              </Text>
             </View>
             <Ionicons
               name="chevron-forward"
@@ -709,8 +787,9 @@ export default function FarmerProfileScreen() {
       {/* Logout Confirmation Modal */}
       <LogoutModal
         visible={logoutModalVisible}
-        onClose={() => setLogoutModalVisible(false)}
+        onClose={() => !isLoggingOut && setLogoutModalVisible(false)}
         onConfirm={handleConfirmLogout}
+        loading={isLoggingOut}
       />
 
       {/* Contact Us Modal */}
@@ -726,10 +805,10 @@ export default function FarmerProfileScreen() {
       <UpdateNumberModal
         visible={updateNumberModalVisible}
         onClose={() => {
-          console.log('[FarmerProfileScreen] Closing update number modal');
+          console.log("[FarmerProfileScreen] Closing update number modal");
           setUpdateNumberModalVisible(false);
         }}
-        existingNumber={userData.phone || ''}
+        existingNumber={userData.phone || ""}
         onSendRequest={handleSendRequest}
         onComplete={handleUpdateNumberComplete}
       />

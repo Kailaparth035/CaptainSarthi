@@ -200,7 +200,7 @@ SummaryCard = ({
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
-  const {t, currentLanguage} = useLanguage();
+  const {t, currentLanguage, currentLanguageId} = useLanguage();
   const navigation = useNavigation();
   const tabNavigation =
     useNavigation<BottomTabNavigationProp<TabParamList>>();
@@ -282,19 +282,11 @@ export default function HomeScreen() {
         const allTractorsArray = tractorsResponse.data.tractors || 
                             (Array.isArray(tractorsResponse.data) ? tractorsResponse.data : []);
         
-        // Map language code to language_id
-        // 'en' -> 1, 'hi' -> 2, 'gu' -> 3
-        const languageIdMap: Record<string, number> = {
-          'en': 1,
-          'hi': 2,
-          'gu': 3,
-        };
-        
-        const currentLanguageId = languageIdMap[currentLanguage] || 1; // Default to English (1)
+        const selectedLanguageId = currentLanguageId || 1; // Default to English (1)
         
         // Filter tractors based on current language (exclude null language_id)
         const tractorsArray = allTractorsArray.filter((tractor: any) => {
-          return tractor.language_id === currentLanguageId;
+          return tractor.language_id === selectedLanguageId;
         });
         
         console.log('[HomeScreen] Tractors array extracted (filtered by language):', tractorsArray?.length || 0, 'tractors');
@@ -329,18 +321,11 @@ export default function HomeScreen() {
         }
       } else if (Array.isArray(tractorsResponse)) {
         // Fallback: if response is directly an array
-        // Map language code to language_id
-        const languageIdMap: Record<string, number> = {
-          'en': 1,
-          'hi': 2,
-          'gu': 3,
-        };
-        
-        const currentLanguageId = languageIdMap[currentLanguage] || 1; // Default to English (1)
+        const selectedLanguageId = currentLanguageId || 1; // Default to English (1)
         
         // Filter tractors based on current language (exclude null language_id)
         const filteredTractors = tractorsResponse.filter((tractor: any) => {
-          return tractor.language_id === currentLanguageId;
+          return tractor.language_id === selectedLanguageId;
         });
         
         const transformedTractors = filteredTractors.map((tractor: any, index: number) => {

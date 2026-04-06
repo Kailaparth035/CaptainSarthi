@@ -82,6 +82,35 @@ const ENGINE_NUMBER_PATTERN = /[A-Z0-9]{8,15}/i;
 const ENGINE_NUMBER_PATTERN_FLEXIBLE = /[A-Z0-9\s-]{6,18}/i; // Flexible pattern for OCR
 
 /**
+ * Normalize OCR text across devices (especially Android) where
+ * dashes/special punctuation are detected inconsistently.
+ */
+const normalizeOCRText = (text: string): string => {
+  if (!text) {
+    return '';
+  }
+
+  let normalized = text;
+
+  // Convert Unicode dash variants to regular hyphen.
+  normalized = normalized.replace(/[\u2010-\u2015\u2212\uFE58\uFE63\uFF0D]/g, '-');
+
+  // Replace repeated dash-like noise ("--", "---", "_-_") with a single space.
+  normalized = normalized.replace(/(?:[-_]\s*){2,}/g, ' ');
+
+  // Normalize common separators to improve keyword and field matching.
+  normalized = normalized.replace(/[|¦]/g, ' ');
+  normalized = normalized.replace(/[‘’`]/g, '\'');
+  normalized = normalized.replace(/[“”]/g, '"');
+
+  // Keep newlines, but collapse excessive spaces/tabs.
+  normalized = normalized.replace(/[ \t]+/g, ' ');
+  normalized = normalized.replace(/\n{3,}/g, '\n\n');
+
+  return normalized.trim();
+};
+
+/**
  * Extract text from image using ML Kit OCR
  * @param imageUri - Local file URI of the image
  * @returns Promise with extracted text or null if extraction fails
@@ -105,7 +134,7 @@ export const extractTextFromImage = async (
       return null;
     }
 
-    const extractedText = result.text.trim();
+    const extractedText = normalizeOCRText(result.text);
     console.log('[OCRService] Text extracted successfully, length:', extractedText.length);
     
     // Log preview of extracted text for debugging (truncated for long texts)
@@ -143,12 +172,14 @@ export const validateRCBook = (
   text: string,
 ): {isValid: boolean; matchedKeywords: number; matchedKeywordsList: string[]} => {
   try {
-    if (!text || text.trim().length === 0) {
+    const normalizedText = normalizeOCRText(text);
+
+    if (!normalizedText || normalizedText.trim().length === 0) {
       console.log('[OCRService] Empty text - cannot validate RC Book');
       return {isValid: false, matchedKeywords: 0, matchedKeywordsList: []};
     }
 
-    const upperText = text.toUpperCase();
+    const upperText = normalizedText.toUpperCase();
     const matchedKeywords: string[] = [];
 
     // Check each keyword
@@ -197,7 +228,7 @@ export const checkImageQuality = (
       };
     }
 
-    const trimmedText = text.trim();
+    const trimmedText = normalizeOCRText(text);
 
     // Check minimum readable text length
     if (trimmedText.length < MIN_READABLE_TEXT_LENGTH) {
@@ -1159,7 +1190,9 @@ const parseRegistrationDate = (text: string): string => {
  */
 export const parseRCDetails = (text: string): RCExtractedData => {
   try {
-    if (!text || text.trim().length === 0) {
+    const normalizedText = normalizeOCRText(text);
+
+    if (!normalizedText || normalizedText.trim().length === 0) {
       console.warn('[OCRService] Empty text provided for parsing');
       return {
         vehicleNumber: '',
@@ -1174,12 +1207,12 @@ export const parseRCDetails = (text: string): RCExtractedData => {
     console.log('[OCRService] Starting RC data parsing from text');
 
     const extractedData: RCExtractedData = {
-      vehicleNumber: parseVehicleNumber(text),
-      chassisNumber: parseChassisNumber(text),
-      engineNumber: parseEngineNumber(text),
-      ownerName: parseOwnerName(text),
-      registrationDate: parseRegistrationDate(text),
-      modelNumber: parseModelNumber(text),
+      vehicleNumber: parseVehicleNumber(normalizedText),
+      chassisNumber: parseChassisNumber(normalizedText),
+      engineNumber: parseEngineNumber(normalizedText),
+      ownerName: parseOwnerName(normalizedText),
+      registrationDate: parseRegistrationDate(normalizedText),
+      modelNumber: parseModelNumber(normalizedText),
     };
 
     console.log('[OCRService] Parsing complete:', {

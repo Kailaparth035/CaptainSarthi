@@ -7,6 +7,9 @@ import { navigationRef } from '../navigation/RootNavigator';
 import { SCREEN_NAMES } from '../constants/screenNames';
 import { CommonActions } from '@react-navigation/native';
 
+const LANGUAGE_CODE_KEY = '@app_language';
+const LANGUAGE_ID_KEY = '@app_language_id';
+
 // Get auth token from AsyncStorage
 const getAuthToken = async () => {
   try {
@@ -65,7 +68,12 @@ const clearAllAsyncStorage = async () => {
     // Clear any additional AsyncStorage items that might exist
     // Get all keys and remove them (except language and terms which should persist)
     const allKeys = await AsyncStorage.getAllKeys();
-    const keysToKeep = ['@language_selected', '@terms_accepted']; // Persist these one-time preferences
+    const keysToKeep = [
+      '@language_selected',
+      '@terms_accepted',
+      LANGUAGE_CODE_KEY,
+      LANGUAGE_ID_KEY,
+    ]; // Persist language + one-time preferences
     const keysToRemove = allKeys.filter(key => !keysToKeep.includes(key));
     
     if (keysToRemove.length > 0) {
@@ -119,6 +127,27 @@ const axiosInstance = axios.create({
   },
 });
 
+const shouldAttachLanguageId = (config) => {
+  const url = config?.url || '';
+  // Do not attach for common-auth endpoints (login / send-otp / languages)
+  if (url.includes('/api/common-auth/')) return false;
+
+  // Attach for content endpoints that are language dependent
+  // (Farmers: dashboard/events/stories + location variants)
+  if (
+    url.includes('/api/farmers/dashboard') ||
+    url.includes('/api/farmers/eventsbylocation') ||
+    url.includes('/api/farmers/storiesbylocation') ||
+    url.includes('/api/farmers/events') ||
+    url.includes('/api/farmers/stories')
+  ) {
+    return true;
+  }
+
+  // Safe default: don't attach elsewhere to avoid backend validation issues
+  return false;
+};
+
 // Add auth token to each request if available
 axiosInstance.interceptors.request.use(
   async config => {
@@ -127,6 +156,24 @@ axiosInstance.interceptors.request.use(
     
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    // Attach selected language_id (query param) for localized endpoints
+    try {
+      if (shouldAttachLanguageId(config)) {
+        const languageIdRaw = await AsyncStorage.getItem(LANGUAGE_ID_KEY);
+        const languageId = languageIdRaw ? Number(languageIdRaw) : null;
+        if (languageIdRaw && typeof languageId === 'number' && !Number.isNaN(languageId)) {
+          // Preserve existing params; don't overwrite if caller already set language_id
+          const existingParams = config.params || {};
+          if (existingParams.language_id === undefined && existingParams.languageId === undefined) {
+            config.params = { ...existingParams, language_id: languageId };
+          }
+        }
+      }
+    } catch (e) {
+      // Non-fatal: don't block requests if language_id can't be read
+      console.warn('[Apicom] Failed to attach language_id:', e?.message || e);
     }
 
     if (__DEV__) {

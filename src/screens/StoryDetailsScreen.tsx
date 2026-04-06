@@ -71,7 +71,7 @@ export default function StoryDetailsScreen() {
   const navigation = useNavigation();
   const tabNavigation = useNavigation<BottomTabNavigationProp<FarmerTabParamList>>();
   const params = route.params as StoryDetailsRouteParams;
-  const {currentLanguage, t} = useLanguage();
+  const {currentLanguage, currentLanguageId, t} = useLanguage();
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [showVideoModal, setShowVideoModal] = useState(false);
@@ -127,16 +127,9 @@ export default function StoryDetailsScreen() {
         setStoryApiData(storyData);
         
         // Get language-specific content
-        // Map language code to language_id (en -> 1, hi -> 2, gu -> 3)
-        const languageIdMap: Record<string, number> = {
-          'en': 1,
-          'hi': 2,
-          'gu': 3,
-        };
-        
-        const currentLanguageId = languageIdMap[currentLanguage] || 1;
+        const selectedLanguageId = currentLanguageId || 1;
         const languageSpecificContent = storyData.languages?.find(
-          (lang: any) => lang.language_id === currentLanguageId
+          (lang: any) => lang.language_id === selectedLanguageId
         );
         
         // Transform API data to match component format
@@ -350,16 +343,9 @@ export default function StoryDetailsScreen() {
   // Update displayed content when language changes
   useEffect(() => {
     if (storyApiData) {
-      // Map language code to language_id (en -> 1, hi -> 2, gu -> 3)
-      const languageIdMap: Record<string, number> = {
-        'en': 1,
-        'hi': 2,
-        'gu': 3,
-      };
-      
-      const currentLanguageId = languageIdMap[currentLanguage] || 1;
+      const selectedLanguageId = currentLanguageId || 1;
       const languageSpecificContent = storyApiData.languages?.find(
-        (lang: any) => lang.language_id === currentLanguageId
+        (lang: any) => lang.language_id === selectedLanguageId
       );
       
       // Update title and description with language-specific content

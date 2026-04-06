@@ -89,7 +89,9 @@ export interface FarmerProfileData {
 }
 
 /**
- * Save user session to AsyncStorage
+ * Save user session to AsyncStorage.
+ * Only updates SESSION_KEY. Do not overwrite USER_DATA_KEY here – full login
+ * data (user, token, role, etc.) is saved by saveLoginResponse().
  */
 export const saveSession = async (mobileNumber?: string): Promise<void> => {
   try {
@@ -99,13 +101,6 @@ export const saveSession = async (mobileNumber?: string): Promise<void> => {
       mobileNumber,
     };
     await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(session));
-    
-    if (mobileNumber) {
-      const userData: UserData = {
-        mobileNumber,
-      };
-      await AsyncStorage.setItem(USER_DATA_KEY, JSON.stringify(userData));
-    }
   } catch (error) {
     console.error('Error saving session:', error);
     throw error;

@@ -108,7 +108,7 @@ const SimpleBoxInput = forwardRef<TextInput, SimpleBoxInputProps>(
             onFocus={() => isEditable && setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
             editable={isEditable}
-            {...props}
+            {...props}            
           />
         </View>
 

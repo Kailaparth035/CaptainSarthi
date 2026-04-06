@@ -9,7 +9,7 @@ import {
   Image,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import DocumentPicker from 'react-native-document-picker';
+import { pick, types, isErrorWithCode, errorCodes } from '@react-native-documents/picker';
 import colors from '../utils/colors';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import {Typography} from '../utils/typography';
@@ -119,11 +119,14 @@ export function RadioButtonQuestion({
           fontSize: moderateScale(14),
         },
         optionsContainer: {
+          flexDirection: 'column',
+          gap: moderateScale(8),
+        },
+        horizontalOptionsContainer: {
           flexDirection: 'row',
           gap: moderateScale(12),
         },
         optionButton: {
-          flex: 1,
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -131,8 +134,11 @@ export function RadioButtonQuestion({
           paddingHorizontal: moderateScale(16),
           borderRadius: moderateScale(10),
           borderWidth: 1,
-          borderColor: colors.borderLight,
+          borderColor: colors.borderDefault,
           backgroundColor: colors.backgroundWhite,
+        },
+        horizontalOptionButton: {
+          flex: 1,
         },
         selectedOptionButton: {
           backgroundColor: colors.light_orange,
@@ -182,7 +188,11 @@ export function RadioButtonQuestion({
         {question}
         {required && <Text style={styles.requiredAsterisk}> *</Text>}
       </Text>
-      <View style={styles.optionsContainer}>
+      <View
+        style={[
+          styles.optionsContainer,
+          options.length <= 2 && styles.horizontalOptionsContainer,
+        ]}>
         {options.map(option => {
           const isSelected = value === option;
           return (
@@ -190,6 +200,7 @@ export function RadioButtonQuestion({
               key={option}
               style={[
                 styles.optionButton,
+                options.length <= 2 && styles.horizontalOptionButton,
                 isSelected && styles.selectedOptionButton,
               ]}
               onPress={() => !disabled && onChange(option)}
@@ -462,8 +473,8 @@ export function FileUploadQuestion({
         return;
       }
 
-      const result = await DocumentPicker.pick({
-        type: [DocumentPicker.types.pdf],
+      const result = await pick({
+        type: [types.pdf],
         allowMultiSelection: false,
       });
 
@@ -482,7 +493,7 @@ export function FileUploadQuestion({
       }
     } catch (error: any) {
       console.error('Error in handleDocumentPress:', error);
-      if (DocumentPicker.isCancel(error)) {
+      if (isErrorWithCode(error) && error.code === errorCodes.OPERATION_CANCELED) {
         // User cancelled, do nothing
         return;
       }

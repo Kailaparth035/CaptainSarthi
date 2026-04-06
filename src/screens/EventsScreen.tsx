@@ -51,14 +51,14 @@ export default function EventsScreen() {
   const {moderateScale} = useDeviceMetrics();
   const navigation = useNavigation();
   const tabNavigation = useNavigation<BottomTabNavigationProp<FarmerTabParamList>>();
-  const {currentLanguage, t} = useLanguage();
+  const {currentLanguage, currentLanguageId, t} = useLanguage();
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState<any[]>([]);
   const [rawEvents, setRawEvents] = useState<any[]>([]); // Store raw events for language re-transformation
 
   // Helper function to transform events with language-specific titles
-  const transformEventsWithLanguage = useCallback((eventsArray: any[], language: string) => {
+  const transformEventsWithLanguage = useCallback((eventsArray: any[], languageId: number) => {
     // Transform API events to match UI structure
     return eventsArray.map((event: any) => {
       // Check for video URL - prioritize YouTube thumbnail if video is YouTube
@@ -107,19 +107,11 @@ export default function EventsScreen() {
       const imageUri = imageUrl ? {uri: imageUrl} : undefined;
       
       // Handle language-specific title
-      // Map language code to language_id (en -> 1, hi -> 2, gu -> 3)
-      const languageIdMap: Record<string, number> = {
-        'en': 1,
-        'hi': 2,
-        'gu': 3,
-      };
-      const currentLanguageId = languageIdMap[language] || 1;
-      
       // Check if languages array exists and find matching language
       let displayTitle = event.title || 'Event';
       if (event.languages && Array.isArray(event.languages) && event.languages.length > 0) {
         const languageSpecificContent = event.languages.find(
-          (lang: any) => lang.language_id === currentLanguageId
+          (lang: any) => lang.language_id === languageId
         );
         // Use language-specific title if found, otherwise use default title
         if (languageSpecificContent?.title) {
@@ -228,7 +220,7 @@ export default function EventsScreen() {
       
       // Always use events by location API when we have profile data
       // Use location API if we have any location parameters, otherwise use regular API
-      const apiEndpoint =  Apis.FARMER_EVENTS_BY_LOCATION + urlParams;
+      const apiEndpoint =  Apis.FARMER_EVENTS_BY_LOCATION;
       console.log('[EventsScreen] API Endpoint:', apiEndpoint);
       
       const response = await getData(apiEndpoint);
@@ -248,7 +240,7 @@ export default function EventsScreen() {
           setRawEvents(eventsArray);
           
           // Transform events with current language
-          const transformedEvents = transformEventsWithLanguage(eventsArray, currentLanguage);
+          const transformedEvents = transformEventsWithLanguage(eventsArray, currentLanguageId || 1);
           
           setEvents(transformedEvents);
         } else {
@@ -269,15 +261,15 @@ export default function EventsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [transformEventsWithLanguage, currentLanguage]);
+  }, [transformEventsWithLanguage, currentLanguageId]);
 
   // Re-transform events when language changes (if events are already loaded)
   useEffect(() => {
     if (rawEvents.length > 0) {
-      const transformedEvents = transformEventsWithLanguage(rawEvents, currentLanguage);
+      const transformedEvents = transformEventsWithLanguage(rawEvents, currentLanguageId || 1);
       setEvents(transformedEvents);
     }
-  }, [currentLanguage, rawEvents, transformEventsWithLanguage]);
+  }, [currentLanguageId, rawEvents, transformEventsWithLanguage]);
 
   // Handle pull to refresh
   const onRefresh = React.useCallback(() => {

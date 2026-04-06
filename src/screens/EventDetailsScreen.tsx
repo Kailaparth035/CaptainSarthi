@@ -33,12 +33,13 @@ import {useStatusBar} from '../contexts/StatusBarContext';
 import {useTTS} from '../contexts/TTSContext';
 import {ImagePath} from '../assets/images';
 import {useLanguage} from '../contexts/LanguageContext';
-import {getData} from '../Service/Apimethod';
+import {getData, postData} from '../Service/Apimethod';
 import Apis, {API_BASE_URL} from '../Service/constant';
 import {getImageUrl} from '../utils/imageUtils';
 import {isYouTubeUrl, getYouTubeThumbnailUrl, extractYouTubeVideoId} from '../utils/youtubeUtils';
 import YoutubePlayer from 'react-native-youtube-iframe';
 import Button from '../components/Button';
+import { FontFamily } from '../src/utils';
 
 type EventDetailsRouteParams = {
   eventId: string;
@@ -73,7 +74,7 @@ const getEventDetails = (eventId: string) => {
 export default function EventDetailsScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
-  const {t, currentLanguage} = useLanguage();
+  const {t, currentLanguage, currentLanguageId} = useLanguage();
   const route = useRoute();
   const navigation = useNavigation();
   const tabNavigation = useNavigation<BottomTabNavigationProp<FarmerTabParamList>>();
@@ -88,6 +89,7 @@ export default function EventDetailsScreen() {
   const [eventDetails, setEventDetails] = useState<any>(null);
   const [eventApiData, setEventApiData] = useState<any>(null); // Store full API response
   const [eventNotFound, setEventNotFound] = useState(false); // Track if event is deleted/not found
+  const [submittingAttend, setSubmittingAttend] = useState(false);
   const {playTTS, stopTTS, state: ttsState} = useTTS();
 
   // Fetch event details from API
@@ -244,17 +246,10 @@ export default function EventDetailsScreen() {
         // Store full API data including languages array
         setEventApiData(eventData);
         
-        // Get language-specific content (using currentLanguage from context via closure)
-        // Map language code to language_id (en -> 1, hi -> 2, gu -> 3)
-        const languageIdMap: Record<string, number> = {
-          'en': 1,
-          'hi': 2,
-          'gu': 3,
-        };
-        
-        const currentLanguageId = languageIdMap[currentLanguage] || 1;
+        // Get language-specific content
+        const selectedLanguageId = currentLanguageId || 1;
         const languageSpecificContent = eventData.languages?.find(
-          (lang: any) => lang.language_id === currentLanguageId
+          (lang: any) => lang.language_id === selectedLanguageId
         );
         
         // Use language-specific title and description if available, otherwise use default
@@ -356,6 +351,8 @@ export default function EventDetailsScreen() {
         // galleryImages will remain empty if no images are available
         console.log('[EventDetailsScreen] Final images count:', galleryImages.length);
         
+        const isAnswered = eventData.is_answered ?? eventData.isAnswered ?? false;
+        const attendingResponse = eventData.attending_response ?? eventData.response ?? null; // 'yes' | 'no' | null
         setEventDetails({
           id: eventData.event_id || eventData.id || eventId,
           title: displayTitle,
@@ -369,6 +366,8 @@ export default function EventDetailsScreen() {
           tollFreeNumber: tollFreeNumber,
           whatsappNumber: whatsappNumber,
           whatsappMessage: whatsappMessage,
+          isAnswered,
+          attendingResponse: attendingResponse === 'yes' || attendingResponse === 'no' ? attendingResponse : null,
         });
       } else {
         console.warn('[EventDetailsScreen] Unexpected API response format:', response);
@@ -387,6 +386,9 @@ export default function EventDetailsScreen() {
       }
     }, [params?.eventId]);
 
+    console.log("eventApiData :::",eventApiData);
+    
+
   // Handle pull to refresh
   const onRefresh = React.useCallback(() => {
     fetchEventDetails(true);
@@ -395,16 +397,9 @@ export default function EventDetailsScreen() {
   // Update displayed content when language changes
   useEffect(() => {
     if (eventApiData) {
-      // Map language code to language_id (en -> 1, hi -> 2, gu -> 3)
-      const languageIdMap: Record<string, number> = {
-        'en': 1,
-        'hi': 2,
-        'gu': 3,
-      };
-      
-      const currentLanguageId = languageIdMap[currentLanguage] || 1;
+      const selectedLanguageId = currentLanguageId || 1;
       const languageSpecificContent = eventApiData.languages?.find(
-        (lang: any) => lang.language_id === currentLanguageId
+        (lang: any) => lang.language_id === selectedLanguageId
       );
       
       // Update title and description based on selected language
@@ -477,6 +472,52 @@ export default function EventDetailsScreen() {
         scrollContent: {
           padding: moderateScale(16),
           paddingBottom: moderateScale(100),
+        },
+        attendingCard: {
+          backgroundColor: colors.backgroundWhite,
+          borderRadius: moderateScale(18),
+          padding: moderateScale(16),
+          marginBottom: moderateScale(16),
+          borderWidth: 1,
+          borderColor: colors.borderDefault,
+        },
+        attendingQuestion: {
+          ...Typography.regularLg,
+          fontSize: moderateScale(15),
+          color: colors.textPrimary,
+          marginBottom: moderateScale(12),
+        },
+        attendingButtonsRow: {
+          flexDirection: 'row',
+          alignItems: 'flex-start',
+          marginHorizontal: -moderateScale(4),
+        },
+        attendingButton: {
+          // flex: 1,
+          paddingHorizontal:moderateScale(20),
+          marginHorizontal: moderateScale(4),
+          paddingVertical: moderateScale(7),
+          borderRadius: moderateScale(30),
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        attendingButtonYes: {
+          backgroundColor: colors.primary,
+        },
+        attendingButtonNo: {
+          backgroundColor: colors.backgroundWhite,
+          borderWidth: 1,
+          borderColor: colors.borderColor,
+        },
+        attendingButtonText: {
+          ...Typography.bold,
+          fontSize: moderateScale(14),
+        },
+        attendingButtonTextYes: {
+          color: colors.textWhite,
+        },
+        attendingButtonTextNo: {
+          color: colors.textSecondary,
         },
       card: {
           backgroundColor: colors.backgroundWhite,
@@ -693,6 +734,31 @@ export default function EventDetailsScreen() {
   const handleCloseContactModal = () => {
     setContactModalVisible(false);
   };
+
+  const submitAttendResponse = useCallback(
+    async (response: 'yes' | 'no') => {
+      const eventId = params?.eventId;
+      if (!eventId || submittingAttend) {
+        return;
+      }
+      try {
+        setSubmittingAttend(true);
+        const url = `${Apis.FARMER_EVENT_RESPOND}/${eventId}/respond`;
+        const body = {response};
+        const res = await postData(url, body);
+        console.log('[EventDetailsScreen] submitAttendResponse success ::', res);
+        if (res?.status === true || res?.success === true) {
+          // Refetch event details so UI is in sync with backend
+          await fetchEventDetails();
+        }
+      } catch (error) {
+        console.error('[EventDetailsScreen] Error submitting attend response:', error);
+      } finally {
+        setSubmittingAttend(false);
+      }
+    },
+    [eventDetails?.id, params?.eventId, submittingAttend, fetchEventDetails],
+  );
 
   const handleCall = async () => {
     const phoneNumber = '18002122129';
@@ -1034,6 +1100,51 @@ export default function EventDetailsScreen() {
               tintColor={colors.primary}
             />
           }>
+        {/* Are you attending this event? - Top card with Yes/No */}
+        {eventDetails  && eventApiData?.responseValue == null && (
+          <View style={dynamicStyles.attendingCard}>
+            <Text style={dynamicStyles.attendingQuestion}>
+              {t('events.attendingQuestion')}
+            </Text>
+            <View style={dynamicStyles.attendingButtonsRow}>
+              <TouchableOpacity
+                style={[
+                  dynamicStyles.attendingButton,
+                  dynamicStyles.attendingButtonYes,
+                ]}
+                activeOpacity={0.7}
+                disabled={eventDetails.isAnswered || submittingAttend}
+                onPress={() => submitAttendResponse('yes')}>
+                <Text
+                  style={[
+                    dynamicStyles.attendingButtonText,
+                    dynamicStyles.attendingButtonTextYes,
+                  ]}>
+                  {t('events.yes')}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  dynamicStyles.attendingButton,
+                  dynamicStyles.attendingButtonNo,
+                ]}
+                activeOpacity={0.7}
+                disabled={eventDetails.isAnswered || submittingAttend}
+                onPress={() => submitAttendResponse('no')}>
+                <Text
+                  style={[
+                    dynamicStyles.attendingButtonText,
+                    dynamicStyles.attendingButtonTextNo,
+                    eventDetails.attendingResponse === 'yes' && {
+                      color: colors.textWhite,
+                    },
+                  ]}>
+                  {t('events.no')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
         {/* Video Player Section - Only show if video exists */}
         {eventDetails.videoUri && eventDetails.videoUri.trim() !== '' ? (
           <View style={dynamicStyles.videoContainer}>

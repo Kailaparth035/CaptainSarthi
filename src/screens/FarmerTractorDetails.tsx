@@ -735,7 +735,7 @@ export default function FarmerTractorDetails() {
         images={previewImages}
         initialIndex={selectedImageIndex}
         onClose={handleCloseModal}
-        onReplaceImage={handleReplaceImage}
+        // onReplaceImage={handleReplaceImage}
       />
 
       {/* YouTube Video Modal */}

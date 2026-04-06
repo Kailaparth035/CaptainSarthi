@@ -22,6 +22,8 @@ type FilterCategory = {
     label: string;
     value: string;
   }[];
+  /** Shown in right panel when options are empty (e.g. "Please select state") */
+  emptyMessage?: string;
 };
 
 type FilterModalProps = {
@@ -33,6 +35,10 @@ type FilterModalProps = {
   categories?: FilterCategory[];
   selectedCategory?: string;
   selectedOptions?: Record<string, string>;
+  /** When provided, option selection is controlled by parent (for cascading dropdowns) */
+  onOptionSelect?: (categoryId: string, value: string) => void;
+  /** When provided with onOptionSelect, category selection is controlled */
+  onCategorySelect?: (categoryId: string) => void;
 };
 
 const defaultCategories: FilterCategory[] = [
@@ -63,17 +69,31 @@ export default function FilterModal({
   categories = defaultCategories,
   selectedCategory: initialCategory,
   selectedOptions: initialOptions = {},
+  onOptionSelect,
+  onCategorySelect,
 }: FilterModalProps) {
   const {moderateScale} = useDeviceMetrics();
   const {t} = useLanguage();
   const insets = useSafeAreaInsets();
   const modalTitle = title || t('common.filters');
-  const [selectedCategory, setSelectedCategory] = useState<string>(
+  const [internalCategory, setInternalCategory] = useState<string>(
     initialCategory || categories[0]?.id || '',
   );
-  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(
+  const [internalOptions, setInternalOptions] = useState<Record<string, string>>(
     initialOptions,
   );
+  const isControlled = onOptionSelect != null;
+  const selectedCategory = isControlled ? (initialCategory ?? internalCategory) : internalCategory;
+  const selectedOptions = isControlled ? (initialOptions ?? internalOptions) : internalOptions;
+
+  // Sync internal state when modal opens with props (for uncontrolled mode)
+  React.useEffect(() => {
+    if (!visible) return;
+    if (!isControlled) {
+      setInternalCategory(initialCategory ?? categories[0]?.id ?? '');
+      setInternalOptions(initialOptions ?? {});
+    }
+  }, [visible, isControlled, initialCategory, initialOptions, categories]);
 
   const dynamicStyles = useMemo(
     () =>
@@ -190,6 +210,14 @@ export default function FilterModal({
           color: colors.primary,
           flex: 1,
         },
+        emptyMessage: {
+          ...Typography.regularMd,
+          fontSize: moderateScale(14),
+          color: colors.textTertiary,
+          paddingVertical: moderateScale(24),
+          paddingHorizontal: moderateScale(16),
+          textAlign: 'center',
+        },
         radioButton: {
           width: moderateScale(20),
           height: moderateScale(20),
@@ -239,14 +267,24 @@ export default function FilterModal({
   );
 
   const handleCategorySelect = (categoryId: string) => {
-    setSelectedCategory(categoryId);
+    if (onCategorySelect) {
+      onCategorySelect(categoryId);
+    } else {
+      setInternalCategory(categoryId);
+    }
   };
 
   const handleOptionSelect = (optionValue: string) => {
-    setSelectedOptions(prev => ({
-      ...prev,
-      [selectedCategory]: optionValue,
-    }));
+    const isAlreadySelected = currentSelectedOption === optionValue;
+    const newValue = isAlreadySelected ? '' : optionValue;
+    if (onOptionSelect) {
+      onOptionSelect(selectedCategory, newValue);
+    } else {
+      setInternalOptions(prev => ({
+        ...prev,
+        [selectedCategory]: newValue,
+      }));
+    }
   };
 
   const handleApply = () => {
@@ -259,24 +297,22 @@ export default function FilterModal({
 
   const handleReset = () => {
     // Reset all selected options
-    const resetOptions = {};
+    const resetOptions: Record<string, string> = {};
     const resetCategory = categories[0]?.id || '';
-    
-    setSelectedOptions(resetOptions);
-    setSelectedCategory(resetCategory);
-    
-    // Apply reset immediately
+
+    setInternalOptions(resetOptions);
+    setInternalCategory(resetCategory);
+
+    // Apply reset immediately so parent (and controlled state) stays in sync
     onApply({
       category: resetCategory,
       options: resetOptions,
     });
-    
-    // Call onReset callback if provided
+
     if (onReset) {
       onReset();
     }
-    
-    // Close modal after reset
+
     onClose();
   };
 
@@ -344,35 +380,43 @@ export default function FilterModal({
             </ScrollView>
           </View>
 
-          {/* Right Panel - Options */}
+          {/* Right Panel - Options or empty message */}
           <View style={dynamicStyles.rightPanel}>
             <ScrollView
               style={dynamicStyles.rightPanelContent}
               showsVerticalScrollIndicator={false}>
-              {currentCategory?.options.map(option => {
-                const isSelected = currentSelectedOption === option.value;
-                return (
-                  <TouchableOpacity
-                    key={option.id}
-                    style={dynamicStyles.optionItem}
-                    onPress={() => handleOptionSelect(option.value)}
-                    activeOpacity={0.7}>
-                    <Text style={[
-                      dynamicStyles.optionText,
-                      isSelected && dynamicStyles.optionTextSelected,
-                    ]}>{option.label}</Text>
-                    <View
-                      style={[
-                        dynamicStyles.radioButton,
-                        isSelected && dynamicStyles.radioButtonSelected,
-                      ]}>
-                      {isSelected && (
-                        <View style={dynamicStyles.radioButtonInner} />
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
+              {currentCategory &&
+              currentCategory.options.length === 0 &&
+              currentCategory.emptyMessage ? (
+                <Text style={dynamicStyles.emptyMessage}>
+                  {currentCategory.emptyMessage}
+                </Text>
+              ) : (
+                currentCategory?.options.map(option => {
+                  const isSelected = currentSelectedOption === option.value;
+                  return (
+                    <TouchableOpacity
+                      key={option.id}
+                      style={dynamicStyles.optionItem}
+                      onPress={() => handleOptionSelect(option.value)}
+                      activeOpacity={0.7}>
+                      <Text style={[
+                        dynamicStyles.optionText,
+                        isSelected && dynamicStyles.optionTextSelected,
+                      ]}>{option.label}</Text>
+                      <View
+                        style={[
+                          dynamicStyles.radioButton,
+                          isSelected && dynamicStyles.radioButtonSelected,
+                        ]}>
+                        {isSelected && (
+                          <View style={dynamicStyles.radioButtonInner} />
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })
+              )}
             </ScrollView>
           </View>
         </View>

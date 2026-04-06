@@ -25,6 +25,7 @@ import {useLanguage} from '../contexts/LanguageContext';
 import {getData} from '../Service/Apimethod';
 import Apis, {API_BASE_URL} from '../Service/constant';
 import {getImageUrl} from '../utils/imageUtils';
+import { ImagePath } from '../assets/images';
 
 type FarmerDetailsRouteParams = {
   farmerId: string;
@@ -684,19 +685,19 @@ export default function FarmerDetailsScreen() {
             activeOpacity={0.7}
             onPress={() => {
               // Navigate to AddFarmerScreen in edit mode
-              const farmerId =params?.farmerId || params?.farmer_id ;
+              const farmerId = params?.farmerId || params?.farmer_id;
               if (farmerId) {
                 navigation.navigate(
                   SCREEN_NAMES.AddFarmer as never,
                   {
                     farmerId: farmerId,
                     editMode: true,
-                  } as never
+                  } as never,
                 );
               }
             }}
           >
-            <Text style={dynamicStyles.editButtonText}>{t('common.edit')}</Text>
+            <Text style={dynamicStyles.editButtonText}>{t("common.edit")}</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -722,6 +723,85 @@ export default function FarmerDetailsScreen() {
             renderSkeletonContent()
           ) : (
             <>
+              {/* Add Offer Tile */}
+            {farmerDetails?.verificationStatus == 1 &&  <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => {
+                  navigation.navigate(
+                    SCREEN_NAMES.AddOffer as never,
+                    {
+                      farmerId: params?.farmerId || params?.farmer_id,
+                      farmerName: params?.farmerName,
+                    } as never,
+                  );
+                }}
+                style={{
+                  backgroundColor: colors.backgroundWhite,
+                  borderRadius: moderateScale(12),
+                  paddingHorizontal: moderateScale(16),
+                  paddingVertical: moderateScale(14),
+                  marginBottom: moderateScale(16),
+                  flexDirection: "row",
+                  alignItems: "center",
+                }}
+              >
+                {/* Icon Box */}
+                <View
+                  style={{
+                    width: moderateScale(44),
+                    height: moderateScale(44),
+                    borderRadius: moderateScale(40),
+                    backgroundColor: "#F5F5F5",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    marginRight: moderateScale(12),
+                  }}
+                >
+                  <Image
+                    source={ImagePath.offerIcon}
+                    style={{
+                      width: moderateScale(24),
+                      height: moderateScale(24),
+                      resizeMode: "contain",
+                    }}
+                  />
+                </View>
+
+                {/* Text */}
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={[
+                      Typography.semiBoldMd,
+                      {
+                        fontSize: moderateScale(15),
+                        color: colors.textPrimary,
+                        marginBottom: moderateScale(2),
+                      },
+                    ]}
+                  >
+                    {t("offer.addOffer")}
+                  </Text>
+                  <Text
+                    style={[
+                      Typography.regularMd,
+                      {
+                        fontSize: moderateScale(12),
+                        color: colors.textTertiary,
+                      },
+                    ]}
+                  >
+                    {t("offer.addOfferSubtitle")}
+                  </Text>
+                </View>
+
+                {/* Chevron */}
+                <Ionicons
+                  name="chevron-forward"
+                  size={moderateScale(20)}
+                  color={colors.textTertiary}
+                />
+              </TouchableOpacity>}
+
               {/* User Details Card */}
               <View style={dynamicStyles.card}>
                 <View style={dynamicStyles.profileHeader}>
@@ -846,7 +926,7 @@ export default function FarmerDetailsScreen() {
                       | "tractorImage"
                       | "rcFront"
                       | "rcBack",
-                    imageIndex?: number
+                    imageIndex?: number,
                   ) => {
                     let imgIndex = 0;
 
@@ -883,7 +963,7 @@ export default function FarmerDetailsScreen() {
                               onPress={() => {
                                 setSelectedTractorIndex(index);
                                 setSelectedImageIndex(
-                                  getImageIndex("tractorImage", 0)
+                                  getImageIndex("tractorImage", 0),
                                 );
                                 setPreviewModalVisible(true);
                               }}
@@ -903,7 +983,7 @@ export default function FarmerDetailsScreen() {
                                 onPress={() => {
                                   setSelectedTractorIndex(index);
                                   setSelectedImageIndex(
-                                    getImageIndex("tractorImage", 0)
+                                    getImageIndex("tractorImage", 0),
                                   );
                                   setPreviewModalVisible(true);
                                 }}
@@ -924,7 +1004,7 @@ export default function FarmerDetailsScreen() {
                                 onPress={() => {
                                   setSelectedTractorIndex(index);
                                   setSelectedImageIndex(
-                                    getImageIndex("tractorImage", 1)
+                                    getImageIndex("tractorImage", 1),
                                   );
                                   setPreviewModalVisible(true);
                                 }}
@@ -949,7 +1029,7 @@ export default function FarmerDetailsScreen() {
                                 onPress={() => {
                                   setSelectedTractorIndex(index);
                                   setSelectedImageIndex(
-                                    getImageIndex("tractorImage", 0)
+                                    getImageIndex("tractorImage", 0),
                                   );
                                   setPreviewModalVisible(true);
                                 }}
@@ -977,8 +1057,8 @@ export default function FarmerDetailsScreen() {
                                         setSelectedImageIndex(
                                           getImageIndex(
                                             "tractorImage",
-                                            imgIndex + 1
-                                          )
+                                            imgIndex + 1,
+                                          ),
                                         );
                                         setPreviewModalVisible(true);
                                       }}
@@ -1003,7 +1083,7 @@ export default function FarmerDetailsScreen() {
                             onPress={() => {
                               setSelectedTractorIndex(index);
                               setSelectedImageIndex(
-                                getImageIndex("tractorImage", 0)
+                                getImageIndex("tractorImage", 0),
                               );
                               setPreviewModalVisible(true);
                             }}
@@ -1119,7 +1199,7 @@ export default function FarmerDetailsScreen() {
                         value={tractor.ownername}
                         moderateScale={moderateScale}
                       />
-                       <InfoRow
+                      <InfoRow
                         label={t("farmerProfile.chassisNo")}
                         value={tractor.chassisNo}
                         moderateScale={moderateScale}

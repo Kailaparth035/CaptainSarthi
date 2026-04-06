@@ -212,6 +212,7 @@ type FormErrors = {
   houseNumber?: string;
   streetName?: string;
   landmark?: string;
+  taluka?: string;
   village?: string;
   district?: string;
   state?: string;
@@ -230,7 +231,7 @@ export default function AddFarmerScreen() {
   const {moderateScale} = useDeviceMetrics();
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute();
-  const {t, currentLanguage} = useLanguage();
+  const {t, currentLanguage, currentLanguageId} = useLanguage();
   const scrollViewRef = useRef<ScrollView>(null);
   const {pickImage} = useImagePicker();
   
@@ -578,16 +579,19 @@ export default function AddFarmerScreen() {
   // Location dropdowns - using IDs for API calls
   const [stateId, setStateId] = useState('');
   const [districtId, setDistrictId] = useState('');
+  const [talukaId, setTalukaId] = useState('');
   const [villageId, setVillageId] = useState('');
   
   // Location options for dropdowns
   const [states, setStates] = useState<{label: string; value: string}[]>([]);
   const [districts, setDistricts] = useState<{label: string; value: string}[]>([]);
+  const [talukas, setTalukas] = useState<{label: string; value: string}[]>([]);
   const [villages, setVillages] = useState<{label: string; value: string}[]>([]);
   
   // Loading states for location APIs
   const [statesLoading, setStatesLoading] = useState(false);
   const [districtsLoading, setDistrictsLoading] = useState(false);
+  const [talukasLoading, setTalukasLoading] = useState(false);
   const [villagesLoading, setVillagesLoading] = useState(false);
   
   const [pincode, setPincode] = useState('');
@@ -698,6 +702,8 @@ export default function AddFarmerScreen() {
     if (!stateIdParam) {
       setDistricts([]);
       setDistrictId('');
+      setTalukas([]);
+      setTalukaId('');
       setVillages([]);
       setVillageId('');
       return;
@@ -715,8 +721,10 @@ export default function AddFarmerScreen() {
       } else {
         setDistricts([]);
       }
-      // Reset district and village when state changes
+      // Reset lower-level selections when state changes
       setDistrictId('');
+      setTalukas([]);
+      setTalukaId('');
       setVillages([]);
       setVillageId('');
     } catch (error) {
@@ -727,16 +735,49 @@ export default function AddFarmerScreen() {
     }
   };
 
-  // Fetch villages based on selected district
-  const fetchVillages = async (districtIdParam: string) => {
+  // Fetch talukas based on selected district
+  const fetchTalukas = async (districtIdParam: string) => {
     if (!districtIdParam) {
+      setTalukas([]);
+      setTalukaId('');
+      setVillages([]);
+      setVillageId('');
+      return;
+    }
+    try {
+      setTalukasLoading(true);
+      const url = `${Apis.GET_TALUKAS}/${districtIdParam}`;
+      const response = await getData(url, {});
+      if (response?.status === true && response?.data) {
+        const talukasList = response.data.map((item: {id: number; name: string}) => ({
+          label: item.name,
+          value: item.id.toString(),
+        }));
+        setTalukas(talukasList);
+      } else {
+        setTalukas([]);
+      }
+      setTalukaId('');
+      setVillages([]);
+      setVillageId('');
+    } catch (error) {
+      console.error('[AddFarmerScreen] Error fetching talukas:', error);
+      setTalukas([]);
+    } finally {
+      setTalukasLoading(false);
+    }
+  };
+
+  // Fetch villages based on selected taluka
+  const fetchVillages = async (talukaIdParam: string) => {
+    if (!talukaIdParam) {
       setVillages([]);
       setVillageId('');
       return;
     }
     try {
       setVillagesLoading(true);
-      const url = `${Apis.GET_VILLAGES}/${districtIdParam}`;
+      const url = `${Apis.GET_VILLAGES}/${talukaIdParam}`;
       const response = await getData(url, {});
       if (response?.status === true && response?.data) {
         const villagesList = response.data.map((item: {id: number; name: string}) => ({
@@ -747,7 +788,7 @@ export default function AddFarmerScreen() {
       } else {
         setVillages([]);
       }
-      // Reset village when district changes
+      // Reset village when taluka changes
       setVillageId('');
     } catch (error) {
       console.error('[AddFarmerScreen] Error fetching villages:', error);
@@ -772,23 +813,40 @@ export default function AddFarmerScreen() {
     } else {
       setDistricts([]);
       setDistrictId('');
+      setTalukas([]);
+      setTalukaId('');
       setVillages([]);
       setVillageId('');
     }
   }, [stateId]);
 
-  // Fetch villages when district changes (skip during edit mode prefilling)
+  // Fetch talukas when district changes (skip during edit mode prefilling)
   useEffect(() => {
     if (isPrefillingLocationRef.current) {
       return; // Skip during prefilling
     }
     if (districtId) {
-      fetchVillages(districtId);
+      fetchTalukas(districtId);
     } else {
+      setTalukas([]);
+      setTalukaId('');
       setVillages([]);
       setVillageId('');
     }
   }, [districtId]);
+
+  // Fetch villages when taluka changes (skip during edit mode prefilling)
+  useEffect(() => {
+    if (isPrefillingLocationRef.current) {
+      return; // Skip during prefilling
+    }
+    if (talukaId) {
+      fetchVillages(talukaId);
+    } else {
+      setVillages([]);
+      setVillageId('');
+    }
+  }, [talukaId]);
 
   useFocusEffect(
     React.useCallback(() => {
@@ -804,20 +862,12 @@ export default function AddFarmerScreen() {
       const response = await getData(Apis.DEALER_CATEGORIES, {});
       
       if (response?.status === true && response?.data) {
-        // Map language code to language_id
-        // 'en' -> 1, 'hi' -> 2, 'gu' -> 3
-        const languageIdMap: Record<string, number> = {
-          'en': 1,
-          'hi': 2,
-          'gu': 3,
-        };
-        
-        const currentLanguageId = languageIdMap[currentLanguage] || 1; // Default to English (1)
+        const selectedLanguageId = currentLanguageId || 1; // Default to English (1)
         
         // Filter categories based on current language
         const filteredCategories = response.data.filter((cat: any) => {
           // Show only categories with matching language_id (exclude null language_id)
-          return cat.language_id === currentLanguageId;
+          return cat.language_id === selectedLanguageId;
         });
         
         const categories = filteredCategories.map((cat: any) => ({
@@ -949,8 +999,9 @@ export default function AddFarmerScreen() {
         // API returns: state, district, village (not stateId, districtId, villageId)
         const stateValue = farmerData.state || farmerData.stateId || farmerData.state_id;
         const districtValue = farmerData.district || farmerData.districtId || farmerData.district_id;
+        const talukaValue = farmerData.taluka || farmerData.talukaId || farmerData.taluka_id;
         const villageValue = farmerData.village || farmerData.villageId || farmerData.village_id;
-        console.log("stateValue ::",stateValue,districtValue,villageValue);
+        console.log("stateValue ::",stateValue,districtValue,talukaValue,villageValue);
         
         // Set flag to prevent useEffect hooks from interfering
         isPrefillingLocationRef.current = true;
@@ -997,34 +1048,59 @@ export default function AddFarmerScreen() {
               if (districtValue !== undefined && districtValue !== null) {
                 const districtIdStr = String(districtValue);
                 console.log("districtIdStr ::",districtIdStr);
-                
-                // Fetch villages for the selected district
+
+                // Fetch talukas for the selected district
                 try {
-                  setVillagesLoading(true);
-                  const villagesResponse = await getData(`${Apis.GET_VILLAGES}/${districtIdStr}`, {});
-                  console.log("villagesResponse ::",villagesResponse);
-                  
-                  if (villagesResponse?.status === true && villagesResponse?.data) {
-                    const villagesList = villagesResponse.data.map((item: {id: number; name: string}) => ({
+                  setTalukasLoading(true);
+                  const talukasResponse = await getData(`${Apis.GET_TALUKAS}/${districtIdStr}`, {});
+                  console.log("talukasResponse ::",talukasResponse);
+
+                  if (talukasResponse?.status === true && talukasResponse?.data) {
+                    const talukasList = talukasResponse.data.map((item: {id: number; name: string}) => ({
                       label: item.name,
                       value: item.id.toString(),
                     }));
-                    setVillages(villagesList);
-                    
-                    // Match village value from API response
-                    if (villageValue !== undefined && villageValue !== null) {
-                      const villageIdStr = String(villageValue);
-                      console.log("villageIdStr ::",villageIdStr);
-                      setVillageId(villageIdStr);
+                    setTalukas(talukasList);
+
+                    if (talukaValue !== undefined && talukaValue !== null) {
+                      const talukaIdStr = String(talukaValue);
+                      console.log("talukaIdStr ::",talukaIdStr);
+
+                      // Fetch villages for the selected taluka
+                      try {
+                        setVillagesLoading(true);
+                        const villagesResponse = await getData(`${Apis.GET_VILLAGES}/${talukaIdStr}`, {});
+                        console.log("villagesResponse ::",villagesResponse);
+
+                        if (villagesResponse?.status === true && villagesResponse?.data) {
+                          const villagesList = villagesResponse.data.map((item: {id: number; name: string}) => ({
+                            label: item.name,
+                            value: item.id.toString(),
+                          }));
+                          setVillages(villagesList);
+
+                          if (villageValue !== undefined && villageValue !== null) {
+                            const villageIdStr = String(villageValue);
+                            console.log("villageIdStr ::",villageIdStr);
+                            setVillageId(villageIdStr);
+                          }
+                        }
+                      } catch (error) {
+                        console.error('Error fetching villages for edit mode:', error);
+                      } finally {
+                        setVillagesLoading(false);
+                      }
+
+                      setTalukaId(talukaIdStr);
                     }
                   }
                 } catch (error) {
-                  console.error('Error fetching villages for edit mode:', error);
+                  console.error('Error fetching talukas for edit mode:', error);
                 } finally {
-                  setVillagesLoading(false);
+                  setTalukasLoading(false);
                 }
-                
-                // Set district ID after villages are loaded
+
+                // Set district ID after talukas/villages are loaded
                 setDistrictId(districtIdStr);
               }
             }
@@ -2430,11 +2506,8 @@ export default function AddFarmerScreen() {
       console.log('ERROR: House number is required');
     }
     
-    console.log('Street name:', streetName || '✗ Missing');
-    if (!streetName || !streetName.trim()) {
-      newErrors.streetName = t('addFarmer.errors.streetNameRequired');
-      console.log('ERROR: Street name is required');
-    }
+    // Street name is optional
+    console.log('Street name:', streetName || 'Optional - empty');
     
     console.log('State ID:', stateId || '✗ Missing');
     if (!stateId || !stateId.trim()) {
@@ -2448,12 +2521,11 @@ export default function AddFarmerScreen() {
       console.log('ERROR: District is required');
     }
     
-    // Village validation removed as per requirements
-    // console.log('Village ID:', villageId || '✗ Missing');
-    // if (!villageId || !villageId.trim()) {
-    //   newErrors.village = t('addFarmer.errors.villageRequired');
-    //   console.log('ERROR: Village is required');
-    // }
+    // Taluka is optional
+    console.log('Taluka ID:', talukaId || 'Optional - empty');
+    
+    // Village is optional
+    console.log('Village ID:', villageId || 'Optional - empty');
     
     console.log('Pincode:', pincode || '✗ Missing');
     if (!pincode || !pincode.trim()) {
@@ -2699,8 +2771,8 @@ export default function AddFarmerScreen() {
         if (answer !== undefined && answer !== null && answer !== '') {
           const questionType = question.question_type?.toLowerCase() || 'textbox';
           
-          // Get options from answer_options or options
-          const questionOptions = question.answer_options || question.options || [];
+          // Get options from answers (preferred), answer_options or options
+          const questionOptions = question.answers || question.answer_options || question.options || [];
           
           // Handle file/document type separately - files are uploaded separately
           if ((questionType === 'file' || questionType === 'document') && Array.isArray(answer)) {
@@ -2787,10 +2859,11 @@ export default function AddFarmerScreen() {
             // For checkbox questions, each selected option becomes an answer
             answer.forEach((selectedOption: string) => {
               if (selectedOption && selectedOption.trim()) {
-                const option = questionOptions.find((opt: any) => 
-                  opt.option_text === selectedOption || 
+                const option = questionOptions.find((opt: any) =>
+                  opt.answer_text === selectedOption ||
+                  opt.option_text === selectedOption ||
                   opt.text === selectedOption ||
-                  opt.value === selectedOption || 
+                  opt.value === selectedOption ||
                   opt === selectedOption
                 );
                 const answerId = option?.id || 
@@ -2804,10 +2877,11 @@ export default function AddFarmerScreen() {
               }
             });
           } else if (questionType === 'radio' && typeof answer === 'string') {
-            const option = questionOptions.find((opt: any) => 
-              opt.option_text === answer || 
+            const option = questionOptions.find((opt: any) =>
+              opt.answer_text === answer ||
+              opt.option_text === answer ||
               opt.text === answer ||
-              opt.value === answer || 
+              opt.value === answer ||
               opt === answer
             );
             const answerId = option?.id || 
@@ -2819,10 +2893,11 @@ export default function AddFarmerScreen() {
               answer_text: answer,
             });
           } else if (questionType === 'dropdown' && typeof answer === 'string') {
-            const option = questionOptions.find((opt: any) => 
-              opt.option_text === answer || 
+            const option = questionOptions.find((opt: any) =>
+              opt.answer_text === answer ||
+              opt.option_text === answer ||
               opt.text === answer ||
-              opt.value === answer || 
+              opt.value === answer ||
               opt === answer
             );
             const answerId = option?.id || 
@@ -2994,6 +3069,7 @@ export default function AddFarmerScreen() {
       // Get names from selected IDs
       const selectedState = states.find(s => s.value === stateId);
       const selectedDistrict = districts.find(d => d.value === districtId);
+      const selectedTaluka = talukas.find(t => t.value === talukaId);
       const selectedVillage = villages.find(v => v.value === villageId);
 
       // Prepare the data object according to API structure (same as handleUpdateFarmer but for rejected update)
@@ -3017,12 +3093,14 @@ export default function AddFarmerScreen() {
         category_id: category || undefined,
         state_id: stateId,
         district_id: districtId,
+        taluka_id: talukaId,
         village_id: villageId,
         address: {
           house_number: houseNumber,
           street_name: streetName,
           landmark: landmark,
           village: selectedVillage?.label || villageId,
+          taluka: selectedTaluka?.label || talukaId,
           district: selectedDistrict?.label || districtId,
           state: selectedState?.label || stateId,
           pincode: pincode,
@@ -3472,23 +3550,18 @@ export default function AddFarmerScreen() {
     }
     // Date of marriage is optional - no required validation
 
-    // Address validation
+        // Address validation
     if (!houseNumber || !houseNumber.trim()) {
       newErrors.houseNumber = t('addFarmer.errors.houseNumberRequired');
     }
-    if (!streetName || !streetName.trim()) {
-      newErrors.streetName = t('addFarmer.errors.streetNameRequired');
-    }
+    // Street name is optional
     if (!stateId || !stateId.trim()) {
       newErrors.state = t('addFarmer.errors.stateRequired');
     }
     if (!districtId || !districtId.trim()) {
       newErrors.district = t('addFarmer.errors.districtRequired');
     }
-    if (!villageId || !villageId.trim()) {
-      // Village validation removed as per requirements
-      // newErrors.village = t('addFarmer.errors.villageRequired');
-    }
+    // Taluka and village are optional
     if (!pincode || !pincode.trim()) {
       newErrors.pincode = t('addFarmer.errors.pincodeRequired');
     }
@@ -3546,6 +3619,7 @@ export default function AddFarmerScreen() {
           landmark: landmark,
           state: stateId,
           district: districtId,
+          taluka: talukaId,
           village: villageId,
           pincode: pincode,
         },
@@ -3718,8 +3792,8 @@ export default function AddFarmerScreen() {
         if (answer !== undefined && answer !== null && answer !== '') {
           const questionType = question.question_type?.toLowerCase() || 'textbox';
           
-          // Get options from answer_options or options
-          const questionOptions = question.answer_options || question.options || [];
+          // Get options from answers (preferred), answer_options or options
+          const questionOptions = question.answers || question.answer_options || question.options || [];
           
           // Handle file/document type separately - files are uploaded separately
           if ((questionType === 'file' || questionType === 'document') && Array.isArray(answer)) {
@@ -3737,10 +3811,11 @@ export default function AddFarmerScreen() {
             answer.forEach((selectedOption: string) => {
               if (selectedOption && selectedOption.trim()) {
                 // Find the answer option ID from question options
-                const option = questionOptions.find((opt: any) => 
-                  opt.option_text === selectedOption || 
+                const option = questionOptions.find((opt: any) =>
+                  opt.answer_text === selectedOption ||
+                  opt.option_text === selectedOption ||
                   opt.text === selectedOption ||
-                  opt.value === selectedOption || 
+                  opt.value === selectedOption ||
                   opt === selectedOption
                 );
                 // Use option ID if available, otherwise use a generated ID
@@ -3756,10 +3831,11 @@ export default function AddFarmerScreen() {
             });
           } else if (questionType === 'radio' && typeof answer === 'string') {
             // For radio questions, single answer
-            const option = questionOptions.find((opt: any) => 
-              opt.option_text === answer || 
+            const option = questionOptions.find((opt: any) =>
+              opt.answer_text === answer ||
+              opt.option_text === answer ||
               opt.text === answer ||
-              opt.value === answer || 
+              opt.value === answer ||
               opt === answer
             );
             const answerId = option?.id || 
@@ -3772,10 +3848,11 @@ export default function AddFarmerScreen() {
             });
           } else if (questionType === 'dropdown' && typeof answer === 'string') {
             // For dropdown questions, similar to radio
-            const option = questionOptions.find((opt: any) => 
-              opt.option_text === answer || 
+            const option = questionOptions.find((opt: any) =>
+              opt.answer_text === answer ||
+              opt.option_text === answer ||
               opt.text === answer ||
-              opt.value === answer || 
+              opt.value === answer ||
               opt === answer
             );
             const answerId = option?.id || 
@@ -3830,6 +3907,7 @@ export default function AddFarmerScreen() {
       // Get names from selected IDs
       const selectedState = states.find(s => s.value === stateId);
       const selectedDistrict = districts.find(d => d.value === districtId);
+      const selectedTaluka = talukas.find(t => t.value === talukaId);
       const selectedVillage = villages.find(v => v.value === villageId);
 
       // Prepare the data object according to API structure
@@ -3852,6 +3930,7 @@ export default function AddFarmerScreen() {
           street_name: streetName,
           landmark: landmark,
           village: selectedVillage?.label || villageId,
+          taluka: selectedTaluka?.label || talukaId,
           district: selectedDistrict?.label || districtId,
           state: selectedState?.label || stateId,
           pincode: pincode,
@@ -4512,12 +4591,18 @@ export default function AddFarmerScreen() {
                   );
 
                 case 'radio':
-                  // Get options from question.answer_options or question.options
-                  const radioOptions = question.answer_options?.map((opt: any) => 
-                    opt.option_text || opt.text || opt.value || opt
-                  ) || question.options?.map((opt: any) => 
-                    opt.option_text || opt.text || opt.value || opt
-                  ) || ['Yes', 'No'];
+                  // Get options from question.answers (preferred), question.answer_options or question.options
+                  const radioOptions =
+                    question.answers?.map((opt: any) =>
+                      opt.answer_text || opt.option_text || opt.text || opt.value || opt,
+                    ) ||
+                    question.answer_options?.map((opt: any) =>
+                      opt.option_text || opt.text || opt.value || opt,
+                    ) ||
+                    question.options?.map((opt: any) =>
+                      opt.option_text || opt.text || opt.value || opt,
+                    ) ||
+                    ['Yes', 'No'];
                   
                   return (
                     <RadioButtonQuestion
@@ -4541,12 +4626,18 @@ export default function AddFarmerScreen() {
                   );
 
                 case 'checkbox':
-                  // Get options from question.answer_options or question.options
-                  const checkboxOptions = question.answer_options?.map((opt: any) => 
-                    opt.option_text || opt.text || opt.value || opt
-                  ) || question.options?.map((opt: any) => 
-                    opt.option_text || opt.text || opt.value || opt
-                  ) || ['Option 1', 'Option 2', 'Option 3'];
+                  // Get options from question.answers (preferred), question.answer_options or question.options
+                  const checkboxOptions =
+                    question.answers?.map((opt: any) =>
+                      opt.answer_text || opt.option_text || opt.text || opt.value || opt,
+                    ) ||
+                    question.answer_options?.map((opt: any) =>
+                      opt.option_text || opt.text || opt.value || opt,
+                    ) ||
+                    question.options?.map((opt: any) =>
+                      opt.option_text || opt.text || opt.value || opt,
+                    ) ||
+                    ['Option 1', 'Option 2', 'Option 3'];
                   
                   return (
                     <CheckboxQuestion
@@ -4622,14 +4713,21 @@ export default function AddFarmerScreen() {
                   );
 
                 case 'dropdown':
-                  // Get options from question.answer_options or question.options
-                  const dropdownOptions = question.answer_options?.map((opt: any) => ({
-                    label: opt.option_text || opt.text || opt.value || opt,
-                    value: opt.option_text || opt.text || opt.value || opt,
-                  })) || question.options?.map((opt: any) => ({
-                    label: opt.option_text || opt.text || opt.value || opt,
-                    value: opt.option_text || opt.text || opt.value || opt,
-                  })) || [];
+                  // Get options from question.answers (preferred), question.answer_options or question.options
+                  const dropdownOptions =
+                    question.answers?.map((opt: any) => ({
+                      label: opt.answer_text || opt.option_text || opt.text || opt.value || opt,
+                      value: opt.answer_text || opt.option_text || opt.text || opt.value || opt,
+                    })) ||
+                    question.answer_options?.map((opt: any) => ({
+                      label: opt.option_text || opt.text || opt.value || opt,
+                      value: opt.option_text || opt.text || opt.value || opt,
+                    })) ||
+                    question.options?.map((opt: any) => ({
+                      label: opt.option_text || opt.text || opt.value || opt,
+                      value: opt.option_text || opt.text || opt.value || opt,
+                    })) ||
+                    [];
                   
                   return (
                     <DropdownQuestion
@@ -4718,7 +4816,7 @@ export default function AddFarmerScreen() {
                 required={true}
               />
             </View>
-            {/* Phone Number with Country Code */}
+            {/* Phone Number with Country Code - Editable in add and edit mode so dealers can update mobile */}
             <View style={styles.phoneRow}>
               <View 
                 style={styles.phoneCodeInput}
@@ -4736,6 +4834,7 @@ export default function AddFarmerScreen() {
                   error={errors.countryCode}
                   numberOfLinesLabel={1}
                   required={true}
+                  editable={!isEditMode}
                 />
               </View>
               <View 
@@ -4755,6 +4854,7 @@ export default function AddFarmerScreen() {
                   numberOfLinesLabel={1}
                   maxLength={10}
                   required={true}
+                  editable={!isEditMode}
                 />
               </View>
             </View>
@@ -4866,7 +4966,7 @@ export default function AddFarmerScreen() {
                 placeholder={t('addFarmer.enterStreetName')}
                 error={errors.streetName}
                 numberOfLinesLabel={1}
-                required={true}
+                required={false}
               />
             </View>
             <SimpleBoxInput
@@ -4912,6 +5012,24 @@ export default function AddFarmerScreen() {
                 required={true}
               />
             </View>
+          <View 
+            ref={(ref) => { fieldViewRefs.current['taluka'] = ref; }}
+            onLayout={registerFieldPosition('taluka')}
+          >
+            <SearchableDropdown
+              label={t('addFarmer.taluka')}
+              value={talukaId}
+              options={talukas}
+              onSelect={(value) => {
+                setTalukaId(value);
+                setErrors({ ...errors, taluka: undefined });
+              }}
+              placeholder={districtId ? t('addFarmer.selectTaluka') : t('addFarmer.selectDistrictFirst')}
+              error={errors.taluka}
+              loading={talukasLoading}
+              required={false}
+            />
+          </View>
             <View 
               ref={(ref) => { fieldViewRefs.current['village'] = ref; }}
               onLayout={registerFieldPosition('village')}
@@ -4924,10 +5042,10 @@ export default function AddFarmerScreen() {
                   setVillageId(value);
                   setErrors({ ...errors, village: undefined });
                 }}
-                placeholder={districtId ? t('addFarmer.selectVillage') : t('addFarmer.selectDistrictFirst')}
+              placeholder={talukaId ? t('addFarmer.selectVillage') : t('addFarmer.selectTalukaFirst')}
                 error={errors.village}
                 loading={villagesLoading}
-                required={false}
+              required={false}
               />
             </View>
             <View 

@@ -106,7 +106,7 @@ export default function Dropdown({
           color: 'red',
           fontSize: moderateScale(10),
         },
-        // Modal styles
+        // Modal styles – compact bottom sheet, height fits content
         modalOverlay: {
           flex: 1,
           backgroundColor: 'rgba(0, 0, 0, 0.5)',
@@ -114,27 +114,40 @@ export default function Dropdown({
         },
         modalContainer: {
           backgroundColor: colors.backgroundWhite,
-          borderTopLeftRadius: moderateScale(20),
-          borderTopRightRadius: moderateScale(20),
+          borderTopLeftRadius: moderateScale(16),
+          borderTopRightRadius: moderateScale(16),
           width: '100%',
-          maxHeight: '70%',
-          paddingBottom: insets.bottom + moderateScale(12),
+          maxHeight: '50%',
+          paddingBottom: Platform.OS === 'android' ? moderateScale(20) : insets.bottom + moderateScale(8),
+        },
+        modalHandle: {
+          alignSelf: 'center',
+          width: moderateScale(36),
+          height: moderateScale(4),
+          borderRadius: 2,
+          backgroundColor: colors.borderLight || '#E0E0E0',
+          marginTop: moderateScale(6),
+          marginBottom: moderateScale(2),
         },
         modalHeader: {
-          padding: moderateScale(20),
+          paddingHorizontal: moderateScale(16),
+          paddingVertical: moderateScale(10),
           borderBottomWidth: 1,
           borderBottomColor: colors.borderLight,
         },
         modalTitle: {
           ...Typography.boldXl,
-          fontSize: moderateScale(18),
+          fontSize: moderateScale(16),
           color: colors.textPrimary,
         },
         optionItem: {
-          paddingVertical: moderateScale(16),
-          paddingHorizontal: moderateScale(20),
+          paddingVertical: moderateScale(12),
+          paddingHorizontal: moderateScale(16),
           borderBottomWidth: 1,
           borderBottomColor: colors.borderLight,
+        },
+        optionItemLast: {
+          borderBottomWidth: 0,
         },
         optionText: {
           ...Typography.regularMd,
@@ -216,31 +229,57 @@ export default function Dropdown({
             style={styles.modalContainer}
             onPress={e => e.stopPropagation()}
             activeOpacity={1}>
+            <View style={styles.modalHandle} />
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>
                 {label}
                 {required && <Text style={{color: colors.statusError}}> *</Text>}
               </Text>
             </View>
-            <FlatList
-              data={options}
-              keyExtractor={item => item.value}
-              renderItem={({item}) => (
-                <TouchableOpacity
-                  style={styles.optionItem}
-                  onPress={() => handleSelect(item.value)}
-                  activeOpacity={0.7}>
-                  <Text
-                    style={
-                      value === item.value
-                        ? styles.selectedOptionText
-                        : styles.optionText
-                    }>
-                    {item.label}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            />
+            {options.length <= 6 ? (
+              <View style={{ paddingBottom: Platform.OS === 'android' ? 0 : moderateScale(4) }}>
+                {options.map((item, index) => (
+                  <TouchableOpacity
+                    key={item.value}
+                    style={[
+                      styles.optionItem,
+                      index === options.length - 1 && styles.optionItemLast,
+                    ]}
+                    onPress={() => handleSelect(item.value)}
+                    activeOpacity={0.7}>
+                    <Text
+                      style={
+                        value === item.value
+                          ? styles.selectedOptionText
+                          : styles.optionText
+                      }>
+                      {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ) : (
+              <FlatList
+                data={options}
+                keyExtractor={item => item.value}
+                style={{ maxHeight: moderateScale(280) }}
+                renderItem={({item}) => (
+                  <TouchableOpacity
+                    style={styles.optionItem}
+                    onPress={() => handleSelect(item.value)}
+                    activeOpacity={0.7}>
+                    <Text
+                      style={
+                        value === item.value
+                          ? styles.selectedOptionText
+                          : styles.optionText
+                      }>
+                      {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              />
+            )}
           </Pressable>
         </Pressable>
       </Modal>

@@ -3,9 +3,8 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
-  ActivityIndicator,
   Image,
   RefreshControl,
   ImageBackground,
@@ -81,7 +80,7 @@ const TractorThumbnail = ({
 export default function TractorsScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
-  const {t, currentLanguage} = useLanguage();
+  const {t, currentLanguage, currentLanguageId} = useLanguage();
   const navigation = useNavigation<NavigationProp>();
   const tabNavigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
   const [tractors, setTractors] = useState<any[]>([]);
@@ -113,19 +112,11 @@ export default function TractorsScreen() {
         const allTractorsArray = response.data.tractors || 
                             (Array.isArray(response.data) ? response.data : []);
         
-        // Map language code to language_id
-        // 'en' -> 1, 'hi' -> 2, 'gu' -> 3
-        const languageIdMap: Record<string, number> = {
-          'en': 1,
-          'hi': 2,
-          'gu': 3,
-        };
-        
-        const currentLanguageId = languageIdMap[currentLanguage] || 1; // Default to English (1)
+        const selectedLanguageId = currentLanguageId || 1; // Default to English (1)
         
         // Filter tractors based on current language (exclude null language_id)
         const tractorsArray = allTractorsArray.filter((tractor: any) => {
-          return tractor.language_id === currentLanguageId;
+          return tractor.language_id === selectedLanguageId;
         });
         
         console.log('[TractorsScreen] Tractors array extracted (filtered by language):', tractorsArray?.length || 0, 'tractors');
@@ -352,10 +343,42 @@ export default function TractorsScreen() {
     );
   };
 
-  // Skeleton component matching the exact design
-  const renderSkeleton = () => {
-    return renderSkeletonContent();
-  };
+  const renderTractorItem = React.useCallback(
+    ({item: tractor, index}: {item: any; index: number}) => (
+      <TouchableOpacity
+        style={[
+          dynamicStyles.listItem,
+          index !== tractors.length - 1 && dynamicStyles.listItemBorder,
+        ]}
+        activeOpacity={0.7}
+        onPress={() => {
+          navigation.navigate(SCREEN_NAMES.TractorDetails, {
+            tractorId: tractor.id,
+            tractorModel: tractor.model,
+            tractorOwner: tractor.owner,
+            tractorColor: tractor.color,
+            fromScreen: 'List',
+          });
+        }}>
+        <TractorThumbnail
+          color={tractor.color}
+          moderateScale={moderateScale}
+          size={moderateScale(40)}
+          imageUrl={tractor.main_image}
+        />
+        <View style={dynamicStyles.listItemContent}>
+          <Text style={dynamicStyles.listItemName}>{tractor.model}</Text>
+          <Text style={dynamicStyles.listItemSubtext}>{tractor.owner}</Text>
+        </View>
+        <Ionicons
+          name="chevron-forward"
+          size={moderateScale(18)}
+          color={colors.textTertiary}
+        />
+      </TouchableOpacity>
+    ),
+    [dynamicStyles, tractors.length, navigation, moderateScale],
+  );
 
   return (
     <View style={[dynamicStyles.container]}>
@@ -378,11 +401,20 @@ export default function TractorsScreen() {
         }}
       >
         {loadingTractors && !refreshing ? (
-          renderSkeleton()
+          renderSkeletonContent()
         ) : tractors.length > 0 ? (
-          <ScrollView
+          <FlatList
+            data={tractors}
+            keyExtractor={item => item.id}
+            renderItem={renderTractorItem}
             showsVerticalScrollIndicator={false}
             style={dynamicStyles.listContainer}
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={10}
+            windowSize={7}
+            initialNumToRender={10}
+            updateCellsBatchingPeriod={50}
+            contentContainerStyle={{paddingBottom: moderateScale(8)}}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -391,54 +423,7 @@ export default function TractorsScreen() {
                 tintColor={colors.primary}
               />
             }
-          >
-            {refreshing ? (
-              renderSkeletonContent()
-            ) : (
-              <>
-                {tractors.map((tractor, index) => (
-                  <TouchableOpacity
-                    key={tractor.id}
-                    style={[
-                      dynamicStyles.listItem,
-                      index !== tractors.length - 1 &&
-                        dynamicStyles.listItemBorder,
-                    ]}
-                    activeOpacity={0.7}
-                    onPress={() => {
-                      navigation.navigate(SCREEN_NAMES.TractorDetails, {
-                        tractorId: tractor.id,
-                        tractorModel: tractor.model,
-                        tractorOwner: tractor.owner,
-                        tractorColor: tractor.color,
-                        fromScreen: "List",
-                      });
-                    }}
-                  >
-                    <TractorThumbnail
-                      color={tractor.color}
-                      moderateScale={moderateScale}
-                      size={moderateScale(40)}
-                      imageUrl={tractor.main_image}
-                    />
-                    <View style={dynamicStyles.listItemContent}>
-                      <Text style={dynamicStyles.listItemName}>
-                        {tractor.model}
-                      </Text>
-                      <Text style={dynamicStyles.listItemSubtext}>
-                        {tractor.owner}
-                      </Text>
-                    </View>
-                    <Ionicons
-                      name="chevron-forward"
-                      size={moderateScale(18)}
-                      color={colors.textTertiary}
-                    />
-                  </TouchableOpacity>
-                ))}
-              </>
-            )}
-          </ScrollView>
+          />
         ) : (
           <View
             style={[dynamicStyles.listContainer, dynamicStyles.emptyContainer]}

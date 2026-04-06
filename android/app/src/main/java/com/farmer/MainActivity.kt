@@ -1,4 +1,4 @@
-package com.farmer
+package com.captainsaathi.farmerapp
 
 import android.os.Bundle
 import android.os.Handler
@@ -20,7 +20,7 @@ class MainActivity : ReactActivity() {
     Handler(Looper.getMainLooper()).postDelayed({
       try {
         // Change window background to white to prevent splash from showing on keyboard open
-        window.setBackgroundDrawableResource(com.farmer.R.drawable.white_background)
+        window.setBackgroundDrawableResource(com.captainsaathi.farmerapp.R.drawable.white_background)
       } catch (e: Exception) {
         // Ignore if drawable not found
       }

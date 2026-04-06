@@ -49,8 +49,22 @@ export const ImagePath = {
   nofarmerfound : require('../images/nofarmerfound.png'),
   noItemBgColor : require('../images/noItemBgColor.png'),
   verificationPending : require('../images/verification_penfding.png'),
-  contactUs : require('../images/contact_us_icon.png'),
+  // contactUs : require('../images/contact_us_icon.png'),
+  offerIcon : require('../images/offerIcon.png'),
 
+  contactUs : require('../images/contactUs.png'),
+  languagesType : require('../images/languagesType.png'),
+  profileDetails : require('../images/profileDetails.png'),
+  updateNumber : require('../images/updateNumber.png'),
+  healthCheckup : require('../images/healthCheckup.png'),
+  festivalGift : require('../images/festivalGift.png'),
+  plantVisit : require('../images/plantVisit.png'),
+  discountSparePart : require('../images/discount.png'),
+  
+  
+  
+
+    
   
 };
 

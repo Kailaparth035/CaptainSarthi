@@ -9,6 +9,7 @@ export const SCREEN_NAMES = {
   Farmer: 'Farmer',
   FarmerDetails: 'FarmerDetails',
   AddFarmer: 'AddFarmer',
+  AddOffer: 'AddOffer',
   Tractors: 'Tractors',
   TractorDetails: 'TractorDetails',
   Notifications: 'Notifications',
@@ -27,6 +28,7 @@ export const SCREEN_NAMES = {
   Language: 'Language',
   LanguageSelect: 'LanguageSelect',
   Onboarding: 'Onboarding',
+  FarmerSavings: 'FarmerSavings',
   // Add more screen names here as you add screens
 } as const;
 

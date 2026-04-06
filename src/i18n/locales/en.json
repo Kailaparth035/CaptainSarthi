@@ -35,6 +35,7 @@
     "name": "Name",
     "category": "Category",
     "allCategories": "All Categories",
+    "farmerWord": "Farmer",
     "details": "Farmer details",
     "noDetailsFound": "No farmer details found"
   },
@@ -110,7 +111,10 @@
     "pleaseEnterValidMobileNumber": "Please enter a valid mobile number",
     "pleaseEnterOtp": "Please enter OTP",
     "pleaseEnterValidOtp": "Please enter a valid OTP",
-    "invalidOtp": "Invalid OTP. Please enter the correct OTP."
+    "invalidOtp": "Invalid OTP. Please enter the correct OTP.",
+    "otpSentSuccess": "OTP sent successfully",
+    "otpResentSuccess": "OTP resent successfully",
+    "yourOtpIs": "Your OTP is"
   },
   "notifications": {
     "title": "Notifications",
@@ -145,9 +149,7 @@
     "readMore": "Read more",
     "readLess": "Read less",
     "reset": "Reset",
-    "apply": "Apply",
-    "readMore": "Read more",
-    "readLess": "Read less"
+    "apply": "Apply"
   },
   "onboarding": {
     "getStarted": "Get started",
@@ -160,7 +162,10 @@
     "textToSpeech": "Text to speech",
     "noEventsFound": "No events found",
     "noEventFound": "No event found",
-    "goToHome": "Go to Home"
+    "goToHome": "Go to Home",
+    "yes": "Yes",
+    "no": "No",
+    "attendingQuestion": "Are you attending this event?"
   },
   "stories": {
     "title": "Stories",
@@ -174,27 +179,35 @@
     "greeting": "Hello",
     "recentEvents": "Recent events",
     "recentStories": "Recent stories",
-    "membershipServices": "Membership services",
+    "membershipServices": "Exclusive Benefits for Members",
     "services": {
-      "quickProblemSolution": {
-        "title": "Quick problem solution",
-        "description": "24/7 active support"
+      "one": {
+        "title": "Welcome Gift for Joining Captain Saathi",
+        "description": "A special welcome gift for every member."
       },
-      "prioritySupport": {
-        "title": "Priority customer support",
-        "description": "Priority support from our team"
+      "two": {
+        "title": "Special Invitations to Company Events",
+        "description": "Exclusive invitations to events organized by the company."
       },
-      "directContact": {
-        "title": "Direct contact to company",
-        "description": "Contact our core team"
+      "three": {
+        "title": "⁠Free Annual Tractor Health Check-up",
+        "description": "Free annual tractor health check-up every year with priority service benefits."
       },
-      "specialInvite": {
-        "title": "Special invite in events",
-        "description": "Special invitations to our events"
+      "four": {
+        "title": "Special Festival Gifts",
+        "description": "Exclusive festival gifts for Captain Saathi members."
       },
-      "specialDiscount": {
-        "title": "Special discount",
-        "description": "On tractor services, charges, spares"
+      "five": {
+        "title": "Opportunity for Plant Visit",
+        "description": "A chance to visit the company’s state-of-the-art manufacturing plant."
+      },
+      "six": {
+        "title": "Special Discount on Tractor Spare Parts",
+        "description": "Exclusive discounts on the purchase of tractor spare parts."
+      },
+      "seven": {
+        "title": "Direct Connection with the Company",
+        "description": "Facility to directly connect with the company."
       }
     }
   },
@@ -284,9 +297,12 @@
     "district": "District",
     "selectDistrict": "Select district",
     "selectStateFirst": "Select state first",
+    "taluka": "Taluka",
+    "selectTaluka": "Select taluka",
+    "selectDistrictFirst": "Select district first",
     "village": "Village",
     "selectVillage": "Select village",
-    "selectDistrictFirst": "Select district first",
+    "selectTalukaFirst": "Select taluka first",
     "pincode": "Pincode",
     "enterPincode": "Enter pincode",
     "modelName": "Enter model name",
@@ -331,6 +347,7 @@
       "streetNameRequired": "Street name is required",
       "stateRequired": "State is required",
       "districtRequired": "District is required",
+      "talukaRequired": "Taluka is required",
       "villageRequired": "Village is required",
       "pincodeRequired": "Pincode is required",
       "atLeastOneTractorImageRequired": "At least one tractor image is required",
@@ -374,6 +391,35 @@
     "whatsappUs": "Whatsapp us!",
     "call": "Call",
     "textNow": "Text now"
+  },
+  "offer": {
+    "addOffer": "Add offer",
+    "addOfferSubtitle": "Add discount on services or product.",
+    "applyOfferOn": "Apply offer on",
+    "selectProductService": "Select product / service",
+    "product": "Product",
+    "service": "Service",
+    "productDetail": "Product detail",
+    "serviceDetail": "Service detail",
+    "productName": "Product name",
+    "productCode": "Product code",
+    "serviceName": "Service name",
+    "serviceDescription": "Service description",
+    "amount": "Amount",
+    "discount": "Discount",
+    "amountPayable": "Amount payable",
+    "apply": "Apply",
+    "productNamePlaceholder": "Product name here",
+    "productCodePlaceholder": "Product code here",
+    "serviceNamePlaceholder": "Service name here",
+    "serviceDescriptionPlaceholder": "Service description here",
+    "amountPlaceholder": "Enter amount",
+    "offerAddedSuccess": "Offer added successfully"
+  },
+  "savings": {
+    "title": "Savings",
+    "viewSavings": "View savings",
+    "saved": "Saved",
+    "noSavings": "No savings yet."
   }
 }
-

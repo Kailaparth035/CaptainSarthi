@@ -5,7 +5,11 @@ require Pod::Executable.execute_command('node', ['-p',
     {paths: [process.argv[1]]},
   )', __dir__]).strip
 
-platform :ios, min_ios_version_supported
+# RNMLKitTextRecognition requires iOS deployment target >= 15.5
+platform :ios, '15.5'
+
+# Firebase (Swift) static-library integration requires module maps.
+use_modular_headers!
 prepare_react_native_project!
 
 # ❌ Remove use_frameworks logic completely (it breaks RN pods)
@@ -17,6 +21,9 @@ prepare_react_native_project!
 
 target 'Farmer' do
   config = use_native_modules!
+
+  # Ensure Swift static-library integration can import GoogleUtilities.
+  pod 'GoogleUtilities', :modular_headers => true
 
   use_react_native!(
     :path => config[:reactNativePath],

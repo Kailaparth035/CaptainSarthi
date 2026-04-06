@@ -269,8 +269,14 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           setMemberId(response.data.member_id);
         }
 
-        const message = response?.message || 'OTP sent successfully. Please check your mobile.';
-        showToastMessage(message, 'success');
+        const apiOtp = response?.otp;
+        console.log("apiOtp ::;",apiOtp);
+        
+        // const toastMsg =
+        //   apiOtp != null && String(apiOtp).trim()
+        //     ? `${t('login.yourOtpIs')} ${String(apiOtp).trim()}`
+        //     : t('login.otpSentSuccess');
+        showToastMessage(t('login.otpSentSuccess'), 'success');
         
         // Focus on OTP input
         setTimeout(() => {
@@ -328,8 +334,12 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           setMemberId(response.data.member_id);
         }
 
-        const message = response?.message || 'OTP resent successfully.';
-        showToastMessage(message, 'success');
+        const apiOtp = response?.otp;
+        // const toastMsg =
+        //   apiOtp != null && String(apiOtp).trim()
+        //     ? `${t('login.yourOtpIs')} ${String(apiOtp).trim()}`
+        //     : t('login.otpResentSuccess');
+        showToastMessage(t('login.otpSentSuccess'), 'success');
       } else {
         // If success is false, don't start timer
         setGetOtpLoading(false);

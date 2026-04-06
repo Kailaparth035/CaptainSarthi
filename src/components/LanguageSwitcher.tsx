@@ -19,6 +19,7 @@ import Apis from '../Service/constant';
 type Language = string;
 
 interface LanguageOption {
+  id: number;
   code: Language;
   name: string;
   nativeName: string;
@@ -54,6 +55,7 @@ export default function LanguageSwitcher({
         const apiLanguages: LanguageOption[] = response.data
           .filter((lang: any) => lang.is_active === true)
           .map((lang: any) => ({
+            id: Number(lang.id),
             code: lang.code as Language,
             name: lang.name,
             nativeName: lang.native_name || lang.name,
@@ -63,18 +65,18 @@ export default function LanguageSwitcher({
       } else {
         // Fallback to default languages if API fails
         setLanguages([
-          {code: 'en', name: 'English', nativeName: 'English', enabled: true},
-          {code: 'gu', name: 'Gujarati', nativeName: 'ગુજરાતી', enabled: true},
-          {code: 'hi', name: 'Hindi', nativeName: 'हिंदी', enabled: true},
+          {id: 1, code: 'en', name: 'English', nativeName: 'English', enabled: true},
+          {id: 3, code: 'gu', name: 'Gujarati', nativeName: 'ગુજરાતી', enabled: true},
+          {id: 2, code: 'hi', name: 'Hindi', nativeName: 'हिंदी', enabled: true},
         ]);
       }
     } catch (error) {
       console.error('Error fetching languages:', error);
       // Fallback to default languages on error
       setLanguages([
-        {code: 'en', name: 'English', nativeName: 'English', enabled: true},
-        {code: 'gu', name: 'Gujarati', nativeName: 'ગુજરાતી', enabled: true},
-        {code: 'hi', name: 'Hindi', nativeName: 'हिंदी', enabled: true},
+        {id: 1, code: 'en', name: 'English', nativeName: 'English', enabled: true},
+        {id: 3, code: 'gu', name: 'Gujarati', nativeName: 'ગુજરાતી', enabled: true},
+        {id: 2, code: 'hi', name: 'Hindi', nativeName: 'हिंदी', enabled: true},
       ]);
     } finally {
       setLoading(false);
@@ -82,7 +84,8 @@ export default function LanguageSwitcher({
   };
 
   const handleLanguageSelect = async (lang: Language) => {
-    await changeLanguage(lang);
+    const selected = languages.find(l => l.code === lang);
+    await changeLanguage(lang, selected?.id);
     onClose();
   };
 

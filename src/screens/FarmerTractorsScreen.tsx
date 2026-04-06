@@ -76,7 +76,7 @@ const TractorThumbnail = ({
 export default function FarmerTractorsScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
-  const {t, currentLanguage} = useLanguage();
+  const {t, currentLanguage, currentLanguageId} = useLanguage();
   const navigation = useNavigation();
   const tabNavigation = useNavigation<BottomTabNavigationProp<FarmerTabParamList>>();
   const [tractors, setTractors] = useState<any[]>([]);
@@ -110,17 +110,11 @@ export default function FarmerTractorsScreen() {
         
         // Map language code to language_id
         // 'en' -> 1, 'hi' -> 2, 'gu' -> 3
-        const languageIdMap: Record<string, number> = {
-          'en': 1,
-          'hi': 2,
-          'gu': 3,
-        };
-        
-        const currentLanguageId = languageIdMap[currentLanguage] || 1; // Default to English (1)
+        const selectedLanguageId = currentLanguageId || 1; // Default to English (1)
         
         // Filter tractors based on current language (exclude null language_id)
         const tractorsArray = allTractorsArray.filter((tractor: any) => {
-          return tractor.language_id === currentLanguageId;
+          return tractor.language_id === selectedLanguageId;
         });
         
         console.log('[FarmerTractorsScreen] Tractors array extracted (filtered by language):', tractorsArray?.length || 0, 'tractors');
@@ -156,17 +150,11 @@ export default function FarmerTractorsScreen() {
       } else if (Array.isArray(response)) {
         // Fallback: if response is directly an array
         // Map language code to language_id
-        const languageIdMap: Record<string, number> = {
-          'en': 1,
-          'hi': 2,
-          'gu': 3,
-        };
-        
-        const currentLanguageId = languageIdMap[currentLanguage] || 1; // Default to English (1)
+        const selectedLanguageId = currentLanguageId || 1; // Default to English (1)
         
         // Filter tractors based on current language (exclude null language_id)
         const filteredTractors = response.filter((tractor: any) => {
-          return tractor.language_id === currentLanguageId;
+          return tractor.language_id === selectedLanguageId;
         });
         
         const transformedTractors = filteredTractors.map((tractor: any, index: number) => {
@@ -220,11 +208,6 @@ export default function FarmerTractorsScreen() {
     }, [tabNavigation, currentLanguage])
   );
 
-  // Refetch tractors when language changes
-  useEffect(() => {
-    fetchTractors();
-  }, [currentLanguage]);
-
  const dynamicStyles = useMemo(
     () =>
       StyleSheet.create({
@@ -270,6 +253,7 @@ export default function FarmerTractorsScreen() {
           alignItems: 'center',
           paddingHorizontal: moderateScale(16),
           paddingVertical: moderateScale(12),
+          minHeight: moderateScale(64),
         },
         listItemBorder: {
           borderBottomWidth: 1,
@@ -285,11 +269,13 @@ export default function FarmerTractorsScreen() {
           fontSize: moderateScale(14),
           marginBottom: moderateScale(2),
           textTransform: 'capitalize',
+          flexShrink: 1,
         },
         listItemSubtext: {
           ...Typography.regularSm,
           color: colors.textTertiary,
           fontSize: moderateScale(12),
+          flexShrink: 1,
         },
         emptyContainer: {
           flex: 1,
@@ -312,6 +298,43 @@ export default function FarmerTractorsScreen() {
         },
       }),
     [moderateScale, insets.top],
+  );
+
+  const renderTractorItem = useCallback(
+    ({item: tractor, index}: {item: any; index: number}) => (
+      <TouchableOpacity
+        style={[
+          dynamicStyles.listItem,
+          index !== tractors.length - 1 && dynamicStyles.listItemBorder,
+        ]}
+        activeOpacity={0.7}
+        onPress={() => {
+          (navigation as any).navigate(SCREEN_NAMES.FarmerTractorDetails, {
+            tractorId: tractor.id,
+            tractorModel: tractor.model,
+            tractorOwner: tractor.owner,
+            tractorColor: tractor.color,
+            fromScreen: 'List',
+          });
+        }}>
+        <TractorThumbnail
+          color={tractor.color}
+          moderateScale={moderateScale}
+          size={moderateScale(40)}
+          imageUrl={tractor.main_image}
+        />
+        <View style={dynamicStyles.listItemContent}>
+          <Text style={dynamicStyles.listItemName}>{tractor.model}</Text>
+          <Text style={dynamicStyles.listItemSubtext}>{tractor.owner}</Text>
+        </View>
+        <Ionicons
+          name="chevron-forward"
+          size={moderateScale(18)}
+          color={colors.textTertiary}
+        />
+      </TouchableOpacity>
+    ),
+    [dynamicStyles, tractors.length, navigation, moderateScale],
   );
 
   return (
@@ -342,49 +365,15 @@ export default function FarmerTractorsScreen() {
           <FlatList
             data={tractors}
             keyExtractor={(item) => item.id}
-            renderItem={({ item: tractor, index }) => (
-              <TouchableOpacity
-                style={[
-                  dynamicStyles.listItem,
-                  index !== tractors.length - 1 && dynamicStyles.listItemBorder,
-                ]}
-                activeOpacity={0.7}
-                onPress={() => {
-                  (navigation as any).navigate(
-                    SCREEN_NAMES.FarmerTractorDetails,
-                    {
-                      tractorId: tractor.id,
-                      tractorModel: tractor.model,
-                      tractorOwner: tractor.owner,
-                      tractorColor: tractor.color,
-                      fromScreen: "List",
-                    }
-                  );
-                }}
-              >
-                <TractorThumbnail
-                  color={tractor.color}
-                  moderateScale={moderateScale}
-                  size={moderateScale(40)}
-                  imageUrl={tractor.main_image}
-                />
-                <View style={dynamicStyles.listItemContent}>
-                  <Text style={dynamicStyles.listItemName}>
-                    {tractor.model}
-                  </Text>
-                  <Text style={dynamicStyles.listItemSubtext}>
-                    {tractor.owner}
-                  </Text>
-                </View>
-                <Ionicons
-                  name="chevron-forward"
-                  size={moderateScale(18)}
-                  color={colors.textTertiary}
-                />
-              </TouchableOpacity>
-            )}
+            renderItem={renderTractorItem}
             showsVerticalScrollIndicator={false}
             style={dynamicStyles.listContainer}
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={10}
+            windowSize={7}
+            initialNumToRender={10}
+            updateCellsBatchingPeriod={50}
+            contentContainerStyle={{paddingBottom: moderateScale(8)}}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}

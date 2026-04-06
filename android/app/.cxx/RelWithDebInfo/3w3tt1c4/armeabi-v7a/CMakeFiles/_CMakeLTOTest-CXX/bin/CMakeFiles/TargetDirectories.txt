@@ -1,4 +1,0 @@
-/Users/abcom/Documents/CaptainSathi/android/app/.cxx/RelWithDebInfo/3w3tt1c4/armeabi-v7a/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/foo.dir
-/Users/abcom/Documents/CaptainSathi/android/app/.cxx/RelWithDebInfo/3w3tt1c4/armeabi-v7a/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/boo.dir
-/Users/abcom/Documents/CaptainSathi/android/app/.cxx/RelWithDebInfo/3w3tt1c4/armeabi-v7a/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/edit_cache.dir
-/Users/abcom/Documents/CaptainSathi/android/app/.cxx/RelWithDebInfo/3w3tt1c4/armeabi-v7a/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/rebuild_cache.dir

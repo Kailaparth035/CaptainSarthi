@@ -1,1 +1,0 @@
-/Users/abcom/Documents/Farmer/android/app/build/intermediates/cxx/RelWithDebInfo/6t246l6v/obj/armeabi-v7a

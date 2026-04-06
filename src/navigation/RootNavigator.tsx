@@ -26,6 +26,24 @@ export type RootStackParamList = {
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 
+const LIGHT_NAVIGATION_THEME: Theme = {
+  dark: false,
+  colors: {
+    primary: colors.primary,
+    background: colors.backgroundWhite,
+    card: colors.backgroundWhite,
+    text: colors.textPrimary,
+    border: colors.borderLight,
+    notification: colors.statusError,
+  },
+  fonts: {
+    regular: {fontFamily: 'System', fontWeight: '400'},
+    medium: {fontFamily: 'System', fontWeight: '500'},
+    bold: {fontFamily: 'System', fontWeight: '700'},
+    heavy: {fontFamily: 'System', fontWeight: '800'},
+  },
+};
+
 // Export navigation ref for use in App.tsx
 export const navigationRef = React.createRef<NavigationContainerRef<RootStackParamList>>();
 
@@ -123,7 +141,7 @@ export default function RootNavigator() {
   }
 
   return (
-    <NavigationContainer ref={navigationRef}>
+    <NavigationContainer ref={navigationRef} theme={LIGHT_NAVIGATION_THEME}>
       <RootStack.Navigator 
         screenOptions={{headerShown: false}}
         initialRouteName={initialRoute as keyof RootStackParamList}>

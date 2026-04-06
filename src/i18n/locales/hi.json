@@ -9,7 +9,7 @@
     "Events": "घटनाएं",
     "History": "इतिहास",
     "Stories": "कहानियां"
-  },	
+  },
   "home": {
     "title": "होम",
     "welcome": "केप्टन साथी ऐप में आपका स्वागत है।",
@@ -35,6 +35,7 @@
     "name": "नाम",
     "category": "श्रेणी",
     "allCategories": "सभी श्रेणियां",
+    "farmerWord": "केप्टन साथी",
     "details": "विवरण",
     "noDetailsFound": "कोई केप्टन साथी का विवरण नहीं मिला"
   },
@@ -60,7 +61,7 @@
     "yes": "हाँ",
     "dealerName": "डीलर का नाम",
     "dealerId": "डीलर आईडी",
-    "nameOfFirm": "डीलरशिप	 का नाम",
+    "nameOfFirm": "डीलरशिप का नाम",
     "email": "ईमेल",
     "mobileNo": "मोबाइल नंबर",
     "dateOfMarriage": "विवाह की तारीख",
@@ -110,7 +111,10 @@
     "pleaseEnterValidMobileNumber": "कृपया मान्य मोबाइल नंबर दर्ज करें",
     "pleaseEnterOtp": "कृपया OTP दर्ज करें",
     "pleaseEnterValidOtp": "कृपया मान्य OTP दर्ज करें",
-    "invalidOtp": "अमान्य OTP. कृपया सही OTP दर्ज करें।"
+    "invalidOtp": "अमान्य OTP. कृपया सही OTP दर्ज करें।",
+    "otpSentSuccess": "OTP सफलतापूर्वक भेजा गया",
+    "otpResentSuccess": "OTP फिर से भेज दिया गया",
+    "yourOtpIs": "आपका OTP है"
   },
   "notifications": {
     "title": "सूचनाएं",
@@ -158,7 +162,10 @@
     "textToSpeech": "विवरण को सुनें",
     "noEventsFound": "कोई इवेंट नहीं मिला",
     "noEventFound": "कोई इवेंट नहीं मिला",
-    "goToHome": "होम पर जाएं"
+    "goToHome": "होम पर जाएं",
+    "yes": "हाँ",
+    "no": "नहीं",
+    "attendingQuestion": "क्या आप इस कार्यक्रम में भाग ले रहे हैं?"
   },
   "stories": {
     "title": "कहानियां",
@@ -172,27 +179,35 @@
     "greeting": "नमस्ते",
     "recentEvents": "हाल की घटनाएं",
     "recentStories": "हाल की कहानियां",
-    "membershipServices": "सदस्यता सेवाएं",
+    "membershipServices": "केप्टन साथी की विशेष सुविधाए",
     "services": {
-      "quickProblemSolution": {
-        "title": "त्वरित समस्या समाधान",
-        "description": "24/7 सक्रिय सहायता"
+      "one": {
+        "title": "केप्टन साथी से जुड़ने पर उपहार",
+        "description": "हर सदस्य के लिए विशेष स्वागत उपहार"
       },
-      "prioritySupport": {
-        "title": "प्राथमिकता ग्राहक सहायता",
-        "description": "हमारी टीम से प्राथमिकता सहायता"
+      "two": {
+        "title": "कंपनी के कार्यक्रमों में विशेष आमंत्रण",
+        "description": "कंपनी द्वारा आयोजित कार्यक्रमों में खास निमंत्रण"
       },
-      "directContact": {
+      "three": {
+        "title": "मुफ्त वार्षिक ट्रेक्टर स्वास्थ्य परिक्षण",
+        "description": "हर वर्ष मुफ्त  ट्रेक्टर स्वास्थ्य परिक्षण  और पहले सेवा का लाभ"
+      },
+      "four": {
+        "title": "त्योहार पर विशेष उपहार",
+        "description": "केप्टन साथी सदस्यों के लिए खास  त्योहार पर विशेष भेंट"
+      },
+      "five": {
+        "title": "प्लांट विजिट का अवसर",
+        "description": "कंपनी के अत्याधुनिक प्लांट को देखने का अवसर"
+      },
+      "six": {
+        "title": "ट्रैक्टर स्पेयर पार्ट्स पर विशेष छूट",
+        "description": "स्पेयर पार्ट्स की खरीद पर खास डिस्काउंट"
+      },
+      "seven": {
         "title": "कंपनी से सीधा संपर्क",
-        "description": "हमारी मुख्य टीम से संपर्क करें"
-      },
-      "specialInvite": {
-        "title": "कंपनी कार्यक्रम में विशेष आमंत्रण",
-        "description": "कंपनी द्वारा आयोजित कार्यक्रम में विशेष आमंत्रण"
-      },
-      "specialDiscount": {
-        "title": "विशेष छूट",
-        "description": "ट्रेक्टर सेवाओं, शुल्क, स्पेयर पर"
+        "description": "कंपनी से सीधे संपर्क की सुविधा"
       }
     }
   },
@@ -282,9 +297,11 @@
     "district": "जिला",
     "selectDistrict": "जिला चुनें",
     "selectStateFirst": "पहले राज्य चुनें",
+    "taluka": "तालुका",
+    "selectTaluka": "तालुका चुनें",
     "village": "गाँव",
     "selectVillage": "गाँव चुनें",
-    "selectDistrictFirst": "पहले जिला चुनें",
+    "selectTalukaFirst": "पहले तालुका चुनें",
     "pincode": "पिन कोड",
     "enterPincode": "पिन कोड दर्ज करें",
     "modelName": "मॉडल नाम दर्ज करें",
@@ -329,6 +346,7 @@
       "streetNameRequired": "सड़क का नाम आवश्यक है",
       "stateRequired": "राज्य आवश्यक है",
       "districtRequired": "जिला आवश्यक है",
+      "talukaRequired": "तालुका आवश्यक है",
       "villageRequired": "गाँव आवश्यक है",
       "pincodeRequired": "पिन कोड आवश्यक है",
       "atLeastOneTractorImageRequired": "कम से कम एक ट्रेक्टर छवि आवश्यक है",
@@ -372,6 +390,35 @@
     "whatsappUs": "हमें व्हाट्सएप करें",
     "call": "कॉल करें",
     "textNow": "अभी टेक्स्ट करें"
+  },
+  "offer": {
+    "addOffer": "ऑफर जोड़ें",
+    "addOfferSubtitle": "सेवाओं या उत्पाद पर छूट जोड़ें।",
+    "applyOfferOn": "ऑफर लागू करें",
+    "selectProductService": "उत्पाद / सेवा चुनें",
+    "product": "उत्पाद",
+    "service": "सेवा",
+    "productDetail": "उत्पाद विवरण",
+    "serviceDetail": "सेवा विवरण",
+    "productName": "उत्पाद का नाम",
+    "productCode": "उत्पाद कोड",
+    "serviceName": "सेवा का नाम",
+    "serviceDescription": "सेवा विवरण",
+    "amount": "राशि",
+    "discount": "छूट",
+    "amountPayable": "देय राशि",
+    "apply": "लागू करें",
+    "productNamePlaceholder": "उत्पाद का नाम यहाँ",
+    "productCodePlaceholder": "उत्पाद कोड यहाँ",
+    "serviceNamePlaceholder": "सेवा का नाम यहाँ",
+    "serviceDescriptionPlaceholder": "सेवा विवरण यहाँ",
+    "amountPlaceholder": "राशि दर्ज करें",
+    "offerAddedSuccess": "ऑफर सफलतापूर्वक जोड़ा गया"
+  },
+  "savings": {
+    "title": "बचत",
+    "viewSavings": "बचत देखें",
+    "saved": "बचाया",
+    "noSavings": "अभी कोई बचत नहीं है।"
   }
 }
-

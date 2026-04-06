@@ -5,6 +5,7 @@ import {
   Modal,
   StyleSheet,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -17,12 +18,14 @@ type LogoutModalProps = {
   visible: boolean;
   onClose: () => void;
   onConfirm: () => void;
+  loading?: boolean;
 };
 
 export default function LogoutModal({
   visible,
   onClose,
   onConfirm,
+  loading = false,
 }: LogoutModalProps) {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
@@ -144,14 +147,20 @@ export default function LogoutModal({
             <TouchableOpacity
               style={[styles.button, styles.cancelButton]}
               onPress={onClose}
+              disabled={loading}
               activeOpacity={0.7}>
               <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.button, styles.confirmButton]}
               onPress={onConfirm}
+              disabled={loading}
               activeOpacity={0.7}>
-              <Text style={styles.confirmButtonText}>{t('profile.yes')}</Text>
+              {loading ? (
+                <ActivityIndicator size="small" color={colors.textWhite} />
+              ) : (
+                <Text style={styles.confirmButtonText}>{t('profile.yes')}</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>

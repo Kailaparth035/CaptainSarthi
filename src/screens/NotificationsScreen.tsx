@@ -735,14 +735,16 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
       if (!notification.isRead) {
         await markNotificationAsRead(notification.id);
       }
-    } else if (notification.status === 'failed') {
-      // For farmer role or other cases
-      setSelectedNotification(notification);
-      setFirstName(notification.firstName || '');
-      setLastName(notification.lastName || '');
-      setRejectionReason(notification.rejectionReason || '');
-      setShowFailedModal(true);
-    } else {
+    } 
+    // else if (notification.status === 'failed') {
+    //   // For farmer role or other cases
+    //   setSelectedNotification(notification);
+    //   setFirstName(notification.firstName || '');
+    //   setLastName(notification.lastName || '');
+    //   setRejectionReason(notification.rejectionReason || '');
+    //   setShowFailedModal(true);
+    // } 
+    else {
       // Mark notification as read before navigating
       if (!notification.isRead) {
         await markNotificationAsRead(notification.id);

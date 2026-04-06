@@ -39,6 +39,7 @@ export default function ProfileScreen() {
   const navigation = useNavigation<ProfileScreenNavigationProp>();
   const tabNavigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [userData, setUserData] = useState({
     name: '',
     phone: '',
@@ -285,6 +286,8 @@ export default function ProfileScreen() {
   };
 
   const handleConfirmLogout = async () => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
     try {
       // Unregister FCM token before logout
       try {
@@ -322,12 +325,8 @@ export default function ProfileScreen() {
       });
     } catch (error) {
       console.error('Error during logout:', error);
-      setLogoutModalVisible(false);
-      // Still navigate to login even if clearing session fails
-      navigation.reset({
-        index: 0,
-        routes: [{name: SCREEN_NAMES.Login}],
-      });
+    } finally {
+      setIsLoggingOut(false);
     }
   };
 
@@ -487,8 +486,9 @@ export default function ProfileScreen() {
       {/* Logout Confirmation Modal */}
       <LogoutModal
         visible={logoutModalVisible}
-        onClose={() => setLogoutModalVisible(false)}
+        onClose={() => !isLoggingOut && setLogoutModalVisible(false)}
         onConfirm={handleConfirmLogout}
+        loading={isLoggingOut}
       />
 
     </View>

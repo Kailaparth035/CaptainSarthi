@@ -46,6 +46,9 @@ export default function ImagePreviewModal({
   const scrollViewRef = useRef<ScrollView>(null);
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
 
+  console.log("onReplaceImage ::",onReplaceImage);
+  
+
   const MODAL_HEIGHT = SCREEN_HEIGHT * 0.5; // Half screen height
 
   const styles = useMemo(
