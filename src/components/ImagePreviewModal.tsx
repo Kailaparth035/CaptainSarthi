@@ -46,6 +46,9 @@ export default function ImagePreviewModal({
   const scrollViewRef = useRef<ScrollView>(null);
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
 
+  console.log("onReplaceImage ::",onReplaceImage);
+  
+
   const MODAL_HEIGHT = SCREEN_HEIGHT * 0.5; // Half screen height
 
   const styles = useMemo(
@@ -134,7 +137,7 @@ export default function ImagePreviewModal({
           textAlign: 'center',
         },
         footer: {
-          paddingBottom: Platform.OS === 'ios' ? insets.bottom : insets.bottom + moderateScale(16),
+          paddingBottom: insets.bottom + moderateScale(12),
           paddingHorizontal: moderateScale(16),
           paddingTop: moderateScale(12),
           borderTopWidth: 1,

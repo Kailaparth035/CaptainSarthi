@@ -6,6 +6,8 @@
 export const ImagePath = {
   gujratiLogo: require('../images/captionSarthiLogo.png'),
   captainEnglishLogo: require('../images/captainTractorLogo.png'),
+  Mainlogo_english: require('../images/Mainlogo_english.png'),
+  Mainlogo_hindi: require('../images/Mainlogo_hindi.png'),
   hidePassword: require('../images/hidePassword.png'),
   showPassword: require('../images/showPassword.png'),
   tractor: require('../images/tractor.png'),
@@ -19,6 +21,51 @@ export const ImagePath = {
   eventImage : require('../images/eventImage.png'),  
   eventImage2 : require('../images/eventImage2.png'),  
   whatsapp : require('../images/whatsapp.png'),    
+  storycard : require('../images/storycard.png'),  
+  onboardingScreen : require('../images/onboardingScreen.png'),  
+  captainLogo : require('../images/captainLogo.png'),
+  language : require('../images/Language.png'),
+  noEvent : require('../images/noEvent.png'),
+  noStory : require('../images/noStory.png'),
+
+
+  profile: require('../images/profile.png'),
+  profileSelected : require('../images/profileSelected.png'),
+  profile_unfilled : require('../images/profile_unfilled.png'),
+  account_fill : require('../images/account_fill.png'),
+  story : require('../images/story.png'),
+  storySelected : require('../images/storySelected.png'),
+  tractorSelected : require('../images/tractorSelected.png'),
+  tractorTab : require('../images/tractorTab.png'),
+  farmertab : require('../images/farmertab.png'),
+  clients_fill : require('../images/clients_fill.png'),
+  home_new : require('../images/home_new.png'),
+  home_illed : require('../images/home_illed.png'),
+  homeSelected : require('../images/homeSelected.png'),
+  eventSelected : require('../images/eventSelected.png'),
+  home : require('../images/home.png'),  
+  eventsTab : require('../images/eventsTab.png'),  
+  eventNotification : require('../images/eventNotification.png'),
+  nofarmerfound : require('../images/nofarmerfound.png'),
+  noItemBgColor : require('../images/noItemBgColor.png'),
+  verificationPending : require('../images/verification_penfding.png'),
+  // contactUs : require('../images/contact_us_icon.png'),
+  offerIcon : require('../images/offerIcon.png'),
+
+  contactUs : require('../images/contactUs.png'),
+  languagesType : require('../images/languagesType.png'),
+  profileDetails : require('../images/profileDetails.png'),
+  updateNumber : require('../images/updateNumber.png'),
+  healthCheckup : require('../images/healthCheckup.png'),
+  festivalGift : require('../images/festivalGift.png'),
+  plantVisit : require('../images/plantVisit.png'),
+  discountSparePart : require('../images/discount.png'),
+  
+  
+  
+
+    
+  
 };
 
 

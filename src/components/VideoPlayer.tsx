@@ -9,12 +9,15 @@ import {
   Dimensions,
   ActivityIndicator,
 } from 'react-native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import Slider from '@react-native-community/slider';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import colors from '../utils/colors';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import {Typography} from '../utils/typography';
 import Video from 'react-native-video';
+import YoutubePlayer from 'react-native-youtube-iframe';
+import {isYouTubeUrl, extractYouTubeVideoId} from '../utils/youtubeUtils';
 
 type VideoPlayerProps = {
   thumbnailUri?: string;
@@ -32,6 +35,7 @@ export default function VideoPlayer({
   containerStyle,
 }: VideoPlayerProps) {
   const {moderateScale} = useDeviceMetrics();
+  const insets = useSafeAreaInsets();
   const [isPlaying, setIsPlaying] = useState(false);
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [isVideoLoading, setIsVideoLoading] = useState(false);
@@ -41,8 +45,10 @@ export default function VideoPlayer({
   const [volume, setVolume] = useState(1);
   const [showControls, setShowControls] = useState(true);
   const [isSeeking, setIsSeeking] = useState(false);
+  const [youtubeVideoId, setYoutubeVideoId] = useState<string | null>(null);
+  const [isYouTubeVideo, setIsYouTubeVideo] = useState(false);
   const videoRef = useRef<any>(null);
-  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const screenWidth = Dimensions.get('window').width;
   const screenHeight = Dimensions.get('window').height;
 
@@ -101,9 +107,10 @@ export default function VideoPlayer({
         },
         videoContainer: {
           width: screenWidth,
-          height: screenHeight * 0.6,
+          height: screenHeight * 0.7,
           justifyContent: 'center',
           alignItems: 'center',
+          alignSelf: 'center',
         },
         videoPlayer: {
           width: '100%',
@@ -182,7 +189,7 @@ export default function VideoPlayer({
         },
         closeButton: {
           position: 'absolute',
-          top: moderateScale(50),
+          top: insets.top + moderateScale(12),
           right: moderateScale(20),
           width: moderateScale(40),
           height: moderateScale(40),
@@ -190,7 +197,8 @@ export default function VideoPlayer({
           backgroundColor: 'rgba(255, 255, 255, 0.3)',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 10,
+          zIndex: 1000,
+          elevation: 10,
         },
         placeholderContainer: {
           width: '100%',
@@ -205,7 +213,7 @@ export default function VideoPlayer({
           color: colors.textTertiary,
         },
       }),
-    [moderateScale, screenWidth, screenHeight],
+    [moderateScale, screenWidth, screenHeight, insets.top],
   );
 
   // Format time in MM:SS format
@@ -215,8 +223,30 @@ export default function VideoPlayer({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handlePlay = () => {
+  const handlePlay = async () => {
     if (videoUri) {
+      // Check if it's a YouTube URL - if so, use YouTube iframe player
+      if (isYouTubeUrl(videoUri)) {
+        const videoId = extractYouTubeVideoId(videoUri);
+        if (videoId) {
+          console.log('[VideoPlayer] Opening YouTube video:', videoId);
+          setYoutubeVideoId(videoId);
+          setIsYouTubeVideo(true);
+          setVideoError(null);
+          setIsVideoLoading(true);
+          setShowVideoModal(true);
+          // Small delay to ensure modal is rendered before setting play state
+          setTimeout(() => {
+            setIsPlaying(true);
+            setIsVideoLoading(false);
+          }, 100);
+          return;
+        }
+      }
+      
+      // For non-YouTube videos, open the modal
+      setIsYouTubeVideo(false);
+      setYoutubeVideoId(null);
       setShowVideoModal(true);
       setIsPlaying(true);
       setVideoError(null);
@@ -224,6 +254,8 @@ export default function VideoPlayer({
       setShowControls(true);
       resetControlsTimeout();
     } else {
+      setIsYouTubeVideo(false);
+      setYoutubeVideoId(null);
       setShowVideoModal(true);
     }
   };
@@ -234,6 +266,8 @@ export default function VideoPlayer({
     setVideoError(null);
     setCurrentTime(0);
     setDuration(0);
+    setIsYouTubeVideo(false);
+    setYoutubeVideoId(null);
     if (controlsTimeoutRef.current) {
       clearTimeout(controlsTimeoutRef.current);
     }
@@ -244,7 +278,9 @@ export default function VideoPlayer({
 
   const togglePlayPause = () => {
     setIsPlaying(!isPlaying);
-    resetControlsTimeout();
+    if (!isYouTubeVideo) {
+      resetControlsTimeout();
+    }
   };
 
   const handleVideoLoad = (data: any) => {
@@ -416,29 +452,74 @@ export default function VideoPlayer({
             />
           </TouchableOpacity>
           
-          <TouchableOpacity
-            style={dynamicStyles.videoContainer}
-            activeOpacity={1}
-            onPress={handleVideoPress}>
-            {videoUri ? (
-              <>
-                <Video
-                  ref={videoRef}
-                  source={{uri: videoUri}}
-                  style={dynamicStyles.videoPlayer}
-                  paused={!isPlaying}
-                  resizeMode="contain"
-                  onLoad={handleVideoLoad}
-                  onError={handleVideoError}
-                  onProgress={handleProgress}
-                  controls={false}
-                  playInBackground={false}
-                  playWhenInactive={false}
-                  volume={volume}
-                  muted={volume === 0}
-                />
-                
-                {isVideoLoading && (
+          {videoUri ? (
+            <>
+              {isYouTubeVideo && youtubeVideoId ? (
+                <View style={dynamicStyles.videoContainer}>
+                  <YoutubePlayer
+                    height={screenHeight * 0.6}
+                    width={screenWidth}
+                    videoId={youtubeVideoId}
+                    play={isPlaying}
+                    webViewProps={{
+                      allowsInlineMediaPlayback: true,
+                      mediaPlaybackRequiresUserAction: false,
+                      allowsFullscreenVideo: true,
+                      javaScriptEnabled: true,
+                      domStorageEnabled: true,
+                    }}
+                    webViewStyle={{
+                      opacity: 0.99,
+                    }}
+                    onChangeState={(state: string) => {
+                      console.log('YouTube player state:', state);
+                      if (state === 'ended') {
+                        setIsPlaying(false);
+                      } else if (state === 'playing') {
+                        setIsPlaying(true);
+                      } else if (state === 'paused') {
+                        setIsPlaying(false);
+                      }
+                    }}
+                    onError={(error: any) => {
+                      console.error('YouTube player error:', error);
+                      setVideoError('Failed to load video. Please try again.');
+                    }}
+                    onReady={() => {
+                      console.log('YouTube player ready');
+                      setIsVideoLoading(false);
+                    }}
+                    onFullScreenChange={(isFullScreen: boolean) => {
+                      console.log('Fullscreen changed:', isFullScreen);
+                    }}
+                  />
+                </View>
+              ) : (
+                <View style={dynamicStyles.videoContainer}>
+                  <TouchableOpacity
+                    style={{width: '100%', height: '100%', justifyContent: 'center', alignItems: 'center'}}
+                    activeOpacity={1}
+                    onPress={handleVideoPress}>
+                    <Video
+                      ref={videoRef}
+                      source={{uri: videoUri}}
+                      style={dynamicStyles.videoPlayer}
+                      paused={!isPlaying}
+                      resizeMode="contain"
+                      onLoad={handleVideoLoad}
+                      onError={handleVideoError}
+                      onProgress={handleProgress}
+                      controls={false}
+                      playInBackground={false}
+                      playWhenInactive={false}
+                      volume={volume}
+                      muted={volume === 0}
+                    />
+                  </TouchableOpacity>
+                </View>
+              )}
+              
+              {isVideoLoading && !isYouTubeVideo && (
                   <View style={dynamicStyles.loadingContainer}>
                     <ActivityIndicator size="large" color={colors.textWhite} />
                     <Text
@@ -451,29 +532,29 @@ export default function VideoPlayer({
                   </View>
                 )}
 
-                {videoError && (
-                  <View style={dynamicStyles.errorContainer}>
-                    <Ionicons
-                      name="alert-circle"
-                      size={moderateScale(48)}
-                      color={colors.statusError}
-                    />
-                    <Text style={dynamicStyles.errorText}>{videoError}</Text>
-                    <TouchableOpacity
-                      style={[
-                        dynamicStyles.controlButton,
-                        {marginTop: moderateScale(16)},
-                      ]}
-                      onPress={handleClose}
-                      activeOpacity={0.7}>
-                      <Text style={[dynamicStyles.errorText, {color: colors.textWhite}]}>
-                        Close
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
+              {videoError && (
+                <View style={dynamicStyles.errorContainer}>
+                  <Ionicons
+                    name="alert-circle"
+                    size={moderateScale(48)}
+                    color={colors.statusError}
+                  />
+                  <Text style={dynamicStyles.errorText}>{videoError}</Text>
+                  <TouchableOpacity
+                    style={[
+                      dynamicStyles.controlButton,
+                      {marginTop: moderateScale(16)},
+                    ]}
+                    onPress={handleClose}
+                    activeOpacity={0.7}>
+                    <Text style={[dynamicStyles.errorText, {color: colors.textWhite}]}>
+                      Close
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
 
-                {!isVideoLoading && !videoError && showControls && (
+              {!isVideoLoading && !videoError && showControls && !isYouTubeVideo && (
                   <View style={dynamicStyles.videoControls}>
                     {/* Main Controls Row */}
                     <View style={dynamicStyles.controlsRow}>
@@ -560,46 +641,45 @@ export default function VideoPlayer({
                     </View>
                   </View>
                 )}
-              </>
-            ) : (
-              <View style={dynamicStyles.errorContainer}>
-                <Ionicons
-                  name="videocam"
-                  size={moderateScale(48)}
-                  color={colors.textTertiary}
-                />
-                <Text
-                  style={[
-                    dynamicStyles.placeholderText,
-                    {color: colors.textWhite, fontSize: moderateScale(16)},
-                  ]}>
-                  {title || 'Tractor Video'}
+            </>
+          ) : (
+            <View style={dynamicStyles.errorContainer}>
+              <Ionicons
+                name="videocam"
+                size={moderateScale(48)}
+                color={colors.textTertiary}
+              />
+              <Text
+                style={[
+                  dynamicStyles.placeholderText,
+                  {color: colors.textWhite, fontSize: moderateScale(16)},
+                ]}>
+                {title || 'Tractor Video'}
+              </Text>
+              <Text
+                style={[
+                  dynamicStyles.placeholderText,
+                  {
+                    color: colors.textTertiary,
+                    fontSize: moderateScale(14),
+                    marginTop: moderateScale(8),
+                  },
+                ]}>
+                No video available
+              </Text>
+              <TouchableOpacity
+                style={[
+                  dynamicStyles.controlButton,
+                  {marginTop: moderateScale(16)},
+                ]}
+                onPress={handleClose}
+                activeOpacity={0.7}>
+                <Text style={[dynamicStyles.errorText, {color: colors.textWhite}]}>
+                  Close
                 </Text>
-                <Text
-                  style={[
-                    dynamicStyles.placeholderText,
-                    {
-                      color: colors.textTertiary,
-                      fontSize: moderateScale(14),
-                      marginTop: moderateScale(8),
-                    },
-                  ]}>
-                  No video available
-                </Text>
-                <TouchableOpacity
-                  style={[
-                    dynamicStyles.controlButton,
-                    {marginTop: moderateScale(16)},
-                  ]}
-                  onPress={handleClose}
-                  activeOpacity={0.7}>
-                  <Text style={[dynamicStyles.errorText, {color: colors.textWhite}]}>
-                    Close
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </TouchableOpacity>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </Modal>
     </>

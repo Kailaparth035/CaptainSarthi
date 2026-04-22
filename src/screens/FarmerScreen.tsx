@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,11 +6,17 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  ActivityIndicator,
+  RefreshControl,
+  BackHandler,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import {BottomTabNavigationProp} from '@react-navigation/bottom-tabs';
+import {TabParamList} from '../navigation/TabNavigator';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import SkeletonPlaceholder from 'react-native-skeleton-placeholder';
 import colors from '../utils/colors';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import { Typography } from '../utils/typography';
@@ -21,25 +27,25 @@ import { FarmerStackParamList } from '../navigation/stacks/FarmerStack';
 import { CompositeNavigationProp } from '@react-navigation/native';
 import { NativeStackNavigationProp as StackNavProp } from '@react-navigation/native-stack';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
+import {useLanguage} from '../contexts/LanguageContext';
+import {getData} from '../Service/Apimethod';
+import Apis from '../Service/constant';
+import {ImagePath} from '../assets/images';
+import {Image} from 'react-native';
 
 type NavigationProp = CompositeNavigationProp<
   StackNavProp<FarmerStackParamList>,
   NativeStackNavigationProp<RootStackParamList>
 >;
 
-// Mock data - extended list of farmers
-const allFarmers = [
-  { id: '1', name: 'David Wills', phone: '5214-9710-3671', initials: 'DW' },
-  { id: '2', name: 'Adam Kepler', phone: '5214-9710-3671', initials: 'AK' },
-  { id: '3', name: 'Natasha Davies', phone: '5214-9710-3671', initials: 'ND' },
-  { id: '4', name: 'Peter Jane', phone: '5214-9710-3671', initials: 'PJ' },
-  { id: '5', name: 'Peter Jane', phone: '5214-9710-3671', initials: 'PJ' },
-  { id: '6', name: 'Peter Jane', phone: '5214-9710-3671', initials: 'PJ' },
-  { id: '7', name: 'Sarah Johnson', phone: '5214-9710-3672', initials: 'SJ' },
-  { id: '8', name: 'Michael Brown', phone: '5214-9710-3673', initials: 'MB' },
-  { id: '9', name: 'Emily Davis', phone: '5214-9710-3674', initials: 'ED' },
-  { id: '10', name: 'James Wilson', phone: '5214-9710-3675', initials: 'JW' },
-];
+// Helper function to get initials from name
+const getInitials = (name: string): string => {
+  const names = name.trim().split(' ');
+  if (names.length >= 2) {
+    return (names[0][0] + names[names.length - 1][0]).toUpperCase();
+  }
+  return name.substring(0, 2).toUpperCase();
+};
 
 // Avatar Component
 const Avatar = ({
@@ -81,11 +87,30 @@ const Avatar = ({
 export default function FarmerScreen() {
   const insets = useSafeAreaInsets();
   const { moderateScale } = useDeviceMetrics();
+  const {t, currentLanguage, currentLanguageId} = useLanguage();
   const navigation = useNavigation<NavigationProp>();
+  const tabNavigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterModalVisible, setIsFilterModalVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('name');
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>({});
+  const [farmers, setFarmers] = useState<any[]>([]);
+  const [allFarmers, setAllFarmers] = useState<any[]>([]); // Store all farmers for filtering
+  const [loadingFarmers, setLoadingFarmers] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(false);
+  // Location filter: state/district/taluka/village lists and modal working state
+  const [stateList, setStateList] = useState<{id: string; label: string; value: string}[]>([]);
+  const [districtList, setDistrictList] = useState<{id: string; label: string; value: string}[]>([]);
+  const [talukaList, setTalukaList] = useState<{id: string; label: string; value: string}[]>([]);
+  const [villageList, setVillageList] = useState<{id: string; label: string; value: string}[]>([]);
+  const [loadingStates, setLoadingStates] = useState(false);
+  const [loadingDistricts, setLoadingDistricts] = useState(false);
+  const [loadingTalukas, setLoadingTalukas] = useState(false);
+  const [loadingVillages, setLoadingVillages] = useState(false);
+  const [modalSelectedOptions, setModalSelectedOptions] = useState<Record<string, string>>({});
+  const [modalSelectedCategory, setModalSelectedCategory] = useState<string>('name');
 
   // Update StatusBar and bottom bar to match screen background color
   useDynamicStatusBar({
@@ -93,37 +118,458 @@ export default function FarmerScreen() {
     bottomBarColor: colors.backgroundLight,
   });
 
-  // Filter categories for the modal
-  const filterCategories = [
-    {
-      id: 'name',
-      label: 'Name',
-      options: [
-        {id: 'a-to-z', label: 'A to Z', value: 'a-to-z'},
-        {id: 'z-to-a', label: 'Z to A', value: 'z-to-a'},
-      ],
+  // Fetch farmers from API
+  const fetchFarmers = async (showRefreshing = false) => {
+    try {
+      if (showRefreshing) {
+        setRefreshing(true);
+      } else {
+        setLoadingFarmers(true);
+      }
+      console.log('[FarmerScreen] Fetching latest farmers data');
+      // GET API - only requires token (automatically added via interceptor)
+      const response = await getData(Apis.DEALER_FARMERS, {});
+      
+      // Handle API response structure: { status: true, data: { farmers: [...], current_page, total_pages, total_farmers } }
+      console.log('[FarmerScreen] Farmers API Response:', JSON.stringify(response, null, 2));
+      
+      if (response?.status === true && response?.data) {
+        // Check if data has farmers array (new structure)
+        const farmersArray = response.data.farmers || 
+                           (Array.isArray(response.data) ? response.data : []);
+        
+        console.log('[FarmerScreen] Farmers array extracted:', farmersArray?.length || 0, 'farmers');
+        
+        if (Array.isArray(farmersArray) && farmersArray.length > 0) {
+          // Transform API response to match expected format
+          const transformedFarmers = farmersArray.map((farmer: any) => {
+            // Combine first_name, middle_name, last_name to create full name
+            const nameParts = [
+              farmer.first_name,
+              farmer.middle_name,
+              farmer.last_name,
+            ].filter(Boolean);
+            const fullName = nameParts.join(' ').trim();
+            
+            // Extract category ID - check multiple possible field names
+            const categoryId = farmer.category_id || 
+                              farmer.categoryId || 
+                              farmer.category?.id || 
+                              farmer.category || 
+                              null;
+            
+            return {
+              id: farmer.id?.toString() || farmer.farmer_id?.toString() || '',
+              farmer_id: farmer.farmer_id || farmer.id?.toString() || '',
+              name: fullName || '',
+              phone: farmer.mobile || '',
+              initials: getInitials(fullName),
+              categoryId: categoryId ? categoryId.toString() : null, // Store category ID as string
+              stateId: farmer.state != null ? String(farmer.state) : null,
+              districtId: farmer.district != null ? String(farmer.district) : null,
+              talukaId: farmer.taluka != null ? String(farmer.taluka) : null,
+              villageId: farmer.village != null ? String(farmer.village) : null,
+            };
+          });
+          setAllFarmers(transformedFarmers); // Store all farmers first
+          setFarmers(transformedFarmers);
+          
+          // Log category IDs for debugging
+          const categoryIds = transformedFarmers
+            .map(f => f.categoryId)
+            .filter(Boolean)
+            .filter((v, i, a) => a.indexOf(v) === i); // Get unique category IDs
+          console.log('[FarmerScreen] Unique category IDs in farmers:', categoryIds);
+        } else {
+          // No farmers in response
+          setFarmers([]);
+          setAllFarmers([]);
+        }
+      } else if (Array.isArray(response)) {
+        // Fallback: if response is directly an array
+        const transformedFarmers = response.map((farmer: any) => {
+          const nameParts = [
+            farmer.first_name,
+            farmer.middle_name,
+            farmer.last_name,
+          ].filter(Boolean);
+          const fullName = nameParts.join(' ').trim();
+          
+          // Extract category ID - check multiple possible field names
+          const categoryId = farmer.category_id || 
+                            farmer.categoryId || 
+                            farmer.category?.id || 
+                            farmer.category || 
+                            null;
+          
+          return {
+            id: farmer.id?.toString() || farmer.farmer_id?.toString() || '',
+            farmer_id: farmer.farmer_id || farmer.id?.toString() || '',
+            name: fullName || '',
+            phone: farmer.mobile || '',
+            initials: getInitials(fullName),
+            categoryId: categoryId ? categoryId.toString() : null, // Store category ID as string
+            stateId: farmer.state != null ? String(farmer.state) : null,
+            districtId: farmer.district != null ? String(farmer.district) : null,
+            talukaId: farmer.taluka != null ? String(farmer.taluka) : null,
+            villageId: farmer.village != null ? String(farmer.village) : null,
+          };
+        });
+        setFarmers(transformedFarmers);
+        setAllFarmers(transformedFarmers); // Store all farmers
+      } else {
+        // No data or unexpected response format
+        setFarmers([]);
+        setAllFarmers([]);
+      }
+    } catch (error) {
+      console.error('Error fetching farmers:', error);
+      setFarmers([]);
+    } finally {
+      setLoadingFarmers(false);
+      setRefreshing(false);
+    }
+  };
+
+  // Handle pull to refresh
+  const onRefresh = React.useCallback(() => {
+    fetchFarmers(true);
+    fetchCategories();
+  }, []);
+
+  // Fetch categories from API
+  const fetchCategories = async () => {
+    try {
+      setLoadingCategories(true);
+      console.log('[FarmerScreen] Fetching categories');
+      const response = await getData(Apis.DEALER_CATEGORIES, {});
+
+      if (response?.status === true && response?.data) {
+        const categoriesData = response.data.map((cat: any) => ({
+          id: cat.id?.toString() || '',
+          name: cat.name || '',
+          language_id: cat.language_id || null,
+          farmer_count: typeof cat.farmer_count === 'number'
+            ? cat.farmer_count
+            : parseInt(cat.farmer_count ?? '0') || 0,
+        }));
+        setCategories(categoriesData);
+        console.log('[FarmerScreen] Categories loaded:', categoriesData);
+        console.log('[FarmerScreen] Category IDs:', categoriesData.map((c: any) => c.id));
+      } else {
+        console.warn('[FarmerScreen] Failed to fetch categories:', response);
+        setCategories([]);
+      }
+    } catch (error) {
+      console.error('[FarmerScreen] Error fetching categories:', error);
+      setCategories([]);
+    } finally {
+      setLoadingCategories(false);
+    }
+  };
+
+  // Fetch states for location filter
+  const fetchStates = useCallback(async () => {
+    try {
+      setLoadingStates(true);
+      const response = await getData(Apis.GET_STATES, {});
+      if (response?.status === true && response?.data) {
+        const list = (response.data as {id: number; name: string}[]).map(item => ({
+          id: item.id.toString(),
+          label: item.name,
+          value: item.id.toString(),
+        }));
+        setStateList(list);
+      } else {
+        setStateList([]);
+      }
+    } catch (error) {
+      console.error('[FarmerScreen] Error fetching states:', error);
+      setStateList([]);
+    } finally {
+      setLoadingStates(false);
+    }
+  }, []);
+
+  // Fetch districts by state ID
+  const fetchDistricts = useCallback(async (stateId: string) => {
+    if (!stateId) {
+      setDistrictList([]);
+      return;
+    }
+    try {
+      setLoadingDistricts(true);
+      const url = `${Apis.GET_DISTRICTS}/${stateId}`;
+      const response = await getData(url, {});
+      if (response?.status === true && response?.data) {
+        const list = (response.data as {id: number; name: string}[]).map(item => ({
+          id: item.id.toString(),
+          label: item.name,
+          value: item.id.toString(),
+        }));
+        setDistrictList(list);
+      } else {
+        setDistrictList([]);
+      }
+    } catch (error) {
+      console.error('[FarmerScreen] Error fetching districts:', error);
+      setDistrictList([]);
+    } finally {
+      setLoadingDistricts(false);
+    }
+  }, []);
+
+  // Fetch talukas by district ID
+  const fetchTalukas = useCallback(async (districtId: string) => {
+    if (!districtId) {
+      setTalukaList([]);
+      return;
+    }
+    try {
+      setLoadingTalukas(true);
+      const url = `${Apis.GET_TALUKAS}/${districtId}`;
+      const response = await getData(url, {});
+      if (response?.status === true && response?.data) {
+        const list = (response.data as {id: number; name: string}[]).map(item => ({
+          id: item.id.toString(),
+          label: item.name,
+          value: item.id.toString(),
+        }));
+        setTalukaList(list);
+      } else {
+        setTalukaList([]);
+      }
+    } catch (error) {
+      console.error('[FarmerScreen] Error fetching talukas:', error);
+      setTalukaList([]);
+    } finally {
+      setLoadingTalukas(false);
+    }
+  }, []);
+
+  // Fetch villages by taluka ID
+  const fetchVillages = useCallback(async (talukaId: string) => {
+    if (!talukaId) {
+      setVillageList([]);
+      return;
+    }
+    try {
+      setLoadingVillages(true);
+      const url = `${Apis.GET_VILLAGES}/${talukaId}`;
+      const response = await getData(url, {});
+      if (response?.status === true && response?.data) {
+        const list = (response.data as {id: number; name: string}[]).map(item => ({
+          id: item.id.toString(),
+          label: item.name,
+          value: item.id.toString(),
+        }));
+        setVillageList(list);
+      } else {
+        setVillageList([]);
+      }
+    } catch (error) {
+      console.error('[FarmerScreen] Error fetching villages:', error);
+      setVillageList([]);
+    } finally {
+      setLoadingVillages(false);
+    }
+  }, []);
+
+  // When filter modal opens, sync modal state and load location lists
+  const prevFilterModalVisible = React.useRef(false);
+  useEffect(() => {
+    const justOpened = isFilterModalVisible && !prevFilterModalVisible.current;
+    prevFilterModalVisible.current = isFilterModalVisible;
+    if (justOpened) {
+      setModalSelectedOptions(selectedOptions);
+      setModalSelectedCategory(selectedCategory);
+      if (stateList.length === 0) fetchStates();
+      const stateId = selectedOptions['state'];
+      if (stateId) fetchDistricts(stateId);
+      else setDistrictList([]);
+      const districtId = selectedOptions['district'];
+      if (districtId) fetchTalukas(districtId);
+      else setTalukaList([]);
+      const talukaId = selectedOptions['taluka'];
+      if (talukaId) fetchVillages(talukaId);
+      else setVillageList([]);
+    }
+  }, [isFilterModalVisible, selectedOptions, selectedCategory, stateList.length, fetchStates, fetchDistricts, fetchTalukas, fetchVillages]);
+
+  // When user selects an option in filter modal (for location cascading)
+  const handleFilterOptionSelect = useCallback(
+    (categoryId: string, value: string) => {
+      setModalSelectedOptions(prev => {
+        const next = { ...prev, [categoryId]: value };
+        if (categoryId === 'state') {
+          next['district'] = '';
+          next['taluka'] = '';
+          next['village'] = '';
+          setDistrictList([]);
+          setTalukaList([]);
+          setVillageList([]);
+          if (value) fetchDistricts(value);
+        } else if (categoryId === 'district') {
+          next['taluka'] = '';
+          next['village'] = '';
+          setTalukaList([]);
+          setVillageList([]);
+          if (value) fetchTalukas(value);
+        } else if (categoryId === 'taluka') {
+          next['village'] = '';
+          setVillageList([]);
+          if (value) fetchVillages(value);
+        }
+        return next;
+      });
     },
-    {
-      id: 'date',
-      label: 'Date',
-      options: [
-        {id: 'newest', label: 'Newest First', value: 'newest'},
-        {id: 'oldest', label: 'Oldest First', value: 'oldest'},
-      ],
-    },
-    {
-      id: 'city',
-      label: 'City',
-      options: [
-        {id: 'all', label: 'All Cities', value: 'all'},
-        {id: 'mumbai', label: 'Mumbai', value: 'mumbai'},
-        {id: 'delhi', label: 'Delhi', value: 'delhi'},
-      ],
-    },
-  ];
+    [fetchDistricts, fetchTalukas, fetchVillages],
+  );
+
+  // Fetch data on mount and whenever screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchFarmers();
+      fetchCategories();
+
+      // Handle back button - navigate to Home tab
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+        tabNavigation.navigate(SCREEN_NAMES.Home);
+        return true;
+      });
+
+      return () => backHandler.remove();
+    }, [tabNavigation])
+  );
+
+  // Filter categories for the modal - dynamically generated from API
+  const filterCategories = useMemo(() => {
+    const categoriesList = [
+      {
+        id: 'name',
+        label: t('farmer.name'),
+        options: [
+          {id: 'a-to-z', label: t('tractors.aToZ'), value: 'a-to-z'},
+          {id: 'z-to-a', label: t('tractors.zToA'), value: 'z-to-a'},
+        ],
+      },
+      {
+        id: 'date',
+        label: t('tractors.date'),
+        options: [
+          {id: 'newest', label: t('tractors.newestFirst'), value: 'newest'},
+          {id: 'oldest', label: t('tractors.oldestFirst'), value: 'oldest'},
+        ],
+      },
+    ];
+
+    const selectedLanguageId = currentLanguageId || 1; // Default to English (1)
+    
+    // Filter categories based on current language_id
+    const filteredCategories = categories.filter(cat => {
+      return cat.language_id === selectedLanguageId;
+    });
+
+    // Add category filter if filtered categories are available
+    if (filteredCategories.length > 0) {
+      const categoryOptions = [
+        {id: 'all', label: t('farmer.allCategories'), value: 'all'},
+        ...filteredCategories.map(cat => {
+          const farmerWord = t('farmer.farmerWord');
+          const label = `${cat.name} (${farmerWord} - ${cat.farmer_count})`;
+
+          return {
+            id: `cat-${cat.id}`,
+            label,
+            value: cat.id,
+          };
+        }),
+      ];
+
+      categoriesList.push({
+        id: 'category',
+        label: t('farmer.category'),
+        options: categoryOptions,
+      });
+    }
+
+    // State – options from API
+    categoriesList.push({
+      id: 'state',
+      label: t('addFarmer.state'),
+      options: stateList.map(s => ({ id: `state-${s.value}`, label: s.label, value: s.value })),
+    });
+    // District – depends on state; show message if state not selected
+    const stateId = modalSelectedOptions['state'];
+    categoriesList.push({
+      id: 'district',
+      label: t('addFarmer.district'),
+      options: stateId
+        ? districtList.map(d => ({ id: `district-${d.value}`, label: d.label, value: d.value }))
+        : [],
+      emptyMessage: stateId ? undefined : t('addFarmer.selectStateFirst'),
+    });
+    // Taluka – depends on district
+    const districtId = modalSelectedOptions['district'];
+    categoriesList.push({
+      id: 'taluka',
+      label: t('addFarmer.taluka'),
+      options: districtId
+        ? talukaList.map(tk => ({ id: `taluka-${tk.value}`, label: tk.label, value: tk.value }))
+        : [],
+      emptyMessage: districtId ? undefined : t('addFarmer.selectDistrictFirst'),
+    });
+    // Village – depends on taluka
+    const talukaId = modalSelectedOptions['taluka'];
+    categoriesList.push({
+      id: 'village',
+      label: t('addFarmer.village'),
+      options: talukaId
+        ? villageList.map(v => ({ id: `village-${v.value}`, label: v.label, value: v.value }))
+        : [],
+      emptyMessage: talukaId ? undefined : t('addFarmer.selectTalukaFirst'),
+    });
+
+    return categoriesList;
+  }, [categories, currentLanguage, t, stateList, districtList, talukaList, villageList, modalSelectedOptions]);
 
   const filteredFarmers = useMemo(() => {
-    let filtered = [...allFarmers];
+    let filtered = [...allFarmers]; // Start with all farmers
+
+    // Apply category filter first
+    const categoryOption = selectedOptions['category'];
+    if (categoryOption && categoryOption !== 'all') {
+      const selectedCategoryId = categoryOption.toString();
+      filtered = filtered.filter(
+        farmer => farmer.categoryId?.toString() === selectedCategoryId,
+      );
+    }
+
+    // Apply location filters (state, district, taluka, village)
+    const stateId = selectedOptions['state'];
+    if (stateId) {
+      filtered = filtered.filter(
+        farmer => farmer.stateId != null && farmer.stateId === stateId,
+      );
+    }
+    const districtId = selectedOptions['district'];
+    if (districtId) {
+      filtered = filtered.filter(
+        farmer => farmer.districtId != null && farmer.districtId === districtId,
+      );
+    }
+    const talukaId = selectedOptions['taluka'];
+    if (talukaId) {
+      filtered = filtered.filter(
+        farmer => farmer.talukaId != null && farmer.talukaId === talukaId,
+      );
+    }
+    const villageId = selectedOptions['village'];
+    if (villageId) {
+      filtered = filtered.filter(
+        farmer => farmer.villageId != null && farmer.villageId === villageId,
+      );
+    }
 
     // Apply search filter
     if (searchQuery.trim()) {
@@ -167,7 +613,7 @@ export default function FarmerScreen() {
     }
 
     return filtered;
-  }, [searchQuery, selectedOptions]);
+  }, [allFarmers, searchQuery, selectedOptions]);
 
   const dynamicStyles = useMemo(
     () =>
@@ -181,7 +627,7 @@ export default function FarmerScreen() {
           justifyContent: 'space-between',
           alignItems: 'center',
           paddingHorizontal: moderateScale(16),
-          paddingTop: insets.top,
+          paddingTop: insets.top + moderateScale(12),
           paddingBottom: moderateScale(12),
           backgroundColor: colors.backgroundLight,
         },
@@ -189,6 +635,7 @@ export default function FarmerScreen() {
           ...Typography.boldXxl,
           color: colors.textPrimary,
           fontSize: moderateScale(22),
+          marginLeft: moderateScale(10),
         },
         addButton: {
           backgroundColor: colors.primary,
@@ -224,7 +671,6 @@ export default function FarmerScreen() {
         },
         searchInput: {
           flex: 1,
-          fontSize: moderateScale(14),
           color: colors.textPrimary,
           ...Typography.regularMd,
         },
@@ -271,51 +717,152 @@ export default function FarmerScreen() {
           color: colors.textTertiary,
           fontSize: moderateScale(12),
         },
+        emptyContainer: {
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          paddingVertical: moderateScale(40),
+          paddingHorizontal: moderateScale(20),
+        },
+        emptyImage: {
+          width: moderateScale(120),
+          height: moderateScale(120),
+          marginBottom: moderateScale(16),
+        },
+        emptyTitle: {
+          ...Typography.boldXl,
+          fontSize: moderateScale(18),
+          color: colors.textPrimary,
+          textAlign: 'center',
+          marginBottom: moderateScale(8),
+        },
+        emptyText: {
+          ...Typography.regularMd,
+          fontSize: moderateScale(14),
+          color: colors.textTertiary,
+          textAlign: 'center',
+          marginBottom: moderateScale(24),
+          paddingHorizontal: moderateScale(20),
+        },
+        addFarmerButton: {
+          backgroundColor: colors.primary,
+          paddingHorizontal: moderateScale(24),
+          paddingVertical: moderateScale(12),
+          borderRadius: moderateScale(25),
+          minWidth: moderateScale(140),
+        },
+        addFarmerButtonText: {
+          ...Typography.semiBoldMd,
+          fontSize: moderateScale(14),
+          color: colors.textWhite,
+          textAlign: 'center',
+        },
+        loadingContainer: {
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          paddingVertical: moderateScale(60),
+        },
       }),
     [moderateScale, insets.top],
   );
+
+  // Skeleton content component
+  const renderSkeletonContent = () => {
+    return (
+      <View style={dynamicStyles.listContainer}>
+        <SkeletonPlaceholder
+          backgroundColor={colors.backgroundGray}
+          highlightColor={colors.backgroundWhite}
+          borderRadius={moderateScale(10)}>
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((index) => (
+            <SkeletonPlaceholder.Item
+              key={index}
+              flexDirection="row"
+              alignItems="center"
+              paddingHorizontal={moderateScale(16)}
+              paddingVertical={moderateScale(12)}>
+              <SkeletonPlaceholder.Item
+                width={moderateScale(40)}
+                height={moderateScale(40)}
+                borderRadius={moderateScale(20)}
+                marginRight={moderateScale(12)}
+              />
+              <SkeletonPlaceholder.Item flex={1}>
+                <SkeletonPlaceholder.Item
+                  width="70%"
+                  height={moderateScale(14)}
+                  borderRadius={moderateScale(2)}
+                  marginBottom={moderateScale(6)}
+                />
+                <SkeletonPlaceholder.Item
+                  width="50%"
+                  height={moderateScale(12)}
+                  borderRadius={moderateScale(2)}
+                />
+              </SkeletonPlaceholder.Item>
+              <SkeletonPlaceholder.Item
+                width={moderateScale(18)}
+                height={moderateScale(18)}
+                borderRadius={moderateScale(9)}
+              />
+            </SkeletonPlaceholder.Item>
+          ))}
+        </SkeletonPlaceholder>
+      </View>
+    );
+  };
+
+  // Skeleton component matching the exact design
+  const renderSkeleton = () => {
+    return renderSkeletonContent();
+  };
 
   return (
     <View style={[dynamicStyles.container]}>
       {/* Header */}
       <View style={dynamicStyles.header}>
-        <Text style={dynamicStyles.headerTitle}>Farmers</Text>
-        <TouchableOpacity
-          style={dynamicStyles.addButton}
-          onPress={() => navigation.navigate(SCREEN_NAMES.AddFarmer)}
-          activeOpacity={0.7}>
-          <Text style={dynamicStyles.addButtonText}>Add new</Text>
-        </TouchableOpacity>
+        <Text style={dynamicStyles.headerTitle}>{t('farmer.title')}</Text>
+        {!loadingFarmers && !refreshing && (
+          <TouchableOpacity
+            style={dynamicStyles.addButton}
+            onPress={() => navigation.navigate(SCREEN_NAMES.AddFarmer)}
+            activeOpacity={0.7}>
+            <Text style={dynamicStyles.addButtonText}>{t('farmer.addNew')}</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Search and Filter */}
-      <View style={dynamicStyles.searchContainer}>
-        <View style={dynamicStyles.searchBar}>
-          <Ionicons
-            name="search-outline"
-            size={moderateScale(20)}
-            color={colors.textTertiary}
-            style={dynamicStyles.searchIcon}
-          />
-          <TextInput
-            style={dynamicStyles.searchInput}
-            placeholder="Search"
-            placeholderTextColor={colors.textTertiary}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
+      {!loadingFarmers && !refreshing && (
+        <View style={dynamicStyles.searchContainer}>
+          <View style={dynamicStyles.searchBar}>
+            <Ionicons
+              name="search-outline"
+              size={moderateScale(20)}
+              color={colors.textTertiary}
+              style={dynamicStyles.searchIcon}
+            />
+            <TextInput
+              style={dynamicStyles.searchInput}
+              placeholder={t('common.search')}
+              placeholderTextColor={colors.textTertiary}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+          </View>
+          <TouchableOpacity
+            style={dynamicStyles.filterButton}
+            activeOpacity={0.7}
+            onPress={() => setIsFilterModalVisible(true)}>
+            <Ionicons
+              name="options-outline"
+              size={moderateScale(20)}
+              color={colors.textSecondary}
+            />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          style={dynamicStyles.filterButton}
-          activeOpacity={0.7}
-          onPress={() => setIsFilterModalVisible(true)}>
-          <Ionicons
-            name="options-outline"
-            size={moderateScale(20)}
-            color={colors.textSecondary}
-          />
-        </TouchableOpacity>
-      </View>
+      )}
 
       {/* Farmers List */}
       <View
@@ -325,48 +872,86 @@ export default function FarmerScreen() {
           backgroundColor: colors.backgroundLight,
         }}
       >
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          style={dynamicStyles.listContainer}
-        >
-          {filteredFarmers.map((farmer, index) => (
+        {loadingFarmers && !refreshing ? (
+          renderSkeleton()
+        ) : filteredFarmers.length > 0 ? (
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            style={dynamicStyles.listContainer}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                colors={[colors.primary]}
+                tintColor={colors.primary}
+              />
+            }
+          >
+            {refreshing ? (
+              renderSkeletonContent()
+            ) : (
+              <>
+                {filteredFarmers.map((farmer, index) => (
+              <TouchableOpacity
+                key={farmer.id}
+                style={[
+                  dynamicStyles.listItem,
+                  index !== filteredFarmers.length - 1 &&
+                    dynamicStyles.listItemBorder,
+                ]}
+                activeOpacity={0.7}
+                onPress={() => {
+                  navigation.navigate(SCREEN_NAMES.FarmerDetails, {
+                    farmerId: farmer.id,
+                    farmer_id: farmer.farmer_id,
+                    farmerName: farmer.name,
+                    farmerPhone: farmer.phone,
+                    farmerInitials: farmer.initials,
+                    fromScreen: 'List',
+                  });
+                }}
+              >
+                <Avatar
+                  initials={farmer.initials}
+                  moderateScale={moderateScale}
+                  size={moderateScale(40)}
+                />
+                <View style={dynamicStyles.listItemContent}>
+                  <Text style={dynamicStyles.listItemName}>{farmer.name}</Text>
+                  <Text style={dynamicStyles.listItemSubtext}>
+                    {farmer.phone}
+                  </Text>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={moderateScale(18)}
+                  color={colors.textTertiary}
+                />
+              </TouchableOpacity>
+                ))}
+              </>
+            )}
+          </ScrollView>
+        ) : (
+          <View style={[dynamicStyles.listContainer, dynamicStyles.emptyContainer]}>
+            <Image
+              source={ImagePath.nofarmerfound}
+              style={dynamicStyles.emptyImage}
+              resizeMode="contain"
+            />
+            <Text style={dynamicStyles.emptyTitle}>{t("home.noFarmerAdded")}</Text>
+            <Text style={dynamicStyles.emptyText}>
+              {t("home.noFarmerDescription")}
+            </Text>
             <TouchableOpacity
-              key={farmer.id}
-              style={[
-                dynamicStyles.listItem,
-                index !== filteredFarmers.length - 1 &&
-                  dynamicStyles.listItemBorder,
-              ]}
+              style={dynamicStyles.addFarmerButton}
               activeOpacity={0.7}
-              onPress={() => {
-                navigation.navigate(SCREEN_NAMES.FarmerDetails, {
-                  farmerId: farmer.id,
-                  farmerName: farmer.name,
-                  farmerPhone: farmer.phone,
-                  farmerInitials: farmer.initials,
-                  fromScreen: 'List',
-                });
-              }}
+              onPress={() => navigation.navigate(SCREEN_NAMES.AddFarmer)}
             >
-              <Avatar
-                initials={farmer.initials}
-                moderateScale={moderateScale}
-                size={moderateScale(40)}
-              />
-              <View style={dynamicStyles.listItemContent}>
-                <Text style={dynamicStyles.listItemName}>{farmer.name}</Text>
-                <Text style={dynamicStyles.listItemSubtext}>
-                  {farmer.phone}
-                </Text>
-              </View>
-              <Ionicons
-                name="chevron-forward"
-                size={moderateScale(18)}
-                color={colors.textTertiary}
-              />
+              <Text style={dynamicStyles.addFarmerButtonText}>{t("home.addFarmer")}</Text>
             </TouchableOpacity>
-          ))}
-        </ScrollView>
+          </View>
+        )}
       </View>
 
       {/* Filter Modal */}
@@ -377,10 +962,16 @@ export default function FarmerScreen() {
           setSelectedCategory(filters.category || 'name');
           setSelectedOptions(filters.options || {});
         }}
-        title="Filters"
+        onReset={() => {
+          setSelectedCategory('name');
+          setSelectedOptions({});
+        }}
+        title={t('common.filters')}
         categories={filterCategories}
-        selectedCategory={selectedCategory}
-        selectedOptions={selectedOptions}
+        selectedCategory={modalSelectedCategory}
+        selectedOptions={modalSelectedOptions}
+        onOptionSelect={handleFilterOptionSelect}
+        onCategorySelect={setModalSelectedCategory}
       />
     </View>
   );

@@ -1,10 +1,29 @@
-import axios from 'axios';
 import axiosInstance from './Apicom';
 import { Alert } from 'react-native';
+
+/** Map transport failures (ATS, offline, timeout) to a clear message for the UI */
+const networkFailurePayload = error => {
+  const code = error?.code;
+  const noResponse = !error?.response;
+  const isNetwork =
+    code === 'ERR_NETWORK' ||
+    code === 'ECONNABORTED' ||
+    (noResponse && String(error?.message || '').includes('Network Error'));
+  if (!isNetwork) {
+    return null;
+  }
+  return {
+    status: false,
+    success: false,
+    message:
+      'Could not reach the server. Check your internet connection and try again.',
+  };
+};
+
 // TODO: Import your navigation logic if needed to redirect on 401
 const handleApiResponse = (response) => {
   const { status, data, config } = response;
-  console.log('data====>>',data?.message);
+  console.log('data====>>',status, data,response);
   
  switch (status) {
     case 200:
@@ -15,13 +34,16 @@ const handleApiResponse = (response) => {
 
     case 401:
       // Alert.alert('Session expired', 'Please login again.');
-      break;
+      return data; // Return data even for 401 to allow handling in components
       
-      case 404: 
+    case 404: 
+      return data; // Return data for 404 to allow error message extraction
       // Alert.alert('Something went wrong!',data?.message);
       break;
 
     default:
+      // For other status codes, return the data so error messages can be extracted
+      return data;
       // Alert.alert('Error', `Something went wrong (Code: ${status})`);
       break;
   }
@@ -41,7 +63,17 @@ export const getData = async (fullUrl, params = {}) => {
     return handleApiResponse(response);
   } catch (error) {
     console.log('GET error:', error);
-    return null;
+    const net = networkFailurePayload(error);
+    if (net) {
+      return net;
+    }
+    if (error?.response?.data) {
+      return error.response.data;
+    }
+    return {
+      status: false,
+      message: error?.message || 'An error occurred while processing your request',
+    };
   }
 };
 
@@ -61,7 +93,17 @@ export const postData = async (fullUrl, body = {}) => {
     return handleApiResponse(response);
   } catch (error) {
     console.log('POST error:', error);
-    return null;
+    const net = networkFailurePayload(error);
+    if (net) {
+      return net;
+    }
+    if (error?.response?.data) {
+      return error.response.data;
+    }
+    return {
+      status: false,
+      message: error?.message || 'An error occurred while processing your request',
+    };
   }
 };
 
@@ -76,8 +118,18 @@ export const postDataWithImage = async (url, formData) => {
     });
     return handleApiResponse(response);
   } catch (error) {
-    console.log("Upload error:", error?.response?.data || error);
-    return null;
+    console.log('Upload error:', error?.response?.data || error?.message);
+    const net = networkFailurePayload(error);
+    if (net) {
+      return net;
+    }
+    if (error?.response?.data) {
+      return error.response.data;
+    }
+    return {
+      status: false,
+      message: error?.message || 'An error occurred while processing your request',
+    };
   }
 };
 
@@ -91,10 +143,76 @@ export const putData = async (fullUrl, body = {}) => {
   }
 
   try {
-    const response = await axiosInstance.put(fullUrl, body);
+    const headers = body instanceof FormData
+      ? { 'Content-Type': 'multipart/form-data' }
+      : { 'Content-Type': 'application/json' };
+
+    const response = await axiosInstance.put(fullUrl, body, { headers });
     return handleApiResponse(response);
   } catch (error) {
     console.log('PUT error:', error);
-    return null;
+    const net = networkFailurePayload(error);
+    if (net) {
+      return net;
+    }
+    if (error?.response?.data) {
+      return error.response.data;
+    }
+    return {
+      status: false,
+      message: error?.message || 'An error occurred while processing your request',
+    };
+  }
+};
+
+//  PUT with multipart/form-data (for file uploads)
+export const putDataWithImage = async (url, formData) => {
+  try {
+    const response = await axiosInstance.put(url, formData, {
+      headers: {
+        Accept: 'application/json', 
+        'Content-Type': 'multipart/form-data'
+      }
+    });
+    return handleApiResponse(response);
+  } catch (error) {
+    console.log('PUT Upload error:', error?.response?.data || error?.message);
+    const net = networkFailurePayload(error);
+    if (net) {
+      return net;
+    }
+    if (error?.response?.data) {
+      return error.response.data;
+    }
+    return {
+      status: false,
+      message: error?.message || 'An error occurred while processing your request',
+    };
+  }
+};
+
+//  DELETE request
+export const deleteData = async (fullUrl, params = {}) => {
+  if (__DEV__) {
+    console.log('DELETE Api Call ----fullUrl--->>>>', fullUrl);
+    console.log('DELETE Api Call ----params--->>>>', params);
+  }
+
+  try {
+    const response = await axiosInstance.delete(fullUrl, { params });
+    return handleApiResponse(response);
+  } catch (error) {
+    console.log('DELETE error:', error);
+    const net = networkFailurePayload(error);
+    if (net) {
+      return net;
+    }
+    if (error?.response?.data) {
+      return error.response.data;
+    }
+    return {
+      status: false,
+      message: error?.message || 'An error occurred while processing your request',
+    };
   }
 };

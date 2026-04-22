@@ -5,8 +5,11 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
+  ScrollView,
+  Image,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
+import { pick, types, isErrorWithCode, errorCodes } from '@react-native-documents/picker';
 import colors from '../utils/colors';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import {Typography} from '../utils/typography';
@@ -22,6 +25,8 @@ type TextInputQuestionProps = {
   onChangeText: (text: string) => void;
   placeholder?: string;
   error?: string;
+  required?: boolean;
+  editable?: boolean;
 };
 
 export function TextInputQuestion({
@@ -30,6 +35,8 @@ export function TextInputQuestion({
   onChangeText,
   placeholder = 'Your answer here',
   error,
+  required = false,
+  editable = true,
 }: TextInputQuestionProps) {
   const {moderateScale} = useDeviceMetrics();
 
@@ -45,19 +52,29 @@ export function TextInputQuestion({
           color: colors.textPrimary,
           marginBottom: moderateScale(8),
         },
+        requiredAsterisk: {
+          color: colors.statusError,
+          fontSize: moderateScale(14),
+        },
       }),
     [moderateScale],
   );
 
   return (
     <View style={styles.container}>
-      <Text style={styles.questionText}>{question}</Text>
+      <Text style={styles.questionText}>
+        {question}
+        {required && <Text style={styles.requiredAsterisk}> *</Text>}
+      </Text>
       <SimpleBoxInput
         label="Answer"
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
         error={error}
+        required={required}
+        numberOfLinesLabel={1}
+        editable={editable}
       />
     </View>
   );
@@ -70,6 +87,8 @@ type RadioButtonQuestionProps = {
   onChange: (value: string) => void;
   options?: string[];
   error?: string;
+  required?: boolean;
+  disabled?: boolean;
 };
 
 export function RadioButtonQuestion({
@@ -78,6 +97,8 @@ export function RadioButtonQuestion({
   onChange,
   options = ['Yes', 'No'],
   error,
+  required = false,
+  disabled = false,
 }: RadioButtonQuestionProps) {
   const {moderateScale} = useDeviceMetrics();
 
@@ -88,17 +109,24 @@ export function RadioButtonQuestion({
           marginBottom: moderateScale(16),
         },
         questionText: {
-          ...Typography.regularMd,
+          ...Typography.boldMd,
           fontSize: moderateScale(14),
           color: colors.textPrimary,
           marginBottom: moderateScale(12),
         },
+        requiredAsterisk: {
+          color: colors.statusError,
+          fontSize: moderateScale(14),
+        },
         optionsContainer: {
+          flexDirection: 'column',
+          gap: moderateScale(8),
+        },
+        horizontalOptionsContainer: {
           flexDirection: 'row',
           gap: moderateScale(12),
         },
         optionButton: {
-          flex: 1,
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -106,11 +134,15 @@ export function RadioButtonQuestion({
           paddingHorizontal: moderateScale(16),
           borderRadius: moderateScale(10),
           borderWidth: 1,
-          borderColor: colors.primary,
+          borderColor: colors.borderDefault,
           backgroundColor: colors.backgroundWhite,
+        },
+        horizontalOptionButton: {
+          flex: 1,
         },
         selectedOptionButton: {
           backgroundColor: colors.light_orange,
+          borderColor: colors.primary,
         },
         optionText: {
           ...Typography.regularMd,
@@ -118,24 +150,33 @@ export function RadioButtonQuestion({
           color: colors.textPrimary,
         },
         radioCircle: {
-          width: moderateScale(20),
-          height: moderateScale(20),
-          borderRadius: moderateScale(10),
+          width: moderateScale(24),
+          height: moderateScale(24),
+          borderRadius: moderateScale(12),
           borderWidth: 2,
-          borderColor: colors.primary,
+          backgroundColor: colors.backgroundWhite,
           alignItems: 'center',
           justifyContent: 'center',
         },
-        radioSelected: {
-          width: moderateScale(12),
-          height: moderateScale(12),
-          borderRadius: moderateScale(6),
+        radioCircleSelected: {
+          borderColor: colors.primary,
+          backgroundColor: colors.backgroundWhite,
+        },
+        radioCircleUnselected: {
+          borderColor: colors.borderDefault,
+          backgroundColor: colors.backgroundWhite,
+        },
+        radioInner: {
+          width: moderateScale(14),
+          height: moderateScale(14),
+          borderRadius: moderateScale(7),
           backgroundColor: colors.primary,
         },
         errorText: {
-          color: 'red',
-          fontSize: moderateScale(10),
-          marginTop: moderateScale(5),
+          color: colors.statusError,
+          fontSize: moderateScale(12),
+          marginTop: moderateScale(8),
+          ...Typography.regularSm,
         },
       }),
     [moderateScale],
@@ -143,8 +184,15 @@ export function RadioButtonQuestion({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.questionText}>{question}</Text>
-      <View style={styles.optionsContainer}>
+      <Text style={styles.questionText}>
+        {question}
+        {required && <Text style={styles.requiredAsterisk}> *</Text>}
+      </Text>
+      <View
+        style={[
+          styles.optionsContainer,
+          options.length <= 2 && styles.horizontalOptionsContainer,
+        ]}>
         {options.map(option => {
           const isSelected = value === option;
           return (
@@ -152,13 +200,21 @@ export function RadioButtonQuestion({
               key={option}
               style={[
                 styles.optionButton,
+                options.length <= 2 && styles.horizontalOptionButton,
                 isSelected && styles.selectedOptionButton,
               ]}
-              onPress={() => onChange(option)}
-              activeOpacity={0.7}>
+              onPress={() => !disabled && onChange(option)}
+              activeOpacity={0.7}
+              disabled={disabled}>
               <Text style={styles.optionText}>{option}</Text>
-              <View style={styles.radioCircle}>
-                {isSelected && <View style={styles.radioSelected} />}
+              <View
+                style={[
+                  styles.radioCircle,
+                  isSelected
+                    ? styles.radioCircleSelected
+                    : styles.radioCircleUnselected,
+                ]}>
+                {isSelected && <View style={styles.radioInner} />}
               </View>
             </TouchableOpacity>
           );
@@ -176,6 +232,8 @@ type CheckboxQuestionProps = {
   onChange: (values: string[]) => void;
   options: string[];
   error?: string;
+  required?: boolean;
+  disabled?: boolean;
 };
 
 export function CheckboxQuestion({
@@ -184,6 +242,8 @@ export function CheckboxQuestion({
   onChange,
   options,
   error,
+  required = false,
+  disabled = false,
 }: CheckboxQuestionProps) {
   const {moderateScale} = useDeviceMetrics();
 
@@ -198,6 +258,10 @@ export function CheckboxQuestion({
           fontSize: moderateScale(14),
           color: colors.textPrimary,
           marginBottom: moderateScale(12),
+        },
+        requiredAsterisk: {
+          color: colors.statusError,
+          fontSize: moderateScale(14),
         },
         optionButton: {
           flexDirection: 'row',
@@ -254,7 +318,10 @@ export function CheckboxQuestion({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.questionText}>{question}</Text>
+      <Text style={styles.questionText}>
+        {question}
+        {required && <Text style={styles.requiredAsterisk}> *</Text>}
+      </Text>
       {options.map(option => {
         const isSelected = selectedValues.includes(option);
         return (
@@ -264,8 +331,9 @@ export function CheckboxQuestion({
               styles.optionButton,
               isSelected && styles.selectedOptionButton,
             ]}
-            onPress={() => handleToggle(option)}
-            activeOpacity={0.7}>
+            onPress={() => !disabled && handleToggle(option)}
+            activeOpacity={0.7}
+            disabled={disabled}>
             <Text style={styles.optionText}>{option}</Text>
             <View
               style={[
@@ -289,18 +357,37 @@ export function CheckboxQuestion({
 }
 
 // File Upload Question Component
+type FileItem = {
+  uri: string;
+  type: 'image' | 'document';
+  name: string;
+};
+
+// Helper function to detect file type based on extension
+const getFileType = (uri: string, fileName: string): 'image' | 'document' => {
+  const ext = (fileName.split('.').pop() || '').toLowerCase();
+  const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
+  return imageExtensions.includes(ext) ? 'image' : 'document';
+};
+
 type FileUploadQuestionProps = {
   question: string;
-  onUpload: (imageUri: string) => void;
-  uploadedFileName?: string;
+  onUpload: (files: FileItem[]) => void; // Changed to accept array of files
+  uploadedFiles?: FileItem[]; // Changed to accept array
   error?: string;
+  onError?: (message: string) => void;
+  required?: boolean;
+  maxDocuments?: number; // Maximum number of files allowed
 };
 
 export function FileUploadQuestion({
   question,
   onUpload,
-  uploadedFileName,
+  uploadedFiles = [],
   error,
+  onError,
+  required = false,
+  maxDocuments = 5, // Default to 5 if not provided
 }: FileUploadQuestionProps) {
   const {moderateScale} = useDeviceMetrics();
   const {pickImage} = useImagePicker();
@@ -308,24 +395,118 @@ export function FileUploadQuestion({
 
   const handleCameraPress = async () => {
     try {
-      const imageUri = await pickImage('camera');
-      if (imageUri) {
-        onUpload(imageUri);
+      // Check if max documents reached
+      if (uploadedFiles.length >= maxDocuments) {
+        if (onError) {
+          onError(`Maximum ${maxDocuments} file${maxDocuments > 1 ? 's' : ''} allowed`);
+        }
+        return;
       }
-    } catch (error) {
+
+      const imageUri = await pickImage('camera', {
+        onError: (message) => {
+          if (onError) {
+            onError(message);
+          }
+        },
+      });
+      if (imageUri) {
+        const fileName = imageUri.split('/').pop() || 'image.jpg';
+        const newFile: FileItem = {
+          uri: imageUri,
+          type: 'image',
+          name: fileName,
+        };
+        const updatedFiles = [...uploadedFiles, newFile];
+        onUpload(updatedFiles);
+      }
+    } catch (error: any) {
       console.error('Error in handleCameraPress:', error);
+      if (error?.message !== 'User cancelled image selection' && onError) {
+        onError('Failed to open camera. Please try again.');
+      }
     }
   };
 
   const handleGalleryPress = async () => {
     try {
-      const imageUri = await pickImage('gallery');
-      if (imageUri) {
-        onUpload(imageUri);
+      // Check if max documents reached
+      if (uploadedFiles.length >= maxDocuments) {
+        if (onError) {
+          onError(`Maximum ${maxDocuments} file${maxDocuments > 1 ? 's' : ''} allowed`);
+        }
+        return;
       }
-    } catch (error) {
+
+      const imageUri = await pickImage('gallery', {
+        onError: (message) => {
+          if (onError) {
+            onError(message);
+          }
+        },
+      });
+      if (imageUri) {
+        const fileName = imageUri.split('/').pop() || 'image.jpg';
+        const newFile: FileItem = {
+          uri: imageUri,
+          type: 'image',
+          name: fileName,
+        };
+        const updatedFiles = [...uploadedFiles, newFile];
+        onUpload(updatedFiles);
+      }
+    } catch (error: any) {
       console.error('Error in handleGalleryPress:', error);
+      if (error?.message !== 'User cancelled image selection' && onError) {
+        onError('Failed to open gallery. Please try again.');
+      }
     }
+  };
+
+  const handleDocumentPress = async () => {
+    try {
+      // Check if max documents reached
+      if (uploadedFiles.length >= maxDocuments) {
+        if (onError) {
+          onError(`Maximum ${maxDocuments} file${maxDocuments > 1 ? 's' : ''} allowed`);
+        }
+        return;
+      }
+
+      const result = await pick({
+        type: [types.pdf],
+        allowMultiSelection: false,
+      });
+
+      if (result && result.length > 0) {
+        const pickedFile = result[0];
+        const fileUri = pickedFile.uri;
+        const fileName = pickedFile.name || fileUri.split('/').pop() || 'document.pdf';
+        
+        const newFile: FileItem = {
+          uri: fileUri,
+          type: 'document',
+          name: fileName,
+        };
+        const updatedFiles = [...uploadedFiles, newFile];
+        onUpload(updatedFiles);
+      }
+    } catch (error: any) {
+      console.error('Error in handleDocumentPress:', error);
+      if (isErrorWithCode(error) && error.code === errorCodes.OPERATION_CANCELED) {
+        // User cancelled, do nothing
+        return;
+      }
+      if (onError) {
+        onError('Failed to pick document. Please try again.');
+      }
+    }
+  };
+
+
+  const handleRemoveFile = (index: number) => {
+    const updatedFiles = uploadedFiles.filter((_, i) => i !== index);
+    onUpload(updatedFiles);
   };
 
   const styles = useMemo(
@@ -339,6 +520,10 @@ export function FileUploadQuestion({
           fontSize: moderateScale(14),
           color: colors.textPrimary,
           marginBottom: moderateScale(12),
+        },
+        requiredAsterisk: {
+          color: colors.statusError,
+          fontSize: moderateScale(14),
         },
         uploadBox: {
           width: '100%',
@@ -372,6 +557,87 @@ export function FileUploadQuestion({
           color: colors.primary,
           marginTop: moderateScale(8),
         },
+        filesList: {
+          marginTop: moderateScale(12),
+        },
+        filesHorizontalList: {
+          marginTop: moderateScale(12),
+        },
+        fileItem: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: moderateScale(12),
+          backgroundColor: colors.backgroundWhite,
+          borderRadius: moderateScale(8),
+          borderWidth: 1,
+          borderColor: colors.borderLight,
+          marginBottom: moderateScale(8),
+        },
+        fileThumbnail: {
+          width: moderateScale(80),
+          height: moderateScale(80),
+          borderRadius: moderateScale(8),
+          marginRight: moderateScale(12),
+          backgroundColor: colors.backgroundGray,
+          borderWidth: 1,
+          borderColor: colors.borderLight,
+          position: 'relative',
+          overflow: 'hidden',
+        },
+        thumbnailImage: {
+          width: '100%',
+          height: '100%',
+        },
+        documentIconContainer: {
+          width: '100%',
+          height: '100%',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: colors.backgroundGray,
+        },
+        fileThumbnailWrapper: {
+          alignItems: 'center',
+          marginRight: moderateScale(12),
+        },
+        fileThumbnailName: {
+          ...Typography.regularSm,
+          fontSize: moderateScale(11),
+          color: colors.textPrimary,
+          marginTop: moderateScale(4),
+          width: moderateScale(80),
+          textAlign: 'center',
+          numberOfLines: 1,
+        },
+        fileInfo: {
+          flex: 1,
+          marginRight: moderateScale(8),
+        },
+        fileName: {
+          ...Typography.regularMd,
+          fontSize: moderateScale(14),
+          color: colors.textPrimary,
+        },
+        fileType: {
+          ...Typography.regularSm,
+          fontSize: moderateScale(12),
+          color: colors.textTertiary,
+          marginTop: moderateScale(2),
+        },
+        removeButton: {
+          padding: moderateScale(4),
+        },
+        removeButtonThumbnail: {
+          position: 'absolute',
+          top: moderateScale(4),
+          right: moderateScale(4),
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          borderRadius: moderateScale(12),
+          width: moderateScale(24),
+          height: moderateScale(24),
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
         errorText: {
           color: 'red',
           fontSize: moderateScale(10),
@@ -383,11 +649,23 @@ export function FileUploadQuestion({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.questionText}>{question}</Text>
+      <Text style={styles.questionText}>
+        {question}
+        {required && <Text style={styles.requiredAsterisk}> *</Text>}
+      </Text>
       <TouchableOpacity
         style={styles.uploadBox}
-        onPress={() => setImagePickerVisible(true)}
-        activeOpacity={0.7}>
+        onPress={() => {
+          if (uploadedFiles.length >= maxDocuments) {
+            if (onError) {
+              onError(`Maximum ${maxDocuments} file${maxDocuments > 1 ? 's' : ''} allowed`);
+            }
+            return;
+          }
+          setImagePickerVisible(true);
+        }}
+        activeOpacity={0.7}
+        disabled={uploadedFiles.length >= maxDocuments}>
         <Ionicons
           name="cloud-upload-outline"
           size={moderateScale(32)}
@@ -395,17 +673,68 @@ export function FileUploadQuestion({
           style={styles.uploadIcon}
         />
         <Text style={styles.uploadText}>Upload document</Text>
-        <Text style={styles.hintText}>Upload png or jpg. 5 mb max size</Text>
-        {uploadedFileName && (
-          <Text style={styles.fileNameText}>{uploadedFileName}</Text>
+              <Text style={styles.hintText}>
+                Upload images or PDF. Max {maxDocuments} file{maxDocuments > 1 ? 's' : ''}. 5 mb max size
+              </Text>
+        {uploadedFiles.length > 0 && (
+          <Text style={styles.fileNameText}>
+            {uploadedFiles.length} file{uploadedFiles.length > 1 ? 's' : ''} uploaded
+          </Text>
         )}
       </TouchableOpacity>
+      
+      {/* Display uploaded files list - Horizontal scrollable thumbnails */}
+      {uploadedFiles.length > 0 && (
+        <View style={styles.filesHorizontalList}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{paddingRight: moderateScale(16)}}>
+            {uploadedFiles.map((file, index) => (
+              <View key={index} style={styles.fileThumbnailWrapper}>
+                <View style={styles.fileThumbnail}>
+                  {file.type === 'image' ? (
+                    <Image
+                      source={{uri: file.uri}}
+                      style={styles.thumbnailImage}
+                      resizeMode="cover"
+                    />
+                  ) : (
+                    <View style={styles.documentIconContainer}>
+                      <Ionicons
+                        name="document-text"
+                        size={moderateScale(32)}
+                        color={colors.textTertiary}
+                      />
+                    </View>
+                  )}
+                  <TouchableOpacity
+                    style={styles.removeButtonThumbnail}
+                    onPress={() => handleRemoveFile(index)}
+                    activeOpacity={0.7}>
+                    <Ionicons
+                      name="close"
+                      size={moderateScale(16)}
+                      color={colors.backgroundWhite}
+                    />
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.fileThumbnailName} numberOfLines={1}>
+                  {file.name}
+                </Text>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+      
       {error && <Text style={styles.errorText}>{error}</Text>}
       <ImagePickerModal
         visible={imagePickerVisible}
         onClose={() => setImagePickerVisible(false)}
         onCameraPress={handleCameraPress}
         onGalleryPress={handleGalleryPress}
+        onDocumentPress={handleDocumentPress}
       />
     </View>
   );
@@ -420,6 +749,7 @@ type DropdownQuestionProps = {
   onSelect: (value: string) => void;
   placeholder?: string;
   error?: string;
+  required?: boolean;
 };
 
 export function DropdownQuestion({
@@ -430,6 +760,7 @@ export function DropdownQuestion({
   onSelect,
   placeholder = 'Select option',
   error,
+  required = false,
 }: DropdownQuestionProps) {
   const {moderateScale} = useDeviceMetrics();
 
@@ -445,13 +776,20 @@ export function DropdownQuestion({
           color: colors.textPrimary,
           marginBottom: moderateScale(8),
         },
+        requiredAsterisk: {
+          color: colors.statusError,
+          fontSize: moderateScale(14),
+        },
       }),
     [moderateScale],
   );
 
   return (
     <View style={styles.container}>
-      <Text style={styles.questionText}>{question}</Text>
+      <Text style={styles.questionText}>
+        {question}
+        {required && <Text style={styles.requiredAsterisk}> *</Text>}
+      </Text>
       <Dropdown
         label={label}
         value={value}
@@ -459,6 +797,7 @@ export function DropdownQuestion({
         onSelect={onSelect}
         placeholder={placeholder}
         error={error}
+        required={required}
       />
     </View>
   );

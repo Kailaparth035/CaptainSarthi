@@ -33,19 +33,19 @@ import SimpleBoxInput from '../components/FloatingInput';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Toast, { ToastType } from '../components/Toast';
-import { saveSession, isProfileReviewed, isTermsAccepted } from '../utils/session';
+import { saveSession, saveLoginResponse, isTermsAccepted, isProfileCompleted, getPendingNavigation, clearPendingNavigation, saveTermsAccepted, saveProfileCompleted } from '../utils/session';
 import { isFarmerRole } from '../utils/userRole';
 import { postData } from '../Service/Apimethod';
 import Apis from '../Service/constant';
-import DeviceInfo from 'react-native-device-info';
 import { saveAuthToken } from '../Service/Apicom';
+import FirebaseService from '../Service/FirebaseService';
 
 type LoginScreenProps = NativeStackScreenProps<RootStackParamList, 'Login'>;
 
 export default function LoginScreen({ navigation }: LoginScreenProps) {
   const insets = useSafeAreaInsets();
   const { moderateScale } = useDeviceMetrics();
-  const { t } = useLanguage();
+  const { t, currentLanguage } = useLanguage();
   const [dealerId, setDealerId] = useState('');
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
@@ -197,7 +197,8 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
 
   const isValidOtp = () => {
     const trimmed = otp.trim();
-    return trimmed.length === 6 && /^\d+$/.test(trimmed);
+    // Accept OTP with 4 or 6 digits
+    return (trimmed.length === 4 || trimmed.length === 6) && /^\d+$/.test(trimmed);
   };
 
   const validateForm = () => {
@@ -212,7 +213,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
     if (otpRequested) {
       if (!otp.trim()) {
         newErrors.otp = t('login.pleaseEnterOtp');
-      } else if (otp.trim().length != 6) {
+      } else if (otp.trim().length !== 4 && otp.trim().length !== 6) {
         newErrors.otp = t('login.pleaseEnterValidOtp');
       }
     }
@@ -245,22 +246,19 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
     const mobileNumber = dealerId.trim();
 
     try {
-      // Get device token
-      // const getdeviceToken = await DeviceInfo.getUniqueId();
+      // Prepare JSON body for send-otp API
+      const bodyData = {
+        phone: mobileNumber,
+      };
 
-      // Prepare FormData for send-otp API
-      const bodyData = new FormData();
-      bodyData.append('mobile_number', mobileNumber);
-      // bodyData.append('device_token', getdeviceToken ?? '');
+      // Use common send-otp API for both dealer and farmer
+      const response = await postData(Apis.SEND_OTP, bodyData);
 
-      // Determine which API to use based on user role
-      const sendOtpUrl = isFarmerRole(mobileNumber) 
-        ? Apis.FARMER_SEND_OTP 
-        : Apis.DEALER_SEND_OTP;
-
-      const response = await postData(sendOtpUrl, bodyData);
-
-      if (response?.status === true && response?.data !== '') {
+      // Strictly check if response is successful - only proceed if success is true or status is true
+      const isSuccess = response && (response?.success === true || response?.status === true);
+      
+      if (isSuccess) {
+        // Only execute these processes if success is true
         setGetOtpLoading(false);
         setOtpRequested(true);
         setTimer(30);
@@ -271,16 +269,27 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           setMemberId(response.data.member_id);
         }
 
-        // Show success message
-        const message = response?.message || 'OTP sent successfully. Please check your mobile.';
-        showToastMessage(message, 'success');
+        const apiOtp = response?.otp;
+        console.log("apiOtp ::;",apiOtp);
+        
+        // const toastMsg =
+        //   apiOtp != null && String(apiOtp).trim()
+        //     ? `${t('login.yourOtpIs')} ${String(apiOtp).trim()}`
+        //     : t('login.otpSentSuccess');
+        showToastMessage(t('login.otpSentSuccess'), 'success');
         
         // Focus on OTP input
         setTimeout(() => {
           otpInputRef.current?.focus();
         }, 100);
       } else {
+        // If success is false, don't execute any further process
+        console.log('Send OTP failed response:', response);
+        
         setGetOtpLoading(false);
+        // Don't set otpRequested - keep it false so timer doesn't start
+        // Don't start timer
+        // Don't enable login button
         const errorMsg = response?.message || 'Failed to send OTP. Please try again.';
         showToastMessage(errorMsg, 'error');
         setErrors({ ...errors, dealerId: errorMsg });
@@ -303,22 +312,19 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
     const mobileNumber = dealerId.trim();
 
     try {
-      // Get device token
-      const getdeviceToken = await DeviceInfo.getUniqueId();
+      // Prepare JSON body for send-otp API
+      const bodyData = {
+        phone: mobileNumber,
+      };
 
-      // Prepare FormData for send-otp API
-      const bodyData = new FormData();
-      bodyData.append('mobile_number', mobileNumber);
-      bodyData.append('device_token', getdeviceToken ?? '');
+      // Use common send-otp API for both dealer and farmer
+      const response = await postData(Apis.SEND_OTP, bodyData);
 
-      // Determine which API to use based on user role
-      const sendOtpUrl = isFarmerRole(mobileNumber) 
-        ? Apis.FARMER_SEND_OTP 
-        : Apis.DEALER_SEND_OTP;
-
-      const response = await postData(sendOtpUrl, bodyData);
-
-      if (response?.status === true && response?.data !== '') {
+      // Strictly check if response is successful - only proceed if success is true or status is true
+      const isSuccess = response && (response?.success === true || response?.status === true);
+      
+      if (isSuccess) {
+        // Only start timer if success is true
         setGetOtpLoading(false);
         setTimer(30);
         setCanResend(false);
@@ -328,10 +334,14 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           setMemberId(response.data.member_id);
         }
 
-        // Show success message
-        const message = response?.message || 'OTP resent successfully.';
-        showToastMessage(message, 'success');
+        const apiOtp = response?.otp;
+        // const toastMsg =
+        //   apiOtp != null && String(apiOtp).trim()
+        //     ? `${t('login.yourOtpIs')} ${String(apiOtp).trim()}`
+        //     : t('login.otpResentSuccess');
+        showToastMessage(t('login.otpSentSuccess'), 'success');
       } else {
+        // If success is false, don't start timer
         setGetOtpLoading(false);
         const errorMsg = response?.message || 'Failed to resend OTP. Please try again.';
         showToastMessage(errorMsg, 'error');
@@ -361,53 +371,275 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
     const mobileNumber = dealerId.trim();
 
     try {
-      // Get device token
-      const getdeviceToken = await DeviceInfo.getUniqueId();
+      // Prepare JSON body for login API
+      const bodyData = {
+        phone: mobileNumber,
+        otp: otp.trim(),
+      };
 
-      // Prepare FormData for login API
-      const bodyData = new FormData();
-      bodyData.append('mobile_number', mobileNumber);
-      bodyData.append('otp', otp.trim());
-      bodyData.append('device_token', getdeviceToken ?? '');
+      // Use common login API for both dealer and farmer
+      const response = await postData(Apis.LOGIN, bodyData);
 
-      // Determine which API to use based on user role
-      const loginUrl = isFarmerRole(mobileNumber) 
-        ? Apis.FARMER_LOGIN 
-        : Apis.DEALER_LOGIN;
-
-      const response = await postData(loginUrl, bodyData);
-
-      if (response?.status === true && response?.data !== '') {
-        console.log('Login response:', response?.data);
+      // Check if response exists and is successful
+      // The handleApiResponse returns data directly, so response is the data object
+      if (response && (response?.success === true || response?.token || response?.role || response?.user)) {
+        console.log('Login response:', response);
+        
+        // Extract token, role, user, dealer, and farmer data from response
+        const token = response?.token;
+        let role = response?.role; // "farmer" or "dealer"
+        const user = response?.user; // { id, name, phone, profile_completed }
+        const dealer = response?.dealer;
+        const farmer = response?.farmer;
+        
+        // Extract profile_completed from API response (inside user object)
+        const profileCompleted = user?.profile_completed ?? false;
+        console.log('[LoginScreen] Profile completed from API:', profileCompleted);
+        
+        // If role is not in response, determine from mobile number (fallback)
+        if (!role) {
+          role = isFarmerRole(mobileNumber) ? 'farmer' : 'dealer';
+          console.log('[LoginScreen] Role not in response, using mobile number fallback:', role);
+        }
+        
+        console.log('[LoginScreen] Login successful - Role:', role, 'Token:', token ? 'Present' : 'Missing', 'Profile Completed:', profileCompleted);
         
         // Save auth token if provided
-        if (response?.data?.token) {
-          await saveAuthToken(response.data.token);
+        if (token) {
+          await saveAuthToken(token);
         }
+
+        // Save complete login response (token + role + user details) to AsyncStorage
+        await saveLoginResponse({
+          token: token,
+          role: role,
+          user: user,
+          dealer: dealer,
+          farmer: farmer,
+          mobileNumber: mobileNumber,
+        });
 
         // Save session to AsyncStorage
         await saveSession(mobileNumber);
+        
+        // Register FCM token after successful login (for both farmers and dealers)
+        try {
+          // Get FCM device token
+          const deviceToken = await FirebaseService.getToken();
+          
+          if (deviceToken) {
+            // Determine device type based on platform
+            const deviceType = Platform.OS === 'android' ? 'android' : 'ios';
+            
+            // Prepare request body
+            const fcmBodyData = {
+              device_token: deviceToken,
+              device_type: deviceType,
+            };
+            
+            // Call appropriate FCM register API based on role
+            let fcmResponse;
+            if (role === 'farmer') {
+              fcmResponse = await postData(Apis.FARMER_FCM_REGISTER, fcmBodyData);
+              console.log('[LoginScreen] Farmer FCM token registered successfully after login:', fcmResponse);
+            } else if (role === 'dealer') {
+              fcmResponse = await postData(Apis.DEALER_FCM_REGISTER, fcmBodyData);
+              console.log('[LoginScreen] Dealer FCM token registered successfully after login:', fcmResponse);
+            }
+            
+            if (!fcmResponse) {
+              console.log('[LoginScreen] FCM token registration failed or no response');
+            }
+          } else {
+            console.log('[LoginScreen] FCM token not available');
+          }
+        } catch (fcmError) {
+          console.error('[LoginScreen] Error registering FCM token after login:', fcmError);
+          // Silently fail - don't block login if FCM registration fails
+        }
+        
         setLoading(false);
         
-        // Navigate based on user role
-        if (isFarmerRole(mobileNumber)) {
-          // Farmer role - check if terms have been accepted
-          const termsAccepted = await isTermsAccepted();
-          if (!termsAccepted) {
-            navigation.replace(SCREEN_NAMES.Terms);
-          } else {
-            // Check if profile has been reviewed
-            const profileReviewed = await isProfileReviewed();
-            if (profileReviewed) {
+        // Show success message with green background
+        const successMsg = response?.message || 'Login successful';
+        showToastMessage(successMsg, 'success');
+        
+        // Clear any errors
+        setErrors({});
+        
+        // Navigate to dashboard after a short delay to show the success message
+        setTimeout(async () => {
+          // First check if language has been selected
+          const {isLanguageSelected} = await import('../utils/session');
+          const languageSelected = await isLanguageSelected();
+          
+          if (!languageSelected) {
+            // Navigate to language selection screen first
+            navigation.replace(SCREEN_NAMES.LanguageSelect);
+            return;
+          }
+          
+          // Check for pending navigation (e.g., from notification click)
+          const pendingNav = await getPendingNavigation();
+          const hasPendingNotificationNav = pendingNav?.action === 'OPEN_NOTIFICATION_DETAIL' && role === 'farmer';
+          const hasPendingEventNav = pendingNav?.action === 'OPEN_EVENT_DETAIL' && role === 'farmer';
+          
+          // Navigate based on role from response
+          if (role === 'farmer') {
+            // Check profile_completed from API response first
+            const isProfileCompleted = user?.profile_completed === true;
+            console.log('[LoginScreen] Farmer login - Profile completed from API:', isProfileCompleted, 'Raw value:', user?.profile_completed);
+            
+            if (isProfileCompleted) {
+              // Profile is completed - navigate directly to FarmerTabs (FarmerHomeScreen)
+              // Save terms acceptance and profile completion status to prevent showing TermsScreen/ReviewProfileScreen on app restart
+              const termsAccepted = await isTermsAccepted();
+              if (!termsAccepted) {
+                await saveTermsAccepted();
+                console.log('[LoginScreen] Terms acceptance saved because profile is completed');
+              }
+              await saveProfileCompleted(true);
+              console.log('[LoginScreen] Profile completed status saved');
+              console.log('[LoginScreen] Profile completed - navigating to FarmerTabs');
               navigation.replace(SCREEN_NAMES.FarmerTabs);
+              
+              // If there's a pending notification navigation, navigate to EventDetails screen (same as OPEN_EVENT_DETAIL)
+              if (hasPendingNotificationNav && pendingNav?.params?.eventId) {
+                console.log('[LoginScreen] Pending notification navigation detected - will navigate to EventDetails with notification_id:', pendingNav.params.eventId);
+                // Wait a bit for navigation to complete, then navigate to EventDetails
+                setTimeout(() => {
+                  (navigation as any).navigate(SCREEN_NAMES.FarmerTabs, {
+                    screen: SCREEN_NAMES.Events,
+                    params: {
+                      screen: SCREEN_NAMES.EventDetails,
+                      params: {
+                        eventId: pendingNav.params.eventId,
+                      },
+                    },
+                  });
+                  // Clear pending navigation
+                  clearPendingNavigation();
+                }, 500);
+              } else if (hasPendingEventNav && pendingNav?.params?.eventId) {
+                // If there's a pending event navigation, navigate to EventDetails screen
+                console.log('[LoginScreen] Pending event navigation detected - will navigate to EventDetails with eventId:', pendingNav.params.eventId);
+                setTimeout(() => {
+                  (navigation as any).navigate(SCREEN_NAMES.FarmerTabs, {
+                    screen: SCREEN_NAMES.Events,
+                    params: {
+                      screen: SCREEN_NAMES.EventDetails,
+                      params: {
+                        eventId: pendingNav.params.eventId,
+                      },
+                    },
+                  });
+                  // Clear pending navigation
+                  clearPendingNavigation();
+                }, 500);
+              }
             } else {
-              navigation.replace(SCREEN_NAMES.ReviewProfile);
+              // Profile not completed - show TermsScreen first, then ReviewProfileScreen in sequence
+              // Check if terms have been accepted
+              const termsAccepted = await isTermsAccepted();
+              if (!termsAccepted) {
+                // Show TermsScreen first, which will navigate to ReviewProfileScreen after acceptance
+                console.log('[LoginScreen] Profile not completed - navigating to TermsScreen first');
+                navigation.replace(SCREEN_NAMES.Terms);
+              } else {
+                // Terms already accepted, navigate directly to ReviewProfileScreen
+                console.log('[LoginScreen] Profile not completed - navigating to ReviewProfileScreen');
+                navigation.replace(SCREEN_NAMES.ReviewProfile);
+              }
+              // Store pending navigation for after profile completion
+              if (hasPendingNotificationNav || hasPendingEventNav) {
+                console.log('[LoginScreen] Profile not completed - storing pending navigation');
+              }
+            }
+          } else if (role === 'dealer') {
+            // Dealer role - navigate to MainTabs (dashboard)
+            navigation.replace(SCREEN_NAMES.MainTabs);
+            // Clear pending navigation if any (not for dealer)
+            if (pendingNav) {
+              await clearPendingNavigation();
+            }
+          } else {
+            // Fallback: if role is not provided, use mobile number check
+            if (isFarmerRole(mobileNumber)) {
+              // Check profile_completed from API response first
+              const isProfileCompleted = user?.profile_completed === true;
+              console.log('[LoginScreen] Farmer login (fallback) - Profile completed from API:', isProfileCompleted, 'Raw value:', user?.profile_completed);
+              
+              if (isProfileCompleted) {
+                // Profile is completed - navigate directly to FarmerTabs (FarmerHomeScreen)
+                // Save terms acceptance and profile completion status to prevent showing TermsScreen/ReviewProfileScreen on app restart
+                const termsAccepted = await isTermsAccepted();
+                if (!termsAccepted) {
+                  await saveTermsAccepted();
+                  console.log('[LoginScreen] Terms acceptance saved because profile is completed (fallback)');
+                }
+                await saveProfileCompleted(true);
+                console.log('[LoginScreen] Profile completed status saved (fallback)');
+                console.log('[LoginScreen] Profile completed (fallback) - navigating to FarmerTabs');
+                navigation.replace(SCREEN_NAMES.FarmerTabs);
+                
+                // If there's a pending notification navigation, navigate to EventDetails screen (same as OPEN_EVENT_DETAIL)
+                if (hasPendingNotificationNav && pendingNav?.params?.eventId) {
+                  console.log('[LoginScreen] Pending notification navigation detected (fallback) - will navigate to EventDetails with notification_id:', pendingNav.params.eventId);
+                  setTimeout(() => {
+                    (navigation as any).navigate(SCREEN_NAMES.FarmerTabs, {
+                      screen: SCREEN_NAMES.Events,
+                      params: {
+                        screen: SCREEN_NAMES.EventDetails,
+                        params: {
+                          eventId: pendingNav.params.eventId,
+                        },
+                      },
+                    });
+                    clearPendingNavigation();
+                  }, 500);
+                } else if (hasPendingEventNav && pendingNav?.params?.eventId) {
+                  // If there's a pending event navigation, navigate to EventDetails screen
+                  console.log('[LoginScreen] Pending event navigation detected (fallback) - will navigate to EventDetails with eventId:', pendingNav.params.eventId);
+                  setTimeout(() => {
+                    (navigation as any).navigate(SCREEN_NAMES.FarmerTabs, {
+                      screen: SCREEN_NAMES.Events,
+                      params: {
+                        screen: SCREEN_NAMES.EventDetails,
+                        params: {
+                          eventId: pendingNav.params.eventId,
+                        },
+                      },
+                    });
+                    clearPendingNavigation();
+                  }, 500);
+                }
+              } else {
+                // Profile not completed - show TermsScreen first, then ReviewProfileScreen in sequence
+                // Check if terms have been accepted
+                const termsAccepted = await isTermsAccepted();
+                if (!termsAccepted) {
+                  // Show TermsScreen first, which will navigate to ReviewProfileScreen after acceptance
+                  console.log('[LoginScreen] Profile not completed (fallback) - navigating to TermsScreen first');
+                  navigation.replace(SCREEN_NAMES.Terms);
+                } else {
+                  // Terms already accepted, navigate directly to ReviewProfileScreen
+                  console.log('[LoginScreen] Profile not completed (fallback) - navigating to ReviewProfileScreen');
+                  navigation.replace(SCREEN_NAMES.ReviewProfile);
+                }
+                // Store pending navigation for after profile completion
+                if (hasPendingNotificationNav || hasPendingEventNav) {
+                  console.log('[LoginScreen] Profile not completed (fallback) - storing pending navigation');
+                }
+              }
+            } else {
+              navigation.replace(SCREEN_NAMES.MainTabs);
+              // Clear pending navigation if any (not for farmer)
+              if (pendingNav) {
+                await clearPendingNavigation();
+              }
             }
           }
-        } else {
-          // Dealer role - navigate to MainTabs
-          navigation.replace(SCREEN_NAMES.MainTabs);
-        }
+        }, 1000); // Wait 1 second to show the success message
       } else {
         setLoading(false);
         const errorMsg = response?.message || t('login.invalidOtp');
@@ -434,8 +666,8 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           contentContainerStyle={[
             styles.scrollContent,
             {
-              paddingTop: insets.top + moderateScale(20),
-              paddingBottom: insets.bottom + moderateScale(20),
+              paddingTop: insets.top + moderateScale(12),
+              paddingBottom: insets.bottom + moderateScale(12),
             },
           ]}
           keyboardShouldPersistTaps="handled"
@@ -444,7 +676,13 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           {/* Logo Section */}
           <View style={styles.logoContainer}>
             <Image
-              source={ImagePath.gujratiLogo}
+              source={
+                currentLanguage === 'en'
+                  ? ImagePath.Mainlogo_english
+                  : currentLanguage === 'hi'
+                  ? ImagePath.Mainlogo_hindi
+                  : ImagePath.gujratiLogo
+              }
               style={styles.topLogo}
               resizeMode="contain"
             />
@@ -541,7 +779,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
               textStyle={styles.loginButtonText}
               disabled={
                 otpRequested
-                  ? !isValidOtp() || loading
+                  ? !isValidOtp() || loading || getOtpLoading
                   : !isValidMobileNumber() || getOtpLoading
               }
             />

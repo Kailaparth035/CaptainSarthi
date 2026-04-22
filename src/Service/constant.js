@@ -1,43 +1,63 @@
 /* eslint-disable quotes */
 // Base URLs
-const BASE_URL = 'https://blend-met-knit-demanding.trycloudflare.com';
+const BASE_URL = 'http://165.232.184.177';
 const LIVE_URL = 'https://api.captainsathi.com'; // Update when production URL is available
 
 // Toggle
 const isTestEnvironment = true; // Change this to false for Live Environment
 
 // Pick correct base URL
-const API_BASE_URL = isTestEnvironment ? BASE_URL : LIVE_URL;
+const API_BASE_URL =  BASE_URL;
 
 // API Endpoints - Based on Postman collection
 const Apis = {
-  // Dealer APIs
-  DEALER_SEND_OTP: `${API_BASE_URL}/api/dealers/send-otp`,
-  DEALER_LOGIN: `${API_BASE_URL}/api/dealers/login`,
-  DEALER_DASHBOARD: `${API_BASE_URL}/api/dealers/dashboard`,
-  DEALER_FARMERS: `${API_BASE_URL}/api/dealers/farmers`,
-  DEALER_FARMER_BY_ID: (id) => `${API_BASE_URL}/api/dealers/farmers/${id}`,
-  DEALER_TRACTORS: `${API_BASE_URL}/api/dealers/tractors`,
-  DEALER_PROFILE: `${API_BASE_URL}/api/dealers/profile`,
+  // Common Auth Endpoints (used by both dealer and farmer)
+  LOGIN: `${API_BASE_URL}/api/common-auth/login`,
+  SEND_OTP: `${API_BASE_URL}/api/common-auth/send-otp`,
+  GET_LANGUAGES: `${API_BASE_URL}/api/common-auth/languages`,
+  DEALER_FARMERS:`${API_BASE_URL}/api/dealers/farmers`,
+  DEALER_DASHBOARD:`${API_BASE_URL}/api/dealers/dashboard`,
+  DEALER_TRACTORS:`${API_BASE_URL}/api/dealers/tractors`,
+  DEALER_TRACTOR_BY_ID:`${API_BASE_URL}/api/dealers/tractors`,
+  DEALER_PROFILE:`${API_BASE_URL}/api/dealers/profile`,
+  DEALER_PROFILE_IMAGE:`${API_BASE_URL}/api/dealers/profile/image`,
+  DEALER_CATEGORIES:`${API_BASE_URL}/api/dealers/categories`,
+  DEALER_QUESTIONS:`${API_BASE_URL}/api/dealers/questions`,
+  DEALER_ADD_FARMER:`${API_BASE_URL}/api/dealers/v1/farmer/add`,
+  DEALER_UPDATE_FARMER:`${API_BASE_URL}/api/dealers/farmers/update-request`,
+  DEALER_UPDATE_FARMER_V1:`${API_BASE_URL}/api/dealers/v1/farmer/update`, // For rejected update with full form-data
+  DEALER_FCM_REGISTER:`${API_BASE_URL}/api/dealers/fcm/register`,
+  DEALER_FCM_UNREGISTER:`${API_BASE_URL}/api/dealers/fcm/unregister`,
+  DEALER_PUSH_NOTIFICATIONS:`${API_BASE_URL}/api/dealers/push-notifications`,
+  DEALER_PUSH_NOTIFICATION_READ:`${API_BASE_URL}/api/dealers/push-notifications`,
+  DEALER_PUSH_NOTIFICATIONS_UNREAD_COUNT:`${API_BASE_URL}/api/dealers/push-notifications/unread-count`,
+  FARMER_DASHBOARD:`${API_BASE_URL}/api/farmers/dashboard`,
+  FARMER_PROFILE:`${API_BASE_URL}/api/farmers/profile`,
+  FARMER_PROFILE_UPDATE:`${API_BASE_URL}/api/farmers/profile/update`,
+  FARMER_PROFILE_IMAGE:`${API_BASE_URL}/api/farmers/profile/image`,
+  FARMER_MOBILE_UPDATE:`${API_BASE_URL}/api/farmers/mobile/update`,
+  FARMER_EVENTS:`${API_BASE_URL}/api/farmers/events`,
+  FARMER_STORIES:`${API_BASE_URL}/api/farmers/stories`,
+  FARMER_EVENTS_BY_LOCATION:`${API_BASE_URL}/api/farmers/eventsbylocation`,
+  FARMER_STORIES_BY_LOCATION:`${API_BASE_URL}/api/farmers/storiesbylocation`,
+  FARMER_EVENT_BY_ID:`${API_BASE_URL}/api/farmers/events`,
+  FARMER_STORY_BY_ID:`${API_BASE_URL}/api/farmers/stories`,
+  FARMER_EVENT_RESPOND:`${API_BASE_URL}/api/farmers/events`,
+  FARMER_FCM_REGISTER:`${API_BASE_URL}/api/farmers/fcm/register`,
+  FARMER_FCM_UNREGISTER:`${API_BASE_URL}/api/farmers/fcm/unregister`,
+  FARMER_PUSH_NOTIFICATIONS:`${API_BASE_URL}/api/farmers/push-notifications`,
+  FARMER_PUSH_NOTIFICATION_READ:`${API_BASE_URL}/api/farmers/push-notifications`,
+  FARMER_PUSH_NOTIFICATIONS_UNREAD_COUNT:`${API_BASE_URL}/api/farmers/push-notifications/unread-count`,
+  // Location APIs
+  GET_STATES:`${API_BASE_URL}/api/dealers/locations/states`,
+  GET_DISTRICTS:`${API_BASE_URL}/api/dealers/locations/districts`,
+  GET_TALUKAS:`${API_BASE_URL}/api/dealers/locations/talukas`,
+  GET_VILLAGES:`${API_BASE_URL}/api/dealers/locations/villages`,
+  // Admin / Settings
+  ADMIN_SETTINGS_DISCOUNTS: `${API_BASE_URL}/api/admin/settings/discounts`,
+  ADMIN_FARMER_SAVINGS: `${API_BASE_URL}/api/dealers/settings/farmer-savings`,
+  FARMER_SAVINGS_GET: `${API_BASE_URL}/api/farmers/settings/farmer-savings`,
   
-  // Farmer APIs
-  FARMER_SEND_OTP: `${API_BASE_URL}/api/farmers/send-otp`,
-  FARMER_LOGIN: `${API_BASE_URL}/api/farmers/login`,
-  FARMER_DASHBOARD: `${API_BASE_URL}/api/farmers/dashboard`,
-  FARMER_PROFILE: `${API_BASE_URL}/api/farmers/profile`,
-  FARMER_EVENTS: `${API_BASE_URL}/api/farmers/events`,
-  FARMER_STORIES: `${API_BASE_URL}/api/farmers/stories`,
-  FARMER_TOP_VIDEOS: `${API_BASE_URL}/api/farmers/top-videos`,
-  FARMER_RECENT_STORIES: `${API_BASE_URL}/api/farmers/recent-stories`,
-  
-  // Admin APIs
-  ADMIN_DASHBOARD: `${API_BASE_URL}/api/admin/dashboard`,
-  ADMIN_DEALERS: `${API_BASE_URL}/api/admin/dealers`,
-  ADMIN_FARMERS: `${API_BASE_URL}/api/admin/farmers`,
-  
-  // Common endpoints (for backward compatibility)
-  SEND_OTP: `${API_BASE_URL}/api/dealers/send-otp`, // Default to dealer
-  LOGIN_API: `${API_BASE_URL}/api/dealers/login`, // Default to dealer
 };
 
 export default Apis;

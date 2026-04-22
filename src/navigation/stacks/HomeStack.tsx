@@ -4,6 +4,7 @@ import HomeScreen from '../../screens/HomeScreen';
 import NotificationsScreen from '../../screens/NotificationsScreen';
 import EventsScreen from '../../screens/EventsScreen';
 import EventDetailsScreen from '../../screens/EventDetailsScreen';
+import LanguageScreen from '../../screens/LanguageScreen';
 import {SCREEN_NAMES} from '../../constants/screenNames';
 
 export type HomeStackParamList = {
@@ -19,6 +20,7 @@ export type HomeStackParamList = {
     videoUri?: string;
     images?: string[];
   };
+  [SCREEN_NAMES.Language]: undefined;
 };
 
 const Stack = createNativeStackNavigator<HomeStackParamList>();
@@ -35,6 +37,10 @@ export default function HomeStack() {
       <Stack.Screen
         name={SCREEN_NAMES.EventDetails}
         component={EventDetailsScreen}
+      />
+      <Stack.Screen
+        name={SCREEN_NAMES.Language}
+        component={LanguageScreen}
       />
     </Stack.Navigator>
   );

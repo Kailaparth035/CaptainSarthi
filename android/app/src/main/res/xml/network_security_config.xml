@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Allow cleartext (HTTP) traffic for all domains -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    
+    <!-- Specifically allow cleartext for your API server -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">165.232.184.177</domain>
+        <domain includeSubdomains="true">api.captainsathi.com</domain>
+    </domain-config>
+</network-security-config>
+
+
+
+
+

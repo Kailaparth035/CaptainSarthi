@@ -5,7 +5,10 @@
     "Farmer": "Farmer",
     "Tractors": "Tractors",
     "More": "More",
-    "Profile": "Profile"
+    "Profile": "Profile",
+    "Events": "Events",
+    "History": "History",
+    "Stories": "Stories"
   },
   "home": {
     "title": "Home",
@@ -17,10 +20,24 @@
     "syncNow": "Sync now",
     "clients": "Clients",
     "tractors": "Tractors",
-    "seeAll": "See all"
+    "seeAll": "See all",
+    "farmers": "Farmers",
+    "unknownModel": "Unknown Model",
+    "notAvailable": "N/A",
+    "noFarmerAdded": "No farmer added",
+    "noFarmerDescription": "Looks like there are no farmers here yet. Add your first farmer to get started.",
+    "addFarmer": "Add farmer",
+    "noTractors": "No tractors found"
   },
   "farmer": {
-    "title": "Farmer"
+    "title": "Farmers",
+    "addNew": "Add new",
+    "name": "Name",
+    "category": "Category",
+    "allCategories": "All Categories",
+    "farmerWord": "Farmer",
+    "details": "Farmer details",
+    "noDetailsFound": "No farmer details found"
   },
   "tractors": {
     "title": "Tractors",
@@ -30,7 +47,9 @@
     "aToZ": "A to Z",
     "zToA": "Z to A",
     "newestFirst": "Newest First",
-    "oldestFirst": "Oldest First"
+    "oldestFirst": "Oldest First",
+    "specifications": "Specifications",
+    "noDetailsAvailable": "No tractor details available"
   },
   "profile": {
     "title": "Profile",
@@ -92,7 +111,10 @@
     "pleaseEnterValidMobileNumber": "Please enter a valid mobile number",
     "pleaseEnterOtp": "Please enter OTP",
     "pleaseEnterValidOtp": "Please enter a valid OTP",
-    "invalidOtp": "Invalid OTP. Please enter the correct OTP."
+    "invalidOtp": "Invalid OTP. Please enter the correct OTP.",
+    "otpSentSuccess": "OTP sent successfully",
+    "otpResentSuccess": "OTP resent successfully",
+    "yourOtpIs": "Your OTP is"
   },
   "notifications": {
     "title": "Notifications",
@@ -103,14 +125,16 @@
     "viewForm": "View form",
     "enterFirstName": "Enter first name",
     "enterLastName": "Enter last name",
-    "enterRejectionReason": "Enter rejection reason"
+    "enterRejectionReason": "Enter rejection reason",
+    "noNotificationsFound": "No notifications found"
   },
   "language": {
     "title": "Language",
     "english": "English",
     "gujarati": "Gujarati",
     "hindi": "Hindi",
-    "selectLanguage": "Select Language"
+    "selectLanguage": "Select Language",
+    "save": "Save"
   },
   "common": {
     "continue": "Continue",
@@ -119,13 +143,283 @@
     "delete": "Delete",
     "edit": "Edit",
     "submit": "Submit",
-    "loading": "Loading..."
+    "loading": "Loading...",
+    "search": "Search",
+    "filters": "Filters",
+    "readMore": "Read more",
+    "readLess": "Read less",
+    "reset": "Reset",
+    "apply": "Apply"
+  },
+  "onboarding": {
+    "getStarted": "Get started",
+    "agreeTerms": "Agree our ",
+    "termsConditions": "terms & conditions",
+    "beforeContinue": "before you continue."
   },
   "events": {
-    "textToSpeech": "Text to speech"
+    "title": "Events",
+    "textToSpeech": "Text to speech",
+    "noEventsFound": "No events found",
+    "noEventFound": "No event found",
+    "goToHome": "Go to Home",
+    "yes": "Yes",
+    "no": "No",
+    "attendingQuestion": "Are you attending this event?"
+  },
+  "stories": {
+    "title": "Stories",
+    "storyDetail": "Story detail",
+    "textToSpeech": "Text to speech",
+    "noStoriesFound": "No story found",
+    "noStoryFound": "No story found",
+    "goToHome": "Go to Home"
   },
   "farmerHome": {
-    "greeting": "Hello"
+    "greeting": "Hello",
+    "recentEvents": "Recent events",
+    "recentStories": "Recent stories",
+    "membershipServices": "Exclusive Benefits for Members",
+    "services": {
+      "one": {
+        "title": "Welcome Gift for Joining Captain Saathi",
+        "description": "A special welcome gift for every member."
+      },
+      "two": {
+        "title": "Special Invitations to Company Events",
+        "description": "Exclusive invitations to events organized by the company."
+      },
+      "three": {
+        "title": "⁠Free Annual Tractor Health Check-up",
+        "description": "Free annual tractor health check-up every year with priority service benefits."
+      },
+      "four": {
+        "title": "Special Festival Gifts",
+        "description": "Exclusive festival gifts for Captain Saathi members."
+      },
+      "five": {
+        "title": "Opportunity for Plant Visit",
+        "description": "A chance to visit the company’s state-of-the-art manufacturing plant."
+      },
+      "six": {
+        "title": "Special Discount on Tractor Spare Parts",
+        "description": "Exclusive discounts on the purchase of tractor spare parts."
+      },
+      "seven": {
+        "title": "Direct Connection with the Company",
+        "description": "Facility to directly connect with the company."
+      }
+    }
+  },
+  "farmerProfile": {
+    "updateNumber": "Update number",
+    "updateNumberDescription": "Update your mobile number.",
+    "firstName": "First name",
+    "middleName": "Middle name",
+    "lastName": "Last name",
+    "mobileNo": "Mobile no.",
+    "dateOfBirth": "Date of birth",
+    "dateOfMarriage": "Date of marriage",
+    "dealershipName": "Dealership name",
+    "dealershipNumber": "Dealership number",
+    "dealershipAddress": "Dealership address",
+    "farmerAddress": "Farmer address",
+    "tractorDetails": "Tractor details",
+    "tractorCount": "Tractor count",
+    "modelName": "Model name",
+    "vehicleNo": "Vehicle no.",
+    "ownerName": "Owner name",
+    "chassisNo": "Chassis no.",
+    "engineNo": "Engine no.",
+    "dateOfInvoice": "Date of invoice",
+    "dateOfRegistration": "Date of registration",
+    "whoDrives": "Who drives",
+    "noImageFound": "No image found"
+  },
+  "reviewProfile": {
+    "personalDetails": "Personal details",
+    "personalDetailsDescription": "After the details are reviewed and updated, no further changes will be allowed.",
+    "changeProfilePhoto": "Change profile photo",
+    "uploadHint": "Upload png or jpg. 5 mb max size.",
+    "code": "Code",
+    "number": "Number",
+    "date": "Date",
+    "of": "of",
+    "birth": "birth",
+    "marriage": "marriage",
+    "continue": "Continue"
+  },
+  "updateNumberModal": {
+    "title": "Update number",
+    "description": "A request will be sent to the dealer to update the number. The dealer may contact you for OTP verification.",
+    "existingNumber": "Existing number",
+    "newNumber": "New number",
+    "enterMobileNumber": "Enter mobile number",
+    "sendRequest": "Send request",
+    "pleaseEnterMobileNumber": "Please enter mobile number",
+    "pleaseEnterValidMobileNumber": "Please enter a valid mobile number",
+    "newNumberMustBeDifferent": "New number must be different from existing number"
+  },
+  "addFarmer": {
+    "title": "Add Farmer",
+    "addNewFarmer": "Add new farmer",
+    "editFarmer": "Edit farmer",
+    "updateRejectedFarmer": "Update rejected farmer",
+    "personalDetails": "Personal details",
+    "address": "Address",
+    "tractorDetails": "Tractor details",
+    "tractorCount": "Tractor count",
+    "uploadProfilePhoto": "Upload profile photo",
+    "dealerName": "Dealer name",
+    "selectCategory": "Select category",
+    "loadingCategories": "Loading categories...",
+    "firstName": "First name",
+    "enterFirstName": "Enter first name",
+    "middleName": "Middle name",
+    "enterMiddleName": "Enter middle name",
+    "lastName": "Last name",
+    "enterLastName": "Enter last name",
+    "phoneCode": "Code",
+    "phoneNumber": "Number",
+    "phonePlaceholder": "01234 56789",
+    "dateOfBirth": "Date of birth",
+    "dateOfMarriage": "Date of marriage",
+    "whoDrives": "Who drives",
+    "whoDrivesPlaceholder": "For e.g Son, Father",
+    "houseNumber": "House number / Name",
+    "enterHouseNumber": "Enter house number / name",
+    "streetName": "Street name",
+    "enterStreetName": "Enter street name",
+    "landmark": "Landmark",
+    "enterLandmark": "Enter landmark",
+    "state": "State",
+    "selectState": "Select state",
+    "district": "District",
+    "selectDistrict": "Select district",
+    "selectStateFirst": "Select state first",
+    "taluka": "Taluka",
+    "selectTaluka": "Select taluka",
+    "selectDistrictFirst": "Select district first",
+    "village": "Village",
+    "selectVillage": "Select village",
+    "selectTalukaFirst": "Select taluka first",
+    "pincode": "Pincode",
+    "enterPincode": "Enter pincode",
+    "modelName": "Enter model name",
+    "enterModelName": "Enter model name",
+    "chassisNumber": "Chassis number",
+    "enterChassisNumber": "Enter chassis number",
+    "engineNumber": "Engine number",
+    "enterEngineNumber": "Enter engine number",
+    "ownerName": "Owner name",
+    "enterOwnerName": "Enter owner name",
+    "vehicleNumber": "Vehicle number",
+    "enterVehicleNumber": "Enter vehicle number (e.g., GJ 27 AJ 9314)",
+    "registrationNumber": "Registration number",
+    "enterRegistrationNumber": "Enter registration number",
+    "purchaseDate": "purchase",
+    "addNewTractor": "Add new tractor",
+    "remove": "Remove",
+    "sendForVerification": "Send for verification",
+    "updateForVerification": "Update for verification",
+    "updateRejectedForm": "Update rejected form",
+    "dd": "DD",
+    "mm": "MM",
+    "yyyy": "YYYY",
+    "yourAnswerHere": "Your answer here",
+    "selectOption": "Select option",
+    "uploadTractorImage": "Upload Tractor image",
+    "uploadSecondImage": "Upload second image",
+    "uploadRcFront": "Upload RC front",
+    "uploadRcBack": "Upload RC back",
+    "rcFrontRequired": "RC book front image is required",
+    "rcBackRequired": "RC book back image is required",
+    "errors": {
+      "categoryRequired": "Category is required",
+      "answerAllQuestions": "Please answer all {{count}} sub-question{{plural}}",
+      "firstNameRequired": "First name is required",
+      "lastNameRequired": "Last name is required",
+      "countryCodeRequired": "Country code is required",
+      "phoneNumberRequired": "Phone number is required",
+      "dateOfBirthRequired": "Date of birth is required",
+      "dateOfMarriageRequired": "Date of marriage is required",
+      "houseNumberRequired": "House number is required",
+      "streetNameRequired": "Street name is required",
+      "stateRequired": "State is required",
+      "districtRequired": "District is required",
+      "talukaRequired": "Taluka is required",
+      "villageRequired": "Village is required",
+      "pincodeRequired": "Pincode is required",
+      "atLeastOneTractorImageRequired": "At least one tractor image is required",
+      "modelNameRequired": "Model name is required",
+      "chassisNumberRequired": "Chassis number is required",
+      "engineNumberRequired": "Engine number is required",
+      "ownerNameRequired": "Owner name is required",
+      "vehicleNumberRequired": "Vehicle number is required",
+      "validVehicleNumberRequired": "Please enter a valid vehicle number (e.g., GJ 27 AJ 9314)",
+      "dateOfPurchaseRequired": "Date of purchase is required",
+      "atLeastOneTractorRequired": "At least one tractor is required",
+      "invalidMonth": "Invalid month. Please enter a value between 01 and 12",
+      "invalidDate": "Invalid date. Please enter a valid date",
+      "dobBeforeToday": "Date of birth must be before today's date",
+      "domAfterDob": "Date of marriage must be after date of birth",
+      "domBeforeToday": "Date of marriage must be before today's date",
+      "purchaseDateNotFuture": "Purchase date cannot be in the future",
+      "registrationDateNotFuture": "Registration date cannot be in the future",
+      "failedToLoadFarmerDetails": "Failed to load farmer details. Please try again.",
+      "uploadRcImageToExtract": "Please upload at least one RC Book image to extract data",
+      "invalidFarmerId": "Invalid farmer ID. Please try again.",
+      "failedToUploadProfileImage": "Failed to upload profile image. Please try again."
+    }
+  },
+  "imagePicker": {
+    "selectImageSource": "Select Image Source",
+    "camera": "Camera",
+    "gallery": "Gallery",
+    "uploadDocument": "Upload Document",
+    "cancel": "Cancel",
+    "uploadSecondImage": "Upload second image",
+    "uploadRcFront": "Upload RC front",
+    "uploadRcBack": "Upload RC back",
+    "uploadRcImage": "Upload RC image",
+    "noRcFront": "No RC Front",
+    "noRcBack": "No RC Back"
+  },
+  "contactUs": {
+    "title": "Contact us",
+    "contactTollFree": "Contact our toll free number",
+    "whatsappUs": "Whatsapp us!",
+    "call": "Call",
+    "textNow": "Text now"
+  },
+  "offer": {
+    "addOffer": "Add offer",
+    "addOfferSubtitle": "Add discount on services or product.",
+    "applyOfferOn": "Apply offer on",
+    "selectProductService": "Select product / service",
+    "product": "Product",
+    "service": "Service",
+    "productDetail": "Product detail",
+    "serviceDetail": "Service detail",
+    "productName": "Product name",
+    "productCode": "Product code",
+    "serviceName": "Service name",
+    "serviceDescription": "Service description",
+    "amount": "Amount",
+    "discount": "Discount",
+    "amountPayable": "Amount payable",
+    "apply": "Apply",
+    "productNamePlaceholder": "Product name here",
+    "productCodePlaceholder": "Product code here",
+    "serviceNamePlaceholder": "Service name here",
+    "serviceDescriptionPlaceholder": "Service description here",
+    "amountPlaceholder": "Enter amount",
+    "offerAddedSuccess": "Offer added successfully"
+  },
+  "savings": {
+    "title": "Savings",
+    "viewSavings": "View savings",
+    "saved": "Saved",
+    "noSavings": "No savings yet."
   }
 }
-

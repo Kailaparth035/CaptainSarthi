@@ -5,7 +5,13 @@ require Pod::Executable.execute_command('node', ['-p',
     {paths: [process.argv[1]]},
   )', __dir__]).strip
 
-platform :ios, min_ios_version_supported
+# RNMLKitTextRecognition requires iOS deployment target >= 15.5
+platform :ios, '15.5'
+
+# Global use_modular_headers! breaks React Native on recent Xcode: duplicate
+# `react_runtime` module maps (React-jsitooling vs React-RuntimeCore) → UIKit/Foundation "Could not build module".
+# Use static Firebase frameworks instead; keep modular headers only where needed below.
+$RNFirebaseAsStaticFramework = true
 prepare_react_native_project!
 
 # ❌ Remove use_frameworks logic completely (it breaks RN pods)
@@ -17,6 +23,17 @@ prepare_react_native_project!
 
 target 'Farmer' do
   config = use_native_modules!
+
+  # Swift AppDelegate imports Firebase; these pods need module maps. Do not use global
+  # use_modular_headers! (breaks React Native's react_runtime module).
+  pod 'GoogleUtilities', :modular_headers => true
+  pod 'FirebaseCore', :modular_headers => true
+  pod 'FirebaseCoreInternal', :modular_headers => true
+  pod 'FirebaseInstallations', :modular_headers => true
+  pod 'FirebaseMessaging', :modular_headers => true
+  pod 'GoogleDataTransport', :modular_headers => true
+  pod 'PromisesObjC', :modular_headers => true
+  pod 'nanopb', :modular_headers => true
 
   use_react_native!(
     :path => config[:reactNativePath],
@@ -38,6 +55,36 @@ target 'Farmer' do
     installer.pods_project.targets.each do |t|
       t.build_configurations.each do |cfg|
         cfg.build_settings.delete('buildProfile')
+      end
+    end
+
+    # fmt 11.0.2 + recent Apple Clang (Xcode 16+): consteval format-string checks fail
+    # in format-inl.h ("Call to consteval function 'fmt::basic_format_string'...").
+    # C++17 keeps FMT_USE_CONSTEVAL disabled in fmt/base.h; other pods stay on RN's C++20.
+    installer.pods_project.targets.each do |t|
+      next unless t.name == 'fmt'
+      t.build_configurations.each do |cfg|
+        cfg.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
+      end
+    end
+
+    # Without global use_modular_headers!, HEADER_SEARCH_PATHS often lists React-Fabric before
+    # React-debug. Clang then resolves <react/debug/...> under React-Fabric/react (renderer only)
+    # and fails to find react_native_expect.h. Prefer React-debug's react/ tree first.
+    react_debug_hsp = '"${PODS_ROOT}/Headers/Public/React-debug"'
+    installer.pods_project.targets.each do |t|
+      next unless t.name.start_with?('React') || t.name.start_with?('RCT')
+      t.build_configurations.each do |cfg|
+        hsp = cfg.build_settings['HEADER_SEARCH_PATHS']
+        if hsp.is_a?(Array)
+          next if hsp.first == react_debug_hsp
+          cfg.build_settings['HEADER_SEARCH_PATHS'] =
+            [react_debug_hsp] + hsp.reject { |p| p.to_s.include?('Headers/Public/React-debug') }
+        elsif hsp.is_a?(String)
+          next if hsp.start_with?(react_debug_hsp)
+          stripped = hsp.gsub(/\s*"?\$\{PODS_ROOT\}\/Headers\/Public\/React-debug"?\s*/, ' ').squeeze(' ').strip
+          cfg.build_settings['HEADER_SEARCH_PATHS'] = "#{react_debug_hsp} #{stripped}"
+        end
       end
     end
   end

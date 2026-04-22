@@ -1,0 +1,79 @@
+diff --git a/node_modules/react-native-tts/index.js b/node_modules/react-native-tts/index.js
+index 6da7573..75f1dd8 100644
+--- a/node_modules/react-native-tts/index.js
++++ b/node_modules/react-native-tts/index.js
+@@ -95,7 +95,7 @@ class Tts extends NativeEventEmitter {
+ 
+   stop(onWordBoundary) {
+     if (Platform.OS === 'ios') {
+-      return TextToSpeech.stop(onWordBoundary);
++      return TextToSpeech.stop(onWordBoundary === true);
+     } else {
+       return TextToSpeech.stop();
+     }
+@@ -103,7 +103,7 @@ class Tts extends NativeEventEmitter {
+ 
+   pause(onWordBoundary) {
+     if (Platform.OS === 'ios') {
+-      return TextToSpeech.pause(onWordBoundary);
++      return TextToSpeech.pause(onWordBoundary === true);
+     }
+     return Promise.resolve(false);
+   }
+diff --git a/node_modules/react-native-tts/ios/TextToSpeech/TextToSpeech.m b/node_modules/react-native-tts/ios/TextToSpeech/TextToSpeech.m
+index 1e769cc..703accc 100644
+--- a/node_modules/react-native-tts/ios/TextToSpeech/TextToSpeech.m
++++ b/node_modules/react-native-tts/ios/TextToSpeech/TextToSpeech.m
+@@ -94,11 +94,11 @@ + (BOOL)requiresMainQueueSetup
+     resolve([NSNumber numberWithUnsignedLong:utterance.hash]);
+ }
+ 
+-RCT_EXPORT_METHOD(stop:(BOOL *)onWordBoundary resolve:(RCTPromiseResolveBlock)resolve reject:(__unused RCTPromiseRejectBlock)reject)
++RCT_EXPORT_METHOD(stop:(BOOL)onWordBoundary resolve:(RCTPromiseResolveBlock)resolve reject:(__unused RCTPromiseRejectBlock)reject)
+ {
+     AVSpeechBoundary boundary;
+ 
+-    if(onWordBoundary != NULL && onWordBoundary) {
++    if (onWordBoundary) {
+         boundary = AVSpeechBoundaryWord;
+     } else {
+         boundary = AVSpeechBoundaryImmediate;
+@@ -109,11 +109,11 @@ + (BOOL)requiresMainQueueSetup
+     resolve([NSNumber numberWithBool:stopped]);
+ }
+ 
+-RCT_EXPORT_METHOD(pause:(BOOL *)onWordBoundary resolve:(RCTPromiseResolveBlock)resolve reject:(__unused RCTPromiseRejectBlock)reject)
++RCT_EXPORT_METHOD(pause:(BOOL)onWordBoundary resolve:(RCTPromiseResolveBlock)resolve reject:(__unused RCTPromiseRejectBlock)reject)
+ {
+     AVSpeechBoundary boundary;
+ 
+-    if(onWordBoundary != NULL && onWordBoundary) {
++    if (onWordBoundary) {
+         boundary = AVSpeechBoundaryWord;
+     } else {
+         boundary = AVSpeechBoundaryImmediate;
+@@ -132,13 +132,13 @@ + (BOOL)requiresMainQueueSetup
+ }
+ 
+ 
+-RCT_EXPORT_METHOD(setDucking:(BOOL *)ducking
++RCT_EXPORT_METHOD(setDucking:(BOOL)ducking
+                   resolve:(RCTPromiseResolveBlock)resolve
+                   reject:(__unused RCTPromiseRejectBlock)reject)
+ {
+     _ducking = ducking;
+ 
+-    if(ducking) {
++    if (ducking) {
+         AVAudioSession *session = [AVAudioSession sharedInstance];
+         [session setCategory:AVAudioSessionCategoryPlayback
+                  withOptions:AVAudioSessionCategoryOptionDuckOthers
+@@ -178,7 +178,7 @@ + (BOOL)requiresMainQueueSetup
+ }
+ 
+ RCT_EXPORT_METHOD(setDefaultRate:(float)rate
+-                  skipTransform:(BOOL *)skipTransform // not used, compatibility with Android native module signature
++                  skipTransform:(BOOL)skipTransform // not used, compatibility with Android native module signature
+                   resolve:(RCTPromiseResolveBlock)resolve
+                   reject:(RCTPromiseRejectBlock)reject)
+ {

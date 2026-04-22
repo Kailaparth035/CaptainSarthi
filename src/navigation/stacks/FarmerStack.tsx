@@ -3,18 +3,28 @@ import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import FarmerScreen from '../../screens/FarmerScreen';
 import FarmerDetailsScreen from '../../screens/FarmerDetailsScreen';
 import AddFarmerScreen from '../../screens/AddFarmerScreen';
+import AddOfferScreen from '../../screens/AddOfferScreen';
 import {SCREEN_NAMES} from '../../constants/screenNames';
 
 export type FarmerStackParamList = {
   [SCREEN_NAMES.Farmer]: undefined;
   [SCREEN_NAMES.FarmerDetails]: {
     farmerId: string;
+    farmer_id?: string;
     farmerName: string;
     farmerPhone: string;
     farmerInitials: string;
     fromScreen?: 'Home' | 'List';
   };
-  [SCREEN_NAMES.AddFarmer]: undefined;
+  [SCREEN_NAMES.AddFarmer]: {
+    farmerId?: string;
+    editMode?: boolean;
+    rejectedUpdate?: boolean;
+  } | undefined;
+  [SCREEN_NAMES.AddOffer]: {
+    farmerId?: string;
+    farmerName?: string;
+  } | undefined;
 };
 
 const Stack = createNativeStackNavigator<FarmerStackParamList>();
@@ -30,6 +40,10 @@ export default function FarmerStack() {
       <Stack.Screen
         name={SCREEN_NAMES.AddFarmer}
         component={AddFarmerScreen}
+      />
+      <Stack.Screen
+        name={SCREEN_NAMES.AddOffer}
+        component={AddOfferScreen}
       />
     </Stack.Navigator>
   );

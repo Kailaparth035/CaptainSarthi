@@ -1,4 +1,4 @@
-import React, { forwardRef, useState } from 'react';
+import React, { forwardRef, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -19,7 +19,8 @@ interface SimpleBoxInputProps extends TextInputProps {
   onChangeText: (text: string) => void;
   containerStyle?: StyleProp<ViewStyle>;
   error?: string;
-  numberOfLinesLabel:number
+  numberOfLinesLabel:number;
+  required?: boolean;
 }
 
 const SimpleBoxInput = forwardRef<TextInput, SimpleBoxInputProps>(
@@ -33,55 +34,66 @@ const SimpleBoxInput = forwardRef<TextInput, SimpleBoxInputProps>(
       containerStyle,
       error,
       numberOfLinesLabel = 10,
+      required = false,
       ...props
     },
     ref,
   ) => {
     const { moderateScale } = useDeviceMetrics();
     const [isFocused, setIsFocused] = useState(false);
+    const isEditable = props.editable !== false; // Default to true if not specified
 
-    const styles = StyleSheet.create({
+    const styles = useMemo(() => StyleSheet.create({
       container: {
         marginVertical: moderateScale(14),
       },
       inputWrapper: {
         borderWidth: 1,
         borderRadius: moderateScale(10),
-        borderColor: isFocused ? colors.primary : colors.text_light,
-        backgroundColor: colors.white,
+        borderColor: isFocused && isEditable ? colors.primary : colors.text_light,
+        backgroundColor: isEditable ? colors.white : colors.backgroundGray,
         paddingVertical: Platform.OS === 'ios' ?  moderateScale(14) : moderateScale(4),
         paddingHorizontal: moderateScale(15),
+        // opacity: isEditable ? 1 : 0.6,
       },
       labelBox: {
         position: 'absolute',
         top: moderateScale(-8),
         left: moderateScale(8),
-        backgroundColor: colors.white,
+        backgroundColor: isEditable ? colors.white : colors.backgroundGray,
         paddingHorizontal: moderateScale(5),
         zIndex: 10,
       },
       labelText: {
         fontSize: moderateScale(12),
-        color: isFocused ? colors.primary : colors.text_light,
+        color: isFocused && isEditable ? colors.primary : colors.text_light,
+        fontFamily: FontFamily.Medium,
+      },
+      requiredAsterisk: {
+        color: colors.statusError,
+        fontSize: moderateScale(12),
         fontFamily: FontFamily.Medium,
       },
       textInput: {
         fontSize: moderateScale(14),
-        color: colors.black,        
+        color: isEditable ? colors.black : colors.textSecondary,        
       },
       errorText: {
         marginTop: 5,
         color: 'red',
         fontSize: moderateScale(10),
       },
-    });
+    }), [moderateScale, isFocused, isEditable]);
 
     return (
       <View style={[styles.container, containerStyle]}>
         <View style={styles.inputWrapper}>
           {/* STATIC LABEL INSIDE BOX BORDER */}
           <View style={styles.labelBox}>
-            <Text style={styles.labelText} numberOfLines={numberOfLinesLabel}>{label}</Text>
+            <Text style={styles.labelText} numberOfLines={numberOfLinesLabel}>
+              {label}
+              {required && <Text style={styles.requiredAsterisk}> *</Text>}
+            </Text>
           </View>
 
           {/* INPUT FIELD */}
@@ -93,9 +105,10 @@ const SimpleBoxInput = forwardRef<TextInput, SimpleBoxInputProps>(
             placeholderTextColor="#999"
             style={styles.textInput}
             keyboardType={keyboardType}
-            onFocus={() => setIsFocused(true)}
+            onFocus={() => isEditable && setIsFocused(true)}
             onBlur={() => setIsFocused(false)}
-            {...props}
+            editable={isEditable}
+            {...props}            
           />
         </View>
 

@@ -5,17 +5,17 @@ import {
   TouchableOpacity,
   Text,
   StyleSheet,
-  Platform,
+  Image,
 } from 'react-native';
-import Ionicons from 'react-native-vector-icons/Ionicons';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import {SCREEN_NAMES} from '../../constants/screenNames';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {fontSize} from '../../utils/responsive';
 import {Typography} from '../../utils/typography';
 import {useStatusBar} from '../../contexts/StatusBarContext';
 import colors from '../../utils/colors';
 import useDeviceMetrics from '../../utils/responsiveCustom';
+import {useLanguage} from '../../contexts/LanguageContext';
+import {ImagePath} from '../../assets/images';
+import { spacing } from '../../utils';
 
 type IconProps = {focused: boolean; color: string; size: number};
 
@@ -23,74 +23,69 @@ function getIconForRoute(
   routeName: string,
   {focused, color, size}: IconProps,
 ): React.ReactNode {
+  const iconSize = size;
+  
   switch (routeName) {
     case SCREEN_NAMES.Home:
       return (
-        <Ionicons
-          name={focused ? 'home' : 'home-outline'}
-          size={size}
-          color={color}
+        <Image
+          source={focused ? ImagePath.homeSelected : ImagePath.home}
+          style={{width: iconSize, height: iconSize}}
+          resizeMode="contain"
         />
       );
     case SCREEN_NAMES.Events:
       return (
-        <Ionicons
-          name={focused ? 'calendar' : 'calendar-outline'}
-          size={size}
-          color={color}
+        <Image
+          source={focused ? ImagePath.eventSelected : ImagePath.eventsTab}
+          style={{width: iconSize, height: iconSize}}
+          resizeMode="contain"
         />
       );
     case SCREEN_NAMES.History:
       return (
-        <Ionicons
-          name={focused ? 'time' : 'time-outline'}
-          size={size}
-          color={color}
+        <Image
+          source={focused ? ImagePath.storySelected : ImagePath.story}
+          style={{width: iconSize, height: iconSize}}
+          resizeMode="contain"
         />
       );
     case SCREEN_NAMES.Stories:
       return (
-        <Ionicons
-          name={focused ? 'time' : 'time-outline'}
-          size={size}
-          color={color}
+        <Image
+          source={focused ? ImagePath.storySelected : ImagePath.story}
+          style={{width: iconSize, height: iconSize}}
+          resizeMode="contain"
         />
       );
     case SCREEN_NAMES.Tractors:
       return (
-        <MaterialCommunityIcons name="tractor" size={size + 2} color={color} />
+        <Image
+          source={focused ? ImagePath.tractorSelected : ImagePath.tractorTab}
+          style={{width: iconSize, height: iconSize}}
+          resizeMode="contain"
+        />
       );
     case SCREEN_NAMES.Profile:
       return (
-        <Ionicons
-          name={focused ? 'person' : 'person-outline'}
-          size={size}
-          color={color}
+        <Image
+          source={focused ? ImagePath.profileSelected : ImagePath.profile}
+          style={{width: iconSize, height: iconSize}}
+          resizeMode="contain"
         />
       );
     default:
-      return <Ionicons name="ellipse" size={size} color={color} />;
+      return (
+        <Image
+          source={ImagePath.home}
+          style={{width: iconSize, height: iconSize}}
+          resizeMode="contain"
+        />
+      );
   }
 }
 
-const getLabelForRoute = (routeName: string): string => {
-  switch (routeName) {
-    case SCREEN_NAMES.Home:
-      return 'Home';
-    case SCREEN_NAMES.Events:
-      return 'Events';
-    case SCREEN_NAMES.History:
-      return 'History';
-    case SCREEN_NAMES.Stories:
-      return 'Stories';
-    case SCREEN_NAMES.Tractors:
-      return 'Tractors';
-    case SCREEN_NAMES.Profile:
-      return 'Profile';
-    default:
-      return routeName;
-  }
-};
+// getLabelForRoute will be moved inside component to use translations
 
 export default function FarmerBottomTabBar({
   state,
@@ -99,25 +94,46 @@ export default function FarmerBottomTabBar({
 }: BottomTabBarProps) {
   const {moderateScale} = useDeviceMetrics();
   const {currentConfig} = useStatusBar();
+  const {t} = useLanguage();
   const insets = useSafeAreaInsets();
   const activeColor = colors.primary; // Orange
   const inactiveColor = '#94a3b8'; // Grey
   const containerBg = colors.backgroundWhite;
+
+  const getLabelForRoute = (routeName: string): string => {
+    switch (routeName) {
+      case SCREEN_NAMES.Home:
+        return t('tabs.Home');
+      case SCREEN_NAMES.Events:
+        return t('tabs.Events');
+      case SCREEN_NAMES.History:
+        return t('tabs.History');
+      case SCREEN_NAMES.Stories:
+        return t('tabs.Stories');
+      case SCREEN_NAMES.Tractors:
+        return t('tabs.Tractors');
+      case SCREEN_NAMES.Profile:
+        return t('tabs.Profile');
+      default:
+        return routeName;
+    }
+  };
 
   const styles = StyleSheet.create({
     wrapper: {
       borderTopWidth: 1,
     },
     container: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: moderateScale(4),
-      paddingVertical: moderateScale(15),      
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingHorizontal: moderateScale(16),
+      paddingTop: moderateScale(12),
+      paddingBottom: moderateScale(20),
     },
     item: {
-      alignItems: 'center',
-      justifyContent: 'center',
+      alignItems: "center",
+      justifyContent: "center",
     },
     itemInactive: {
       minWidth: moderateScale(36),
@@ -126,27 +142,26 @@ export default function FarmerBottomTabBar({
     itemActive: {
       marginHorizontal: moderateScale(4),
     },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: moderateScale(10),
-    paddingVertical: moderateScale(8),
-    borderRadius: moderateScale(20),
-  },
-  iconWithGap: {
-    marginHorizontal: moderateScale(5),
-  },
-  pillLabel: {
-    ...Typography.mediumSm,
-    marginTop:moderateScale(2),
-    fontSize: moderateScale(12),
-  },
-  iconOnly: {
-    alignItems: 'center',
-    justifyContent: 'center',    
-  },
-});
+    pill: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: moderateScale(10),
+      paddingVertical: moderateScale(8),
+      borderRadius: moderateScale(20),
+    },
+    iconWithGap: {
+      marginRight: moderateScale(8),
+    },
+    pillLabel: {
+      ...Typography.semiBoldMd,
+    },
+    iconOnly: {
+      height: spacing(36),
+      alignItems: "center",
+      justifyContent: "center",
+    },
+  });
 
   return (
     <View
@@ -155,12 +170,16 @@ export default function FarmerBottomTabBar({
         {
           backgroundColor: containerBg,
           borderTopColor: '#e2e8f0',
-          paddingBottom: Math.max(insets.bottom, moderateScale(12)),
+          paddingBottom: insets.bottom,
         },
       ]}>
       <View style={styles.container}>
-        {state.routes.map((route, index) => {
-          const isFocused = state.index === index;
+        {state.routes
+          .filter((route) => route.name !== SCREEN_NAMES.Profile) // Filter out Profile tab
+          .map((route, index) => {
+          // Adjust focused index after filtering
+          const originalIndex = state.routes.findIndex((r) => r.key === route.key);
+          const isFocused = state.index === originalIndex;
           const {options} = descriptors[route.key];
 
           const onPress = () => {
@@ -170,7 +189,22 @@ export default function FarmerBottomTabBar({
               canPreventDefault: true,
             });
 
-            if (!isFocused && !event.defaultPrevented) {
+            // If tab is already focused, check if we need to reset to root
+            if (isFocused) {
+              const currentRoute = state.routes[state.index];
+              const stackState = currentRoute?.state as any;
+              
+              // If we're on a details screen (not at root), reset to root
+              if (stackState && (stackState.index > 0 || (stackState.routes && stackState.routes.length > 1))) {
+                // Reset to root screen
+                const rootScreenName = stackState.routes[0]?.name;
+                if (rootScreenName) {
+                  navigation.navigate(route.name, {
+                    screen: rootScreenName,
+                  } as any);
+                }
+              }
+            } else if (!event.defaultPrevented) {
               navigation.navigate(route.name);
             }
           };
@@ -187,13 +221,13 @@ export default function FarmerBottomTabBar({
           const icon = getIconForRoute(route.name, {
             focused: isFocused,
             color,
-            size: moderateScale(16),
+            size: moderateScale(22),
           });
 
            const iconOnly = getIconForRoute(route.name, {
             focused: isFocused,
             color,
-            size: moderateScale(20),
+            size: moderateScale(24),
           });
 
           // Active tab shows pill with label; others show icon-only

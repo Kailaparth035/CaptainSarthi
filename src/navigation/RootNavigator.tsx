@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import {NavigationContainer, Theme} from '@react-navigation/native';
+import React, { useState, useEffect, useRef } from 'react';
+import {NavigationContainer, Theme, NavigationContainerRef} from '@react-navigation/native';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import {View, ActivityIndicator, StyleSheet} from 'react-native';
 import TabNavigator from './TabNavigator';
@@ -7,13 +7,17 @@ import FarmerTabNavigator from './FarmerTabNavigator';
 import LoginScreen from '../screens/LoginScreen';
 import TermsScreen from '../screens/TermsScreen';
 import {SCREEN_NAMES} from '../constants/screenNames';
-import {isLoggedIn, getSession, isProfileReviewed, isTermsAccepted} from '../utils/session';
+import {isLoggedIn, getSession, isTermsAccepted, getUserRole, getUserData, isLanguageSelected, isProfileCompleted, isOnboardingShown} from '../utils/session';
 import {isFarmerRole} from '../utils/userRole';
 import ReviewProfileScreen from '../screens/ReviewProfileScreen';
+import LanguageSelectScreen from '../screens/LanguageSelectScreen';
+import OnboardingScreen from '../screens/OnboardingScreen';
 import colors from '../utils/colors';
 
 export type RootStackParamList = {
+  Onboarding: undefined;
   Login: undefined;
+  LanguageSelect: undefined;
   Terms: undefined;
   MainTabs: undefined;
   FarmerTabs: undefined;
@@ -21,6 +25,27 @@ export type RootStackParamList = {
 };
 
 const RootStack = createNativeStackNavigator<RootStackParamList>();
+
+const LIGHT_NAVIGATION_THEME: Theme = {
+  dark: false,
+  colors: {
+    primary: colors.primary,
+    background: colors.backgroundWhite,
+    card: colors.backgroundWhite,
+    text: colors.textPrimary,
+    border: colors.borderLight,
+    notification: colors.statusError,
+  },
+  fonts: {
+    regular: {fontFamily: 'System', fontWeight: '400'},
+    medium: {fontFamily: 'System', fontWeight: '500'},
+    bold: {fontFamily: 'System', fontWeight: '700'},
+    heavy: {fontFamily: 'System', fontWeight: '800'},
+  },
+};
+
+// Export navigation ref for use in App.tsx
+export const navigationRef = React.createRef<NavigationContainerRef<RootStackParamList>>();
 
 
 export default function RootNavigator() {
@@ -33,34 +58,74 @@ export default function RootNavigator() {
 
   const checkSession = async () => {
     try {
+      // First check if onboarding has been shown (first time app install)
+      const onboardingShown = await isOnboardingShown();
+      if (!onboardingShown) {
+        console.log('[RootNavigator] Onboarding not shown - navigating to Onboarding');
+        setInitialRoute(SCREEN_NAMES.Onboarding);
+        setIsLoading(false);
+        return;
+      }
+
+      // Check if language has been selected (after onboarding)
+      const languageSelected = await isLanguageSelected();
+      if (!languageSelected) {
+        console.log('[RootNavigator] Language not selected - navigating to LanguageSelect');
+        setInitialRoute(SCREEN_NAMES.LanguageSelect);
+        setIsLoading(false);
+        return;
+      }
+
       const loggedIn = await isLoggedIn();
       if (loggedIn) {
-        // Check user role based on mobile number
+        // First, try to get role from AsyncStorage (most reliable)
+        const storedRole = await getUserRole();
+        const userData = await getUserData();
         const session = await getSession();
-        console.log("session ::",session);
         
-        if (session?.mobileNumber && isFarmerRole(session.mobileNumber)) {
-          // Check if terms have been accepted
-          const termsAccepted = await isTermsAccepted();
-          if (!termsAccepted) {
-            setInitialRoute(SCREEN_NAMES.Terms);
-          } else {
-            // Check if profile has been reviewed
-            const profileReviewed = await isProfileReviewed();
-            if (profileReviewed) {
-              setInitialRoute(SCREEN_NAMES.FarmerTabs);
-            } else {
-              setInitialRoute(SCREEN_NAMES.ReviewProfile);
-            }
-          }
-        } else {
-          setInitialRoute(SCREEN_NAMES.MainTabs);
+        console.log('[RootNavigator] Session check:', {
+          storedRole,
+          userDataRole: userData?.role,
+          mobileNumber: session?.mobileNumber,
+        });
+        
+        // Determine role: prefer stored role, fallback to userData role, then mobile number check
+        let role: string | null = storedRole || userData?.role || null;
+        
+        // If no role stored, fallback to mobile number check (for backward compatibility)
+        if (!role && session?.mobileNumber) {
+          role = isFarmerRole(session.mobileNumber) ? 'farmer' : 'dealer';
+          console.log('[RootNavigator] Using mobile number fallback, role:', role);
         }
+        
+        // Navigate based on role
+        if (role === 'farmer') {
+            console.log('[RootNavigator] Farmer role detected - checking terms and profile');
+            // Check if terms have been accepted
+            const termsAccepted = await isTermsAccepted();
+            if (!termsAccepted) {
+              setInitialRoute(SCREEN_NAMES.Terms);
+            } else {
+              // Check if profile is completed from AsyncStorage
+              const profileCompleted = await isProfileCompleted();
+              console.log('[RootNavigator] Profile completed status:', profileCompleted);
+              if (profileCompleted) {
+                setInitialRoute(SCREEN_NAMES.FarmerTabs);
+              } else {
+                setInitialRoute(SCREEN_NAMES.ReviewProfile);
+              }
+            }
+          } else {
+            // Dealer role or no role (default to dealer)
+            console.log('[RootNavigator] Dealer role detected - navigating to MainTabs');
+            setInitialRoute(SCREEN_NAMES.MainTabs);
+          }
       } else {
+        console.log('[RootNavigator] Not logged in - navigating to Login');
         setInitialRoute(SCREEN_NAMES.Login);
       }
     } catch (error) {
-      console.error('Error checking session:', error);
+      console.error('[RootNavigator] Error checking session:', error);
       setInitialRoute(SCREEN_NAMES.Login);
     } finally {
       setIsLoading(false);
@@ -76,11 +141,13 @@ export default function RootNavigator() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef} theme={LIGHT_NAVIGATION_THEME}>
       <RootStack.Navigator 
         screenOptions={{headerShown: false}}
         initialRouteName={initialRoute as keyof RootStackParamList}>
+        <RootStack.Screen name={SCREEN_NAMES.Onboarding} component={OnboardingScreen} />
         <RootStack.Screen name={SCREEN_NAMES.Login} component={LoginScreen} />
+        <RootStack.Screen name={SCREEN_NAMES.LanguageSelect} component={LanguageSelectScreen} />
         <RootStack.Screen name={SCREEN_NAMES.Terms} component={TermsScreen} />
         <RootStack.Screen name={SCREEN_NAMES.MainTabs} component={TabNavigator} />
         <RootStack.Screen name={SCREEN_NAMES.ReviewProfile} component={ReviewProfileScreen} />

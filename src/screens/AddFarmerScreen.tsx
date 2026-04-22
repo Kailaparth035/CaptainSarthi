@@ -1,4 +1,4 @@
-import React, {useState, useMemo, useRef} from 'react';
+import React, {useState, useMemo, useRef, useEffect} from 'react';
 import {
   View,
   Text,
@@ -8,10 +8,13 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
-  Alert,
+  ActivityIndicator,
+  Dimensions,
+  Keyboard,
+  RefreshControl,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {useNavigation} from '@react-navigation/native';
+import {useNavigation, useRoute, useFocusEffect} from '@react-navigation/native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import colors from '../utils/colors';
@@ -19,11 +22,15 @@ import useDeviceMetrics from '../utils/responsiveCustom';
 import {Typography} from '../utils/typography';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import {useImagePicker} from '../hooks/useImagePicker';
+import {useLanguage} from '../contexts/LanguageContext';
 import {RootStackParamList} from '../navigation/RootNavigator';
 import SimpleBoxInput from '../components/FloatingInput';
 import ImagePickerModal from '../components/ImagePickerModal';
+import ImagePreviewModal, {ImageItem} from '../components/ImagePreviewModal';
 import Dropdown from '../components/Dropdown';
+import SearchableDropdown from '../components/SearchableDropdown';
 import Button from '../components/Button';
+import Toast, {ToastType} from '../components/Toast';
 import {SCREEN_NAMES} from '../constants/screenNames';
 import {
   TextInputQuestion,
@@ -32,21 +39,15 @@ import {
   FileUploadQuestion,
   DropdownQuestion,
 } from '../components/QuestionComponents';
+import {getData, postDataWithImage, putData, putDataWithImage} from '../Service/Apimethod';
+import Apis from '../Service/constant';
+import {getImageUrl} from '../utils/imageUtils';
+import {extractDataFromRCImages, extractDataFromRCImage, RCExtractedData} from '../services/OCRService';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-// Category options
-const categoryOptions = [
-  {label: 'Client with more than 1 tractor', value: 'more_than_one_tractor'},
-  {label: 'Client with major crops/tractors', value: 'major_crops'},
-  {label: 'Owner of multiple crops/animals', value: 'multiple_crops'},
-  {label: 'Farmers who responded to new generations', value: 'new_generations'},
-  {label: '10+ years loyal users', value: 'loyal_users'},
-  {label: 'Farmers who influenced 10+ to 50+ agri', value: 'influencers'},
-  {label: 'Demand high income from rental services', value: 'rental_services'},
-  {label: 'Farmers who developed/innovated machines', value: 'innovators'},
-  {label: 'Living conditions for rental or commodity bonds', value: 'rental_bonds'},
-];
+// Category options - will be populated from API
+const categoryOptions: {label: string; value: string}[] = [];
 
 // Question type definitions
 type QuestionType = 'text' | 'radio' | 'checkbox' | 'file' | 'dropdown';
@@ -159,31 +160,35 @@ const categorySubQuestions: Record<string, QuestionConfig[]> = {
 };
 
 type TractorDetails = {
-  id: string;
+  id: string; // Local ID for UI (like "1", "2", etc.)
+  tractorId?: string; // API's tractor_id (for existing tractors from API)
   tractorImages?: string[]; // Array for multiple tractor images (min 1, max 2)
   rcImage?: string;
   rcFront?: string;
   rcBack?: string;
   modelName: string;
+  vehicleNumber: string;
   chassisNumber: string;
   engineNumber: string;
   ownerName: string;
-  registrationNumber: string;
   purchaseDateDD: string;
   purchaseDateMM: string;
   purchaseDateYYYY: string;
   whoFrom: string;
   errors: {
     modelName?: string;
+    vehicleNumber?: string;
     chassisNumber?: string;
     engineNumber?: string;
     ownerName?: string;
-    registrationNumber?: string;
     purchaseDateDD?: string;
     purchaseDateMM?: string;
     purchaseDateYYYY?: string;
+    purchaseDateError?: string;
     whoFrom?: string;
     tractorImages?: string;
+    rcFront?: string;
+    rcBack?: string;
   };
 };
 
@@ -207,55 +212,388 @@ type FormErrors = {
   houseNumber?: string;
   streetName?: string;
   landmark?: string;
+  taluka?: string;
   village?: string;
   district?: string;
   state?: string;
   pincode?: string;
 };
 
+// Helper function to detect file type based on extension
+const getFileTypeFromUrl = (url: string, fileName: string): 'image' | 'document' => {
+  const ext = (fileName.split('.').pop() || '').toLowerCase();
+  const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
+  return imageExtensions.includes(ext) ? 'image' : 'document';
+};
+
 export default function AddFarmerScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
   const navigation = useNavigation<NavigationProp>();
+  const route = useRoute();
+  const {t, currentLanguage, currentLanguageId} = useLanguage();
   const scrollViewRef = useRef<ScrollView>(null);
   const {pickImage} = useImagePicker();
+  
+  // Get route params for edit mode
+  const routeParams = route.params as {
+    farmerId?: string; 
+    editMode?: boolean; 
+    isEditMode?: boolean;
+    rejectedUpdate?: boolean; // New flag for rejected update from notifications
+  } | undefined;
+  const isEditMode = routeParams?.editMode === true || routeParams?.isEditMode === true;
+  const isRejectedUpdate = routeParams?.rejectedUpdate === true; // Third flow: rejected update from notifications
+  const farmerId = routeParams?.farmerId;
+  // 'SATHI0004';
+  // routeParams?.farmerId || 
+  console.log("[AddFarmerScreen] Route params:", {
+    farmerId,
+    isEditMode,
+    isRejectedUpdate,
+    routeParams,
+  });
+  
+  // Store the numeric ID from API response for update API
+  const [farmerNumericId, setFarmerNumericId] = useState<number | null>(null);
+
+
+  // Refs for form fields to scroll to errors
+  const fieldPositions = useRef<Record<string, number>>({});
+  const fieldViewRefs = useRef<Record<string, View | null>>({});
+  const inputRefs = useRef<Record<string, any>>({});
+  const latestErrorsRef = useRef<FormErrors>({});
+  const latestTractorsRef = useRef<TractorDetails[]>([]);
+  const latestSubQuestionAnswersRef = useRef<Record<string, any>>({});
+  const isPrefillingLocationRef = useRef<boolean>(false);
+  
+  // Refs for date input fields (auto-focus)
+  const dobDDRef = useRef<any>(null);
+  const dobMMRef = useRef<any>(null);
+  const dobYYYYRef = useRef<any>(null);
+  const domDDRef = useRef<any>(null);
+  const domMMRef = useRef<any>(null);
+  const domYYYYRef = useRef<any>(null);
+  const purchaseDateRefs = useRef<Record<string, {dd: any, mm: any, yyyy: any}>>({});
+  
+  // Refs for address fields
+  const houseNumberRef = useRef<any>(null);
+  const streetNameRef = useRef<any>(null);
+  const pincodeRef = useRef<any>(null);
+  
+  // Refs for tractor fields (dynamic - stored by field key like "tractor_1_modelName")
+  const tractorInputRefs = useRef<Record<string, any>>({});
+  
+  // Track keyboard height
+  const keyboardHeight = useRef<number>(0);
+  
+  // Set up keyboard listeners
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        keyboardHeight.current = e.endCoordinates.height;
+      }
+    );
+    const keyboardDidHideListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        keyboardHeight.current = 0;
+      }
+    );
+
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
+  
+  // Function to register field position
+  const registerFieldPosition = (fieldName: string) => {
+    return (event: any) => {
+      const {y} = event.nativeEvent.layout;
+      fieldPositions.current[fieldName] = y;
+    };
+  };
+
+  // Helper function to create ref for input field
+  const getInputRef = (fieldName: string) => {
+    if (!inputRefs.current[fieldName]) {
+      inputRefs.current[fieldName] = React.createRef();
+    }
+    return inputRefs.current[fieldName];
+  };
+  
+  // Helper function to scroll to field and focus
+  const scrollToFieldAndFocus = (fieldName: string) => {
+    // Map field names to their refs
+    const fieldRefMap: Record<string, any> = {
+      'houseNumber': houseNumberRef,
+      'streetName': streetNameRef,
+      'pincode': pincodeRef,
+    };
+    
+    // Check if it's a tractor field (format: tractor_${id}_${fieldName})
+    let inputRef = fieldRefMap[fieldName];
+    if (!inputRef && fieldName.startsWith('tractor_')) {
+      // Check if it's a purchase date field (format: tractor_${id}_purchaseDateDD)
+      if (fieldName.includes('_purchaseDateDD')) {
+        // Extract tractor ID from field name (format: tractor_${id}_purchaseDateDD)
+        const match = fieldName.match(/^tractor_(\d+)_purchaseDateDD$/);
+        if (match && match[1]) {
+          const tractorId = match[1];
+          const dateRefs = purchaseDateRefs.current[tractorId];
+          if (dateRefs && dateRefs.dd) {
+            inputRef = dateRefs.dd; // Focus on DD field (first date field)
+          }
+        }
+      } else {
+        // Extract tractor field ref from dynamic storage
+        inputRef = tractorInputRefs.current[fieldName];
+      }
+    }
+    
+    const fieldViewRef = fieldViewRefs.current[fieldName];
+    const storedY = fieldPositions.current[fieldName] || 0;
+    
+    // Store ref in inputRefs for consistency
+    if (inputRef) {
+      inputRefs.current[fieldName] = inputRef;
+    }
+    
+    if (fieldViewRef && scrollViewRef.current) {
+      try {
+        // Use measureLayout to get accurate position relative to ScrollView
+        (fieldViewRef as any).measureLayout(
+          scrollViewRef.current as any,
+          (x: number, y: number, width: number, height: number) => {
+            // First focus the field to open keyboard
+            if (inputRef) {
+              if (typeof inputRef.current?.focus === 'function') {
+                inputRef.current.focus();
+              } else if (typeof inputRef.focus === 'function') {
+                inputRef.focus();
+              }
+            }
+            
+            // Wait for keyboard to open, then scroll
+            setTimeout(() => {
+              const {height: screenHeight} = Dimensions.get('window');
+              const kbHeight = keyboardHeight.current;
+              // Available screen height (screen height minus keyboard height)
+              const availableHeight = screenHeight - (kbHeight || 0);
+              // Calculate position to show field above keyboard
+              // Position field in the upper portion of available space (about 1/3 from top)
+              const targetY = Math.max(0, y - (availableHeight / 3));
+              
+              scrollViewRef.current?.scrollTo({
+                y: targetY,
+                animated: true,
+              });
+            }, Platform.OS === 'ios' ? 300 : 100);
+          },
+          (error: any) => {
+            // Fallback to using stored position if measureLayout fails
+            console.warn(`measureLayout failed for ${fieldName}, using stored position:`, error);
+            if (storedY > 0) {
+              // First focus the field to open keyboard
+              if (inputRef) {
+                if (typeof inputRef.current?.focus === 'function') {
+                  inputRef.current.focus();
+                } else if (typeof inputRef.focus === 'function') {
+                  inputRef.focus();
+                }
+              }
+              
+              // Wait for keyboard to open, then scroll
+              setTimeout(() => {
+                const {height: screenHeight} = Dimensions.get('window');
+                const kbHeight = keyboardHeight.current;
+                const availableHeight = screenHeight - (kbHeight || 0);
+                const targetY = Math.max(0, storedY - (availableHeight / 3));
+                scrollViewRef.current?.scrollTo({
+                  y: targetY,
+                  animated: true,
+                });
+              }, Platform.OS === 'ios' ? 300 : 100);
+            }
+          }
+        );
+      } catch (error) {
+        console.warn(`Error in measureLayout for ${fieldName}:`, error);
+        // Fallback to using stored position
+        if (storedY > 0) {
+          // First focus the field to open keyboard
+          if (inputRef) {
+            if (typeof inputRef.current?.focus === 'function') {
+              inputRef.current.focus();
+            } else if (typeof inputRef.focus === 'function') {
+              inputRef.focus();
+            }
+          }
+          
+          // Wait for keyboard to open, then scroll
+          setTimeout(() => {
+            const {height: screenHeight} = Dimensions.get('window');
+            const kbHeight = keyboardHeight.current;
+            const availableHeight = screenHeight - (kbHeight || 0);
+            const targetY = Math.max(0, storedY - (availableHeight / 3));
+            scrollViewRef.current?.scrollTo({
+              y: targetY,
+              animated: true,
+            });
+          }, Platform.OS === 'ios' ? 300 : 100);
+        }
+      }
+    } else {
+      // Fallback to using stored position
+      if (storedY > 0) {
+        // First focus the field to open keyboard
+        if (inputRef) {
+          if (typeof inputRef.current?.focus === 'function') {
+            inputRef.current.focus();
+          } else if (typeof inputRef.focus === 'function') {
+            inputRef.focus();
+          }
+        }
+        
+        // Wait for keyboard to open, then scroll
+        setTimeout(() => {
+          const {height: screenHeight} = Dimensions.get('window');
+          const kbHeight = keyboardHeight.current;
+          const availableHeight = screenHeight - (kbHeight || 0);
+          const targetY = Math.max(0, storedY - (availableHeight / 3));
+          scrollViewRef.current?.scrollTo({
+            y: targetY,
+            animated: true,
+          });
+        }, Platform.OS === 'ios' ? 300 : 100);
+      }
+    }
+  };
+  
+  // Helper function to validate date
+  const isValidDate = (dd: string, mm: string, yyyy: string): boolean => {
+    const day = parseInt(dd, 10);
+    const month = parseInt(mm, 10);
+    const year = parseInt(yyyy, 10);
+    
+    if (isNaN(day) || isNaN(month) || isNaN(year)) return false;
+    if (day < 1 || day > 31) return false;
+    if (month < 1 || month > 12) return false;
+    if (year < 1900 || year > 2100) return false;
+    
+    // Check if date is valid (e.g., Feb 30 is invalid)
+    const date = new Date(year, month - 1, day);
+    return date.getDate() === day && date.getMonth() === month - 1 && date.getFullYear() === year;
+  };
+  
+  // Helper function to compare dates
+  const compareDates = (dd1: string, mm1: string, yyyy1: string, dd2: string, mm2: string, yyyy2: string): number => {
+    const date1 = new Date(parseInt(yyyy1, 10), parseInt(mm1, 10) - 1, parseInt(dd1, 10));
+    const date2 = new Date(parseInt(yyyy2, 10), parseInt(mm2, 10) - 1, parseInt(dd2, 10));
+    return date1.getTime() - date2.getTime();
+  };
 
   // Profile photo
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
   const [imagePickerVisible, setImagePickerVisible] = useState(false);
   const [imagePickerType, setImagePickerType] = useState<'profile' | 'tractor' | 'rc' | 'rcFront' | 'rcBack'>('profile');
   const [currentTractorId, setCurrentTractorId] = useState<string>('');
+  
+  // Image preview modal state
+  const [previewModalVisible, setPreviewModalVisible] = useState(false);
+  const [previewImageInfo, setPreviewImageInfo] = useState<{
+    tractorId: string;
+    type: 'tractor' | 'rcFront' | 'rcBack';
+    imageIndex?: number;
+    imageUri: string;
+  } | null>(null);
 
-  // Dealer name (from logged in account - mock for now)
-  const [dealerName] = useState('Default Dealer Name');
+  // Dealer name (from logged in account)
+  const [dealerName, setDealerName] = useState('');
+  const [dealerNameLoading, setDealerNameLoading] = useState(true);
+  
+  // Debug: Log dealer name changes
+  useEffect(() => {
+    console.log('[AddFarmerScreen] Dealer name state updated:', dealerName, 'Loading:', dealerNameLoading);
+  }, [dealerName, dealerNameLoading]);
+  
+  // Submission state
+  const [submitting, setSubmitting] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [toastType, setToastType] = useState<ToastType>('success');
+
+  // OCR processing state
+  const [ocrProcessingTractorId, setOcrProcessingTractorId] = useState<string | null>(null);
+  const [ocrExtractedData, setOcrExtractedData] = useState<Record<string, RCExtractedData>>({});
+
+  // Helper function to show toast messages
+  const showToastMessage = (message: string, type: ToastType = 'error') => {
+    setToastMessage(message);
+    setToastType(type);
+    setShowToast(true);
+  };
+
+  const hideToast = () => {
+    setShowToast(false);
+  };
 
   // Category
   const [category, setCategory] = useState('');
+  const [categoryOptions, setCategoryOptions] = useState<{label: string; value: string}[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(false);
+  const [questions, setQuestions] = useState<any[]>([]);
+  const [questionsLoading, setQuestionsLoading] = useState(false);
   const [subQuestionAnswers, setSubQuestionAnswers] = useState<
     Record<string, any>
   >({});
+  
+  // Initialize ref with state
+  useEffect(() => {
+    latestSubQuestionAnswersRef.current = subQuestionAnswers;
+  }, [subQuestionAnswers]);
 
   // Personal details
   const [firstName, setFirstName] = useState('');
   const [middleName, setMiddleName] = useState('');
   const [lastName, setLastName] = useState('');
   const [countryCode, setCountryCode] = useState('+91');
-  const [phoneNumber, setPhoneNumber] = useState('01254 03254');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [dobDD, setDobDD] = useState('');
   const [dobMM, setDobMM] = useState('');
   const [dobYYYY, setDobYYYY] = useState('');
+  const [dobDateError, setDobDateError] = useState<string | undefined>(undefined);
   const [domDD, setDomDD] = useState('');
   const [domMM, setDomMM] = useState('');
   const [domYYYY, setDomYYYY] = useState('');
+  const [domDateError, setDomDateError] = useState<string | undefined>(undefined);
   const [whoFrom, setWhoFrom] = useState('');
 
   // Address
   const [houseNumber, setHouseNumber] = useState('');
   const [streetName, setStreetName] = useState('');
   const [landmark, setLandmark] = useState('');
-  const [village, setVillage] = useState('');
-  const [district, setDistrict] = useState('');
-  const [state, setState] = useState('');
+  
+  // Location dropdowns - using IDs for API calls
+  const [stateId, setStateId] = useState('');
+  const [districtId, setDistrictId] = useState('');
+  const [talukaId, setTalukaId] = useState('');
+  const [villageId, setVillageId] = useState('');
+  
+  // Location options for dropdowns
+  const [states, setStates] = useState<{label: string; value: string}[]>([]);
+  const [districts, setDistricts] = useState<{label: string; value: string}[]>([]);
+  const [talukas, setTalukas] = useState<{label: string; value: string}[]>([]);
+  const [villages, setVillages] = useState<{label: string; value: string}[]>([]);
+  
+  // Loading states for location APIs
+  const [statesLoading, setStatesLoading] = useState(false);
+  const [districtsLoading, setDistrictsLoading] = useState(false);
+  const [talukasLoading, setTalukasLoading] = useState(false);
+  const [villagesLoading, setVillagesLoading] = useState(false);
+  
   const [pincode, setPincode] = useState('');
 
   // Tractors
@@ -264,10 +602,10 @@ export default function AddFarmerScreen() {
       id: '1',
       tractorImages: [], // Start with empty array, add first slot when needed
       modelName: '',
+      vehicleNumber: '',
       chassisNumber: '',
       engineNumber: '',
       ownerName: '',
-      registrationNumber: '',
       purchaseDateDD: '',
       purchaseDateMM: '',
       purchaseDateYYYY: '',
@@ -278,11 +616,1012 @@ export default function AddFarmerScreen() {
 
   // Errors
   const [errors, setErrors] = useState<FormErrors>({});
+  
+  // Pull to refresh
+  const [refreshing, setRefreshing] = useState(false);
 
   useDynamicStatusBar({
     backgroundColor: colors.backgroundLight,
     bottomBarColor: colors.backgroundLight,
   });
+
+  // Fetch dealer name from profile API
+  const fetchDealerName = async () => {
+    try {
+      setDealerNameLoading(true);
+      console.log('[AddFarmerScreen] Fetching dealer profile...');
+      const response = await getData(Apis.DEALER_PROFILE, {});
+      
+      console.log('[AddFarmerScreen] Profile API response:', JSON.stringify(response, null, 2));
+      
+      if (response?.status === true && response?.data) {
+        const profileData = response.data;
+        console.log('[AddFarmerScreen] Profile data:', JSON.stringify(profileData, null, 2));
+        
+        // Try multiple possible field names for dealer name
+        const name = profileData.firm_name || profileData.name || 
+                     profileData.dealer_name || 
+                     profileData.dealerName ||
+                     profileData.full_name ||
+                     profileData.first_name ||
+                     (profileData.first_name && profileData.last_name 
+                       ? `${profileData.first_name} ${profileData.last_name}`.trim()
+                       : '') ||
+                     'Dealer';
+        
+        console.log('[AddFarmerScreen] Extracted dealer name:', name);
+        setDealerName(name);
+      } else if (response?.data) {
+        // Handle case where response.data exists but status might not be true
+        const profileData = response.data;
+        const name = profileData.firm_name || profileData.name || 
+                     profileData.dealer_name || 
+                     profileData.dealerName 
+                     'Dealer';
+        console.log('[AddFarmerScreen] Extracted dealer name (no status check):', name);
+        setDealerName(name);
+      } else {
+        console.warn('[AddFarmerScreen] Failed to fetch dealer profile - unexpected response:', response);
+        setDealerName('Dealer'); // Fallback
+      }
+    } catch (error) {
+      console.error('[AddFarmerScreen] Error fetching dealer profile:', error);
+      setDealerName('Dealer'); // Fallback
+    } finally {
+      setDealerNameLoading(false);
+    }
+  };
+
+  // Fetch dealer name on mount and when screen comes into focus
+  useEffect(() => {
+    console.log('[AddFarmerScreen] Component mounted - fetching dealer name');
+    fetchDealerName();
+  }, []);
+
+  // Fetch states on mount
+  const fetchStates = async () => {
+    try {
+      setStatesLoading(true);
+      const response = await getData(Apis.GET_STATES, {});
+      if (response?.status === true && response?.data) {
+        const statesList = response.data.map((item: {id: number; name: string}) => ({
+          label: item.name,
+          value: item.id.toString(),
+        }));
+        setStates(statesList);
+      }
+    } catch (error) {
+      console.error('[AddFarmerScreen] Error fetching states:', error);
+    } finally {
+      setStatesLoading(false);
+    }
+  };
+
+  // Fetch districts based on selected state
+  const fetchDistricts = async (stateIdParam: string) => {
+    if (!stateIdParam) {
+      setDistricts([]);
+      setDistrictId('');
+      setTalukas([]);
+      setTalukaId('');
+      setVillages([]);
+      setVillageId('');
+      return;
+    }
+    try {
+      setDistrictsLoading(true);
+      const url = `${Apis.GET_DISTRICTS}/${stateIdParam}`;
+      const response = await getData(url, {});
+      if (response?.status === true && response?.data) {
+        const districtsList = response.data.map((item: {id: number; name: string}) => ({
+          label: item.name,
+          value: item.id.toString(),
+        }));
+        setDistricts(districtsList);
+      } else {
+        setDistricts([]);
+      }
+      // Reset lower-level selections when state changes
+      setDistrictId('');
+      setTalukas([]);
+      setTalukaId('');
+      setVillages([]);
+      setVillageId('');
+    } catch (error) {
+      console.error('[AddFarmerScreen] Error fetching districts:', error);
+      setDistricts([]);
+    } finally {
+      setDistrictsLoading(false);
+    }
+  };
+
+  // Fetch talukas based on selected district
+  const fetchTalukas = async (districtIdParam: string) => {
+    if (!districtIdParam) {
+      setTalukas([]);
+      setTalukaId('');
+      setVillages([]);
+      setVillageId('');
+      return;
+    }
+    try {
+      setTalukasLoading(true);
+      const url = `${Apis.GET_TALUKAS}/${districtIdParam}`;
+      const response = await getData(url, {});
+      if (response?.status === true && response?.data) {
+        const talukasList = response.data.map((item: {id: number; name: string}) => ({
+          label: item.name,
+          value: item.id.toString(),
+        }));
+        setTalukas(talukasList);
+      } else {
+        setTalukas([]);
+      }
+      setTalukaId('');
+      setVillages([]);
+      setVillageId('');
+    } catch (error) {
+      console.error('[AddFarmerScreen] Error fetching talukas:', error);
+      setTalukas([]);
+    } finally {
+      setTalukasLoading(false);
+    }
+  };
+
+  // Fetch villages based on selected taluka
+  const fetchVillages = async (talukaIdParam: string) => {
+    if (!talukaIdParam) {
+      setVillages([]);
+      setVillageId('');
+      return;
+    }
+    try {
+      setVillagesLoading(true);
+      const url = `${Apis.GET_VILLAGES}/${talukaIdParam}`;
+      const response = await getData(url, {});
+      if (response?.status === true && response?.data) {
+        const villagesList = response.data.map((item: {id: number; name: string}) => ({
+          label: item.name,
+          value: item.id.toString(),
+        }));
+        setVillages(villagesList);
+      } else {
+        setVillages([]);
+      }
+      // Reset village when taluka changes
+      setVillageId('');
+    } catch (error) {
+      console.error('[AddFarmerScreen] Error fetching villages:', error);
+      setVillages([]);
+    } finally {
+      setVillagesLoading(false);
+    }
+  };
+
+  // Fetch states on mount
+  useEffect(() => {
+    fetchStates();
+  }, []);
+
+  // Fetch districts when state changes (skip during edit mode prefilling)
+  useEffect(() => {
+    if (isPrefillingLocationRef.current) {
+      return; // Skip during prefilling
+    }
+    if (stateId) {
+      fetchDistricts(stateId);
+    } else {
+      setDistricts([]);
+      setDistrictId('');
+      setTalukas([]);
+      setTalukaId('');
+      setVillages([]);
+      setVillageId('');
+    }
+  }, [stateId]);
+
+  // Fetch talukas when district changes (skip during edit mode prefilling)
+  useEffect(() => {
+    if (isPrefillingLocationRef.current) {
+      return; // Skip during prefilling
+    }
+    if (districtId) {
+      fetchTalukas(districtId);
+    } else {
+      setTalukas([]);
+      setTalukaId('');
+      setVillages([]);
+      setVillageId('');
+    }
+  }, [districtId]);
+
+  // Fetch villages when taluka changes (skip during edit mode prefilling)
+  useEffect(() => {
+    if (isPrefillingLocationRef.current) {
+      return; // Skip during prefilling
+    }
+    if (talukaId) {
+      fetchVillages(talukaId);
+    } else {
+      setVillages([]);
+      setVillageId('');
+    }
+  }, [talukaId]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('[AddFarmerScreen] Screen focused - fetching dealer name');
+      fetchDealerName();
+    }, [])
+  );
+
+  // Fetch categories from API
+  const fetchCategories = async () => {
+    try {
+      setCategoriesLoading(true);
+      const response = await getData(Apis.DEALER_CATEGORIES, {});
+      
+      if (response?.status === true && response?.data) {
+        const selectedLanguageId = currentLanguageId || 1; // Default to English (1)
+        
+        // Filter categories based on current language
+        const filteredCategories = response.data.filter((cat: any) => {
+          // Show only categories with matching language_id (exclude null language_id)
+          return cat.language_id === selectedLanguageId;
+        });
+        
+        const categories = filteredCategories.map((cat: any) => ({
+          label: cat.name || '',
+          value: cat.id?.toString() || '',
+        }));
+        setCategoryOptions(categories);
+        console.log('Categories loaded (filtered by language):', categories);
+      } else {
+        console.warn('Failed to fetch categories:', response);
+        showToastMessage('Failed to load categories. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      showToastMessage('Failed to load categories. Please try again.');
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
+
+  // Fetch questions for selected category
+  const fetchQuestions = async (categoryId: string) => {
+    if (!categoryId) {
+      setQuestions([]);
+      return;
+    }
+
+    try {
+      setQuestionsLoading(true);
+      const response = await getData(`${Apis.DEALER_QUESTIONS}/${categoryId}`, {});
+      
+      if (response?.status === true && response?.data) {
+        setQuestions(response.data || []);
+        console.log('Questions loaded for category:', categoryId, response.data);
+      } else {
+        console.warn('Failed to fetch questions:', response);
+        setQuestions([]);
+      }
+    } catch (error) {
+      console.error('Error fetching questions:', error);
+      setQuestions([]);
+    } finally {
+      setQuestionsLoading(false);
+    }
+  };
+
+  // Fetch categories on mount and whenever screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('[AddFarmerScreen] Screen focused - fetching latest categories');
+      fetchCategories();
+    }, [currentLanguage])
+  );
+
+  // Refetch categories when language changes
+  useEffect(() => {
+    fetchCategories();
+  }, [currentLanguage]);
+
+  // Fetch farmer details in edit mode or rejected update mode
+  const fetchFarmerDetailsForEdit = async () => {
+    if ((!isEditMode && !isRejectedUpdate) || !farmerId) return;
+    
+    try {
+      setCategoriesLoading(true);
+      const response = await getData(Apis.DEALER_FARMERS, { clientId: farmerId });
+      console.log("[AddFarmerScreen] Farmer details API response:", JSON.stringify(response, null, 2));
+      
+      if (response?.status === true && response?.data) {
+        const farmerData = response.data;
+        
+        // Store farmerId (clientId) for update API - use the original farmerId passed from navigation
+        // This is the clientId format like "SATHI0005"
+        console.log("Stored farmer ID for update API:", farmerId);
+        
+        // Also try to extract numeric ID if available
+        let numericId = farmerData.id || 
+                       farmerData.farmer_id || 
+                       (farmerData.farmerId && typeof farmerData.farmerId === 'number' ? farmerData.farmerId : null) ||
+                       (farmerData.farmerId && typeof farmerData.farmerId === 'string' && !isNaN(parseInt(farmerData.farmerId)) ? parseInt(farmerData.farmerId) : null);
+        
+        // If not found in main data, check forms array for farmer_id
+        if (!numericId && farmerData.forms && Array.isArray(farmerData.forms) && farmerData.forms.length > 0) {
+          numericId = farmerData.forms[0]?.farmer_id || null;
+        }
+        
+        if (numericId) {
+          setFarmerNumericId(numericId);
+          console.log("Stored farmer numeric ID for update API:", numericId);
+        }
+        
+        // Prefill personal details
+        setFirstName(farmerData.firstName || '');
+        setMiddleName(farmerData.middleName || '');
+        setLastName(farmerData.lastName || '');
+        
+        // Parse mobile number and country code
+        const mobile = farmerData.mobile || '';
+        if (mobile.startsWith('+91')) {
+          setCountryCode('+91');
+          setPhoneNumber(mobile.replace('+91', '').trim());
+        } else {
+          setCountryCode('+91');
+          setPhoneNumber(mobile);
+        }
+        
+        // Parse dates
+        if (farmerData.dateOfBirth) {
+          const dobDate = new Date(farmerData.dateOfBirth);
+          setDobDD(String(dobDate.getDate()).padStart(2, '0'));
+          setDobMM(String(dobDate.getMonth() + 1).padStart(2, '0'));
+          setDobYYYY(String(dobDate.getFullYear()));
+        }
+        
+        if (farmerData.dateOfMarriage) {
+          const domDate = new Date(farmerData.dateOfMarriage);
+          setDomDD(String(domDate.getDate()).padStart(2, '0'));
+          setDomMM(String(domDate.getMonth() + 1).padStart(2, '0'));
+          setDomYYYY(String(domDate.getFullYear()));
+        }
+        
+        // Prefill address
+        setHouseNumber(farmerData.houseNumber || farmerData.house_number || '');
+        setStreetName(farmerData.streetName || farmerData.street_name || '');
+        setLandmark(farmerData.landmark || '');
+        setPincode(farmerData.pincode || '');
+        
+        // Prefill location IDs (state, district, village)
+        // API returns: state, district, village (not stateId, districtId, villageId)
+        const stateValue = farmerData.state || farmerData.stateId || farmerData.state_id;
+        const districtValue = farmerData.district || farmerData.districtId || farmerData.district_id;
+        const talukaValue = farmerData.taluka || farmerData.talukaId || farmerData.taluka_id;
+        const villageValue = farmerData.village || farmerData.villageId || farmerData.village_id;
+        console.log("stateValue ::",stateValue,districtValue,talukaValue,villageValue);
+        
+        // Set flag to prevent useEffect hooks from interfering
+        isPrefillingLocationRef.current = true;
+        
+        // First, ensure states are loaded
+        let currentStatesList = states;
+        if (currentStatesList.length === 0) {
+          try {
+            setStatesLoading(true);
+            const statesResponse = await getData(Apis.GET_STATES, {});
+            if (statesResponse?.status === true && statesResponse?.data) {
+              currentStatesList = statesResponse.data.map((item: {id: number; name: string}) => ({
+                label: item.name,
+                value: item.id.toString(),
+              }));
+              setStates(currentStatesList);
+            }
+          } catch (error) {
+            console.error('Error fetching states for edit mode:', error);
+          } finally {
+            setStatesLoading(false);
+          }
+        }
+        
+        // Match state value from API response with states list
+        if (stateValue !== undefined && stateValue !== null) {
+          const stateIdStr = String(stateValue);
+          console.log("stateIdStr ::",stateIdStr);
+          
+          // Fetch districts for the selected state
+          try {
+            setDistrictsLoading(true);
+            const districtsResponse = await getData(`${Apis.GET_DISTRICTS}/${stateIdStr}`, {});
+            console.log("districtsResponse ::",districtsResponse);
+            
+            if (districtsResponse?.status === true && districtsResponse?.data) {
+              const districtsList = districtsResponse.data.map((item: {id: number; name: string}) => ({
+                label: item.name,
+                value: item.id.toString(),
+              }));
+              setDistricts(districtsList);
+              
+              // Match district value from API response
+              if (districtValue !== undefined && districtValue !== null) {
+                const districtIdStr = String(districtValue);
+                console.log("districtIdStr ::",districtIdStr);
+
+                // Fetch talukas for the selected district
+                try {
+                  setTalukasLoading(true);
+                  const talukasResponse = await getData(`${Apis.GET_TALUKAS}/${districtIdStr}`, {});
+                  console.log("talukasResponse ::",talukasResponse);
+
+                  if (talukasResponse?.status === true && talukasResponse?.data) {
+                    const talukasList = talukasResponse.data.map((item: {id: number; name: string}) => ({
+                      label: item.name,
+                      value: item.id.toString(),
+                    }));
+                    setTalukas(talukasList);
+
+                    if (talukaValue !== undefined && talukaValue !== null) {
+                      const talukaIdStr = String(talukaValue);
+                      console.log("talukaIdStr ::",talukaIdStr);
+
+                      // Fetch villages for the selected taluka
+                      try {
+                        setVillagesLoading(true);
+                        const villagesResponse = await getData(`${Apis.GET_VILLAGES}/${talukaIdStr}`, {});
+                        console.log("villagesResponse ::",villagesResponse);
+
+                        if (villagesResponse?.status === true && villagesResponse?.data) {
+                          const villagesList = villagesResponse.data.map((item: {id: number; name: string}) => ({
+                            label: item.name,
+                            value: item.id.toString(),
+                          }));
+                          setVillages(villagesList);
+
+                          if (villageValue !== undefined && villageValue !== null) {
+                            const villageIdStr = String(villageValue);
+                            console.log("villageIdStr ::",villageIdStr);
+                            setVillageId(villageIdStr);
+                          }
+                        }
+                      } catch (error) {
+                        console.error('Error fetching villages for edit mode:', error);
+                      } finally {
+                        setVillagesLoading(false);
+                      }
+
+                      setTalukaId(talukaIdStr);
+                    }
+                  }
+                } catch (error) {
+                  console.error('Error fetching talukas for edit mode:', error);
+                } finally {
+                  setTalukasLoading(false);
+                }
+
+                // Set district ID after talukas/villages are loaded
+                setDistrictId(districtIdStr);
+              }
+            }
+            
+            // Set state ID after districts are loaded
+            setStateId(stateIdStr);
+          } catch (error) {
+            console.error('Error fetching districts for edit mode:', error);
+          } finally {
+            setDistrictsLoading(false);
+          }
+        }
+        
+        // Reset flag after prefilling is complete
+        // Use setTimeout to ensure all state updates are processed first
+        setTimeout(() => {
+          isPrefillingLocationRef.current = false;
+        }, 1000);
+        
+        // Set category and fetch questions
+        if (farmerData.categoryId || farmerData.category) {
+          const categoryId = String(farmerData.categoryId || farmerData.category);
+          setCategory(categoryId);
+          // Fetch questions for this category - will be handled by useEffect
+          // But we can also fetch immediately to ensure questions are available
+          await fetchQuestions(categoryId);
+        }
+        
+        // Prefill profile photo
+        if (farmerData.profileImage || farmerData.profile_image) {
+          const imageUrl = getImageUrl(farmerData.profileImage || farmerData.profile_image);
+          if (imageUrl) {
+            setProfilePhoto(imageUrl);
+          }
+        }
+        
+        // Prefill question answers if available
+        if (farmerData.forms && Array.isArray(farmerData.forms) && farmerData.forms.length > 0) {
+          const formData = farmerData.forms[0]?.form_data;
+          if (formData?.questions && Array.isArray(formData.questions)) {
+            const answers: Record<string, any> = {};
+            formData.questions.forEach((q: any, index: number) => {
+              const questionKey = `question_${q.id}_${index}`;
+              if (q.answers && Array.isArray(q.answers) && q.answers.length > 0) {
+                const questionType = q.question_type?.toLowerCase() || 'textbox';
+                if (questionType === 'checkbox') {
+                  answers[questionKey] = q.answers.map((a: any) => a.answer_text || a.answer);
+                } else if (questionType === 'file' || questionType === 'document') {
+                  // For file questions, convert URLs to file objects
+                  // Handle answer_documents array, answer_text, or other URL sources
+                  let fileUrls: string[] = [];
+                  const seenUrls = new Set<string>(); // Track seen URLs to prevent duplicates
+                  
+                  // Helper function to normalize URL for comparison (extract filename/path)
+                  const normalizeUrl = (url: string): string => {
+                    try {
+                      // Extract pathname from URL (remove protocol, domain, query params)
+                      let path = url;
+                      // Remove protocol if present
+                      if (path.includes('://')) {
+                        path = path.split('://')[1];
+                        // Remove domain/host
+                        if (path.includes('/')) {
+                          path = '/' + path.split('/').slice(1).join('/');
+                        } else {
+                          path = '/' + path;
+                        }
+                      }
+                      // Remove query parameters
+                      if (path.includes('?')) {
+                        path = path.split('?')[0];
+                      }
+                      // Normalize path separators and extract filename
+                      const normalizedPath = path.replace(/\\/g, '/').toLowerCase().trim();
+                      // Extract just the filename for comparison
+                      const filename = normalizedPath.split('/').pop() || normalizedPath;
+                      return filename;
+                    } catch {
+                      // If URL parsing fails, use filename only
+                      const filename = url.split('/').pop() || url.split('\\').pop() || url;
+                      return filename.toLowerCase().trim();
+                    }
+                  };
+                  
+                  // Priority 1: Check for answer_documents array directly on question (most reliable)
+                  if (q.answer_documents && Array.isArray(q.answer_documents)) {
+                    q.answer_documents.forEach((url: any) => {
+                      if (url && typeof url === 'string') {
+                        const trimmedUrl = url.trim();
+                        if (trimmedUrl) {
+                          const normalized = normalizeUrl(trimmedUrl);
+                          if (!seenUrls.has(normalized)) {
+                            seenUrls.add(normalized);
+                            fileUrls.push(trimmedUrl);
+                          }
+                        }
+                      }
+                    });
+                  }
+                  
+                  // Priority 2: Check for answer_documents in answer objects (if not already found)
+                  // Process each answer object
+                  if (q.answers && Array.isArray(q.answers)) {
+                    q.answers.forEach((a: any) => {
+                      // Check for answer_documents in answer object
+                      if (a.answer_documents && Array.isArray(a.answer_documents)) {
+                        a.answer_documents.forEach((url: any) => {
+                          if (url && typeof url === 'string') {
+                            const trimmedUrl = url.trim();
+                            if (trimmedUrl) {
+                              const normalized = normalizeUrl(trimmedUrl);
+                              if (!seenUrls.has(normalized)) {
+                                seenUrls.add(normalized);
+                                fileUrls.push(trimmedUrl);
+                              }
+                            }
+                          }
+                        });
+                      }
+                      
+                      // Priority 3: Check for URL in answer_text only if no answer_documents found
+                      // This prevents duplication when same URLs are in both fields
+                      if (fileUrls.length === 0 || (!q.answer_documents && !a.answer_documents)) {
+                        const url = a.answer_text || a.answer || a.file_url || a.document_url;
+                        if (url && typeof url === 'string') {
+                          // Split by comma, semicolon, or whitespace to handle combined URLs
+                          const separatedUrls = url.split(/[,;\s]+/).filter((u: string) => u.trim());
+                          separatedUrls.forEach((u: string) => {
+                            const trimmedUrl = u.trim();
+                            if (trimmedUrl) {
+                              const normalized = normalizeUrl(trimmedUrl);
+                              if (!seenUrls.has(normalized)) {
+                                seenUrls.add(normalized);
+                                fileUrls.push(trimmedUrl);
+                              }
+                            }
+                          });
+                        }
+                      }
+                    });
+                  }
+                  
+                  // Final deduplication using Set (extra safety)
+                  fileUrls = [...new Set(fileUrls)].filter((url: string) => url && url.length > 0);
+                  
+                  if (fileUrls.length > 0) {
+                    answers[questionKey] = fileUrls.map((url: string) => {
+                      const fileName = url.split('/').pop() || url.split('\\').pop() || 'file';
+                      const fileType = getFileTypeFromUrl(url, fileName);
+                      return {
+                        uri: getImageUrl(url) || url,
+                        type: fileType,
+                        name: fileName,
+                      };
+                    });
+                  }
+                } else {
+                  answers[questionKey] = q.answers[0]?.answer_text || q.answers[0]?.answer || '';
+                }
+              }
+            });
+            setSubQuestionAnswers(answers);
+          }
+        } else if (farmerData.questions && Array.isArray(farmerData.questions)) {
+          const answers: Record<string, any> = {};
+          farmerData.questions.forEach((q: any, index: number) => {
+            const questionKey = `question_${q.id}_${index}`;
+            if (q.answers && Array.isArray(q.answers) && q.answers.length > 0) {
+              const questionType = q.question_type?.toLowerCase() || 'textbox';
+              if (questionType === 'checkbox') {
+                answers[questionKey] = q.answers.map((a: any) => a.answer_text || a.answer);
+              } else if (questionType === 'file' || questionType === 'document') {
+                // For file questions, convert URLs to file objects
+                // Handle answer_documents array, answer_text, or other URL sources
+                let fileUrls: string[] = [];
+                const seenUrls = new Set<string>(); // Track seen URLs to prevent duplicates
+                
+                // Helper function to normalize URL for comparison (extract filename/path)
+                const normalizeUrl = (url: string): string => {
+                  try {
+                    // Extract pathname from URL (remove protocol, domain, query params)
+                    let path = url;
+                    // Remove protocol if present
+                    if (path.includes('://')) {
+                      path = path.split('://')[1];
+                      // Remove domain/host
+                      if (path.includes('/')) {
+                        path = '/' + path.split('/').slice(1).join('/');
+                      } else {
+                        path = '/' + path;
+                      }
+                    }
+                    // Remove query parameters
+                    if (path.includes('?')) {
+                      path = path.split('?')[0];
+                    }
+                    // Normalize path separators and extract filename
+                    const normalizedPath = path.replace(/\\/g, '/').toLowerCase().trim();
+                    // Extract just the filename for comparison
+                    const filename = normalizedPath.split('/').pop() || normalizedPath;
+                    return filename;
+                  } catch {
+                    // If URL parsing fails, use filename only
+                    const filename = url.split('/').pop() || url.split('\\').pop() || url;
+                    return filename.toLowerCase().trim();
+                  }
+                };
+                
+                // Priority 1: Check for answer_documents array directly on question (most reliable)
+                if (q.answer_documents && Array.isArray(q.answer_documents)) {
+                  q.answer_documents.forEach((url: any) => {
+                    if (url && typeof url === 'string') {
+                      const trimmedUrl = url.trim();
+                      if (trimmedUrl) {
+                        const normalized = normalizeUrl(trimmedUrl);
+                        if (!seenUrls.has(normalized)) {
+                          seenUrls.add(normalized);
+                          fileUrls.push(trimmedUrl);
+                        }
+                      }
+                    }
+                  });
+                }
+                
+                // Priority 2: Check for answer_documents in answer objects (if not already found)
+                // Process each answer object
+                if (q.answers && Array.isArray(q.answers)) {
+                  q.answers.forEach((a: any) => {
+                    // Check for answer_documents in answer object
+                    if (a.answer_documents && Array.isArray(a.answer_documents)) {
+                      a.answer_documents.forEach((url: any) => {
+                        if (url && typeof url === 'string') {
+                          const trimmedUrl = url.trim();
+                          if (trimmedUrl) {
+                            const normalized = normalizeUrl(trimmedUrl);
+                            if (!seenUrls.has(normalized)) {
+                              seenUrls.add(normalized);
+                              fileUrls.push(trimmedUrl);
+                            }
+                          }
+                        }
+                      });
+                    }
+                    
+                    // Priority 3: Check for URL in answer_text only if no answer_documents found
+                    // This prevents duplication when same URLs are in both fields
+                    if (fileUrls.length === 0 || (!q.answer_documents && !a.answer_documents)) {
+                      const url = a.answer_text || a.answer || a.file_url || a.document_url;
+                      if (url && typeof url === 'string') {
+                        // Split by comma, semicolon, or whitespace to handle combined URLs
+                        const separatedUrls = url.split(/[,;\s]+/).filter((u: string) => u.trim());
+                        separatedUrls.forEach((u: string) => {
+                          const trimmedUrl = u.trim();
+                          if (trimmedUrl) {
+                            const normalized = normalizeUrl(trimmedUrl);
+                            if (!seenUrls.has(normalized)) {
+                              seenUrls.add(normalized);
+                              fileUrls.push(trimmedUrl);
+                            }
+                          }
+                        });
+                      }
+                    }
+                  });
+                }
+                
+                // Final deduplication using Set (extra safety)
+                fileUrls = [...new Set(fileUrls)].filter((url: string) => url && url.length > 0);
+                
+                if (fileUrls.length > 0) {
+                  answers[questionKey] = fileUrls.map((url: string) => {
+                    const fileName = url.split('/').pop() || url.split('\\').pop() || 'file';
+                    const fileType = getFileTypeFromUrl(url, fileName);
+                    return {
+                      uri: getImageUrl(url) || url,
+                      type: fileType,
+                      name: fileName,
+                    };
+                  });
+                }
+              } else {
+                answers[questionKey] = q.answers[0]?.answer_text || q.answers[0]?.answer || '';
+              }
+            }
+          });
+          setSubQuestionAnswers(answers);
+        }
+        
+        // Prefill tractor details if available
+        // Check multiple possible locations for tractor data
+        const tractorsData = farmerData.tractors || 
+                            farmerData.tractor_list || 
+                            farmerData.tractorDetails || 
+                            (farmerData.tractor_details?.tractor_list) ||
+                            [];
+        
+        console.log("[AddFarmerScreen] Tractor data found:", {
+          tractors: farmerData.tractors?.length || 0,
+          tractor_list: farmerData.tractor_list?.length || 0,
+          tractorDetails: farmerData.tractorDetails?.length || 0,
+          tractor_details_tractor_list: farmerData.tractor_details?.tractor_list?.length || 0,
+          finalTractorsData: tractorsData.length,
+        });
+        
+        if (Array.isArray(tractorsData) && tractorsData.length > 0) {
+          console.log('[AddFarmerScreen] Prefilling tractors:', tractorsData.length);
+          const prefilledTractors: TractorDetails[] = tractorsData.map((tractor: any, index: number) => {
+            // Extract tractor_id from API response - check multiple possible field names
+            // This is critical for update operations
+            const apiTractorId = tractor.tractor_id || 
+                                tractor.id || 
+                                tractor.tractorId ||
+                                (tractor.tractor_id && String(tractor.tractor_id)) ||
+                                undefined;
+            
+            console.log(`[AddFarmerScreen] Processing tractor ${index + 1}:`, {
+              tractor_id: apiTractorId,
+              tractor_id_type: typeof apiTractorId,
+              model: tractor.model_name || tractor.model,
+              vehicle_no: tractor.vehicle_number || tractor.vehicleNo,
+              all_tractor_fields: Object.keys(tractor),
+            });
+            
+            // Parse purchase date - check multiple field names
+            // Priority: date_of_registration (for purchase date), then date_of_invoice, then other fields
+            let purchaseDateDD = '';
+            let purchaseDateMM = '';
+            let purchaseDateYYYY = '';
+            
+            // Check date_of_registration first (as per user requirement)
+            if (tractor.date_of_registration) {
+              const date = new Date(tractor.date_of_registration);
+              if (!isNaN(date.getTime())) {
+                purchaseDateDD = String(date.getDate()).padStart(2, '0');
+                purchaseDateMM = String(date.getMonth() + 1).padStart(2, '0');
+                purchaseDateYYYY = String(date.getFullYear());
+              }
+            } else if (tractor.date_of_invoice || tractor.invoice_date || tractor.purchase_date || tractor.dateOfInvoice) {
+              const dateStr = tractor.date_of_invoice || tractor.invoice_date || tractor.purchase_date || tractor.dateOfInvoice;
+              const date = new Date(dateStr);
+              if (!isNaN(date.getTime())) {
+                purchaseDateDD = String(date.getDate()).padStart(2, '0');
+                purchaseDateMM = String(date.getMonth() + 1).padStart(2, '0');
+                purchaseDateYYYY = String(date.getFullYear());
+              }
+            } else if (tractor.invoice_day && tractor.invoice_month && tractor.invoice_year) {
+              purchaseDateDD = String(tractor.invoice_day).padStart(2, '0');
+              purchaseDateMM = String(tractor.invoice_month).padStart(2, '0');
+              purchaseDateYYYY = String(tractor.invoice_year);
+            } else if (tractor.registration_day && tractor.registration_month && tractor.registration_year) {
+              purchaseDateDD = String(tractor.registration_day).padStart(2, '0');
+              purchaseDateMM = String(tractor.registration_month).padStart(2, '0');
+              purchaseDateYYYY = String(tractor.registration_year);
+            }
+            
+            // Get tractor images - check multiple field names and formats
+            const tractorImages: string[] = [];
+            
+            // Priority 1: Check for tractorImages array (exact match from API)
+            if (tractor.tractorImages && Array.isArray(tractor.tractorImages)) {
+              tractor.tractorImages.forEach((imgUrl: string) => {
+                if (imgUrl) {
+                  const fullUrl = getImageUrl(imgUrl) || imgUrl;
+                  if (fullUrl && !tractorImages.includes(fullUrl)) {
+                    tractorImages.push(fullUrl);
+                  }
+                }
+              });
+            }
+            
+            // Priority 2: Check for tractor_images array (alternative format)
+            if (tractor.tractor_images && Array.isArray(tractor.tractor_images)) {
+              tractor.tractor_images.forEach((img: any) => {
+                const imgUrl = typeof img === 'string' ? img : (img.url || img.image_url || img.uri || img);
+                if (imgUrl) {
+                  const fullUrl = getImageUrl(imgUrl) || imgUrl;
+                  if (fullUrl && !tractorImages.includes(fullUrl)) {
+                    tractorImages.push(fullUrl);
+                  }
+                }
+              });
+            }
+            
+            // Priority 3: Check for tractor_images_url array
+            if (tractor.tractor_images_url && Array.isArray(tractor.tractor_images_url)) {
+              tractor.tractor_images_url.forEach((imgUrl: string) => {
+                const fullUrl = getImageUrl(imgUrl) || imgUrl;
+                if (fullUrl && !tractorImages.includes(fullUrl)) {
+                  tractorImages.push(fullUrl);
+                }
+              });
+            }
+            
+            // Priority 4: Check for single tractor image (tractorImage or tractor_image)
+            if (tractor.tractorImage || tractor.tractor_image || tractor.tractor_image_url) {
+              const singleImg = tractor.tractorImage || tractor.tractor_image || tractor.tractor_image_url;
+              const fullUrl = getImageUrl(singleImg) || singleImg;
+              if (fullUrl && !tractorImages.includes(fullUrl)) {
+                tractorImages.unshift(fullUrl); // Add to beginning
+              }
+            }
+            
+            // Ensure at least one empty slot if no images (for adding new images)
+            if (tractorImages.length === 0) {
+              tractorImages.push('');
+            } else if (tractorImages.length < 2) {
+              // If we have 1 image, add an empty slot for second image
+              tractorImages.push('');
+            }
+            
+            // Get RC front image - check multiple field names (priority: rcImagesFront from API)
+            let rcFront: string | undefined = undefined;
+            const rcFrontFields = [
+              tractor.rcImagesFront, // Priority 1: exact match from API
+              tractor.rc_front_image,
+              tractor.rc_front,
+              tractor.rc_image_front,
+              tractor.rcbook_front,
+              tractor.rc_book_front,
+              tractor.rc_front_url,
+            ];
+            
+            for (const field of rcFrontFields) {
+              if (field) {
+                const fullUrl = getImageUrl(field) || field;
+                if (fullUrl) {
+                  rcFront = fullUrl;
+                  break;
+                }
+              }
+            }
+            
+            // Get RC back image - check multiple field names (priority: rcImagesBack from API)
+            let rcBack: string | undefined = undefined;
+            const rcBackFields = [
+              tractor.rcImagesBack, // Priority 1: exact match from API
+              tractor.rc_back_image,
+              tractor.rc_back,
+              tractor.rc_image_back,
+              tractor.rcbook_back,
+              tractor.rc_book_back,
+              tractor.rc_back_url,
+            ];
+            
+            for (const field of rcBackFields) {
+              if (field) {
+                const fullUrl = getImageUrl(field) || field;
+                if (fullUrl) {
+                  rcBack = fullUrl;
+                  break;
+                }
+              }
+            }
+            
+            console.log(`[AddFarmerScreen] Tractor ${index + 1} images:`, {
+              tractorImages: tractorImages.length,
+              rcFront: rcFront ? 'present' : 'missing',
+              rcBack: rcBack ? 'present' : 'missing',
+            });
+            
+            return {
+              id: String(index + 1), // Keep local ID for UI operations
+              tractorId: apiTractorId ? String(apiTractorId) : undefined, // Store API's tractor_id as string for consistency
+              tractorImages: tractorImages,
+              rcFront: rcFront,
+              rcBack: rcBack,
+              modelName: tractor.model_name || tractor.model || tractor.modelName || '',
+              vehicleNumber: tractor.vehicle_number || tractor.vehicleNo || tractor.vehicleNumber || '',
+              chassisNumber: tractor.chassis_number || tractor.chassisNo || tractor.chassisNumber || '',
+              engineNumber: tractor.engine_number || tractor.engineNo || tractor.engineNumber || '',
+              ownerName: tractor.ownername || tractor.owner_name || tractor.ownerName || '', // Priority: ownername from API
+              purchaseDateDD: purchaseDateDD,
+              purchaseDateMM: purchaseDateMM,
+              purchaseDateYYYY: purchaseDateYYYY,
+              whoFrom: tractor.who_drives || tractor.whoFrom || tractor.whoDrives || '',
+              errors: {},
+            };
+          });
+          
+          setTractors(prefilledTractors);
+          console.log('[AddFarmerScreen] Prefilled tractors:', prefilledTractors.length);
+          console.log('[AddFarmerScreen] Tractor IDs verification:', prefilledTractors.map(t => ({
+            local_id: t.id,
+            tractor_id: t.tractorId,
+            model: t.modelName,
+            has_tractor_id: !!t.tractorId,
+          })));
+        } else {
+          console.log('[AddFarmerScreen] No tractor data found in API response');
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching farmer details for edit:', error);
+      showToastMessage(t('addFarmer.errors.failedToLoadFarmerDetails'), 'error');
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
+
+  // Fetch farmer details when in edit mode or rejected update mode
+  useEffect(() => {
+    if ((isEditMode || isRejectedUpdate) && farmerId) {
+      fetchFarmerDetailsForEdit();
+    }
+  }, [isEditMode, isRejectedUpdate, farmerId]);
+
+  // Fetch questions when category changes
+  useEffect(() => {
+    if (category) {
+      fetchQuestions(category);
+      // Don't clear answers in edit mode if they're already prefilled
+      if (!isEditMode) {
+        setSubQuestionAnswers({});
+      }
+    } else {
+      setQuestions([]);
+      if (!isEditMode) {
+        setSubQuestionAnswers({});
+      }
+    }
+  }, [category, isEditMode]);
 
   const styles = useMemo(
     () =>
@@ -295,7 +1634,8 @@ export default function AddFarmerScreen() {
           flexDirection: 'row',
           alignItems: 'center',
           paddingHorizontal: moderateScale(16),
-          paddingTop: insets.top,
+          paddingTop: insets.top + moderateScale(12),
+          paddingBottom: moderateScale(12),
         },
         backButton: {
           width: moderateScale(40),
@@ -311,6 +1651,7 @@ export default function AddFarmerScreen() {
           // fontSize: moderateScale(20),
           color: colors.textPrimary,
           flex: 1,
+          marginLeft: moderateScale(10),
         },
         scrollContent: {
           padding: moderateScale(16),
@@ -467,7 +1808,7 @@ export default function AddFarmerScreen() {
           textAlign: 'center',
         },
         removeTractorButton: {
-          alignSelf: 'flex-end',
+          alignSelf: 'center',
           paddingVertical: moderateScale(8),
           paddingHorizontal: moderateScale(12),
           borderRadius: moderateScale(8),
@@ -500,8 +1841,11 @@ export default function AddFarmerScreen() {
 
   const handleCameraPress = async () => {
     try {
+      setImagePickerVisible(false); // Close picker modal first
       console.log('Opening camera for:', imagePickerType);
-      const imageUri = await pickImage('camera');
+      const imageUri = await pickImage('camera', {
+        onError: (message) => showToastMessage(message),
+      });
       console.log('Camera result:', imageUri);
       if (imageUri) {
         if (imagePickerType === 'profile') {
@@ -518,14 +1862,17 @@ export default function AddFarmerScreen() {
       }
     } catch (error) {
       console.error('Error in handleCameraPress:', error);
-      Alert.alert('Error', 'Failed to open camera. Please try again.');
+      showToastMessage('Failed to open camera. Please try again.');
     }
   };
 
   const handleGalleryPress = async () => {
     try {
+      setImagePickerVisible(false); // Close picker modal first
       console.log('Opening gallery for:', imagePickerType);
-      const imageUri = await pickImage('gallery');
+      const imageUri = await pickImage('gallery', {
+        onError: (message) => showToastMessage(message),
+      });
       console.log('Gallery result:', imageUri);
       if (imageUri) {
         if (imagePickerType === 'profile') {
@@ -537,7 +1884,7 @@ export default function AddFarmerScreen() {
       }
     } catch (error) {
       console.error('Error in handleGalleryPress:', error);
-      Alert.alert('Error', 'Failed to open gallery. Please try again.');
+      showToastMessage('Failed to open gallery. Please try again.');
     }
   };
 
@@ -562,12 +1909,22 @@ export default function AddFarmerScreen() {
             return {
               ...tractor,
               tractorImages: newImages,
+              errors: {
+                ...tractor.errors,
+                tractorImages: undefined, // Clear error when image is uploaded
+              },
             };
           } else {
-            // Handle other image types
+            // Handle other image types (RC images)
+            const fieldName = type === 'rc' ? 'rcImage' : type === 'rcFront' ? 'rcFront' : 'rcBack';
             return {
               ...tractor,
-              [type === 'rc' ? 'rcImage' : type === 'rcFront' ? 'rcFront' : 'rcBack']: imageUri,
+              [fieldName]: imageUri,
+              errors: {
+                ...tractor.errors,
+                // Clear error when image is uploaded
+                [fieldName]: undefined,
+              },
             };
           }
         }
@@ -576,15 +1933,60 @@ export default function AddFarmerScreen() {
     );
   };
 
+  // Handle opening preview modal for uploaded images
+  const handleImagePreview = (
+    tractorId: string,
+    type: 'tractor' | 'rcFront' | 'rcBack',
+    imageUri: string,
+    imageIndex?: number,
+  ) => {
+    setPreviewImageInfo({
+      tractorId,
+      type,
+      imageIndex,
+      imageUri,
+    });
+    setPreviewModalVisible(true);
+  };
+
+  // Handle replacing image from preview modal
+  const handleReplaceImage = async (imageId: string) => {
+    if (!previewImageInfo) return;
+    
+    // Close preview modal first
+    setPreviewModalVisible(false);
+    
+    // Set up image picker for replacement
+    setImagePickerType(previewImageInfo.type);
+    setCurrentTractorId(
+      previewImageInfo.type === 'tractor' && previewImageInfo.imageIndex !== undefined
+        ? `${previewImageInfo.tractorId}-${previewImageInfo.imageIndex}`
+        : previewImageInfo.tractorId
+    );
+    
+    // Open image picker
+    setImagePickerVisible(true);
+  };
+
   const addTractorImage = (tractorId: string) => {
     setTractors(prev =>
       prev.map(tractor => {
         if (tractor.id === tractorId) {
           const currentImages = tractor.tractorImages || [];
           if (currentImages.length < 2) {
+            const newImageIndex = currentImages.length;
+            const newImages = [...currentImages, ''];
+            // Open image picker for the new slot immediately
+            requestAnimationFrame(() => {
+              handleImagePicker('tractor', tractorId, newImageIndex);
+            });
             return {
               ...tractor,
-              tractorImages: [...currentImages, ''],
+              tractorImages: newImages,
+              errors: {
+                ...tractor.errors,
+                tractorImages: undefined, // Clear error when adding slot
+              },
             };
           }
         }
@@ -622,7 +2024,236 @@ export default function AddFarmerScreen() {
               tractorImages: newImages,
             };
           } else {
-            Alert.alert('Error', 'At least one tractor image is required');
+            showToastMessage(t('addFarmer.errors.atLeastOneTractorImageRequired'));
+          }
+        }
+        return tractor;
+      }),
+    );
+  };
+
+  /**
+   * Process RC images with OCR and auto-fill tractor fields
+   * This function validates the RC Book, extracts data, and auto-fills form fields
+   * Processes both RC front and back images if available, or single image if only one is provided
+   * @param tractorId - ID of the tractor to process
+   */
+  const processRCImagesForOCR = async (tractorId: string) => {
+    // Find the tractor
+    const tractor = tractors.find(t => t.id === tractorId);
+    if (!tractor) {
+      console.error('[AddFarmerScreen] Tractor not found:', tractorId);
+      return;
+    }
+
+    const rcFront = tractor.rcFront?.trim();
+    const rcBack = tractor.rcBack?.trim();
+
+    // Validate at least one image exists
+    if (!rcFront && !rcBack) {
+      console.log('[AddFarmerScreen] At least one RC image required for OCR processing');
+      showToastMessage(t('addFarmer.errors.uploadRcImageToExtract'), 'error');
+      return;
+    }
+
+    // Set processing state
+    setOcrProcessingTractorId(tractorId);
+
+    try {
+      console.log('[AddFarmerScreen] Starting OCR processing for tractor:', tractorId);
+
+      let extractedData: RCExtractedData;
+
+      // Process both images if available (preferred), otherwise process single image
+      if (rcFront && rcBack) {
+        console.log('[AddFarmerScreen] Processing both RC images (front + back)');
+        extractedData = await extractDataFromRCImages(rcFront, rcBack);
+      } else if (rcFront) {
+        console.log('[AddFarmerScreen] Processing RC front image only');
+        extractedData = await extractDataFromRCImage(rcFront);
+      } else {
+        console.log('[AddFarmerScreen] Processing RC back image only');
+        extractedData = await extractDataFromRCImage(rcBack!);
+      }
+
+      // Store extracted data for this tractor
+      setOcrExtractedData(prev => ({
+        ...prev,
+        [tractorId]: extractedData,
+      }));
+
+      // Auto-fill tractor fields with extracted data
+      autoFillTractorFromOCR(tractorId, extractedData);
+
+      // Show success message with extracted fields summary
+      const foundFields = [];
+      if (extractedData.modelNumber) foundFields.push('Model Name');
+      if (extractedData.vehicleNumber) foundFields.push('Vehicle Number');
+      if (extractedData.ownerName) foundFields.push('Owner Name');
+      if (extractedData.chassisNumber) foundFields.push('Chassis Number');
+      if (extractedData.engineNumber) foundFields.push('Engine Number');
+      if (extractedData.registrationDate) foundFields.push('Registration Date');
+
+      if (foundFields.length > 0) {
+        showToastMessage(
+          `Successfully extracted: ${foundFields.join(', ')}`,
+          'success',
+        );
+      } else {
+        // No fields extracted - this is not necessarily an error, just informational
+        // User can still manually fill the fields
+        showToastMessage(
+          'RC Book validated. Please review and fill the fields manually if needed.',
+          'success',
+        );
+      }
+
+      console.log('[AddFarmerScreen] OCR processing complete:', extractedData);
+    } catch (error: any) {
+      console.error('[AddFarmerScreen] Error during OCR processing:', error);
+      
+      // Show user-friendly error message
+      const errorMessage = error?.message || 'Failed to extract data from RC Book images';
+      showToastMessage(errorMessage, 'error');
+
+      // Clear processing state
+      setOcrProcessingTractorId(null);
+    } finally {
+      setOcrProcessingTractorId(null);
+    }
+  };
+
+  /**
+   * Auto-fill tractor fields from OCR extracted data
+   * Only fills empty fields to preserve user edits
+   * @param tractorId - ID of the tractor to auto-fill
+   * @param extractedData - Data extracted from OCR
+   */
+  const autoFillTractorFromOCR = (
+    tractorId: string,
+    extractedData: RCExtractedData,
+  ) => {
+    setTractors(prev =>
+      prev.map(tractor => {
+        if (tractor.id === tractorId) {
+          const updates: Partial<TractorDetails> = {};
+
+          // Auto-fill Model Name (only if empty)
+          if (extractedData.modelNumber && !tractor.modelName.trim()) {
+            updates.modelName = extractedData.modelNumber;
+            // Clear error if exists
+            if (tractor.errors.modelName) {
+              updates.errors = {
+                ...(updates.errors || tractor.errors),
+                modelName: undefined,
+              };
+            }
+          }
+
+          // Auto-fill Vehicle Number (only if empty)
+          if (extractedData.vehicleNumber && !tractor.vehicleNumber.trim()) {
+            updates.vehicleNumber = extractedData.vehicleNumber;
+            // Clear error if exists
+            if (tractor.errors.vehicleNumber) {
+              updates.errors = {
+                ...(updates.errors || tractor.errors),
+                vehicleNumber: undefined,
+              };
+            }
+          }
+
+          // Auto-fill Owner Name (only if empty)
+          if (extractedData.ownerName && !tractor.ownerName.trim()) {
+            updates.ownerName = extractedData.ownerName;
+            // Clear error if exists
+            if (tractor.errors.ownerName) {
+              updates.errors = {
+                ...(updates.errors || tractor.errors),
+                ownerName: undefined,
+              };
+            }
+          }
+
+          // Auto-fill Chassis Number (only if empty)
+          if (extractedData.chassisNumber && !tractor.chassisNumber.trim()) {
+            updates.chassisNumber = extractedData.chassisNumber;
+            // Clear error if exists
+            if (tractor.errors.chassisNumber) {
+              updates.errors = {
+                ...(updates.errors || tractor.errors),
+                chassisNumber: undefined,
+              };
+            }
+          }
+
+          // Auto-fill Engine Number (only if empty)
+          if (extractedData.engineNumber && !tractor.engineNumber.trim()) {
+            updates.engineNumber = extractedData.engineNumber;
+            // Clear error if exists
+            if (tractor.errors.engineNumber) {
+              updates.errors = {
+                ...(updates.errors || tractor.errors),
+                engineNumber: undefined,
+              };
+            }
+          }
+
+          // Auto-fill Registration Date (parse DD/MM/YYYY or DD-MM-YYYY format)
+          if (
+            extractedData.registrationDate &&
+            (!tractor.purchaseDateDD || !tractor.purchaseDateMM || !tractor.purchaseDateYYYY)
+          ) {
+            // Parse registration date (format: DD/MM/YYYY or DD-MM-YYYY)
+            const dateMatch = extractedData.registrationDate.match(
+              /(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/,
+            );
+            if (dateMatch && dateMatch.length >= 4) {
+              const day = dateMatch[1].padStart(2, '0');
+              const month = dateMatch[2].padStart(2, '0');
+              const year = dateMatch[3];
+
+              // Validate date
+              const dayNum = parseInt(day, 10);
+              const monthNum = parseInt(month, 10);
+              const yearNum = parseInt(year, 10);
+
+              if (
+                dayNum >= 1 &&
+                dayNum <= 31 &&
+                monthNum >= 1 &&
+                monthNum <= 12 &&
+                yearNum >= 1900 &&
+                yearNum <= 2100
+              ) {
+                const testDate = new Date(yearNum, monthNum - 1, dayNum);
+                if (
+                  testDate.getDate() === dayNum &&
+                  testDate.getMonth() === monthNum - 1 &&
+                  testDate.getFullYear() === yearNum
+                ) {
+                  updates.purchaseDateDD = day;
+                  updates.purchaseDateMM = month;
+                  updates.purchaseDateYYYY = year;
+                  // Clear date errors if exists
+                  if (tractor.errors.purchaseDateDD || tractor.errors.purchaseDateError) {
+                    updates.errors = {
+                      ...(updates.errors || tractor.errors),
+                      purchaseDateDD: undefined,
+                      purchaseDateError: undefined,
+                    };
+                  }
+                }
+              }
+            }
+          }
+
+          // Merge updates
+          if (Object.keys(updates).length > 0) {
+            return {
+              ...tractor,
+              ...updates,
+              errors: updates.errors || tractor.errors,
+            };
           }
         }
         return tractor;
@@ -638,10 +2269,10 @@ export default function AddFarmerScreen() {
         id: newId,
         tractorImages: [''], // Start with one empty slot for first image
         modelName: '',
+        vehicleNumber: '',
         chassisNumber: '',
         engineNumber: '',
         ownerName: '',
-        registrationNumber: '',
         purchaseDateDD: '',
         purchaseDateMM: '',
         purchaseDateYYYY: '',
@@ -655,7 +2286,7 @@ export default function AddFarmerScreen() {
     if (tractors.length > 1) {
       setTractors(prev => prev.filter(t => t.id !== tractorId));
     } else {
-      Alert.alert('Error', 'At least one tractor is required');
+      showToastMessage(t('addFarmer.errors.atLeastOneTractorRequired'));
     }
   };
 
@@ -673,6 +2304,27 @@ export default function AddFarmerScreen() {
             errors: {
               ...tractor.errors,
               [field]: undefined,
+              // Clear date error when any date field changes
+              purchaseDateError: (field === 'purchaseDateDD' || field === 'purchaseDateMM' || field === 'purchaseDateYYYY') 
+                ? undefined 
+                : tractor.errors.purchaseDateError,
+            },
+          };
+        }
+        return tractor;
+      }),
+    );
+  };
+  
+  const updateTractorDateError = (tractorId: string, error: string | undefined) => {
+    setTractors(prev =>
+      prev.map(tractor => {
+        if (tractor.id === tractorId) {
+          return {
+            ...tractor,
+            errors: {
+              ...tractor.errors,
+              purchaseDateError: error,
             },
           };
         }
@@ -682,119 +2334,314 @@ export default function AddFarmerScreen() {
   };
 
   const validateForm = (): boolean => {
+    console.log('=== VALIDATION START ===');
     const newErrors: FormErrors = {};
 
-    // Profile photo
-    if (!profilePhoto) {
-      newErrors.profilePhoto = 'Profile photo is required';
+    // Profile photo - optional (not shown in edit mode)
+    if (!isEditMode) {
+      console.log('Checking profile photo:', profilePhoto ? '✓ Present' : '○ Optional (not provided)');
     }
 
-    // Category
-    if (!category) {
-      newErrors.category = 'Category is required';
+    // Category - not required in edit mode
+    if (!isEditMode) {
+      console.log('Checking category:', category || '✗ Missing');
+      if (!category) {
+        newErrors.category = t('addFarmer.errors.categoryRequired');
+        console.log('ERROR: Category is required');
+      }
     }
 
-    // Sub-questions validation
-    if (category && categorySubQuestions[category]) {
-      const hasAnswers = categorySubQuestions[category].some(
-        (_, index) => {
-          const questionKey = `${category}_${index}`;
-          const answer = subQuestionAnswers[questionKey];
-          if (Array.isArray(answer)) {
-            return answer.length > 0;
+    // Sub-questions validation - ALL questions must be answered (skip in edit mode)
+    if (!isEditMode) {
+      console.log('=== SUB-QUESTIONS VALIDATION ===');
+      console.log('Total questions:', questions.length);
+      
+      // Use ref if available (updated immediately), otherwise fall back to state
+      const answersToCheck = Object.keys(latestSubQuestionAnswersRef.current).length > 0 
+        ? latestSubQuestionAnswersRef.current 
+        : subQuestionAnswers;
+      
+      console.log('All subQuestionAnswers keys:', Object.keys(answersToCheck));
+      console.log('All subQuestionAnswers values:', JSON.stringify(answersToCheck, null, 2));
+      
+      if (category && questions.length > 0) {
+      const unansweredQuestions = questions.filter((question, index) => {
+        const questionKey = `question_${question.id}_${index}`;
+        const answer = answersToCheck[questionKey];
+        
+        console.log(`\nChecking Question ${index + 1}:`);
+        console.log('  - Question ID:', question.id);
+        console.log('  - Question text:', question.question_text);
+        console.log('  - Question type:', question.question_type);
+        console.log('  - Question key:', questionKey);
+        console.log('  - Answer value:', answer);
+        console.log('  - Answer type:', typeof answer);
+        console.log('  - Is array?', Array.isArray(answer));
+        if (Array.isArray(answer)) {
+          console.log('  - Array length:', answer.length);
+          console.log('  - Array contents:', answer);
+        }
+        
+        let isUnanswered = false;
+        
+        if (answer === undefined || answer === null) {
+          isUnanswered = true;
+          console.log('  - Status: ✗ Unanswered (undefined/null)');
+        } else if (Array.isArray(answer)) {
+          // For arrays, check if it has at least one non-empty element
+          // Handle file arrays (objects with uri property) differently from string arrays
+          const questionType = question.question_type?.toLowerCase() || 'textbox';
+          let nonEmptyItems: any[] = [];
+          
+          if (questionType === 'file' || questionType === 'document') {
+            // For file arrays, check if objects have valid uri
+            nonEmptyItems = answer.filter((item: any) => 
+              item && typeof item === 'object' && item.uri && item.uri.trim() !== ''
+            );
+          } else {
+            // For other arrays (checkbox, etc.), check strings
+            nonEmptyItems = answer.filter((item: any) => {
+              if (typeof item === 'string') {
+                return item.trim() !== '';
+              }
+              return item !== null && item !== undefined;
+            });
           }
-          return answer && answer.toString().trim() !== '';
-        },
-      );
-      if (!hasAnswers) {
-        newErrors.selectedSubQuestion = 'Please answer all sub-questions';
+          
+          if (nonEmptyItems.length === 0) {
+            isUnanswered = true;
+            console.log('  - Status: ✗ Unanswered (empty array or all empty items)');
+          } else {
+            console.log('  - Status: ✓ Answered (array with', nonEmptyItems.length, 'non-empty items)');
+          }
+        } else if (typeof answer === 'string') {
+          const trimmed = answer.trim();
+          if (trimmed === '') {
+            isUnanswered = true;
+            console.log('  - Status: ✗ Unanswered (empty string)');
+          } else {
+            console.log('  - Status: ✓ Answered (string:', trimmed, ')');
+          }
+        } else if (typeof answer === 'number') {
+          // Numbers are considered answered
+          console.log('  - Status: ✓ Answered (number:', answer, ')');
+        } else if (typeof answer === 'boolean') {
+          // Booleans are considered answered
+          console.log('  - Status: ✓ Answered (boolean:', answer, ')');
+        } else {
+          // For other types, consider it answered
+          console.log('  - Status: ✓ Answered (other type:', typeof answer, ', value:', answer, ')');
+        }
+        
+        return isUnanswered;
+      });
+      
+      console.log('\n=== SUB-QUESTIONS VALIDATION RESULT ===');
+      console.log('Unanswered questions count:', unansweredQuestions.length);
+      console.log('Total questions:', questions.length);
+      
+      if (unansweredQuestions.length > 0) {
+        console.log('Unanswered question IDs:', unansweredQuestions.map(q => q.id));
+        console.log('Unanswered question texts:', unansweredQuestions.map(q => q.question_text));
+        const plural = questions.length > 1 ? 's' : '';
+        newErrors.selectedSubQuestion = t('addFarmer.errors.answerAllQuestions', {
+          count: questions.length,
+          plural: plural,
+        });
+        console.log(`ERROR: ${unansweredQuestions.length} out of ${questions.length} questions are unanswered`);
+      } else {
+        console.log('✓ All questions answered successfully');
+        }
+      } else {
+        console.log('No questions to validate (category:', category, ', questions.length:', questions.length, ')');
       }
     }
 
     // Personal details
-    if (!firstName.trim()) {
-      newErrors.firstName = 'First name is required';
+    console.log('=== PERSONAL DETAILS VALIDATION ===');
+    console.log('First name:', firstName || '✗ Missing');
+    if (!firstName || !firstName.trim()) {
+      newErrors.firstName = t('addFarmer.errors.firstNameRequired');
+      console.log('ERROR: First name is required');
     }
-    if (!lastName.trim()) {
-      newErrors.lastName = 'Last name is required';
+    
+    console.log('Last name:', lastName || '✗ Missing');
+    if (!lastName || !lastName.trim()) {
+      newErrors.lastName = t('addFarmer.errors.lastNameRequired');
+      console.log('ERROR: Last name is required');
     }
-    if (!countryCode.trim()) {
-      newErrors.countryCode = 'Country code is required';
+    
+    console.log('Country code:', countryCode || '✗ Missing');
+    if (!countryCode || !countryCode.trim()) {
+      newErrors.countryCode = t('addFarmer.errors.countryCodeRequired');
+      console.log('ERROR: Country code is required');
     }
-    if (!phoneNumber.trim()) {
-      newErrors.phoneNumber = 'Phone number is required';
+    
+    console.log('Phone number:', phoneNumber || '✗ Missing');
+    if (!phoneNumber || !phoneNumber.trim()) {
+      newErrors.phoneNumber = t('addFarmer.errors.phoneNumberRequired');
+      console.log('ERROR: Phone number is required');
     }
-    if (!dobDD.trim() || !dobMM.trim() || !dobYYYY.trim()) {
-      newErrors.dobDD = 'Date of birth is required';
+    
+    console.log('Date of birth - DD:', dobDD, 'MM:', dobMM, 'YYYY:', dobYYYY);
+    if (!dobDD || !dobDD.trim() || !dobMM || !dobMM.trim() || !dobYYYY || !dobYYYY.trim()) {
+      newErrors.dobDD = t('addFarmer.errors.dateOfBirthRequired');
+      console.log('ERROR: Date of birth is required');
     }
-    if (!domDD.trim() || !domMM.trim() || !domYYYY.trim()) {
-      newErrors.domDD = 'Date of marriage is required';
-    }
-    if (!whoFrom.trim()) {
-      newErrors.whoFrom = 'Who from is required';
-    }
+    
+    console.log('Date of marriage - DD:', domDD, 'MM:', domMM, 'YYYY:', domYYYY);
+    // Date of marriage is optional - no required validation
+    
+    // console.log('Who from:', whoFrom || '✗ Missing');
+    // if (!whoFrom || !whoFrom.trim()) {
+    //   newErrors.whoFrom = 'Who from is required';
+    //   console.log('ERROR: Who from is required');
+    // }
 
     // Address
-    if (!houseNumber.trim()) {
-      newErrors.houseNumber = 'House number is required';
+    console.log('=== ADDRESS VALIDATION ===');
+    console.log('House number:', houseNumber || '✗ Missing');
+    if (!houseNumber || !houseNumber.trim()) {
+      newErrors.houseNumber = t('addFarmer.errors.houseNumberRequired');
+      console.log('ERROR: House number is required');
     }
-    if (!streetName.trim()) {
-      newErrors.streetName = 'Street name is required';
+    
+    // Street name is optional
+    console.log('Street name:', streetName || 'Optional - empty');
+    
+    console.log('State ID:', stateId || '✗ Missing');
+    if (!stateId || !stateId.trim()) {
+      newErrors.state = t('addFarmer.errors.stateRequired');
+      console.log('ERROR: State is required');
     }
-    if (!village.trim()) {
-      newErrors.village = 'Village is required';
+    
+    console.log('District ID:', districtId || '✗ Missing');
+    if (!districtId || !districtId.trim()) {
+      newErrors.district = t('addFarmer.errors.districtRequired');
+      console.log('ERROR: District is required');
     }
-    if (!district.trim()) {
-      newErrors.district = 'District is required';
-    }
-    if (!state.trim()) {
-      newErrors.state = 'State is required';
-    }
-    if (!pincode.trim()) {
-      newErrors.pincode = 'Pincode is required';
+    
+    // Taluka is optional
+    console.log('Taluka ID:', talukaId || 'Optional - empty');
+    
+    // Village is optional
+    console.log('Village ID:', villageId || 'Optional - empty');
+    
+    console.log('Pincode:', pincode || '✗ Missing');
+    if (!pincode || !pincode.trim()) {
+      newErrors.pincode = t('addFarmer.errors.pincodeRequired');
+      console.log('ERROR: Pincode is required');
     }
 
     setErrors(newErrors);
+    latestErrorsRef.current = newErrors;
 
     // Validate tractors
+    console.log('=== TRACTOR VALIDATION ===');
+    console.log('Total tractors:', tractors.length);
     let tractorErrors = false;
-    const updatedTractors = tractors.map(tractor => {
+    const updatedTractors = tractors.map((tractor, tractorIndex) => {
+      console.log(`\n--- Validating Tractor ${tractorIndex + 1} (ID: ${tractor.id}) ---`);
       const tractorErrorsObj: TractorDetails['errors'] = {};
 
       // Validate tractor images (min 1 required)
-      const uploadedTractorImages = (tractor.tractorImages || []).filter(img => img && img.trim() !== '');
+      // Filter out empty strings and null/undefined values
+      const uploadedTractorImages = (tractor.tractorImages || []).filter(
+        img => img && typeof img === 'string' && img.trim() !== ''
+      );
+      console.log('Tractor images:', uploadedTractorImages.length, 'uploaded out of', (tractor.tractorImages || []).length, 'slots');
       if (uploadedTractorImages.length === 0) {
-        tractorErrorsObj.tractorImages = 'At least one tractor image is required';
+        tractorErrorsObj.tractorImages = t('addFarmer.errors.atLeastOneTractorImageRequired');
         tractorErrors = true;
+        console.log('ERROR: At least one tractor image is required');
+      } else {
+        console.log('✓ Tractor images validated');
       }
 
-      if (!tractor.modelName.trim()) {
-        tractorErrorsObj.modelName = 'Model name is required';
+      console.log('Model name:', tractor.modelName || '✗ Missing');
+      if (!tractor.modelName || !tractor.modelName.trim()) {
+        tractorErrorsObj.modelName = t('addFarmer.errors.modelNameRequired');
         tractorErrors = true;
+        console.log('ERROR: Model name is required');
       }
-      if (!tractor.chassisNumber.trim()) {
-        tractorErrorsObj.chassisNumber = 'Chassis number is required';
+      
+      console.log('Chassis number:', tractor.chassisNumber || '✗ Missing');
+      if (!tractor.chassisNumber || !tractor.chassisNumber.trim()) {
+        tractorErrorsObj.chassisNumber = t('addFarmer.errors.chassisNumberRequired');
         tractorErrors = true;
+        console.log('ERROR: Chassis number is required');
       }
-      if (!tractor.engineNumber.trim()) {
-        tractorErrorsObj.engineNumber = 'Engine number is required';
+      
+      console.log('Engine number:', tractor.engineNumber || '✗ Missing');
+      if (!tractor.engineNumber || !tractor.engineNumber.trim()) {
+        tractorErrorsObj.engineNumber = t('addFarmer.errors.engineNumberRequired');
         tractorErrors = true;
+        console.log('ERROR: Engine number is required');
       }
-      if (!tractor.ownerName.trim()) {
-        tractorErrorsObj.ownerName = 'Owner name is required';
+      
+      console.log('Owner name:', tractor.ownerName || '✗ Missing');
+      if (!tractor.ownerName || !tractor.ownerName.trim()) {
+        tractorErrorsObj.ownerName = t('addFarmer.errors.ownerNameRequired');
         tractorErrors = true;
+        console.log('ERROR: Owner name is required');
       }
-      if (!tractor.registrationNumber.trim()) {
-        tractorErrorsObj.registrationNumber = 'Registration number is required';
+      
+      console.log('Vehicle number:', tractor.vehicleNumber || '✗ Missing');
+      if (!tractor.vehicleNumber || !tractor.vehicleNumber.trim()) {
+        tractorErrorsObj.vehicleNumber = t('addFarmer.errors.vehicleNumberRequired');
         tractorErrors = true;
+        console.log('ERROR: Vehicle number is required');
+      } else {
+        // Validate vehicle number format (e.g., "GJ 27 AJ 9314" or "GJ27AJ9314")
+        const vehicleNumberRegex = /^[A-Z]{2}\s?\d{1,2}\s?[A-Z]{1,2}\s?\d{1,4}$/i;
+        if (!vehicleNumberRegex.test(tractor.vehicleNumber.trim())) {
+          tractorErrorsObj.vehicleNumber = t('addFarmer.errors.validVehicleNumberRequired');
+          tractorErrors = true;
+          console.log('ERROR: Invalid vehicle number format');
+        }
       }
-      if (!tractor.purchaseDateDD.trim() || !tractor.purchaseDateMM.trim() || !tractor.purchaseDateYYYY.trim()) {
-        tractorErrorsObj.purchaseDateDD = 'Date of purchase is required';
+      
+      console.log('Purchase date - DD:', tractor.purchaseDateDD, 'MM:', tractor.purchaseDateMM, 'YYYY:', tractor.purchaseDateYYYY);
+      if (!tractor.purchaseDateDD || !tractor.purchaseDateDD.trim() || 
+          !tractor.purchaseDateMM || !tractor.purchaseDateMM.trim() || 
+          !tractor.purchaseDateYYYY || !tractor.purchaseDateYYYY.trim()) {
+        tractorErrorsObj.purchaseDateDD = t('addFarmer.errors.dateOfPurchaseRequired');
         tractorErrors = true;
+        console.log('ERROR: Date of purchase is required');
       }
-      if (!tractor.whoFrom.trim()) {
-        tractorErrorsObj.whoFrom = 'Who from is required';
+      
+      // Validate RC Front image (required)
+      console.log('RC Front image:', tractor.rcFront || '✗ Missing');
+      if (!tractor.rcFront || !tractor.rcFront.trim()) {
+        tractorErrorsObj.rcFront = t('addFarmer.rcFrontRequired');
         tractorErrors = true;
+        console.log('ERROR: RC book front image is required');
+      } else {
+        console.log('✓ RC Front image validated');
+      }
+      
+      // Validate RC Back image (required)
+      console.log('RC Back image:', tractor.rcBack || '✗ Missing');
+      if (!tractor.rcBack || !tractor.rcBack.trim()) {
+        tractorErrorsObj.rcBack = t('addFarmer.rcBackRequired');
+        tractorErrors = true;
+        console.log('ERROR: RC book back image is required');
+      } else {
+        console.log('✓ RC Back image validated');
+      }
+      
+      // console.log('Who from:', tractor.whoFrom || '✗ Missing');
+      // if (!tractor.whoFrom || !tractor.whoFrom.trim()) {
+      //   tractorErrorsObj.whoFrom = 'Who from is required';
+      //   tractorErrors = true;
+      //   console.log('ERROR: Who from is required');
+      // }
+      
+      const hasTractorErrors = Object.keys(tractorErrorsObj).length > 0;
+      if (!hasTractorErrors) {
+        console.log('✓ Tractor', tractorIndex + 1, 'is valid');
+      } else {
+        console.log('✗ Tractor', tractorIndex + 1, 'has', Object.keys(tractorErrorsObj).length, 'error(s)');
       }
 
       return {
@@ -805,18 +2652,1452 @@ export default function AddFarmerScreen() {
 
     if (tractorErrors) {
       setTractors(updatedTractors);
+      latestTractorsRef.current = updatedTractors;
     }
 
-    return Object.keys(newErrors).length === 0 && !tractorErrors;
+    const hasFormErrors = Object.keys(newErrors).length > 0;
+    const isValid = !hasFormErrors && !tractorErrors;
+    
+    // Log validation result for debugging
+    console.log('\n=== VALIDATION SUMMARY ===');
+    console.log('Form errors count:', Object.keys(newErrors).length);
+    if (hasFormErrors) {
+      console.log('Form errors:', newErrors);
+    }
+    console.log('Tractor errors:', tractorErrors ? 'Yes' : 'No');
+    if (tractorErrors) {
+      console.log('Tractor errors details:', updatedTractors.map(t => ({
+        id: t.id,
+        errors: t.errors
+      })));
+    }
+    console.log('Overall validation result:', isValid ? '✓ VALID' : '✗ INVALID');
+    console.log('=== VALIDATION END ===\n');
+    
+    return isValid;
   };
 
-  const handleSubmit = () => {
-    if (validateForm()) {
-      // TODO: Submit form data
-      Alert.alert('Success', 'Form submitted successfully');
-    } else {
-      Alert.alert('Error', 'Please fill all required fields');
-      scrollViewRef.current?.scrollTo({y: 0, animated: true});
+  // Handle rejected update farmer (from notifications)
+  const handleRejectedUpdate = async () => {
+    if (!isRejectedUpdate || !farmerId) {
+      console.error('handleRejectedUpdate called but not in rejected update mode or farmerId missing');
+      return;
+    }
+    
+    console.log('[AddFarmerScreen] Updating rejected farmer with ID:', farmerId);
+
+    // Small delay to ensure all state updates are complete before validation
+    await new Promise<void>(resolve => setTimeout(() => resolve(), 100));
+    
+    // Validate form for rejected update mode (validate all fields including tractors)
+    const isValid = validateForm();
+    
+    if (!isValid) {
+      // Scroll to first error field (same as handleUpdateFarmer)
+      setTimeout(() => {
+        const currentErrors = latestErrorsRef.current;
+        const currentTractors = latestTractorsRef.current;
+        
+        // Find first error field
+        let firstErrorField: string | null = null;
+        let firstErrorY = 0;
+        
+        // Priority order for error fields
+        const errorFieldOrder = [
+          'firstName',
+          'lastName',
+          'countryCode',
+          'phoneNumber',
+          'dobDD',
+          'domDD',
+          'houseNumber',
+          'streetName',
+          'village',
+          'district',
+          'state',
+          'pincode',
+        ];
+        
+        // Check form errors in priority order
+        for (const fieldName of errorFieldOrder) {
+          if (currentErrors[fieldName as keyof FormErrors]) {
+            firstErrorField = fieldName;
+            firstErrorY = fieldPositions.current[fieldName] || 0;
+            break;
+          }
+        }
+        
+        // If no form error, check tractor errors
+        if (!firstErrorField) {
+          const firstTractorError = currentTractors.find(t => 
+            Object.values(t.errors).some(err => err)
+          );
+          if (firstTractorError) {
+            const tractorErrorKeys = Object.keys(firstTractorError.errors).filter(
+              key => firstTractorError.errors[key as keyof TractorDetails['errors']]
+            );
+            if (tractorErrorKeys.length > 0) {
+              firstErrorField = `tractor_${firstTractorError.id}_${tractorErrorKeys[0]}`;
+              firstErrorY = fieldPositions.current[firstErrorField] || 0;
+            }
+          }
+        }
+        
+        // Scroll to first error field
+        if (firstErrorField) {
+          scrollToFieldAndFocus(firstErrorField);
+        } else {
+          scrollViewRef.current?.scrollTo({y: 0, animated: true});
+        }
+      }, 300);
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+
+      // Format questions array with all question details from API (same as handleUpdateFarmer)
+      console.log('[AddFarmerScreen] Formatting question array for rejected update, total questions:', questions.length);
+      console.log('[AddFarmerScreen] subQuestionAnswers:', Object.keys(subQuestionAnswers));
+      
+      const questionArray = questions.map((question, index) => {
+        const questionKey = `question_${question.id}_${index}`;
+        const answer = subQuestionAnswers[questionKey];
+        
+        console.log(`[AddFarmerScreen] Processing question ${index} (ID: ${question.id}), key: ${questionKey}, answer:`, answer);
+        
+        const answers: {id: number; answer_text: string}[] = [];
+        
+        if (answer !== undefined && answer !== null && answer !== '') {
+          const questionType = question.question_type?.toLowerCase() || 'textbox';
+          
+          // Get options from answers (preferred), answer_options or options
+          const questionOptions = question.answers || question.answer_options || question.options || [];
+          
+          // Handle file/document type separately - files are uploaded separately
+          if ((questionType === 'file' || questionType === 'document') && Array.isArray(answer)) {
+            console.log(`[AddFarmerScreen] File question detected for question ${index}, answer array length:`, answer.length);
+            
+            // Separate existing files (URLs) and new files (local URIs)
+            const existingFiles: string[] = [];
+            const newFiles: any[] = [];
+            
+            answer.forEach((file: any, fileIdx: number) => {
+              console.log(`[AddFarmerScreen] Processing file ${fileIdx}:`, {
+                file: file,
+                isObject: typeof file === 'object',
+                hasUri: file?.uri ? true : false,
+                uri: file?.uri?.substring(0, 50) + '...',
+              });
+              
+              if (file && typeof file === 'object' && file.uri) {
+                const uri = file.uri;
+                // Check if it's a new file (local URI) or existing file (URL)
+                if (uri.startsWith('file://') || uri.startsWith('content://')) {
+                  console.log(`[AddFarmerScreen] File ${fileIdx} is NEW (local URI):`, uri.substring(0, 50));
+                  newFiles.push(file);
+                } else {
+                  // Existing file (URL) - preserve it
+                  console.log(`[AddFarmerScreen] File ${fileIdx} is EXISTING (URL):`, uri.substring(0, 50));
+                  existingFiles.push(uri);
+                }
+              } else if (typeof file === 'string' && file.trim() !== '') {
+                // Legacy format: direct URL string
+                console.log(`[AddFarmerScreen] File ${fileIdx} is EXISTING (string URL):`, file.substring(0, 50));
+                existingFiles.push(file);
+              } else {
+                console.warn(`[AddFarmerScreen] File ${fileIdx} has invalid format:`, file);
+              }
+            });
+            
+            console.log(`[AddFarmerScreen] Separated files - Existing: ${existingFiles.length}, New: ${newFiles.length}`);
+            
+            // For rejected update: Handle existing and new files separately to prevent duplicates
+            // Existing files (URLs) -> include in answer_text and answer_documents (NOT uploaded via FormData)
+            // New files (local URIs) -> upload via FormData, include count in answer_text
+            if (existingFiles.length > 0 || newFiles.length > 0) {
+              // Prepare answer_text based on what we have
+              let answerText = '';
+              
+              if (existingFiles.length > 0 && newFiles.length > 0) {
+                // Both existing and new files
+                // Send existing URLs in answer_text, new files will be uploaded via FormData
+                answerText = existingFiles.join(', ');
+                console.log(`[AddFarmerScreen] Question ${index}: Both existing (${existingFiles.length}) and new (${newFiles.length}) files - existing URLs in answer_text, new files will be uploaded`);
+              } else if (existingFiles.length > 0) {
+                // Only existing files - no changes made
+                // Send existing URLs in answer_text, NO upload via FormData (prevents duplicates)
+                answerText = existingFiles.join(', ');
+                console.log(`[AddFarmerScreen] Question ${index}: Only existing files (${existingFiles.length}) - URLs in answer_text, NO upload to prevent duplicates`);
+              } else if (newFiles.length > 0) {
+                // Only new files - user removed all existing and added new
+                // Send count message, new files will be uploaded via FormData
+                answerText = `${newFiles.length} file(s) uploaded`;
+                console.log(`[AddFarmerScreen] Question ${index}: Only new files (${newFiles.length}) - will be uploaded via FormData`);
+              }
+              
+              // Always add answer entry for file questions (required for API)
+              const answerObj: any = {
+                id: question.id || Date.now(),
+                answer_text: answerText,
+              };
+              
+              // Include answer_documents array with existing file URLs (if any)
+              // This tells API to preserve these documents
+              // New files are uploaded separately via FormData
+              if (existingFiles.length > 0) {
+                answerObj.answer_documents = existingFiles;
+                console.log(`[AddFarmerScreen] Added answer_documents array with ${existingFiles.length} existing file URL(s) for question ${index}`);
+              }
+              
+              answers.push(answerObj);
+              console.log(`[AddFarmerScreen] Added answer entry for question ${index} with answer_text:`, answerText.substring(0, 100));
+            } else {
+              console.warn(`[AddFarmerScreen] Question ${index} has file type but no valid files found`);
+            }
+          } else if (questionType === 'checkbox' && Array.isArray(answer)) {
+            // For checkbox questions, each selected option becomes an answer
+            answer.forEach((selectedOption: string) => {
+              if (selectedOption && selectedOption.trim()) {
+                const option = questionOptions.find((opt: any) =>
+                  opt.answer_text === selectedOption ||
+                  opt.option_text === selectedOption ||
+                  opt.text === selectedOption ||
+                  opt.value === selectedOption ||
+                  opt === selectedOption
+                );
+                const answerId = option?.id || 
+                                option?.option_id || 
+                                Date.now();
+                
+                answers.push({
+                  id: answerId,
+                  answer_text: selectedOption,
+                });
+              }
+            });
+          } else if (questionType === 'radio' && typeof answer === 'string') {
+            const option = questionOptions.find((opt: any) =>
+              opt.answer_text === answer ||
+              opt.option_text === answer ||
+              opt.text === answer ||
+              opt.value === answer ||
+              opt === answer
+            );
+            const answerId = option?.id || 
+                            option?.option_id || 
+                            Date.now();
+            
+            answers.push({
+              id: answerId,
+              answer_text: answer,
+            });
+          } else if (questionType === 'dropdown' && typeof answer === 'string') {
+            const option = questionOptions.find((opt: any) =>
+              opt.answer_text === answer ||
+              opt.option_text === answer ||
+              opt.text === answer ||
+              opt.value === answer ||
+              opt === answer
+            );
+            const answerId = option?.id || 
+                            option?.option_id || 
+                            Date.now();
+            
+            answers.push({
+              id: answerId,
+              answer_text: answer,
+            });
+          } else {
+            // For text questions
+            const answerText = Array.isArray(answer) 
+              ? answer.filter(item => item).join(', ')
+              : String(answer).trim();
+            
+            if (answerText) {
+              answers.push({
+                id: question.id || Date.now(),
+                answer_text: answerText,
+              });
+            }
+          }
+        }
+        
+        // Build question object with answers
+        const questionObj: any = {
+          ...question,
+          answers: answers,
+        };
+        
+        // For file/document questions, also include answer_documents array if we have existing files
+        // This helps API properly handle file preservation and merging
+        const questionType = question.question_type?.toLowerCase() || 'textbox';
+        if ((questionType === 'file' || questionType === 'document') && Array.isArray(subQuestionAnswers[questionKey])) {
+          const answer = subQuestionAnswers[questionKey];
+          const existingFiles: string[] = [];
+          
+          // Extract existing file URLs (not local URIs)
+          answer.forEach((file: any) => {
+            if (file && typeof file === 'object' && file.uri) {
+              const uri = file.uri;
+              if (!uri.startsWith('file://') && !uri.startsWith('content://')) {
+                existingFiles.push(uri);
+              }
+            } else if (typeof file === 'string' && file.trim() !== '') {
+              existingFiles.push(file);
+            }
+          });
+          
+          // Include answer_documents array with existing file URLs
+          // This tells API to preserve these documents
+          // New files are uploaded separately via FormData
+          if (existingFiles.length > 0) {
+            questionObj.answer_documents = existingFiles;
+            console.log(`[AddFarmerScreen] Added answer_documents array (${existingFiles.length} files) for question ${index}`);
+          }
+        }
+        
+        return questionObj;
+      });
+
+      // Format tractor details - Only include tractors that have tractorId from API (existing tractors)
+      // This ensures we only UPDATE existing tractors, not add new ones
+      // Format tractor details array for rejected update
+      // IMPORTANT: In rejected update mode, only include existing tractors (those with tractorId from API)
+      // We don't allow adding new tractors in rejected update - only modifying existing ones
+      // The tractor_id should come from the API response (farmerDetails API -> tractors array -> tractor_id)
+      const tractorDetailsArray = tractors
+        .filter(tractor => {
+          // Only include tractors that have tractorId (existing tractors from API)
+          // This ensures we don't send new tractors that shouldn't be added
+          const hasTractorId = !!tractor.tractorId;
+          if (!hasTractorId) {
+            console.warn(`[AddFarmerScreen] Filtering out tractor ${tractor.id} - no tractorId (not an existing tractor from API)`);
+          }
+          return hasTractorId;
+        })
+        .map((tractor, tractorIndex) => {
+          // Get the tractor_id from API response (stored in tractor.tractorId during prefill)
+          // This is the actual tractor_id from the API's tractors array
+          const apiTractorId = tractor.tractorId;
+          
+          if (!apiTractorId) {
+            console.error(`[AddFarmerScreen] ERROR: Tractor ${tractor.id} at index ${tractorIndex} has no tractorId! This should not happen.`);
+            console.error(`[AddFarmerScreen] Tractor object:`, JSON.stringify(tractor, null, 2));
+          }
+          
+          // Convert tractor_id to number if it's a numeric string (API might expect number)
+          // Otherwise keep as string
+          let formattedTractorId: string | number;
+          if (!apiTractorId) {
+            // If no tractor_id, this should not happen (filtered above), but handle gracefully
+            formattedTractorId = '';
+            console.error(`[AddFarmerScreen] WARNING: Tractor ${tractor.id} has no tractorId, using empty string`);
+          } else if (typeof apiTractorId === 'string' && !isNaN(parseInt(apiTractorId))) {
+            // If it's a numeric string, convert to number for API
+            formattedTractorId = parseInt(apiTractorId, 10);
+          } else if (typeof apiTractorId === 'number') {
+            // Already a number, use as is
+            formattedTractorId = apiTractorId;
+          } else {
+            // Keep as string
+            formattedTractorId = String(apiTractorId);
+          }
+          
+          const tractorDetail: any = {
+            // Include tractor_id FIRST - this is the key field that tells API which tractor to update
+            // This comes from the API response (farmerDetails -> tractors array -> tractor_id)
+            // CRITICAL: tractor_id must be present and correct for update to work
+            tractor_id: formattedTractorId, // Use formatted tractor_id - API needs this to identify which tractor to update
+            id: formattedTractorId, // Also include id for compatibility
+            
+            // Include all tractor details fields that can be updated
+            model_name: tractor.modelName || '',
+            vehicle_number: tractor.vehicleNumber || '',
+            chassis_number: tractor.chassisNumber || '',
+            engine_number: tractor.engineNumber || '',
+            invoice_day: tractor.purchaseDateDD || '',
+            invoice_month: tractor.purchaseDateMM || '',
+            invoice_year: tractor.purchaseDateYYYY || '',
+            registration_day: tractor.purchaseDateDD || '',
+            registration_month: tractor.purchaseDateMM || '',
+            registration_year: tractor.purchaseDateYYYY || '',
+            who_drives: tractor.whoFrom || '',
+            owner_name: tractor.ownerName || '',
+          };
+          
+          console.log(
+            `[AddFarmerScreen] Including existing tractor ${
+              tractorIndex + 1
+            } for update:`,
+            {
+              local_id: tractor.id,
+              api_tractor_id: apiTractorId,
+              formatted_tractor_id: formattedTractorId,
+              tractor_id_type: typeof formattedTractorId,
+              model_name: tractor.modelName,
+              vehicle_number: tractor.vehicleNumber,
+              chassis_number: tractor.chassisNumber,
+              engine_number: tractor.engineNumber,
+              owner_name: tractor.ownerName,
+              registration_day: tractor.purchaseDateDD, // Use purchase date for registration
+              registration_month: tractor.purchaseDateMM, // Use purchase date for registration
+              registration_year: tractor.purchaseDateYYYY, // Use pu
+              // purchase_date: `${tractor.purchaseDateDD}/${tractor.purchaseDateMM}/${tractor.purchaseDateYYYY}`,
+              has_images: (tractor.tractorImages || []).filter(
+                (img: string) => img && img.trim() !== ""
+              ).length,
+              has_rc_front: !!tractor.rcFront,
+              has_rc_back: !!tractor.rcBack,
+            }
+          );
+          
+          console.log(`[AddFarmerScreen] Tractor detail object for API:`, JSON.stringify(tractorDetail, null, 2));
+          
+          return tractorDetail;
+        });
+      
+      console.log('[AddFarmerScreen] Tractor details array for rejected update (only existing tractors with tractor_id from API):', JSON.stringify(tractorDetailsArray, null, 2));
+      console.log(`[AddFarmerScreen] Total existing tractors to update: ${tractorDetailsArray.length}`);
+      
+      // Verify all tractors have tractor_id
+      const tractorsWithoutId = tractorDetailsArray.filter(t => !t.tractor_id);
+      if (tractorsWithoutId.length > 0) {
+        console.error(`[AddFarmerScreen] ERROR: ${tractorsWithoutId.length} tractor(s) without tractor_id found! This will cause update to fail.`);
+      }
+
+      // Get names from selected IDs
+      const selectedState = states.find(s => s.value === stateId);
+      const selectedDistrict = districts.find(d => d.value === districtId);
+      const selectedTaluka = talukas.find(t => t.value === talukaId);
+      const selectedVillage = villages.find(v => v.value === villageId);
+
+      // Prepare the data object according to API structure (same as handleUpdateFarmer but for rejected update)
+      // Use numeric ID if available, otherwise use clientId format
+      const updateFarmerId = farmerNumericId || routeParams?.farmerId;
+      console.log("updateFarmerId ::",updateFarmerId);
+      
+      const farmerData = {
+        farmer_id: routeParams?.farmerId, // Include farmer_id for update
+        first_name: firstName,
+        middle_name: middleName,
+        last_name: lastName,
+        mobile_number: phoneNumber.replace(/\s/g, ''),
+        mobile_country_code: countryCode,
+        dob_day: dobDD,
+        dob_month: dobMM,
+        dob_year: dobYYYY,
+        dom_day: domDD,
+        dom_month: domMM,
+        dom_year: domYYYY,
+        category_id: category || undefined,
+        state_id: stateId,
+        district_id: districtId,
+        taluka_id: talukaId,
+        village_id: villageId,
+        address: {
+          house_number: houseNumber,
+          street_name: streetName,
+          landmark: landmark,
+          village: selectedVillage?.label || villageId,
+          taluka: selectedTaluka?.label || talukaId,
+          district: selectedDistrict?.label || districtId,
+          state: selectedState?.label || stateId,
+          pincode: pincode,
+        },
+        questions: questionArray,
+        tractorDetails: tractorDetailsArray,
+      };
+
+      // Create FormData
+      const formData = new FormData();
+      
+      // Add data as JSON string
+      formData.append('data', JSON.stringify(farmerData));
+      
+      // Add profile photo (if it exists - new local image or existing URL)
+      // For rejected update, include profile photo even if it's an existing URL to ensure it's preserved
+      if (profilePhoto) {
+        const isLocalImage = profilePhoto.startsWith('file://') || profilePhoto.startsWith('content://');
+        
+        if (isLocalImage) {
+          // New local image - upload it
+          const profileUriParts = profilePhoto.split('.');
+          const profileFileExtension = profileUriParts.length > 1 ? profileUriParts[profileUriParts.length - 1].toLowerCase() : 'jpg';
+          const profileMimeType = profileFileExtension === 'png' ? 'image/png' : 'image/jpeg';
+          const profileFileName = `profile-photo-${Date.now()}.${profileFileExtension}`;
+          
+          formData.append('profile_photo', {
+            uri: profilePhoto,
+            type: profileMimeType,
+            name: profileFileName,
+          } as any);
+          console.log('[AddFarmerScreen] Uploading new profile photo (local URI)');
+        } else {
+          // Existing URL - include it in data so API knows to preserve it
+          // Also try to include it in FormData if API supports it
+          console.log('[AddFarmerScreen] Profile photo is existing URL, including in data:', profilePhoto.substring(0, 50));
+          // The profile photo URL should be included in the farmerData if API expects it
+          // For now, we'll also try to append it to FormData - API should handle existing URLs
+          const profileUriParts = profilePhoto.split('.');
+          const profileFileExtension = profileUriParts.length > 1 ? profileUriParts[profileUriParts.length - 1].toLowerCase() : 'jpg';
+          const profileMimeType = profileFileExtension === 'png' ? 'image/png' : 'image/jpeg';
+          const profileFileName = `profile-photo-${Date.now()}.${profileFileExtension}`;
+          
+          // Try to append existing URL - API might handle it or we might need to download it first
+          // For now, we'll include it - if API doesn't support URLs directly, we may need to download first
+          formData.append('profile_photo', {
+            uri: profilePhoto,
+            type: profileMimeType,
+            name: profileFileName,
+          } as any);
+        }
+      }
+
+      // Helper function to append file (image or document) to FormData
+      // Same behavior as add farmer - upload ALL images (both new local URIs and existing URLs)
+      const appendFile = (key: string, fileUri: string, fileType: 'image' | 'document', index?: number) => {
+        console.log('[AddFarmerScreen] appendFile called:', { key, fileUri: fileUri?.substring(0, 50) + '...', fileType, index });
+        
+        if (!fileUri || fileUri.trim() === '') {
+          console.warn('[AddFarmerScreen] appendFile: Empty fileUri, skipping');
+          return;
+        }
+        
+        // Same as add farmer - upload ALL images (both new local URIs and existing URLs)
+        // API will handle both types correctly
+        const isLocalUri = fileUri.startsWith('file://') || fileUri.startsWith('content://');
+        console.log(`[AddFarmerScreen] appendFile: ${isLocalUri ? 'Local URI (new image)' : 'URL (existing image)'} - uploading both types like add farmer`);
+        
+        const uriParts = fileUri.split('.');
+        const fileExtension = uriParts.length > 1 ? uriParts[uriParts.length - 1].toLowerCase() : 'jpg';
+        
+        // Determine MIME type based on file extension and fileType
+        let mimeType: string;
+        if (fileType === 'document') {
+          // Handle document types
+          switch (fileExtension) {
+            case 'pdf':
+              mimeType = 'application/pdf';
+              break;
+            case 'doc':
+              mimeType = 'application/msword';
+              break;
+            case 'docx':
+              mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+              break;
+            case 'xls':
+              mimeType = 'application/vnd.ms-excel';
+              break;
+            case 'xlsx':
+              mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+              break;
+            case 'txt':
+              mimeType = 'text/plain';
+              break;
+            default:
+              mimeType = 'application/octet-stream';
+          }
+        } else {
+          // Handle image types
+          switch (fileExtension) {
+            case 'png':
+              mimeType = 'image/png';
+              break;
+            case 'jpg':
+            case 'jpeg':
+              mimeType = 'image/jpeg';
+              break;
+            case 'gif':
+              mimeType = 'image/gif';
+              break;
+            case 'webp':
+              mimeType = 'image/webp';
+              break;
+            case 'bmp':
+              mimeType = 'image/bmp';
+              break;
+            default:
+              mimeType = 'image/jpeg'; // Default to JPEG
+          }
+        }
+        
+        const fileName = `${key}-${Date.now()}-${index || 0}.${fileExtension}`;
+        
+        console.log('[AddFarmerScreen] Appending file to FormData:', {
+          key,
+          fileName,
+          mimeType,
+          fileExtension,
+          fileType,
+        });
+        
+        formData.append(key, {
+          uri: fileUri,
+          type: mimeType,
+          name: fileName,
+        } as any);
+      };
+
+      // Add question document files with question_docs_{index} key
+      // Same logic as add farmer flow - upload all new files in the answer array
+      questions.forEach((question, questionIndex) => {
+        const questionKey = `question_${question.id}_${questionIndex}`;
+        const answer = subQuestionAnswers[questionKey];
+        const questionType = question.question_type?.toLowerCase() || 'textbox';
+        
+        // Handle file/document type questions
+        if ((questionType === 'file' || questionType === 'document') && Array.isArray(answer)) {
+          console.log(`[AddFarmerScreen] Processing question ${questionIndex} (${question.id}):`, {
+            questionKey,
+            answerLength: answer.length,
+            answer: answer,
+          });
+          
+          // For rejected update: Only upload NEW files (local URIs), NOT existing URLs
+          // Existing URLs are already included in answer_text and answer_documents array
+          // Uploading existing URLs again would cause duplicates
+          // Filter to only include NEW files (local URIs) for upload
+          const validFiles = answer.filter((file: any) => {
+            if (file && typeof file === 'object' && file.uri) {
+              const isNewFile = file.uri && (file.uri.startsWith('file://') || file.uri.startsWith('content://'));
+              console.log(`[AddFarmerScreen] File check for rejected update:`, {
+                uri: file.uri?.substring(0, 50) + '...',
+                isNewFile: isNewFile ? 'New/changed file - WILL UPLOAD' : 'Existing/unchanged file URL - SKIP UPLOAD (already in answer_text)',
+                type: file.type,
+                name: file.name,
+              });
+              // Only upload NEW files (local URIs), skip existing URLs to prevent duplicates
+              return isNewFile; // Only upload new files, not existing URLs
+            }
+            return false;
+          });
+          
+          console.log(`[AddFarmerScreen] Valid NEW files to upload for question ${questionIndex} (existing URLs skipped to prevent duplicates):`, validFiles.length);
+          
+          // Upload only NEW files (local URIs) - existing URLs are already in answer_text
+          validFiles.forEach((file: any, fileIndex: number) => {
+            const fileKey = `question_docs_${questionIndex}`;
+            // Detect file type from file.type or from filename extension
+            let fileType: 'image' | 'document' = file.type || 'image';
+            if (!file.type && file.uri) {
+              // If type not set, detect from filename extension
+              const fileName = file.name || file.uri.split('/').pop() || file.uri.split('\\').pop() || 'file';
+              fileType = getFileTypeFromUrl(file.uri, fileName);
+            }
+            
+            console.log(`[AddFarmerScreen] Uploading file for question ${questionIndex}, fileIndex ${fileIndex}:`, {
+              fileKey,
+              uri: file.uri?.substring(0, 50) + '...',
+              fileType,
+              name: file.name,
+            });
+            
+            appendFile(fileKey, file.uri, fileType, fileIndex);
+          });
+        }
+      });
+
+      // Add tractor images and RC images - use same format as add farmer flow
+      // Use tractorIndex-based naming (tractor_images_0, tractor_images_1, etc.)
+      // This matches the add farmer format for consistency
+      // IMPORTANT: In rejected update mode, only process existing tractors (with tractorId)
+      // The index used for image keys (tractor_images_0, etc.) should match the order in tractorDetailsArray
+      // This ensures API can match images to the correct tractor using the tractor_id in tractorDetailsArray
+      
+      // First, get the list of existing tractors (same filter as tractorDetailsArray)
+      const existingTractors = isRejectedUpdate 
+        ? tractors.filter(tractor => tractor.tractorId)
+        : tractors;
+      
+      console.log(`[AddFarmerScreen] Processing ${existingTractors.length} tractor(s) for image upload`);
+      console.log(`[AddFarmerScreen] Tractor order in array:`, existingTractors.map((t, idx) => ({
+        index: idx,
+        local_id: t.id,
+        tractor_id: t.tractorId,
+        model: t.modelName,
+      })));
+      
+      existingTractors.forEach((tractor, arrayIndex) => {
+        // Use arrayIndex (from filtered array) for image key naming
+        // This matches the order in tractorDetailsArray (which also filters existing tractors)
+        const tractorIndex = arrayIndex;
+        
+        console.log(`[AddFarmerScreen] Processing tractor at arrayIndex ${tractorIndex} (local ID: ${tractor.id}, API tractor_id: ${tractor.tractorId})`);
+        
+        // In rejected update mode, ensure tractor has tractorId (should be guaranteed by filter, but double-check)
+        if (isRejectedUpdate && !tractor.tractorId) {
+          console.error(`[AddFarmerScreen] ERROR: Tractor ${tractor.id} at index ${tractorIndex} has no tractorId! This should not happen after filtering.`);
+          return; // Skip this tractor - don't upload its images
+        }
+        
+        // Add tractor images (min 1, max 2)
+        // Format: tractor_images_0, tractor_images_1, etc. (same as add farmer)
+        if (tractor.tractorImages && tractor.tractorImages.length > 0) {
+          const validImages = tractor.tractorImages.filter(img => img && img.trim() !== '');
+          console.log(`[AddFarmerScreen] Tractor ${tractorIndex} has ${validImages.length} images`);
+          
+          validImages.forEach((imageUri, imageIndex) => {
+            // Check if it's a new file (local URI) or existing file (URL)
+            const isNewFile = imageUri.startsWith('file://') || imageUri.startsWith('content://');
+            console.log(`[AddFarmerScreen] Tractor ${tractorIndex}, Image ${imageIndex}:`, {
+              uri: imageUri?.substring(0, 50) + '...',
+              isNewFile: isNewFile ? 'Local URI (new/changed)' : 'URL (existing/unchanged)',
+            });
+            
+            // Same as add farmer - upload ALL images (both new local URIs and existing URLs)
+            // If changed (new local URI) -> upload it
+            // If unchanged (existing URL) -> upload URL so API can preserve it
+            // Use same key format as add farmer flow
+            // IMPORTANT: The tractorIndex here should match the index in tractorDetailsArray
+            // Both arrays filter existing tractors, so order should match
+            // When tractor count is 1 (tractorIndex = 0): both images use tractor_images_0
+            // When tractor count is 2 (tractorIndex = 1): first image uses tractor_images_1, second uses tractor_images_2
+            // The API will match these keys to the tractor at the same index in tractorDetailsArray
+            // So tractor_images_0 -> first tractor in tractorDetailsArray (with its tractor_id)
+            //    tractor_images_1 -> second tractor in tractorDetailsArray (with its tractor_id)
+            let imageKey = '';
+            if (tractorIndex === 0) {
+              // First tractor: both images use tractor_images_0
+              // This matches first tractor in tractorDetailsArray
+              imageKey = 'tractor_images_0';
+            } else if (tractorIndex === 1) {
+              // Second tractor: first image uses tractor_images_1
+              // This matches second tractor in tractorDetailsArray
+              imageKey = 'tractor_images_1';
+            } else {
+              // Fallback for any additional tractors
+              imageKey = `tractor_images_${tractorIndex}`;
+            }
+            
+            console.log(`[AddFarmerScreen] Uploading tractor image (same as add farmer - uploads both new and existing):`, {
+              tractorIndex: tractorIndex,
+              api_tractor_id: tractor.tractorId,
+              imageIndex: imageIndex,
+              imageKey: imageKey,
+              uri: imageUri?.substring(0, 50) + '...',
+              isNewFile: isNewFile ? 'New/changed image' : 'Existing/unchanged image URL',
+              note: `This image will be matched to tractor at index ${tractorIndex} in tractorDetailsArray (tractor_id: ${tractor.tractorId})`,
+            });
+            appendFile(imageKey, imageUri, 'image', imageIndex);
+          });
+        }
+
+        // Add RC front image - same as add farmer (upload ALL images - both new and existing)
+        if (tractor.rcFront && tractor.rcFront.trim() !== '') {
+          const isNewFile = tractor.rcFront.startsWith('file://') || tractor.rcFront.startsWith('content://');
+          // Same as add farmer - upload ALL images (both new local URIs and existing URLs)
+          // If changed (new local URI) -> upload it
+          // If unchanged (existing URL) -> upload URL so API can preserve it
+          console.log(`[AddFarmerScreen] Uploading RC front image for tractor ${tractorIndex} (same as add farmer - uploads both new and existing):`, {
+            isNewFile: isNewFile ? 'New/changed image' : 'Existing/unchanged image URL',
+            uri: tractor.rcFront?.substring(0, 50) + '...',
+          });
+          // Use same format as add farmer: tractor_rc_front_{tractorIndex}
+          appendFile(`tractor_rc_front_${tractorIndex}`, tractor.rcFront, 'image');
+        }
+
+        // Add RC back image - same as add farmer (upload ALL images - both new and existing)
+        if (tractor.rcBack && tractor.rcBack.trim() !== '') {
+          const isNewFile = tractor.rcBack.startsWith('file://') || tractor.rcBack.startsWith('content://');
+          // Same as add farmer - upload ALL images (both new local URIs and existing URLs)
+          // If changed (new local URI) -> upload it
+          // If unchanged (existing URL) -> upload URL so API can preserve it
+          console.log(`[AddFarmerScreen] Uploading RC back image for tractor ${tractorIndex} (same as add farmer - uploads both new and existing):`, {
+            isNewFile: isNewFile ? 'New/changed image' : 'Existing/unchanged image URL',
+            uri: tractor.rcBack?.substring(0, 50) + '...',
+          });
+          // Use same format as add farmer: tractor_rc_back_{tractorIndex}
+          appendFile(`tractor_rc_back_${tractorIndex}`, tractor.rcBack, 'image');
+        }
+      });
+
+      // Log payload summary for debugging
+      console.log('[AddFarmerScreen] Rejected update payload summary:');
+      console.log('[AddFarmerScreen] - farmer_id:', farmerData.farmer_id);
+      console.log('[AddFarmerScreen] - Total questions in array:', questionArray.length);
+      console.log('[AddFarmerScreen] - Questions with file answers:', questionArray.filter(q => {
+        const hasFileAnswer = q.answers?.some((a: any) => 
+          a.answer_text && (a.answer_text.includes('file(s) uploaded') || a.answer_text.includes(',') || a.answer_text.startsWith('http'))
+        );
+        return hasFileAnswer;
+      }).length);
+      console.log('[AddFarmerScreen] - Total tractors:', tractorDetailsArray.length);
+      console.log('[AddFarmerScreen] Tractor details array:', JSON.stringify(tractorDetailsArray.map(t => ({
+        tractor_id: t.tractor_id || t.id,
+        model_name: t.model_name,
+        vehicle_number: t.vehicle_number,
+        chassis_number: t.chassis_number,
+        engine_number: t.engine_number,
+        owner_name: t.owner_name,
+      })), null, 2));
+      console.log('[AddFarmerScreen] Current tractors state:', tractors.map(t => ({
+        id: t.id,
+        tractorId: t.tractorId,
+        modelName: t.modelName,
+        tractorImages_count: (t.tractorImages || []).filter((img: string) => img && img.trim() !== '').length,
+        hasRcFront: !!t.rcFront,
+        hasRcBack: !!t.rcBack,
+      })));
+      console.log('[AddFarmerScreen] farmerData (summary):', {
+        farmer_id: farmerData.farmer_id,
+        questions_count: farmerData.questions?.length || 0,
+        tractorDetails_count: farmerData.tractorDetails?.length || 0,
+      });
+      console.log('[AddFarmerScreen] Question array (with answers):', questionArray.map(q => ({
+        id: q.id,
+        question_text: q.question_text?.substring(0, 50) + '...',
+        question_type: q.question_type,
+        answers_count: q.answers?.length || 0,
+        answer_texts: q.answers?.map((a: any) => a.answer_text?.substring(0, 50) + '...') || [],
+      })));
+
+      // Call rejected update API - Use PUT method with form-data (as shown in Postman image)
+      // This matches the Postman structure: PUT /api/dealer/v1/farmer/update with form-data
+      // The data includes farmer_id and all form fields like add farmer API
+      const response = await putDataWithImage(Apis.DEALER_UPDATE_FARMER_V1, formData);
+      
+      console.log('[AddFarmerScreen] Rejected update API Response:', JSON.stringify(response, null, 2));
+
+      // Check if response exists and has status
+      if (response && response.status === true) {
+        // Show success toast
+        const successMessage = response?.message || 'Update request sent for verification. Check notifications for update.';
+        showToastMessage(successMessage, 'success');
+        
+        // Navigate back after a short delay to allow toast to be visible
+        setTimeout(() => {
+          navigation.goBack();
+        }, 2000);
+      } else {
+        // Extract error message from various possible response structures
+        let errorMessage = '';
+        if (response) {
+          errorMessage = response?.message || 
+                        response?.data?.message || 
+                        response?.error?.message ||
+                        response?.error ||
+                        (typeof response === 'string' ? response : '');
+        }
+        
+        // Show error message from API response or fallback
+        const finalErrorMessage = errorMessage || 'Failed to update rejected farmer. Please try again.';
+        console.log('[AddFarmerScreen] Showing error toast with API message:', finalErrorMessage);
+        showToastMessage(finalErrorMessage, 'error');
+      }
+    } catch (error: any) {
+      console.error('[AddFarmerScreen] Error updating rejected farmer:', error);
+      
+      // Extract error message from various possible error structures
+      let errorMessage = '';
+      if (error?.response?.data) {
+        errorMessage = error.response.data.message || 
+                      error.response.data.error?.message ||
+                      error.response.data.error ||
+                      '';
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      // Show error message from API response or fallback
+      const finalErrorMessage = errorMessage || 'Failed to update rejected farmer. Please try again.';
+      console.log('[AddFarmerScreen] Showing error toast with API message:', finalErrorMessage);
+      showToastMessage(finalErrorMessage, 'error');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Handle update farmer in edit mode (from farmer list) - Simple form with PUT API
+  const handleUpdateFarmer = async () => {
+    if (!isEditMode || isRejectedUpdate || !farmerId) {
+      console.error('handleUpdateFarmer called but not in edit mode or farmerId missing');
+      return;
+    }
+    
+    // Use numeric ID if available, otherwise try to parse farmerId
+    const updateId = farmerNumericId || (farmerId && !isNaN(parseInt(farmerId)) ? parseInt(farmerId) : null);
+    
+    if (!updateId) {
+      console.error('No valid numeric ID available for update API');
+      showToastMessage(t('addFarmer.errors.invalidFarmerId'), 'error');
+      return;
+    }
+    
+    console.log('[AddFarmerScreen] Updating farmer with ID:', updateId);
+
+    // Small delay to ensure all state updates are complete before validation
+    await new Promise<void>(resolve => setTimeout(() => resolve(), 100));
+    
+    // Validate form for edit mode (only personal details and address, no tractors/category)
+    const newErrors: FormErrors = {};
+
+    // Personal details validation
+    if (!firstName || !firstName.trim()) {
+      newErrors.firstName = t('addFarmer.errors.firstNameRequired');
+    }
+    if (!lastName || !lastName.trim()) {
+      newErrors.lastName = t('addFarmer.errors.lastNameRequired');
+    }
+    if (!countryCode || !countryCode.trim()) {
+      newErrors.countryCode = t('addFarmer.errors.countryCodeRequired');
+    }
+    if (!phoneNumber || !phoneNumber.trim()) {
+      newErrors.phoneNumber = t('addFarmer.errors.phoneNumberRequired');
+    }
+    if (!dobDD || !dobDD.trim() || !dobMM || !dobMM.trim() || !dobYYYY || !dobYYYY.trim()) {
+      newErrors.dobDD = t('addFarmer.errors.dateOfBirthRequired');
+    }
+    // Date of marriage is optional - no required validation
+
+        // Address validation
+    if (!houseNumber || !houseNumber.trim()) {
+      newErrors.houseNumber = t('addFarmer.errors.houseNumberRequired');
+    }
+    // Street name is optional
+    if (!stateId || !stateId.trim()) {
+      newErrors.state = t('addFarmer.errors.stateRequired');
+    }
+    if (!districtId || !districtId.trim()) {
+      newErrors.district = t('addFarmer.errors.districtRequired');
+    }
+    // Taluka and village are optional
+    if (!pincode || !pincode.trim()) {
+      newErrors.pincode = t('addFarmer.errors.pincodeRequired');
+    }
+
+    setErrors(newErrors);
+    latestErrorsRef.current = newErrors;
+
+    const hasFormErrors = Object.keys(newErrors).length > 0;
+    
+    if (hasFormErrors) {
+      // Scroll to first error field
+      setTimeout(() => {
+        const currentErrors = latestErrorsRef.current;
+        const errorFieldOrder = [
+          'firstName',
+          'lastName',
+          'countryCode',
+          'phoneNumber',
+          'dobDD',
+          'domDD',
+          'houseNumber',
+          'streetName',
+          'village',
+          'district',
+          'state',
+          'pincode',
+        ];
+        
+        for (const fieldName of errorFieldOrder) {
+          if (currentErrors[fieldName as keyof FormErrors]) {
+            scrollToFieldAndFocus(fieldName);
+            break;
+          }
+        }
+      }, 300);
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+
+      // Prepare update data - Simple structure for edit from farmer list (PUT API)
+      const updateData = {
+        farmer_id: updateId,
+        changes: {
+          first_name: firstName,
+          last_name: lastName,
+          middle_name: middleName,
+          mobile_country_code: countryCode,
+          mobile: phoneNumber.replace(/\s/g, ''),
+          date_of_birth: `${dobDD}/${dobMM}/${dobYYYY}`,
+          date_of_marriage: `${domDD}/${domMM}/${domYYYY}`,
+          house_number: houseNumber,
+          street_name: streetName,
+          landmark: landmark,
+          state: stateId,
+          district: districtId,
+          taluka: talukaId,
+          village: villageId,
+          pincode: pincode,
+        },
+      };
+      
+      console.log('[AddFarmerScreen] Updating farmer data (simple edit):', JSON.stringify(updateData, null, 2));
+      
+      // Upload profile photo separately if it's a new image
+      if (profilePhoto && (profilePhoto.startsWith('file://') || profilePhoto.startsWith('content://'))) {
+        const profileUriParts = profilePhoto.split('.');
+        const profileFileExtension = profileUriParts.length > 1 ? profileUriParts[profileUriParts.length - 1].toLowerCase() : 'jpg';
+        const profileMimeType = profileFileExtension === 'png' ? 'image/png' : 'image/jpeg';
+        const profileFileName = `profile-photo-${Date.now()}.${profileFileExtension}`;
+        
+        const imageFormData = new FormData();
+        imageFormData.append('image', {
+          uri: profilePhoto,
+          type: profileMimeType,
+          name: profileFileName,
+        } as any);
+        
+        // Upload profile image first
+        const imageResponse = await postDataWithImage(Apis.DEALER_PROFILE_IMAGE, imageFormData);
+        if (imageResponse?.status !== true) {
+          showToastMessage(t('addFarmer.errors.failedToUploadProfileImage'), 'error');
+          setSubmitting(false);
+          return;
+        }
+      }
+      
+      // Call update API (PUT request with simple structure)
+      const response = await putData(Apis.DEALER_UPDATE_FARMER, updateData);
+      
+      console.log('[AddFarmerScreen] Update API Response:', JSON.stringify(response, null, 2));
+
+      // Check if response exists and has status
+      if (response && response.status === true) {
+        // Show success toast
+        const successMessage = response?.message || 'Update request sent for verification. Check notifications for update.';
+        showToastMessage(successMessage, 'success');
+        
+        // Navigate back after a short delay to allow toast to be visible
+        setTimeout(() => {
+          navigation.goBack();
+        }, 2000);
+      } else {
+        // Extract error message from various possible response structures
+        let errorMessage = '';
+        if (response) {
+          errorMessage = response?.message || 
+                        response?.data?.message || 
+                        response?.error?.message ||
+                        response?.error ||
+                        (typeof response === 'string' ? response : '');
+        }
+        
+        // Show error message from API response or fallback
+        const finalErrorMessage = errorMessage || 'Failed to update farmer. Please try again.';
+        console.log('[AddFarmerScreen] Showing error toast with API message:', finalErrorMessage);
+        showToastMessage(finalErrorMessage, 'error');
+      }
+    } catch (error: any) {
+      console.error('[AddFarmerScreen] Error updating farmer:', error);
+      
+      // Extract error message from various possible error structures
+      let errorMessage = '';
+      if (error?.response?.data) {
+        errorMessage = error.response.data.message || 
+                      error.response.data.error?.message ||
+                      error.response.data.error ||
+                      '';
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      // Show error message from API response or fallback
+      const finalErrorMessage = errorMessage || 'Failed to update farmer. Please try again.';
+      console.log('[AddFarmerScreen] Showing error toast with API message:', finalErrorMessage);
+      showToastMessage(finalErrorMessage, 'error');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    // Small delay to ensure all state updates are complete before validation
+    await new Promise<void>(resolve => setTimeout(() => resolve(), 100));
+    
+    // Validate form - this sets errors in state
+    const isValid = validateForm();
+    
+    if (!isValid) {
+      // Wait for state to update, then find first error field and scroll to it
+      setTimeout(() => {
+        const currentErrors = latestErrorsRef.current;
+        const currentTractors = latestTractorsRef.current;
+        
+        // Find first error field
+        let firstErrorField: string | null = null;
+        let firstErrorY = 0;
+        
+        // Priority order for error fields
+        const errorFieldOrder = [
+          'profilePhoto',
+          'category',
+          'selectedSubQuestion',
+          'firstName',
+          'lastName',
+          'countryCode',
+          'phoneNumber',
+          'dobDD',
+          'domDD',
+          'houseNumber',
+          'streetName',
+          'village',
+          'district',
+          'state',
+          'pincode',
+        ];
+        
+        // Check form errors in priority order
+        for (const fieldName of errorFieldOrder) {
+          if (currentErrors[fieldName as keyof FormErrors]) {
+            firstErrorField = fieldName;
+            firstErrorY = fieldPositions.current[fieldName] || 0;
+            break;
+          }
+        }
+        
+        // If no form error, check tractor errors
+        if (!firstErrorField) {
+          const firstTractorError = currentTractors.find(t => 
+            Object.values(t.errors).some(err => err)
+          );
+          if (firstTractorError) {
+            const tractorErrorKeys = Object.keys(firstTractorError.errors).filter(
+              key => firstTractorError.errors[key as keyof TractorDetails['errors']]
+            );
+            if (tractorErrorKeys.length > 0) {
+              firstErrorField = `tractor_${firstTractorError.id}_${tractorErrorKeys[0]}`;
+              firstErrorY = fieldPositions.current[firstErrorField] || 0;
+            }
+          }
+        }
+        
+        // Scroll to first error field and center it on screen
+        if (firstErrorField) {
+          console.log(`Scrolling to error field: ${firstErrorField}`);
+          scrollToFieldAndFocus(firstErrorField);
+        } else {
+          // Fallback: scroll to top if field position not found
+          console.log('Field position not found, scrolling to top');
+          scrollViewRef.current?.scrollTo({y: 0, animated: true});
+        }
+      }, 300);
+      return;
+    }
+
+    // Profile photo is now optional, so we don't require it
+    try {
+      setSubmitting(true);
+
+      // Format questions array with all question details from API: { ...allQuestionDetails, answers: [{ id, answer_text }] }
+      const questionArray = questions.map((question, index) => {
+        const questionKey = `question_${question.id}_${index}`;
+        const answer = subQuestionAnswers[questionKey];
+        
+        const answers: {id: number; answer_text: string}[] = [];
+        
+        if (answer !== undefined && answer !== null && answer !== '') {
+          const questionType = question.question_type?.toLowerCase() || 'textbox';
+          
+          // Get options from answers (preferred), answer_options or options
+          const questionOptions = question.answers || question.answer_options || question.options || [];
+          
+          // Handle file/document type separately - files are uploaded separately
+          if ((questionType === 'file' || questionType === 'document') && Array.isArray(answer)) {
+            // For file questions, the files will be uploaded separately with question_docs_{index} key
+            // We still need to include a placeholder answer or the file count
+            const fileCount = answer.filter((file: any) => file && file.uri && file.uri.trim() !== '').length;
+            if (fileCount > 0) {
+              answers.push({
+                id: question.id || Date.now(),
+                answer_text: `${fileCount} file(s) uploaded`,
+              });
+            }
+          } else if (questionType === 'checkbox' && Array.isArray(answer)) {
+            // For checkbox questions, each selected option becomes an answer
+            answer.forEach((selectedOption: string) => {
+              if (selectedOption && selectedOption.trim()) {
+                // Find the answer option ID from question options
+                const option = questionOptions.find((opt: any) =>
+                  opt.answer_text === selectedOption ||
+                  opt.option_text === selectedOption ||
+                  opt.text === selectedOption ||
+                  opt.value === selectedOption ||
+                  opt === selectedOption
+                );
+                // Use option ID if available, otherwise use a generated ID
+                const answerId = option?.id || 
+                                option?.option_id || 
+                                Date.now(); // Fallback to timestamp
+                
+                answers.push({
+                  id: answerId,
+                  answer_text: selectedOption,
+                });
+              }
+            });
+          } else if (questionType === 'radio' && typeof answer === 'string') {
+            // For radio questions, single answer
+            const option = questionOptions.find((opt: any) =>
+              opt.answer_text === answer ||
+              opt.option_text === answer ||
+              opt.text === answer ||
+              opt.value === answer ||
+              opt === answer
+            );
+            const answerId = option?.id || 
+                            option?.option_id || 
+                            Date.now();
+            
+            answers.push({
+              id: answerId,
+              answer_text: answer,
+            });
+          } else if (questionType === 'dropdown' && typeof answer === 'string') {
+            // For dropdown questions, similar to radio
+            const option = questionOptions.find((opt: any) =>
+              opt.answer_text === answer ||
+              opt.option_text === answer ||
+              opt.text === answer ||
+              opt.value === answer ||
+              opt === answer
+            );
+            const answerId = option?.id || 
+                            option?.option_id || 
+                            Date.now();
+            
+            answers.push({
+              id: answerId,
+              answer_text: answer,
+            });
+          } else {
+            // For text questions, use the text as answer_text
+            // For text inputs, we might not have answer option IDs, so use question ID or generate one
+            const answerText = Array.isArray(answer) 
+              ? answer.filter(item => item).join(', ')
+              : String(answer).trim();
+            
+            if (answerText) {
+              // For text questions, use question ID as answer ID or generate one
+              answers.push({
+                id: question.id || Date.now(),
+                answer_text: answerText,
+              });
+            }
+          }
+        }
+        
+        // Return all question details from API along with answers
+        return {
+          ...question, // Include all question properties from API (id, question_text, question_type, answer_options, category_id, etc.)
+          answers: answers,
+        };
+      });
+
+      // Format tractor details
+      // Use purchase date values for registration date fields
+      const tractorDetailsArray = tractors.map(tractor => ({        
+        model_name: tractor.modelName,
+        vehicle_number: tractor.vehicleNumber,
+        chassis_number: tractor.chassisNumber,
+        engine_number: tractor.engineNumber,
+        invoice_day: tractor.purchaseDateDD,
+        invoice_month: tractor.purchaseDateMM,
+        invoice_year: tractor.purchaseDateYYYY,
+        registration_day: tractor.purchaseDateDD, // Use purchase date for registration
+        registration_month: tractor.purchaseDateMM, // Use purchase date for registration
+        registration_year: tractor.purchaseDateYYYY, // Use purchase date for registration
+        who_drives: tractor.whoFrom,
+        owner_name: tractor.ownerName || '', // Ensure owner_name is always passed, use empty string if not provided
+      }));
+
+      // Get names from selected IDs
+      const selectedState = states.find(s => s.value === stateId);
+      const selectedDistrict = districts.find(d => d.value === districtId);
+      const selectedTaluka = talukas.find(t => t.value === talukaId);
+      const selectedVillage = villages.find(v => v.value === villageId);
+
+      // Prepare the data object according to API structure
+      const farmerData = {
+        first_name: firstName,
+        middle_name: middleName,
+        last_name: lastName,
+        mobile_number: phoneNumber.replace(/\s/g, ''), // Remove spaces from phone number
+        mobile_country_code: countryCode,
+        dob_day: dobDD,
+        dob_month: dobMM,
+        dob_year: dobYYYY,
+        dom_day: domDD,
+        dom_month: domMM,
+        dom_year: domYYYY,
+        dealer_name: dealerName,
+        category_id: category,
+        Address: {
+          house_number: houseNumber,
+          street_name: streetName,
+          landmark: landmark,
+          village: selectedVillage?.label || villageId,
+          taluka: selectedTaluka?.label || talukaId,
+          district: selectedDistrict?.label || districtId,
+          state: selectedState?.label || stateId,
+          pincode: pincode,
+        },
+        question: questionArray,
+        tractorDetails: tractorDetailsArray,
+      };
+
+      // Create FormData
+      const formData = new FormData();
+      
+      // Add data as JSON string
+      formData.append('data', JSON.stringify(farmerData));
+      
+      // Add profile photo (optional)
+      if (profilePhoto) {
+        const profileUriParts = profilePhoto.split('.');
+        const profileFileExtension = profileUriParts.length > 1 ? profileUriParts[profileUriParts.length - 1].toLowerCase() : 'jpg';
+        const profileMimeType = profileFileExtension === 'png' ? 'image/png' : 'image/jpeg';
+        const profileFileName = `profile-photo-${Date.now()}.${profileFileExtension}`;
+        
+        formData.append('profile_photo', {
+          uri: profilePhoto,
+          type: profileMimeType,
+          name: profileFileName,
+        } as any);
+      }
+
+      // Helper function to append file (image or document) to FormData
+      const appendFile = (key: string, fileUri: string, fileType: 'image' | 'document', index?: number) => {
+        console.log("file upload key and value:", key, fileUri, fileType, index);
+        
+        if (!fileUri || fileUri.trim() === '') return;
+        
+        const uriParts = fileUri.split('.');
+        const fileExtension = uriParts.length > 1 ? uriParts[uriParts.length - 1].toLowerCase() : (fileType === 'document' ? 'pdf' : 'jpg');
+        
+        let mimeType: string;
+        if (fileType === 'document' || fileExtension === 'pdf') {
+          mimeType = 'application/pdf';
+        } else if (fileExtension === 'png') {
+          mimeType = 'image/png';
+        } else {
+          mimeType = 'image/jpeg';
+        }
+        
+        const fileName = `${key}-${Date.now()}-${index || 0}.${fileExtension}`;
+        
+        formData.append(key, {
+          uri: fileUri,
+          type: mimeType,
+          name: fileName,
+        } as any);
+      };
+
+      // Add question document files with question_docs_{questionId} key
+      questions.forEach((question, questionIndex) => {
+        const questionKey = `question_${question.id}_${questionIndex}`;
+        const answer = subQuestionAnswers[questionKey];
+        const questionType = question.question_type?.toLowerCase() || 'textbox';
+        console.log("questionIndex ::",questionIndex);
+        // Handle file/document type questions
+        if ((questionType === 'file' || questionType === 'document') && Array.isArray(answer)) {
+          const validFiles = answer.filter((file: any) => file && file.uri && file.uri.trim() !== '');
+          validFiles.forEach((file: any, fileIndex: number) => {
+            // Use question ID instead of array index for the key            
+            const fileKey = `question_docs_${questionIndex}`;
+            console.log("fileKey ::",fileKey);            
+            appendFile(fileKey, file.uri, file.type || 'image', fileIndex);
+          });
+        }
+      });
+
+      // Add tractor images and RC images with indexed naming
+      tractors.forEach((tractor, tractorIndex) => {
+        // Add tractor images (min 1, max 2)
+        if (tractor.tractorImages && tractor.tractorImages.length > 0) {
+          const validImages = tractor.tractorImages.filter(img => img && img.trim() !== '');
+          validImages.forEach((imageUri, imageIndex) => {
+            // When tractor count is 1 (tractorIndex = 0):
+            //   First image: Tackertar_0
+            //   Second image: Tackertar_0
+            // When tractor count is 2 (tractorIndex = 1):
+            //   First image: Tackertar_1
+            //   Second image: Tackertar_2
+            let imageKey = '';
+            if (tractorIndex === 0) {
+              // First tractor: both images use Tackertar_0
+              imageKey = 'tractor_images_0';
+            } else if (tractorIndex === 1) {
+              // Second tractor: first image uses Tackertar_1, second uses Tackertar_2
+              imageKey =  'tractor_images_1' ;
+            } else {
+              // Fallback for any additional tractors (shouldn't happen based on current logic)
+              imageKey = `tractor_images_${tractorIndex}`;
+            }
+            appendFile(imageKey, imageUri, 'image', imageIndex);
+          });
+        }
+
+        // Add RC front image
+        if (tractor.rcFront && tractor.rcFront.trim() !== '') {
+          appendFile(`tractor_rc_front_${tractorIndex}`, tractor.rcFront, 'image');
+        }
+
+        // Add RC back image
+        if (tractor.rcBack && tractor.rcBack.trim() !== '') {
+          appendFile(`tractor_rc_back_${tractorIndex}`, tractor.rcBack, 'image');
+        }
+      });
+
+      console.log('Submitting farmer data:', JSON.stringify(farmerData, null, 2));
+      console.log('Tractor details with owner names:', JSON.stringify(tractorDetailsArray.map(t => ({ model: t.model_name, owner_name: t.owner_name })), null, 2));
+      console.log('Profile photo URI:', JSON.stringify(formData));
+
+      // Add mode: Call add API
+      const response = await postDataWithImage(Apis.DEALER_ADD_FARMER, formData);
+
+      console.log('API Response:', JSON.stringify(response, null, 2));
+
+      // Check if response exists and has status
+      if (response && response.status === true) {
+        // Show success toast
+        const successMessage = response?.message || 'Sent for verification check notifications for update';
+        showToastMessage(successMessage, 'success');
+        
+        // Navigate back after a short delay to allow toast to be visible
+        setTimeout(() => {
+          navigation.goBack();
+        }, 2000);
+      } else {
+        // Extract error message from various possible response structures
+        let errorMessage = '';
+        if (response) {
+          // Try different possible response structures - prioritize message field
+          errorMessage = response?.message || 
+                        response?.data?.message || 
+                        response?.error?.message ||
+                        response?.error ||
+                        (typeof response === 'string' ? response : '');
+        }
+        
+        // Show error message from API response or fallback
+        const finalErrorMessage = errorMessage || 'Failed to add farmer. Please try again.';
+        console.log('Showing error toast with API message:', finalErrorMessage);
+        showToastMessage(finalErrorMessage, 'error');
+      }
+    } catch (error: any) {
+      console.error('Error submitting farmer:', error);
+      
+      // Extract error message from various possible error structures
+      let errorMessage = '';
+      if (error?.response?.data) {
+        errorMessage = error.response.data.message || 
+                      error.response.data.error?.message ||
+                      error.response.data.error ||
+                      '';
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      // Show error message from API response or fallback
+      const finalErrorMessage = errorMessage || 'Failed to add farmer. Please try again.';
+      console.log('Showing error toast with API message:', finalErrorMessage);
+      showToastMessage(finalErrorMessage, 'error');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -831,57 +4112,258 @@ export default function AddFarmerScreen() {
     setMM: (val: string) => void,
     setYYYY: (val: string) => void,
     error?: string,
-  ) => (
-    <View>
-      <View style={styles.dateRow}>
-        <View style={styles.dateInput}>
-          <SimpleBoxInput
-            label={label1}
-            value={dd}
-            onChangeText={setDD}
-            placeholder="DD"
-            keyboardType="numeric"
-            maxLength={2}
-            error={error ? '' : undefined}
-            numberOfLinesLabel={1}
-          />
+    ddRef?: any,
+    mmRef?: any,
+    yyyyRef?: any,
+    dateType?: 'dob' | 'dom' | 'purchase' | 'registration',
+    dateError?: string | undefined,
+    setDateError?: (error: string | undefined) => void,
+    required?: boolean,
+  ) => {
+    // Helper function to validate date whenever any part changes
+    const validateDate = (day: string, month: string, year: string) => {
+      // Only validate if we have all three parts
+      if (!day || !month || !year || year.length < 4) {
+        if (setDateError) {
+          setDateError(undefined);
+        }
+        return;
+      }
+      
+      const dayNum = parseInt(day, 10);
+      const monthNum = parseInt(month, 10);
+      const yearNum = parseInt(year, 10);
+      
+      if (isNaN(dayNum) || isNaN(monthNum) || isNaN(yearNum)) {
+        return;
+      }
+      
+      const currentDate = new Date();
+      const currentDD = String(currentDate.getDate()).padStart(2, '0');
+      const currentMM = String(currentDate.getMonth() + 1).padStart(2, '0');
+      const currentYYYY = String(currentDate.getFullYear());
+      
+      // Validate month first
+      if (monthNum < 1 || monthNum > 12) {
+        if (setDateError) {
+          setDateError(t('addFarmer.errors.invalidMonth'));
+        }
+        return;
+      }
+      
+      // Validate date format
+      if (!isValidDate(day, month, year)) {
+        if (setDateError) {
+          setDateError(t('addFarmer.errors.invalidDate'));
+        }
+        return;
+      }
+      
+      // Date validation based on type
+      if (dateType === 'dob') {
+        // Birth date must be less than current date
+        if (compareDates(day, month, year, currentDD, currentMM, currentYYYY) >= 0) {
+          if (setDateError) {
+            setDateError(t('addFarmer.errors.dobBeforeToday'));
+          }
+        } else {
+          if (setDateError) {
+            setDateError(undefined);
+          }
+        }
+      } else if (dateType === 'dom') {
+        // Marriage date must be between birth date and current date
+        if (dobDD && dobMM && dobYYYY) {
+          if (compareDates(day, month, year, dobDD, dobMM, dobYYYY) < 0) {
+            if (setDateError) {
+              setDateError(t('addFarmer.errors.domAfterDob'));
+            }
+          } else if (compareDates(day, month, year, currentDD, currentMM, currentYYYY) >= 0) {
+            if (setDateError) {
+              setDateError(t('addFarmer.errors.domBeforeToday'));
+            }
+          } else {
+            if (setDateError) {
+              setDateError(undefined);
+            }
+          }
+        } else {
+          // If birth date not set yet, just check it's before current date
+          if (compareDates(day, month, year, currentDD, currentMM, currentYYYY) >= 0) {
+            if (setDateError) {
+              setDateError(t('addFarmer.errors.domBeforeToday'));
+            }
+          } else {
+            if (setDateError) {
+              setDateError(undefined);
+            }
+          }
+        }
+      } else if (dateType === 'purchase') {
+        // Purchase date should be reasonable (not in future, not too old)
+        if (compareDates(day, month, year, currentDD, currentMM, currentYYYY) > 0) {
+          if (setDateError) {
+            setDateError(t('addFarmer.errors.purchaseDateNotFuture'));
+          }
+        } else {
+          if (setDateError) {
+            setDateError(undefined);
+          }
+        }
+      } else if (dateType === 'registration') {
+        // Registration date should be reasonable (not in future)
+        if (compareDates(day, month, year, currentDD, currentMM, currentYYYY) > 0) {
+          if (setDateError) {
+            setDateError(t('addFarmer.errors.registrationDateNotFuture'));
+          }
+        } else {
+          if (setDateError) {
+            setDateError(undefined);
+          }
+        }
+      }
+    };
+    
+    const handleDDChange = (text: string) => {
+      // Only allow numbers
+      const numericText = text.replace(/[^0-9]/g, '');
+      setDD(numericText);
+      
+      // Auto-focus to MM when DD reaches maxLength
+      if (numericText.length === 2 && mmRef?.current) {
+        mmRef.current.focus();
+      }
+      
+      // Re-validate date if MM and YYYY are already filled
+      if (mm && mm.length === 2 && yyyy && yyyy.length === 4) {
+        // Use the new DD value directly for validation
+        validateDate(numericText, mm, yyyy);
+      } else {
+        // Clear error if date is incomplete
+        if (setDateError) {
+          setDateError(undefined);
+        }
+      }
+    };
+    
+    const handleMMChange = (text: string) => {
+      // Only allow numbers
+      const numericText = text.replace(/[^0-9]/g, '');
+      setMM(numericText);
+      
+        // Validate month (1-12) immediately
+        if (numericText.length === 2) {
+          const month = parseInt(numericText, 10);
+          if (month < 1 || month > 12) {
+            if (setDateError) {
+              setDateError(t('addFarmer.errors.invalidMonth'));
+            }
+          } else {
+          // Auto-focus to YYYY when MM reaches maxLength
+          if (yyyyRef?.current) {
+            yyyyRef.current.focus();
+          }
+        }
+      }
+      
+      // Re-validate date if DD and YYYY are already filled
+      if (dd && dd.length === 2 && yyyy && yyyy.length === 4) {
+        // Use the new MM value directly for validation
+        validateDate(dd, numericText, yyyy);
+      } else if (numericText.length < 2) {
+        // Clear error if month is incomplete
+        if (setDateError) {
+          setDateError(undefined);
+        }
+      }
+    };
+    
+    const handleYYYYChange = (text: string) => {
+      // Only allow numbers
+      const numericText = text.replace(/[^0-9]/g, '');
+      setYYYY(numericText);
+      
+      // Clear error when user is still typing (less than 4 digits)
+      if (numericText.length < 4) {
+        if (setDateError) {
+          setDateError(undefined);
+        }
+        return;
+      }
+      
+      // Validate and check date constraints when YYYY is complete
+      if (numericText.length === 4 && dd && mm) {
+        // Use setTimeout to ensure state is updated
+        setTimeout(() => {
+          validateDate(dd, mm, numericText);
+        }, 0);
+      }
+    };
+    
+    return (
+      <View>
+        <View style={styles.dateRow}>
+          <View style={styles.dateInput}>
+            <SimpleBoxInput
+              ref={ddRef}
+              label={label1}
+              value={dd}
+              onChangeText={handleDDChange}
+              placeholder={t('addFarmer.dd')}
+              keyboardType="numeric"
+              maxLength={2}
+              error={error ? '' : undefined}
+              numberOfLinesLabel={1}
+              returnKeyType="next"
+              onSubmitEditing={() => mmRef?.current?.focus()}
+              required={required}
+            />
+          </View>
+          <View style={styles.dateInput}>
+            <SimpleBoxInput
+              ref={mmRef}
+              label={label2}
+              value={mm}
+              onChangeText={handleMMChange}
+              placeholder={t('addFarmer.mm')}
+              keyboardType="numeric"
+              maxLength={2}
+              numberOfLinesLabel={1}
+              returnKeyType="next"
+              onSubmitEditing={() => yyyyRef?.current?.focus()}
+            />
+          </View>
+          <View style={styles.dateInput}>
+            <SimpleBoxInput
+              ref={yyyyRef}
+              label={label3}
+              value={yyyy}
+              onChangeText={handleYYYYChange}
+              placeholder={t('addFarmer.yyyy')}
+              keyboardType="numeric"
+              maxLength={4}
+              numberOfLinesLabel={1}
+              returnKeyType="done"
+            />
+          </View>
         </View>
-        <View style={styles.dateInput}>
-          <SimpleBoxInput
-            label={label2}
-            value={mm}
-            onChangeText={setMM}
-            placeholder="MM"
-            keyboardType="numeric"
-            maxLength={2}
-            numberOfLinesLabel={1}
-          />
-        </View>
-        <View style={styles.dateInput}>
-          <SimpleBoxInput
-            label={label3}
-            value={yyyy}
-            onChangeText={setYYYY}
-            placeholder="YYYY"
-            keyboardType="numeric"
-            maxLength={4}
-            numberOfLinesLabel={1}
-          />
-        </View>
+        {(error || dateError) && (
+          <Text style={styles.errorText}>{error || dateError}</Text>
+        )}
       </View>
-      {error && <Text style={styles.errorText}>{error}</Text>}
-    </View>
-  );
+    );
+  };
 
   const renderImageUpload = (
     label: string,
     imageUri: string | undefined,
     onPress: () => void,
     fullWidth?: boolean,
+    onImagePress?: () => void, // Callback when clicking on uploaded image
   ) => (
     <TouchableOpacity
       style={fullWidth ? styles.imageUploadItemFullWidth : styles.imageUploadItem}
-      onPress={onPress}
+      onPress={imageUri && onImagePress ? onImagePress : onPress}
       activeOpacity={0.7}>
       <View
         style={[
@@ -924,13 +4406,19 @@ export default function AddFarmerScreen() {
             color={colors.textPrimary}
           />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Add new farmer</Text>
+        <Text style={styles.headerTitle}>
+          {isRejectedUpdate
+            ? t("addFarmer.updateRejectedFarmer")
+            : isEditMode
+            ? t("addFarmer.editFarmer")
+            : t("addFarmer.addNewFarmer")}
+        </Text>
       </View>
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? insets.top : 0}
       >
         <ScrollView
           ref={scrollViewRef}
@@ -939,290 +4427,617 @@ export default function AddFarmerScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
           nestedScrollEnabled={true}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={async () => {
+                setRefreshing(true);
+                await Promise.all([
+                  fetchDealerName(),
+                  fetchCategories(),
+                  fetchStates(),
+                ]);
+                setRefreshing(false);
+              }}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
         >
           {/* Personal Details Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Personal details</Text>
+            <Text style={styles.sectionTitle}>
+              {t("addFarmer.personalDetails")}
+            </Text>
 
-            {/* Profile Photo */}
-            <View style={styles.profilePhotoContainer}>
-              <TouchableOpacity
-                onPress={() => handleImagePicker('profile')}
-                activeOpacity={0.7}
-              >
-                {profilePhoto ? (
-                  <View>
-                    <Image
-                      source={{ uri: profilePhoto }}
-                      style={styles.profilePhoto}
-                    />
-                    <View style={styles.cameraIcon}>
-                      <Ionicons
-                        name="camera"
-                        size={moderateScale(16)}
-                        color={colors.textWhite}
-                      />
-                    </View>
-                  </View>
-                ) : (
-                  <View style={styles.profilePhotoPlaceholder}>
-                    <Ionicons
-                      name="cloud-upload-outline"
-                      size={moderateScale(24)}
-                      color={colors.textPrimary}
-                    />
-                  </View>
+            {/* Profile Photo - Hidden in edit mode (from farmer list), but shown in rejected update */}
+            {!isEditMode && !isRejectedUpdate && (
+              <>
+                <View
+                  style={styles.profilePhotoContainer}
+                  onLayout={registerFieldPosition("profilePhoto")}
+                >
+                  <TouchableOpacity
+                    onPress={() => handleImagePicker("profile")}
+                    activeOpacity={0.7}
+                  >
+                    {profilePhoto ? (
+                      <View>
+                        <Image
+                          source={{ uri: profilePhoto }}
+                          style={styles.profilePhoto}
+                        />
+                        <View style={styles.cameraIcon}>
+                          <Ionicons
+                            name="camera"
+                            size={moderateScale(16)}
+                            color={colors.textWhite}
+                          />
+                        </View>
+                      </View>
+                    ) : (
+                      <View style={styles.profilePhotoPlaceholder}>
+                        <Ionicons
+                          name="cloud-upload-outline"
+                          size={moderateScale(24)}
+                          color={colors.textPrimary}
+                        />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => handleImagePicker("profile")}
+                    activeOpacity={0.7}
+                    style={{ marginTop: moderateScale(20) }}
+                  >
+                    <Text style={styles.uploadText}>
+                      {t("addFarmer.uploadProfilePhoto")}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+                {errors.profilePhoto && (
+                  <Text style={styles.errorText}>{errors.profilePhoto}</Text>
                 )}
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => handleImagePicker('profile')}
-                activeOpacity={0.7}
-                style={{ marginTop: moderateScale(20) }}
-              >
-                <Text style={styles.uploadText}>Upload profile photo</Text>
-              </TouchableOpacity>
-            </View>
-            {errors.profilePhoto && (
-              <Text style={styles.errorText}>{errors.profilePhoto}</Text>
+              </>
             )}
 
             {/* Dealer Name */}
             <SimpleBoxInput
-              label="Dealer name"
-              value={dealerName}
+              label={t("addFarmer.dealerName")}
+              value={dealerNameLoading ? "Loading..." : dealerName || ""}
               onChangeText={() => {}}
               editable={false}
+              numberOfLinesLabel={1}
             />
 
-            {/* Category Dropdown */}
-            <Dropdown
-              label="Select category"
-              value={category}
-              options={categoryOptions}
-              onSelect={value => {
-                setCategory(value);
-                setSubQuestionAnswers({});
-                setErrors({
-                  ...errors,
-                  category: undefined,
-                  selectedSubQuestion: undefined,
-                });
-              }}
-              placeholder="Select category"
-              error={errors.category}
-            />
+            {/* Category Dropdown - Hidden in edit mode (from farmer list), but shown in rejected update */}
+            {(!isEditMode || isRejectedUpdate) && (
+              <View onLayout={registerFieldPosition("category")}>
+                <Dropdown
+                  label={t("addFarmer.selectCategory")}
+                  value={category}
+                  options={categoryOptions}
+                  onSelect={(value) => {
+                    setCategory(value);
+                    setSubQuestionAnswers({});
+                    setErrors({
+                      ...errors,
+                      category: undefined,
+                      selectedSubQuestion: undefined,
+                    });
+                  }}
+                  placeholder={
+                    categoriesLoading
+                      ? t("addFarmer.loadingCategories")
+                      : t("addFarmer.selectCategory")
+                  }
+                  error={errors.category}
+                  required={true}
+                />
+                {categoriesLoading && (
+                  <View
+                    style={{
+                      marginTop: moderateScale(8),
+                      alignItems: "center",
+                    }}
+                  >
+                    <ActivityIndicator size="small" color={colors.primary} />
+                  </View>
+                )}
+              </View>
+            )}
 
-            {/* Dynamic Sub-questions */}
-            {category &&
-              categorySubQuestions[category] &&
-              categorySubQuestions[category].map((questionConfig, index) => {
-                const questionKey = `${category}_${index}`;
-                const currentAnswer = subQuestionAnswers[questionKey] || '';
+            {/* Dynamic Sub-questions from API - Hidden in edit mode (from farmer list), but shown in rejected update */}
+            {(!isEditMode || isRejectedUpdate) && (
+              <>
+                {questionsLoading && (
+                  <View
+                    style={{
+                      marginVertical: moderateScale(20),
+                      alignItems: "center",
+                    }}
+                  >
+                    <ActivityIndicator size="small" color={colors.primary} />
+                    <Text
+                      style={{
+                        marginTop: moderateScale(8),
+                        fontSize: moderateScale(12),
+                        color: colors.textTertiary,
+                      }}
+                    >
+                      Loading questions...
+                    </Text>
+                  </View>
+                )}
 
-                const handleAnswerChange = (value: any) => {
-                  setSubQuestionAnswers(prev => ({
-                    ...prev,
-                    [questionKey]: value,
-                  }));
-                  setErrors({ ...errors, selectedSubQuestion: undefined });
-                };
+                {category &&
+                  !questionsLoading &&
+                  questions.length > 0 &&
+                  questions.map((question, index) => {
+                    const questionKey = `question_${question.id}_${index}`;
+                    const currentAnswer = subQuestionAnswers[questionKey];
 
-                switch (questionConfig.type) {
-                  case 'text':
-                    return (
-                      <TextInputQuestion
-                        key={questionKey}
-                        question={questionConfig.question}
-                        value={
-                          typeof currentAnswer === 'string' ? currentAnswer : ''
-                        }
-                        onChangeText={handleAnswerChange}
-                        placeholder={questionConfig.placeholder}
-                        error={
-                          errors.selectedSubQuestion && index === 0
-                            ? errors.selectedSubQuestion
-                            : undefined
-                        }
-                      />
-                    );
+                    const handleAnswerChange = (value: any) => {
+                      console.log(
+                        `[Answer Changed] Question Key: ${questionKey}, Question ID: ${question.id}, Value:`,
+                        value,
+                        "Type:",
+                        typeof value,
+                      );
+                      setSubQuestionAnswers((prev) => {
+                        const updated = {
+                          ...prev,
+                          [questionKey]: value,
+                        };
+                        // Update ref immediately for validation
+                        latestSubQuestionAnswersRef.current = updated;
+                        console.log(
+                          `[Answer Stored] Updated subQuestionAnswers:`,
+                          updated,
+                        );
+                        return updated;
+                      });
+                      setErrors({ ...errors, selectedSubQuestion: undefined });
+                    };
 
-                  case 'radio':
-                    return (
-                      <RadioButtonQuestion
-                        key={questionKey}
-                        question={questionConfig.question}
-                        value={
-                          typeof currentAnswer === 'string'
-                            ? currentAnswer
-                            : null
-                        }
-                        onChange={handleAnswerChange}
-                        options={questionConfig.options}
-                        error={
-                          errors.selectedSubQuestion && index === 0
-                            ? errors.selectedSubQuestion
-                            : undefined
-                        }
-                      />
-                    );
+                    // Map API question_type to component type
+                    const questionType =
+                      question.question_type?.toLowerCase() || "textbox";
 
-                  case 'checkbox':
-                    return (
-                      <CheckboxQuestion
-                        key={questionKey}
-                        question={questionConfig.question}
-                        selectedValues={
-                          Array.isArray(currentAnswer) ? currentAnswer : []
-                        }
-                        onChange={handleAnswerChange}
-                        options={questionConfig.options || []}
-                        error={
-                          errors.selectedSubQuestion && index === 0
-                            ? errors.selectedSubQuestion
-                            : undefined
-                        }
-                      />
-                    );
+                    switch (questionType) {
+                      case "textbox":
+                      case "text":
+                        return (
+                          <View
+                            key={questionKey}
+                            onLayout={
+                              index === 0
+                                ? registerFieldPosition("selectedSubQuestion")
+                                : undefined
+                            }
+                          >
+                            <TextInputQuestion
+                              question={question.question_text || ""}
+                              value={
+                                typeof currentAnswer === "string"
+                                  ? currentAnswer
+                                  : ""
+                              }
+                              onChangeText={handleAnswerChange}
+                              placeholder={t("addFarmer.yourAnswerHere")}
+                              error={
+                                errors.selectedSubQuestion && index === 0
+                                  ? errors.selectedSubQuestion
+                                  : undefined
+                              }
+                              required={true}
+                              editable={true}
+                            />
+                          </View>
+                        );
 
-                  case 'file':
-                    return (
-                      <FileUploadQuestion
-                        key={questionKey}
-                        question={questionConfig.question}
-                        onUpload={(imageUri: string) => {
-                          handleAnswerChange(imageUri);
-                        }}
-                        uploadedFileName={
-                          typeof currentAnswer === 'string'
-                            ? currentAnswer.split('/').pop() || currentAnswer
-                            : undefined
-                        }
-                        error={
-                          errors.selectedSubQuestion && index === 0
-                            ? errors.selectedSubQuestion
-                            : undefined
-                        }
-                      />
-                    );
+                      case "radio":
+                        // Get options from question.answers (preferred), question.answer_options or question.options
+                        const radioOptions = question.answers?.map(
+                          (opt: any) =>
+                            opt.answer_text ||
+                            opt.option_text ||
+                            opt.text ||
+                            opt.value ||
+                            opt,
+                        ) ||
+                          question.answer_options?.map(
+                            (opt: any) =>
+                              opt.option_text || opt.text || opt.value || opt,
+                          ) ||
+                          question.options?.map(
+                            (opt: any) =>
+                              opt.option_text || opt.text || opt.value || opt,
+                          ) || ["Yes", "No"];
 
-                  case 'dropdown':
-                    return (
-                      <DropdownQuestion
-                        key={questionKey}
-                        question={questionConfig.question}
-                        label={questionConfig.label || 'Select option'}
-                        value={
-                          typeof currentAnswer === 'string' ? currentAnswer : ''
-                        }
-                        options={questionConfig.dropdownOptions || []}
-                        onSelect={handleAnswerChange}
-                        placeholder={questionConfig.placeholder}
-                        error={
-                          errors.selectedSubQuestion && index === 0
-                            ? errors.selectedSubQuestion
-                            : undefined
-                        }
-                      />
-                    );
+                        return (
+                          <RadioButtonQuestion
+                            key={questionKey}
+                            question={question.question_text || ""}
+                            value={
+                              typeof currentAnswer === "string"
+                                ? currentAnswer
+                                : null
+                            }
+                            onChange={handleAnswerChange}
+                            options={radioOptions}
+                            error={
+                              errors.selectedSubQuestion && index === 0
+                                ? errors.selectedSubQuestion
+                                : undefined
+                            }
+                            required={true}
+                            disabled={false}
+                          />
+                        );
 
-                  default:
-                    return null;
-                }
-              })}
+                      case "checkbox":
+                        // Get options from question.answers (preferred), question.answer_options or question.options
+                        const checkboxOptions = question.answers?.map(
+                          (opt: any) =>
+                            opt.answer_text ||
+                            opt.option_text ||
+                            opt.text ||
+                            opt.value ||
+                            opt,
+                        ) ||
+                          question.answer_options?.map(
+                            (opt: any) =>
+                              opt.option_text || opt.text || opt.value || opt,
+                          ) ||
+                          question.options?.map(
+                            (opt: any) =>
+                              opt.option_text || opt.text || opt.value || opt,
+                          ) || ["Option 1", "Option 2", "Option 3"];
 
-            {/* Personal Info Fields */}
+                        return (
+                          <CheckboxQuestion
+                            key={questionKey}
+                            question={question.question_text || ""}
+                            selectedValues={
+                              Array.isArray(currentAnswer) ? currentAnswer : []
+                            }
+                            onChange={handleAnswerChange}
+                            options={checkboxOptions}
+                            error={
+                              errors.selectedSubQuestion && index === 0
+                                ? errors.selectedSubQuestion
+                                : undefined
+                            }
+                            required={true}
+                            disabled={false}
+                          />
+                        );
+
+                      case "file":
+                      case "document":
+                        // Determine max documents (from API or default to 5)
+                        const maxDocs =
+                          question?.max_documents > 0
+                            ? question.max_documents
+                            : 5;
+
+                        // Convert currentAnswer to FileItem array format
+                        let currentFiles: Array<{
+                          uri: string;
+                          type: "image" | "document";
+                          name: string;
+                        }> = [];
+                        if (currentAnswer) {
+                          if (Array.isArray(currentAnswer)) {
+                            currentFiles = currentAnswer.map((file: any) => {
+                              // Ensure file has correct type if it's already a file object
+                              if (file.type) {
+                                return file;
+                              }
+                              // If type is missing, detect it from filename
+                              const fileName =
+                                file.name ||
+                                file.uri?.split("/").pop() ||
+                                "file";
+                              const fileType = getFileTypeFromUrl(
+                                file.uri || "",
+                                fileName,
+                              );
+                              return {
+                                uri: file.uri || file,
+                                type: fileType,
+                                name: fileName,
+                              };
+                            });
+                          } else if (typeof currentAnswer === "string") {
+                            // Legacy format: single file URI string
+                            const fileName =
+                              currentAnswer.split("/").pop() ||
+                              currentAnswer.split("\\").pop() ||
+                              "file";
+                            const fileType = getFileTypeFromUrl(
+                              currentAnswer,
+                              fileName,
+                            );
+                            currentFiles = [
+                              {
+                                uri: currentAnswer,
+                                type: fileType,
+                                name: fileName,
+                              },
+                            ];
+                          }
+                        }
+
+                        return (
+                          <FileUploadQuestion
+                            key={questionKey}
+                            question={
+                              (question.question_text || "") +
+                              (maxDocs > 0
+                                ? ` (maximum ${maxDocs} upload)`
+                                : "")
+                            }
+                            onUpload={(
+                              files: Array<{
+                                uri: string;
+                                type: "image" | "document";
+                                name: string;
+                              }>,
+                            ) => {
+                              handleAnswerChange(files);
+                            }}
+                            uploadedFiles={currentFiles}
+                            error={
+                              errors.selectedSubQuestion && index === 0
+                                ? errors.selectedSubQuestion
+                                : undefined
+                            }
+                            required={true}
+                            maxDocuments={maxDocs}
+                            onError={(message) => showToastMessage(message)}
+                          />
+                        );
+
+                      case "dropdown":
+                        // Get options from question.answers (preferred), question.answer_options or question.options
+                        const dropdownOptions =
+                          question.answers?.map((opt: any) => ({
+                            label:
+                              opt.answer_text ||
+                              opt.option_text ||
+                              opt.text ||
+                              opt.value ||
+                              opt,
+                            value:
+                              opt.answer_text ||
+                              opt.option_text ||
+                              opt.text ||
+                              opt.value ||
+                              opt,
+                          })) ||
+                          question.answer_options?.map((opt: any) => ({
+                            label:
+                              opt.option_text || opt.text || opt.value || opt,
+                            value:
+                              opt.option_text || opt.text || opt.value || opt,
+                          })) ||
+                          question.options?.map((opt: any) => ({
+                            label:
+                              opt.option_text || opt.text || opt.value || opt,
+                            value:
+                              opt.option_text || opt.text || opt.value || opt,
+                          })) ||
+                          [];
+
+                        return (
+                          <DropdownQuestion
+                            key={questionKey}
+                            question={question.question_text || ""}
+                            label="Select option"
+                            value={
+                              typeof currentAnswer === "string"
+                                ? currentAnswer
+                                : ""
+                            }
+                            options={dropdownOptions}
+                            onSelect={handleAnswerChange}
+                            placeholder="Select option"
+                            error={
+                              errors.selectedSubQuestion && index === 0
+                                ? errors.selectedSubQuestion
+                                : undefined
+                            }
+                            required={true}
+                          />
+                        );
+
+                      default:
+                        return (
+                          <TextInputQuestion
+                            key={questionKey}
+                            question={question.question_text || ""}
+                            value={
+                              typeof currentAnswer === "string"
+                                ? currentAnswer
+                                : ""
+                            }
+                            onChangeText={handleAnswerChange}
+                            placeholder="Your answer here"
+                            error={
+                              errors.selectedSubQuestion && index === 0
+                                ? errors.selectedSubQuestion
+                                : undefined
+                            }
+                            required={true}
+                          />
+                        );
+                    }
+                  })}
+
+                {category && !questionsLoading && questions.length === 0 && (
+                  <View
+                    style={{
+                      marginVertical: moderateScale(20),
+                      alignItems: "center",
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: moderateScale(14),
+                        color: colors.textTertiary,
+                      }}
+                    >
+                      No questions available for this category.
+                    </Text>
+                  </View>
+                )}
+              </>
+            )}
+          </View>
+
+          {/* Personal Info Fields */}
+          <View style={styles.section}>
+            <View onLayout={registerFieldPosition("firstName")}>
+              <SimpleBoxInput
+                label={t("addFarmer.firstName")}
+                value={firstName}
+                onChangeText={(text) => {
+                  setFirstName(text);
+                  setErrors({ ...errors, firstName: undefined });
+                }}
+                placeholder={t("addFarmer.enterFirstName")}
+                error={errors.firstName}
+                numberOfLinesLabel={1}
+                required={true}
+              />
+            </View>
             <SimpleBoxInput
-              label="First name"
-              value={firstName}
-              onChangeText={text => {
-                setFirstName(text);
-                setErrors({ ...errors, firstName: undefined });
-              }}
-              placeholder="Enter first name"
-              error={errors.firstName}
-            />
-            <SimpleBoxInput
-              label="Middle name"
+              label={t("addFarmer.middleName")}
               value={middleName}
               onChangeText={setMiddleName}
-              placeholder="Enter middle name"
+              placeholder={t("addFarmer.enterMiddleName")}
+              numberOfLinesLabel={1}
             />
-            <SimpleBoxInput
-              label="Last name"
-              value={lastName}
-              onChangeText={text => {
-                setLastName(text);
-                setErrors({ ...errors, lastName: undefined });
-              }}
-              placeholder="Enter last name"
-              error={errors.lastName}
-            />
-            {/* Phone Number with Country Code */}
+            <View onLayout={registerFieldPosition("lastName")}>
+              <SimpleBoxInput
+                label={t("addFarmer.lastName")}
+                value={lastName}
+                onChangeText={(text) => {
+                  setLastName(text);
+                  setErrors({ ...errors, lastName: undefined });
+                }}
+                placeholder={t("addFarmer.enterLastName")}
+                error={errors.lastName}
+                numberOfLinesLabel={1}
+                required={true}
+              />
+            </View>
+            {/* Phone Number with Country Code - Editable in add and edit mode so dealers can update mobile */}
             <View style={styles.phoneRow}>
-              <View style={styles.phoneCodeInput}>
+              <View
+                style={styles.phoneCodeInput}
+                onLayout={registerFieldPosition("countryCode")}
+              >
                 <SimpleBoxInput
-                  label="Code"
+                  label={t("addFarmer.phoneCode")}
                   value={countryCode}
-                  onChangeText={text => {
+                  onChangeText={(text) => {
                     setCountryCode(text);
                     setErrors({ ...errors, countryCode: undefined });
                   }}
                   placeholder="+91"
                   keyboardType="phone-pad"
                   error={errors.countryCode}
+                  numberOfLinesLabel={1}
+                  required={true}
+                  editable={!isEditMode}
                 />
               </View>
-              <View style={styles.phoneNumberInput}>
+              <View
+                style={styles.phoneNumberInput}
+                onLayout={registerFieldPosition("phoneNumber")}
+              >
                 <SimpleBoxInput
-                  label="Number"
+                  label={t("addFarmer.phoneNumber")}
                   value={phoneNumber}
-                  onChangeText={text => {
+                  onChangeText={(text) => {
                     setPhoneNumber(text);
                     setErrors({ ...errors, phoneNumber: undefined });
                   }}
-                  placeholder="Enter phone number"
+                  placeholder={t("addFarmer.phonePlaceholder")}
                   keyboardType="phone-pad"
                   error={errors.phoneNumber}
+                  numberOfLinesLabel={1}
+                  maxLength={10}
+                  required={true}
+                  editable={!isEditMode}
                 />
               </View>
             </View>
-            {renderDateInputs(
-              'Date',
-              'of',
-              'birth',
-              dobDD,
-              dobMM,
-              dobYYYY,
-              text => {
-                setDobDD(text);
-                setErrors({ ...errors, dobDD: undefined });
-              },
-              setDobMM,
-              setDobYYYY,
-              errors.dobDD,
-            )}
-            {renderDateInputs(
-              'Date',
-              'of',
-              'marriage',
-              domDD,
-              domMM,
-              domYYYY,
-              text => {
-                setDomDD(text);
-                setErrors({ ...errors, domDD: undefined });
-              },
-              text => {
-                setDomMM(text);
-                setErrors({ ...errors, domMM: undefined });
-              },
-              text => {
-                setDomYYYY(text);
-                setErrors({ ...errors, domYYYY: undefined });
-              },
-              errors.domDD,
-            )}
-            {/* <SimpleBoxInput
+            <View onLayout={registerFieldPosition("dobDD")}>
+              {renderDateInputs(
+                t("reviewProfile.date"),
+                t("reviewProfile.of"),
+                t("reviewProfile.birth"),
+                dobDD,
+                dobMM,
+                dobYYYY,
+                (text) => {
+                  setDobDD(text);
+                  setErrors({ ...errors, dobDD: undefined });
+                },
+                (text) => {
+                  setDobMM(text);
+                  setErrors({ ...errors, dobDD: undefined });
+                },
+                (text) => {
+                  setDobYYYY(text);
+                  setErrors({ ...errors, dobDD: undefined });
+                },
+                errors.dobDD,
+                dobDDRef,
+                dobMMRef,
+                dobYYYYRef,
+                "dob",
+                dobDateError,
+                setDobDateError,
+                true, // required
+              )}
+            </View>
+            <View onLayout={registerFieldPosition("domDD")}>
+              {renderDateInputs(
+                t("reviewProfile.date"),
+                t("reviewProfile.of"),
+                t("reviewProfile.marriage"),
+                domDD,
+                domMM,
+                domYYYY,
+                (text) => {
+                  setDomDD(text);
+                  setErrors({ ...errors, domDD: undefined });
+                },
+                (text) => {
+                  setDomMM(text);
+                  setErrors({ ...errors, domMM: undefined });
+                },
+                (text) => {
+                  setDomYYYY(text);
+                  setErrors({ ...errors, domYYYY: undefined });
+                },
+                errors.domDD,
+                domDDRef,
+                domMMRef,
+                domYYYYRef,
+                "dom",
+                domDateError,
+                setDomDateError,
+                false, // date of marriage is optional
+              )}
+            </View>
+          </View>
+          {/* <SimpleBoxInput
               label="Who from"
               value={whoFrom}
               onChangeText={text => {
@@ -1231,197 +5046,366 @@ export default function AddFarmerScreen() {
               }}
               placeholder="Enter who from"
               error={errors.whoFrom} */}
-            {/* /> */}
-          </View>
+          {/* /> */}
 
           {/* Address Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Address</Text>
-            <SimpleBoxInput
-              label="House number / Name"
-              value={houseNumber}
-              onChangeText={text => {
-                setHouseNumber(text);
-                setErrors({ ...errors, houseNumber: undefined });
+            <Text style={styles.sectionTitle}>{t("addFarmer.address")}</Text>
+            <View
+              ref={(ref) => {
+                fieldViewRefs.current["houseNumber"] = ref;
               }}
-              placeholder="Enter house number / name"
-              error={errors.houseNumber}
-            />
-            <SimpleBoxInput
-              label="Street name"
-              value={streetName}
-              onChangeText={text => {
-                setStreetName(text);
-                setErrors({ ...errors, streetName: undefined });
+              onLayout={registerFieldPosition("houseNumber")}
+            >
+              <SimpleBoxInput
+                ref={houseNumberRef}
+                label={t("addFarmer.houseNumber")}
+                value={houseNumber}
+                onChangeText={(text) => {
+                  setHouseNumber(text);
+                  setErrors({ ...errors, houseNumber: undefined });
+                }}
+                placeholder={t("addFarmer.enterHouseNumber")}
+                error={errors.houseNumber}
+                numberOfLinesLabel={1}
+                required={true}
+              />
+            </View>
+            <View
+              ref={(ref) => {
+                fieldViewRefs.current["streetName"] = ref;
               }}
-              placeholder="Enter street name"
-              error={errors.streetName}
-            />
+              onLayout={registerFieldPosition("streetName")}
+            >
+              <SimpleBoxInput
+                ref={streetNameRef}
+                label={t("addFarmer.streetName")}
+                value={streetName}
+                onChangeText={(text) => {
+                  setStreetName(text);
+                  setErrors({ ...errors, streetName: undefined });
+                }}
+                placeholder={t("addFarmer.enterStreetName")}
+                error={errors.streetName}
+                numberOfLinesLabel={1}
+                required={false}
+              />
+            </View>
             <SimpleBoxInput
-              label="Landmark"
+              label={t("addFarmer.landmark")}
               value={landmark}
               onChangeText={setLandmark}
-              placeholder="Enter landmark"
+              placeholder={t("addFarmer.enterLandmark")}
+              numberOfLinesLabel={1}
             />
-            <SimpleBoxInput
-              label="Village"
-              value={village}
-              onChangeText={text => {
-                setVillage(text);
-                setErrors({ ...errors, village: undefined });
+            <View
+              ref={(ref) => {
+                fieldViewRefs.current["state"] = ref;
               }}
-              placeholder="Enter village"
-              error={errors.village}
-            />
-            <SimpleBoxInput
-              label="District"
-              value={district}
-              onChangeText={text => {
-                setDistrict(text);
-                setErrors({ ...errors, district: undefined });
+              onLayout={registerFieldPosition("state")}
+            >
+              <SearchableDropdown
+                label={t("addFarmer.state")}
+                value={stateId}
+                options={states}
+                onSelect={(value) => {
+                  setStateId(value);
+                  setErrors({ ...errors, state: undefined });
+                }}
+                placeholder={t("addFarmer.selectState")}
+                error={errors.state}
+                loading={statesLoading}
+                required={true}
+              />
+            </View>
+            <View
+              ref={(ref) => {
+                fieldViewRefs.current["district"] = ref;
               }}
-              placeholder="Enter district"
-              error={errors.district}
-            />
-            <SimpleBoxInput
-              label="State"
-              value={state}
-              onChangeText={text => {
-                setState(text);
-                setErrors({ ...errors, state: undefined });
+              onLayout={registerFieldPosition("district")}
+            >
+              <SearchableDropdown
+                label={t("addFarmer.district")}
+                value={districtId}
+                options={districts}
+                onSelect={(value) => {
+                  setDistrictId(value);
+                  setErrors({ ...errors, district: undefined });
+                }}
+                placeholder={
+                  stateId
+                    ? t("addFarmer.selectDistrict")
+                    : t("addFarmer.selectStateFirst")
+                }
+                error={errors.district}
+                loading={districtsLoading}
+                required={true}
+              />
+            </View>
+            <View
+              ref={(ref) => {
+                fieldViewRefs.current["taluka"] = ref;
               }}
-              placeholder="Enter state"
-              error={errors.state}
-            />
-            <SimpleBoxInput
-              label="Pincode"
-              value={pincode}
-              onChangeText={text => {
-                setPincode(text);
-                setErrors({ ...errors, pincode: undefined });
+              onLayout={registerFieldPosition("taluka")}
+            >
+              <SearchableDropdown
+                label={t("addFarmer.taluka")}
+                value={talukaId}
+                options={talukas}
+                onSelect={(value) => {
+                  setTalukaId(value);
+                  setErrors({ ...errors, taluka: undefined });
+                }}
+                placeholder={
+                  districtId
+                    ? t("addFarmer.selectTaluka")
+                    : t("addFarmer.selectDistrictFirst")
+                }
+                error={errors.taluka}
+                loading={talukasLoading}
+                required={false}
+              />
+            </View>
+            <View
+              ref={(ref) => {
+                fieldViewRefs.current["village"] = ref;
               }}
-              placeholder="Enter pincode"
-              keyboardType="numeric"
-              maxLength={6}
-              error={errors.pincode}
-            />
+              onLayout={registerFieldPosition("village")}
+            >
+              <SearchableDropdown
+                label={t("addFarmer.village")}
+                value={villageId}
+                options={villages}
+                onSelect={(value) => {
+                  setVillageId(value);
+                  setErrors({ ...errors, village: undefined });
+                }}
+                placeholder={
+                  talukaId
+                    ? t("addFarmer.selectVillage")
+                    : t("addFarmer.selectTalukaFirst")
+                }
+                error={errors.village}
+                loading={villagesLoading}
+                required={false}
+              />
+            </View>
+            <View
+              ref={(ref) => {
+                fieldViewRefs.current["pincode"] = ref;
+              }}
+              onLayout={registerFieldPosition("pincode")}
+            >
+              <SimpleBoxInput
+                ref={pincodeRef}
+                label={t("addFarmer.pincode")}
+                value={pincode}
+                onChangeText={(text) => {
+                  setPincode(text);
+                  setErrors({ ...errors, pincode: undefined });
+                }}
+                placeholder={t("addFarmer.enterPincode")}
+                keyboardType="numeric"
+                maxLength={6}
+                error={errors.pincode}
+                numberOfLinesLabel={1}
+                required={true}
+              />
+            </View>
           </View>
 
-          {/* Tractor Details Section */}
-          {tractors.map((tractor, index) => (
-            <View key={tractor.id} style={styles.section}>
-              <View style={styles.tractorHeader}>
-                <Text style={styles.tractorCountText}>
-                  Tractor count {index + 1}
-                </Text>
-                {tractors.length > 1 && (
-                  <TouchableOpacity
-                    style={styles.removeTractorButton}
-                    onPress={() => removeTractor(tractor.id)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.removeTractorText}>Remove</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
+          {/* Tractor Details Section - Hidden in edit mode (from farmer list), but shown in rejected update */}
+          {(!isEditMode || isRejectedUpdate) &&
+            tractors.map((tractor, index) => (
+              <View key={tractor.id} style={styles.section}>
+                <View style={styles.tractorHeader}>
+                  <Text style={styles.tractorCountText}>
+                    {t("addFarmer.tractorCount")} {index + 1}
+                  </Text>
+                  {/* Remove tractor button - Only allow removing if not in rejected update mode */}
+                  {/* In rejected update mode, we must keep all existing tractors (they have tractorId) */}
+                  {tractors.length > 1 && !isRejectedUpdate && (
+                    <TouchableOpacity
+                      style={styles.removeTractorButton}
+                      onPress={() => removeTractor(tractor.id)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.removeTractorText}>
+                        {t("addFarmer.remove")}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
 
-              {/* Tractor Images Section */}
-              <View style={styles.tractorImagesContainer}>
-                {(() => {
-                  const firstImage = (tractor.tractorImages || [])[0];
-                  const secondImage = (tractor.tractorImages || [])[1];
-                  const hasFirstImage = firstImage && firstImage.trim() !== '';
-                  const hasSecondImage = secondImage && secondImage.trim() !== '';
-                  const uploadedImagesCount = (tractor.tractorImages || []).filter(img => img && img.trim() !== '').length;
-                  const totalSlots = (tractor.tractorImages || []).length;
-                  
-                  // If no images uploaded yet, show full width upload box
-                  if (!hasFirstImage) {
-                    return (
-                      <View>
-                        {renderImageUpload(
-                          'Upload Tractor image',
-                          undefined,
-                          () => {
-                            ensureFirstTractorImageSlot(tractor.id);
-                            handleImagePicker('tractor', tractor.id, 0);
-                          },
-                          true, // fullWidth
-                        )}
-                        {tractor.errors.tractorImages && (
-                          <Text style={styles.errorText}>{tractor.errors.tractorImages}</Text>
-                        )}
-                      </View>
-                    );
-                  }
-                  
-                  // If first image uploaded, show in row with second upload option or both images
-                  return (
-                    <View>
-                      <View style={styles.tractorImagesRow}>
-                        {/* First Uploaded Image */}
-                        <View style={styles.tractorImageItem}>
+                {/* Tractor Images Section */}
+                <View
+                  ref={(ref) => {
+                    fieldViewRefs.current[
+                      `tractor_${tractor.id}_tractorImages`
+                    ] = ref;
+                  }}
+                  style={styles.tractorImagesContainer}
+                  onLayout={registerFieldPosition(
+                    `tractor_${tractor.id}_tractorImages`,
+                  )}
+                >
+                  {(() => {
+                    const firstImage = (tractor.tractorImages || [])[0];
+                    const secondImage = (tractor.tractorImages || [])[1];
+                    const hasFirstImage =
+                      firstImage && firstImage.trim() !== "";
+                    const hasSecondImage =
+                      secondImage && secondImage.trim() !== "";
+                    const uploadedImagesCount = (
+                      tractor.tractorImages || []
+                    ).filter((img) => img && img.trim() !== "").length;
+                    const totalSlots = (tractor.tractorImages || []).length;
+
+                    // If no images uploaded yet, show full width upload box
+                    if (!hasFirstImage) {
+                      return (
+                        <View>
                           {renderImageUpload(
-                            'Upload Tractor image',
-                            hasFirstImage ? firstImage : undefined,
+                            t("addFarmer.uploadTractorImage") + " *",
+                            undefined,
                             () => {
                               ensureFirstTractorImageSlot(tractor.id);
-                              handleImagePicker('tractor', tractor.id, 0);
+                              handleImagePicker("tractor", tractor.id, 0);
                             },
+                            true, // fullWidth
                           )}
-                          {hasFirstImage && uploadedImagesCount > 1 && (
-                            <TouchableOpacity
-                              style={[styles.removeTractorButton, {marginTop: moderateScale(4)}]}
-                              onPress={() => removeTractorImage(tractor.id, 0)}
-                              activeOpacity={0.7}>
-                              <Text style={styles.removeTractorText}>Remove</Text>
-                            </TouchableOpacity>
+                          {tractor.errors.tractorImages && (
+                            <Text style={styles.errorText}>
+                              {tractor.errors.tractorImages}
+                            </Text>
                           )}
                         </View>
-                        
-                        {/* Second Upload Option or Second Image */}
-                        {hasSecondImage ? (
-                          // Show second uploaded image
+                      );
+                    }
+
+                    // If first image uploaded, show in row with second upload option or both images
+                    return (
+                      <View>
+                        <View style={styles.tractorImagesRow}>
+                          {/* First Uploaded Image */}
                           <View style={styles.tractorImageItem}>
                             {renderImageUpload(
-                              'Upload Tractor image',
-                              hasSecondImage ? secondImage : undefined,
-                              () => handleImagePicker('tractor', tractor.id, 1),
+                              t("addFarmer.uploadTractorImage") + " *",
+                              hasFirstImage ? firstImage : undefined,
+                              () => {
+                                ensureFirstTractorImageSlot(tractor.id);
+                                handleImagePicker("tractor", tractor.id, 0);
+                              },
+                              true,
+                              hasFirstImage
+                                ? () =>
+                                    handleImagePreview(
+                                      tractor.id,
+                                      "tractor",
+                                      firstImage,
+                                      0,
+                                    )
+                                : undefined,
                             )}
-                            {hasSecondImage && uploadedImagesCount > 1 && (
+                            {hasFirstImage && uploadedImagesCount > 1 && (
                               <TouchableOpacity
-                                style={[styles.removeTractorButton, {marginTop: moderateScale(4)}]}
-                                onPress={() => removeTractorImage(tractor.id, 1)}
-                                activeOpacity={0.7}>
-                                <Text style={styles.removeTractorText}>Remove</Text>
+                                style={[
+                                  styles.removeTractorButton,
+                                  { marginTop: moderateScale(4) },
+                                ]}
+                                onPress={() =>
+                                  removeTractorImage(tractor.id, 0)
+                                }
+                                activeOpacity={0.7}
+                              >
+                                <Text style={styles.removeTractorText}>
+                                  {t("addFarmer.remove")}
+                                </Text>
                               </TouchableOpacity>
                             )}
                           </View>
-                        ) : (
-                          // Show second upload option (Add button)
-                          <TouchableOpacity
-                            style={[styles.tractorImageItem, styles.imageUploadBox]}
-                            onPress={() => addTractorImage(tractor.id)}
-                            activeOpacity={0.7}>
-                            <Ionicons
-                              name="add"
-                              size={moderateScale(24)}
-                              color={colors.textTertiary}
-                            />
-                            <Text style={styles.uploadLabel}>Upload second image</Text>
-                          </TouchableOpacity>
+
+                          {/* Second Upload Option or Second Image */}
+                          {hasSecondImage ? (
+                            // Show second uploaded image
+                            <View style={styles.tractorImageItem}>
+                              {renderImageUpload(
+                                t("addFarmer.uploadTractorImage") + " *",
+                                hasSecondImage ? secondImage : undefined,
+                                () =>
+                                  handleImagePicker("tractor", tractor.id, 1),
+                                true,
+                                hasSecondImage
+                                  ? () =>
+                                      handleImagePreview(
+                                        tractor.id,
+                                        "tractor",
+                                        secondImage,
+                                        1,
+                                      )
+                                  : undefined,
+                              )}
+                              {hasSecondImage && uploadedImagesCount > 1 && (
+                                <TouchableOpacity
+                                  style={[
+                                    styles.removeTractorButton,
+                                    { marginTop: moderateScale(4) },
+                                  ]}
+                                  onPress={() =>
+                                    removeTractorImage(tractor.id, 1)
+                                  }
+                                  activeOpacity={0.7}
+                                >
+                                  <Text style={styles.removeTractorText}>
+                                    {t("addFarmer.remove")}
+                                  </Text>
+                                </TouchableOpacity>
+                              )}
+                            </View>
+                          ) : (
+                            // Show second upload option (Add button)
+                            <TouchableOpacity
+                              style={[
+                                styles.tractorImageItem,
+                                styles.imageUploadBox,
+                              ]}
+                              onPress={() => {
+                                // Ensure second slot exists, then open picker
+                                const currentImages =
+                                  tractor.tractorImages || [];
+                                if (currentImages.length < 2) {
+                                  // Add slot and open picker
+                                  addTractorImage(tractor.id);
+                                } else {
+                                  // If slot exists but empty, just open picker
+                                  handleImagePicker("tractor", tractor.id, 1);
+                                }
+                              }}
+                              activeOpacity={0.7}
+                            >
+                              <Ionicons
+                                name="add"
+                                size={moderateScale(24)}
+                                color={colors.textTertiary}
+                              />
+                              <Text style={styles.uploadLabel}>
+                                {t("addFarmer.uploadSecondImage")}
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                        {tractor.errors.tractorImages && (
+                          <Text style={styles.errorText}>
+                            {tractor.errors.tractorImages}
+                          </Text>
                         )}
                       </View>
-                      {tractor.errors.tractorImages && (
-                        <Text style={styles.errorText}>{tractor.errors.tractorImages}</Text>
-                      )}
-                    </View>
-                  );
-                })()}
-              </View>
+                    );
+                  })()}
+                </View>
 
-              {/* RC Image Upload - Full Width */}
-              {/* <View style={{marginBottom: moderateScale(16)}}>
+                {/* RC Image Upload - Full Width */}
+                {/* <View style={{marginBottom: moderateScale(16)}}>
                 {renderImageUpload(
                   'Upload RC image',
                   tractor.rcImage,
@@ -1430,105 +5414,674 @@ export default function AddFarmerScreen() {
                 )}
               </View> */}
 
-              {/* RC Front and Back Images */}
-              <View style={styles.imageUploadContainer}>
-                {renderImageUpload('Upload RC front', tractor.rcFront, () =>
-                  handleImagePicker('rcFront', tractor.id),
+                {/* RC Front and Back Images */}
+                <View
+                  ref={(ref) => {
+                    fieldViewRefs.current[`tractor_${tractor.id}_rcFront`] =
+                      ref;
+                  }}
+                  onLayout={registerFieldPosition(
+                    `tractor_${tractor.id}_rcFront`,
+                  )}
+                  style={styles.imageUploadContainer}
+                >
+                  {/* RC Front Image with OCR Loading Overlay */}
+                  <View style={{ flex: 1, marginRight: moderateScale(8) }}>
+                    {renderImageUpload(
+                      t("addFarmer.uploadRcFront") + " *",
+                      tractor.rcFront,
+                      () => handleImagePicker("rcFront", tractor.id),
+                      true,
+                      tractor.rcFront
+                        ? () =>
+                            handleImagePreview(
+                              tractor.id,
+                              "rcFront",
+                              tractor.rcFront!,
+                            )
+                        : undefined,
+                    )}
+                    {/* OCR Loading Overlay */}
+                    {ocrProcessingTractorId === tractor.id &&
+                      tractor.rcFront && (
+                        <View
+                          style={[
+                            styles.imageUploadBox,
+                            {
+                              position: "absolute",
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              backgroundColor: "rgba(0, 0, 0, 0.7)",
+                              zIndex: 10,
+                              justifyContent: "center",
+                              alignItems: "center",
+                            },
+                          ]}
+                        >
+                          <ActivityIndicator
+                            size="small"
+                            color={colors.textWhite}
+                          />
+                          <Text
+                            style={[
+                              Typography.regularSm,
+                              {
+                                color: colors.textWhite,
+                                marginTop: moderateScale(8),
+                                fontSize: moderateScale(12),
+                                textAlign: "center",
+                              },
+                            ]}
+                          >
+                            Processing...
+                          </Text>
+                        </View>
+                      )}
+                  </View>
+                  {/* RC Back Image with OCR Loading Overlay */}
+                  <View style={{ flex: 1, marginLeft: moderateScale(8) }}>
+                    {renderImageUpload(
+                      t("addFarmer.uploadRcBack") + " *",
+                      tractor.rcBack,
+                      () => handleImagePicker("rcBack", tractor.id),
+                      true,
+                      tractor.rcBack
+                        ? () =>
+                            handleImagePreview(
+                              tractor.id,
+                              "rcBack",
+                              tractor.rcBack!,
+                            )
+                        : undefined,
+                    )}
+                    {/* OCR Loading Overlay */}
+                    {ocrProcessingTractorId === tractor.id &&
+                      tractor.rcBack && (
+                        <View
+                          style={[
+                            styles.imageUploadBox,
+                            {
+                              position: "absolute",
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              backgroundColor: "rgba(0, 0, 0, 0.7)",
+                              zIndex: 10,
+                              justifyContent: "center",
+                              alignItems: "center",
+                            },
+                          ]}
+                        >
+                          <ActivityIndicator
+                            size="small"
+                            color={colors.textWhite}
+                          />
+                          <Text
+                            style={[
+                              Typography.regularSm,
+                              {
+                                color: colors.textWhite,
+                                marginTop: moderateScale(8),
+                                fontSize: moderateScale(12),
+                                textAlign: "center",
+                              },
+                            ]}
+                          >
+                            Processing...
+                          </Text>
+                        </View>
+                      )}
+                  </View>
+                </View>
+                {/* RC Image Error Messages */}
+                {(tractor.errors.rcFront || tractor.errors.rcBack) && (
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      marginTop: moderateScale(-8),
+                      marginBottom: moderateScale(8),
+                    }}
+                  >
+                    <View style={{ flex: 1 }}>
+                      {tractor.errors.rcFront && (
+                        <Text style={styles.errorText}>
+                          {tractor.errors.rcFront}
+                        </Text>
+                      )}
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      {tractor.errors.rcBack && (
+                        <Text style={styles.errorText}>
+                          {tractor.errors.rcBack}
+                        </Text>
+                      )}
+                    </View>
+                  </View>
                 )}
-                {renderImageUpload('Upload RC back', tractor.rcBack, () =>
-                  handleImagePicker('rcBack', tractor.id),
+                {/* Extract from RC Button - Show when at least one RC image uploaded and not currently processing */}
+                {((tractor.rcFront && tractor.rcFront.trim()) ||
+                  (tractor.rcBack && tractor.rcBack.trim())) &&
+                  ocrProcessingTractorId !== tractor.id && (
+                    <TouchableOpacity
+                      style={[
+                        styles.addNewButton,
+                        {
+                          backgroundColor: colors.primary + "20",
+                          paddingVertical: moderateScale(12),
+                          paddingHorizontal: moderateScale(16),
+                          borderRadius: moderateScale(8),
+                          marginTop: moderateScale(8),
+                          alignSelf: "center",
+                        },
+                      ]}
+                      onPress={() => processRCImagesForOCR(tractor.id)}
+                      activeOpacity={0.7}
+                      disabled={ocrProcessingTractorId !== null}
+                    >
+                      <Ionicons
+                        name="scan-outline"
+                        size={moderateScale(20)}
+                        color={colors.primary}
+                      />
+                      <Text
+                        style={[
+                          styles.addNewText,
+                          {
+                            marginLeft: moderateScale(8),
+                          },
+                        ]}
+                      >
+                        Extract Data from RC Book
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                {/* OCR Processing Indicator */}
+                {ocrProcessingTractorId === tractor.id && (
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginTop: moderateScale(12),
+                      paddingVertical: moderateScale(8),
+                      backgroundColor: colors.primary + "15",
+                      borderRadius: moderateScale(8),
+                    }}
+                  >
+                    <ActivityIndicator size="small" color={colors.primary} />
+                    <Text
+                      style={[
+                        Typography.regularMd,
+                        {
+                          fontSize: moderateScale(14),
+                          color: colors.primary,
+                          marginLeft: moderateScale(8),
+                        },
+                      ]}
+                    >
+                      Extracting data from RC Book...
+                    </Text>
+                  </View>
+                )}
+
+                {/* Tractor Fields */}
+                <View
+                  ref={(ref) => {
+                    fieldViewRefs.current[`tractor_${tractor.id}_modelName`] =
+                      ref;
+                  }}
+                  onLayout={registerFieldPosition(
+                    `tractor_${tractor.id}_modelName`,
+                  )}
+                >
+                  <SimpleBoxInput
+                    ref={(ref) => {
+                      tractorInputRefs.current[
+                        `tractor_${tractor.id}_modelName`
+                      ] = ref;
+                    }}
+                    label={t("addFarmer.modelName")}
+                    value={tractor.modelName}
+                    onChangeText={(text) =>
+                      updateTractorField(tractor.id, "modelName", text)
+                    }
+                    placeholder={t("addFarmer.enterModelName")}
+                    error={tractor.errors.modelName}
+                    numberOfLinesLabel={1}
+                    required={true}
+                  />
+                  {/* Auto-fill indicator */}
+                  {ocrExtractedData[tractor.id]?.modelNumber &&
+                    tractor.modelName ===
+                      ocrExtractedData[tractor.id].modelNumber && (
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          marginTop: moderateScale(-4),
+                          marginBottom: moderateScale(4),
+                        }}
+                      >
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={moderateScale(14)}
+                          color={colors.statusSuccess}
+                        />
+                        <Text
+                          style={[
+                            Typography.regularSm,
+                            {
+                              fontSize: moderateScale(11),
+                              color: colors.statusSuccess,
+                              marginLeft: moderateScale(4),
+                            },
+                          ]}
+                        >
+                          Auto-filled from RC Book
+                        </Text>
+                      </View>
+                    )}
+                </View>
+                <View
+                  ref={(ref) => {
+                    fieldViewRefs.current[
+                      `tractor_${tractor.id}_vehicleNumber`
+                    ] = ref;
+                  }}
+                  onLayout={registerFieldPosition(
+                    `tractor_${tractor.id}_vehicleNumber`,
+                  )}
+                >
+                  <SimpleBoxInput
+                    ref={(ref) => {
+                      tractorInputRefs.current[
+                        `tractor_${tractor.id}_vehicleNumber`
+                      ] = ref;
+                    }}
+                    label={t("addFarmer.vehicleNumber")}
+                    value={tractor.vehicleNumber}
+                    onChangeText={(text) =>
+                      updateTractorField(tractor.id, "vehicleNumber", text)
+                    }
+                    placeholder={t("addFarmer.enterVehicleNumber")}
+                    error={tractor.errors.vehicleNumber}
+                    numberOfLinesLabel={1}
+                    required={true}
+                  />
+                  {/* Auto-fill indicator */}
+                  {ocrExtractedData[tractor.id]?.vehicleNumber &&
+                    tractor.vehicleNumber ===
+                      ocrExtractedData[tractor.id].vehicleNumber && (
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          marginTop: moderateScale(-4),
+                          marginBottom: moderateScale(4),
+                        }}
+                      >
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={moderateScale(14)}
+                          color={colors.statusSuccess}
+                        />
+                        <Text
+                          style={[
+                            Typography.regularSm,
+                            {
+                              fontSize: moderateScale(11),
+                              color: colors.statusSuccess,
+                              marginLeft: moderateScale(4),
+                            },
+                          ]}
+                        >
+                          Auto-filled from RC Book
+                        </Text>
+                      </View>
+                    )}
+                </View>
+                <View
+                  ref={(ref) => {
+                    fieldViewRefs.current[`tractor_${tractor.id}_ownerName`] =
+                      ref;
+                  }}
+                  onLayout={registerFieldPosition(
+                    `tractor_${tractor.id}_ownerName`,
+                  )}
+                >
+                  <SimpleBoxInput
+                    ref={(ref) => {
+                      tractorInputRefs.current[
+                        `tractor_${tractor.id}_ownerName`
+                      ] = ref;
+                    }}
+                    label={t("addFarmer.ownerName")}
+                    value={tractor.ownerName}
+                    onChangeText={(text) =>
+                      updateTractorField(tractor.id, "ownerName", text)
+                    }
+                    placeholder={t("addFarmer.enterOwnerName")}
+                    error={tractor.errors.ownerName}
+                    numberOfLinesLabel={1}
+                    required={true}
+                  />
+                  {/* Auto-fill indicator */}
+                  {ocrExtractedData[tractor.id]?.ownerName &&
+                    tractor.ownerName ===
+                      ocrExtractedData[tractor.id].ownerName && (
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          marginTop: moderateScale(-4),
+                          marginBottom: moderateScale(4),
+                        }}
+                      >
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={moderateScale(14)}
+                          color={colors.statusSuccess}
+                        />
+                        <Text
+                          style={[
+                            Typography.regularSm,
+                            {
+                              fontSize: moderateScale(11),
+                              color: colors.statusSuccess,
+                              marginLeft: moderateScale(4),
+                            },
+                          ]}
+                        >
+                          Auto-filled from RC Book
+                        </Text>
+                      </View>
+                    )}
+                </View>
+                <View
+                  ref={(ref) => {
+                    fieldViewRefs.current[
+                      `tractor_${tractor.id}_chassisNumber`
+                    ] = ref;
+                  }}
+                  onLayout={registerFieldPosition(
+                    `tractor_${tractor.id}_chassisNumber`,
+                  )}
+                >
+                  <SimpleBoxInput
+                    ref={(ref) => {
+                      tractorInputRefs.current[
+                        `tractor_${tractor.id}_chassisNumber`
+                      ] = ref;
+                    }}
+                    label={t("addFarmer.chassisNumber")}
+                    value={tractor.chassisNumber}
+                    onChangeText={(text) =>
+                      updateTractorField(tractor.id, "chassisNumber", text)
+                    }
+                    placeholder={t("addFarmer.enterChassisNumber")}
+                    error={tractor.errors.chassisNumber}
+                    numberOfLinesLabel={1}
+                    required={true}
+                  />
+                  {/* Auto-fill indicator */}
+                  {ocrExtractedData[tractor.id]?.chassisNumber &&
+                    tractor.chassisNumber ===
+                      ocrExtractedData[tractor.id].chassisNumber && (
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          marginTop: moderateScale(-4),
+                          marginBottom: moderateScale(4),
+                        }}
+                      >
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={moderateScale(14)}
+                          color={colors.statusSuccess}
+                        />
+                        <Text
+                          style={[
+                            Typography.regularSm,
+                            {
+                              fontSize: moderateScale(11),
+                              color: colors.statusSuccess,
+                              marginLeft: moderateScale(4),
+                            },
+                          ]}
+                        >
+                          Auto-filled from RC Book
+                        </Text>
+                      </View>
+                    )}
+                </View>
+                <View
+                  ref={(ref) => {
+                    fieldViewRefs.current[
+                      `tractor_${tractor.id}_engineNumber`
+                    ] = ref;
+                  }}
+                  onLayout={registerFieldPosition(
+                    `tractor_${tractor.id}_engineNumber`,
+                  )}
+                >
+                  <SimpleBoxInput
+                    ref={(ref) => {
+                      tractorInputRefs.current[
+                        `tractor_${tractor.id}_engineNumber`
+                      ] = ref;
+                    }}
+                    label={t("addFarmer.engineNumber")}
+                    value={tractor.engineNumber}
+                    onChangeText={(text) =>
+                      updateTractorField(tractor.id, "engineNumber", text)
+                    }
+                    placeholder={t("addFarmer.enterEngineNumber")}
+                    error={tractor.errors.engineNumber}
+                    numberOfLinesLabel={1}
+                    required={true}
+                  />
+                  {/* Auto-fill indicator */}
+                  {ocrExtractedData[tractor.id]?.engineNumber &&
+                    tractor.engineNumber ===
+                      ocrExtractedData[tractor.id].engineNumber && (
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          marginTop: moderateScale(-4),
+                          marginBottom: moderateScale(4),
+                        }}
+                      >
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={moderateScale(14)}
+                          color={colors.statusSuccess}
+                        />
+                        <Text
+                          style={[
+                            Typography.regularSm,
+                            {
+                              fontSize: moderateScale(11),
+                              color: colors.statusSuccess,
+                              marginLeft: moderateScale(4),
+                            },
+                          ]}
+                        >
+                          Auto-filled from RC Book
+                        </Text>
+                      </View>
+                    )}
+                </View>
+                <View
+                  ref={(ref) => {
+                    fieldViewRefs.current[
+                      `tractor_${tractor.id}_purchaseDateDD`
+                    ] = ref;
+                  }}
+                  onLayout={registerFieldPosition(
+                    `tractor_${tractor.id}_purchaseDateDD`,
+                  )}
+                >
+                  {(() => {
+                    // Initialize refs for this tractor if not exists
+                    if (!purchaseDateRefs.current[tractor.id]) {
+                      purchaseDateRefs.current[tractor.id] = {
+                        dd: { current: null },
+                        mm: { current: null },
+                        yyyy: { current: null },
+                      };
+                    }
+                    const refs = purchaseDateRefs.current[tractor.id];
+
+                    return renderDateInputs(
+                      t("reviewProfile.date"),
+                      t("reviewProfile.of"),
+                      t("addFarmer.purchaseDate"),
+                      tractor.purchaseDateDD,
+                      tractor.purchaseDateMM,
+                      tractor.purchaseDateYYYY,
+                      (text) =>
+                        updateTractorField(tractor.id, "purchaseDateDD", text),
+                      (text) =>
+                        updateTractorField(tractor.id, "purchaseDateMM", text),
+                      (text) =>
+                        updateTractorField(
+                          tractor.id,
+                          "purchaseDateYYYY",
+                          text,
+                        ),
+                      tractor.errors.purchaseDateDD,
+                      refs.dd,
+                      refs.mm,
+                      refs.yyyy,
+                      "purchase",
+                      tractor.errors.purchaseDateError,
+                      (error) => updateTractorDateError(tractor.id, error),
+                      true, // required
+                    );
+                  })()}
+                  {/* Auto-fill indicator for Registration Date (Purchase Date) */}
+                  {ocrExtractedData[tractor.id]?.registrationDate &&
+                    tractor.purchaseDateDD &&
+                    tractor.purchaseDateMM &&
+                    tractor.purchaseDateYYYY &&
+                    // Check if the current date matches the extracted date
+                    (() => {
+                      const extractedDate =
+                        ocrExtractedData[tractor.id].registrationDate;
+                      const dateMatch = extractedDate.match(
+                        /(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/,
+                      );
+                      if (dateMatch && dateMatch.length >= 4) {
+                        const day = dateMatch[1].padStart(2, "0");
+                        const month = dateMatch[2].padStart(2, "0");
+                        const year = dateMatch[3];
+                        const isMatching =
+                          tractor.purchaseDateDD === day &&
+                          tractor.purchaseDateMM === month &&
+                          tractor.purchaseDateYYYY === year;
+                        if (isMatching) {
+                          return (
+                            <View
+                              style={{
+                                flexDirection: "row",
+                                alignItems: "center",
+                                marginTop: moderateScale(-4),
+                                marginBottom: moderateScale(4),
+                              }}
+                            >
+                              <Ionicons
+                                name="checkmark-circle"
+                                size={moderateScale(14)}
+                                color={colors.statusSuccess}
+                              />
+                              <Text
+                                style={[
+                                  Typography.regularSm,
+                                  {
+                                    fontSize: moderateScale(11),
+                                    color: colors.statusSuccess,
+                                    marginLeft: moderateScale(4),
+                                  },
+                                ]}
+                              >
+                                Auto-filled from RC Book
+                              </Text>
+                            </View>
+                          );
+                        }
+                      }
+                      return null;
+                    })()}
+                </View>
+                <View
+                  ref={(ref) => {
+                    fieldViewRefs.current[`tractor_${tractor.id}_whoFrom`] =
+                      ref;
+                  }}
+                  onLayout={registerFieldPosition(
+                    `tractor_${tractor.id}_whoFrom`,
+                  )}
+                >
+                  <SimpleBoxInput
+                    ref={(ref) => {
+                      tractorInputRefs.current[
+                        `tractor_${tractor.id}_whoFrom`
+                      ] = ref;
+                    }}
+                    label={t("addFarmer.whoDrives")}
+                    value={tractor.whoFrom}
+                    onChangeText={(text) =>
+                      updateTractorField(tractor.id, "whoFrom", text)
+                    }
+                    placeholder={t("addFarmer.whoDrivesPlaceholder")}
+                    error={tractor.errors.whoFrom}
+                    numberOfLinesLabel={1}
+                    required={true}
+                  />
+                </View>
+                {/* Add New Tractor Button - Only show on last tractor and NOT in rejected update mode */}
+                {/* In rejected update mode, only allow modifying existing tractors (with tractorId) */}
+                {index === tractors.length - 1 && !isRejectedUpdate && (
+                  <TouchableOpacity
+                    style={styles.addNewButton}
+                    onPress={addNewTractor}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name="add-circle-outline"
+                      size={moderateScale(20)}
+                      color={colors.primary}
+                    />
+                    <Text style={styles.addNewText}>
+                      {t("addFarmer.addNewTractor")}
+                    </Text>
+                  </TouchableOpacity>
                 )}
               </View>
-
-              {/* Tractor Fields */}
-              <SimpleBoxInput
-                label="Enter model name"
-                value={tractor.modelName}
-                onChangeText={text =>
-                  updateTractorField(tractor.id, 'modelName', text)
-                }
-                placeholder="Enter model name"
-                error={tractor.errors.modelName}
-              />
-              <SimpleBoxInput
-                label="Chassis number"
-                value={tractor.chassisNumber}
-                onChangeText={text =>
-                  updateTractorField(tractor.id, 'chassisNumber', text)
-                }
-                placeholder="Enter chassis number"
-                error={tractor.errors.chassisNumber}
-              />
-              <SimpleBoxInput
-                label="Engine number"
-                value={tractor.engineNumber}
-                onChangeText={text =>
-                  updateTractorField(tractor.id, 'engineNumber', text)
-                }
-                placeholder="Enter engine number"
-                error={tractor.errors.engineNumber}
-              />
-              <SimpleBoxInput
-                label="Owner name"
-                value={tractor.ownerName}
-                onChangeText={text =>
-                  updateTractorField(tractor.id, 'ownerName', text)
-                }
-                placeholder="Enter owner name"
-                error={tractor.errors.ownerName}
-              />
-              <SimpleBoxInput
-                label="Registration number"
-                value={tractor.registrationNumber}
-                onChangeText={text =>
-                  updateTractorField(tractor.id, 'registrationNumber', text)
-                }
-                placeholder="Enter registration number"
-                error={tractor.errors.registrationNumber}
-              />
-              {renderDateInputs(
-                'Date',
-                'of',
-                'purchase',
-                tractor.purchaseDateDD,
-                tractor.purchaseDateMM,
-                tractor.purchaseDateYYYY,
-                text => updateTractorField(tractor.id, 'purchaseDateDD', text),
-                text => updateTractorField(tractor.id, 'purchaseDateMM', text),
-                text =>
-                  updateTractorField(tractor.id, 'purchaseDateYYYY', text),
-                tractor.errors.purchaseDateDD,
-              )}
-              <SimpleBoxInput
-                label="Who from"
-                value={tractor.whoFrom}
-                onChangeText={text =>
-                  updateTractorField(tractor.id, 'whoFrom', text)
-                }
-                placeholder="Enter who from"
-                error={tractor.errors.whoFrom}
-              />
-              {/* Add New Tractor Button */}
-              <TouchableOpacity
-                style={styles.addNewButton}
-                onPress={addNewTractor}
-                activeOpacity={0.7}
-              >
-                <Ionicons
-                  name="add-circle-outline"
-                  size={moderateScale(20)}
-                  color={colors.primary}
-                />
-                <Text style={styles.addNewText}>Add new</Text>
-              </TouchableOpacity>
-            </View>
-          ))}
+            ))}
         </ScrollView>
         {/* Submit Button */}
-        <View style={{padding:moderateScale(14)}}>
+        <View style={{ padding: moderateScale(14) }}>
           <Button
-            title="Send for verification"
-            onPress={handleSubmit}
+            title={
+              isRejectedUpdate
+                ? t("addFarmer.updateRejectedForm")
+                : isEditMode
+                ? t("addFarmer.updateForVerification")
+                : t("addFarmer.sendForVerification")
+            }
+            onPress={
+              isRejectedUpdate
+                ? handleRejectedUpdate
+                : isEditMode
+                ? handleUpdateFarmer
+                : handleSubmit
+            }
+            loading={submitting}
+            disabled={submitting}
           />
         </View>
       </KeyboardAvoidingView>
@@ -1540,7 +6093,35 @@ export default function AddFarmerScreen() {
         onCameraPress={handleCameraPress}
         onGalleryPress={handleGalleryPress}
       />
+
+      {/* Image Preview Modal */}
+      {previewImageInfo && (
+        <ImagePreviewModal
+          visible={previewModalVisible}
+          images={[
+            {
+              id:
+                previewImageInfo.imageIndex !== undefined
+                  ? `${previewImageInfo.tractorId}-${previewImageInfo.imageIndex}`
+                  : previewImageInfo.tractorId,
+              uri: previewImageInfo.imageUri,
+              placeholder: "Image preview",
+            },
+          ]}
+          initialIndex={0}
+          onClose={() => setPreviewModalVisible(false)}
+          onReplaceImage={handleReplaceImage}
+        />
+      )}
+
+      {/* Toast Notification */}
+      <Toast
+        visible={showToast}
+        message={toastMessage}
+        type={toastType}
+        duration={3000}
+        onClose={hideToast}
+      />
     </View>
   );
 }
-

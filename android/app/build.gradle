@@ -77,13 +77,15 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.farmer"
+    namespace "com.captainsaathi.farmerapp"
     defaultConfig {
-        applicationId "com.farmer"
+        applicationId "com.captainsaathi.farmerapp"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode 3
+        versionName "1.2.0"
+        // Ensure cleartext traffic is enabled for both debug and release builds
+        buildConfigField "boolean", "USES_CLEARTEXT_TRAFFIC", "true"
     }
     signingConfigs {
         debug {
@@ -92,19 +94,32 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release {
+            if (project.hasProperty('MYAPP_UPLOAD_STORE_FILE')) {
+                storeFile file(MYAPP_UPLOAD_STORE_FILE)
+                storePassword MYAPP_UPLOAD_STORE_PASSWORD
+                keyAlias MYAPP_UPLOAD_KEY_ALIAS
+                keyPassword MYAPP_UPLOAD_KEY_PASSWORD
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
     }
+}
+
+configurations.all {
+    exclude group: 'com.android.support', module: 'support-compat'
+    exclude group: 'com.android.support', module: 'support-media-compat'
+    exclude group: 'com.android.support', module: 'support-v4'
+    exclude group: 'com.android.support', module: 'support-annotations'
 }
 
 dependencies {
@@ -117,3 +132,29 @@ dependencies {
         implementation jscFlavor
     }
 }
+
+// Workaround for corrupted Gradle cache during clean
+afterEvaluate {
+    tasks.matching { it.name.contains("externalNativeBuildCleanRelease") }.configureEach {
+        enabled = false
+        doFirst {
+            println "Skipped ${it.name} - use 'npm run clean:android' or './clean-safe.sh' instead"
+        }
+    }
+}
+
+// Make clean task more resilient - remove .cxx before clean
+tasks.named("clean").configure {
+    doFirst {
+        // Remove .cxx directory before clean to avoid CMake errors
+        def cxxDir = file("${projectDir}/app/.cxx")
+        if (cxxDir.exists()) {
+            delete cxxDir
+            println "Removed .cxx directory to avoid CMake cache issues"
+        }
+    }
+}
+
+// Apply Google Services plugin (must be at the end)
+apply plugin: "com.google.gms.google-services"
+apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Dimensions, Platform, StatusBar, ScaledSize } from 'react-native';
+import { Dimensions, Platform, ScaledSize } from 'react-native';
 
 interface DeviceDimensions {
   deviceWidth: number;
@@ -62,7 +62,7 @@ export const useDeviceMetrics = () => {
 
   const StatusBarHeightSecond = Platform.select<number>({
     ios: isIPhoneX() ? 44 : 20,
-    android: StatusBar.currentHeight ?? 0,
+    android: 0, // Use safe area insets instead
     default: 0,
   }) as number;
 

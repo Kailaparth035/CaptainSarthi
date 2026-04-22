@@ -12,6 +12,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import colors from '../utils/colors';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import {Typography} from '../utils/typography';
+import {useLanguage} from '../contexts/LanguageContext';
 
 type FilterCategory = {
   id: string;
@@ -21,16 +22,23 @@ type FilterCategory = {
     label: string;
     value: string;
   }[];
+  /** Shown in right panel when options are empty (e.g. "Please select state") */
+  emptyMessage?: string;
 };
 
 type FilterModalProps = {
   visible: boolean;
   onClose: () => void;
   onApply: (filters: any) => void;
+  onReset?: () => void;
   title?: string;
   categories?: FilterCategory[];
   selectedCategory?: string;
   selectedOptions?: Record<string, string>;
+  /** When provided, option selection is controlled by parent (for cascading dropdowns) */
+  onOptionSelect?: (categoryId: string, value: string) => void;
+  /** When provided with onOptionSelect, category selection is controlled */
+  onCategorySelect?: (categoryId: string) => void;
 };
 
 const defaultCategories: FilterCategory[] = [
@@ -50,41 +58,49 @@ const defaultCategories: FilterCategory[] = [
       {id: 'oldest', label: 'Oldest First', value: 'oldest'},
     ],
   },
-  {
-    id: 'city',
-    label: 'City',
-    options: [
-      {id: 'all', label: 'All Cities', value: 'all'},
-      {id: 'mumbai', label: 'Mumbai', value: 'mumbai'},
-      {id: 'delhi', label: 'Delhi', value: 'delhi'},
-    ],
-  },
 ];
 
 export default function FilterModal({
   visible,
   onClose,
   onApply,
-  title = 'Filters',
+  onReset,
+  title,
   categories = defaultCategories,
   selectedCategory: initialCategory,
   selectedOptions: initialOptions = {},
+  onOptionSelect,
+  onCategorySelect,
 }: FilterModalProps) {
   const {moderateScale} = useDeviceMetrics();
+  const {t} = useLanguage();
   const insets = useSafeAreaInsets();
-  const [selectedCategory, setSelectedCategory] = useState<string>(
+  const modalTitle = title || t('common.filters');
+  const [internalCategory, setInternalCategory] = useState<string>(
     initialCategory || categories[0]?.id || '',
   );
-  const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(
+  const [internalOptions, setInternalOptions] = useState<Record<string, string>>(
     initialOptions,
   );
+  const isControlled = onOptionSelect != null;
+  const selectedCategory = isControlled ? (initialCategory ?? internalCategory) : internalCategory;
+  const selectedOptions = isControlled ? (initialOptions ?? internalOptions) : internalOptions;
+
+  // Sync internal state when modal opens with props (for uncontrolled mode)
+  React.useEffect(() => {
+    if (!visible) return;
+    if (!isControlled) {
+      setInternalCategory(initialCategory ?? categories[0]?.id ?? '');
+      setInternalOptions(initialOptions ?? {});
+    }
+  }, [visible, isControlled, initialCategory, initialOptions, categories]);
 
   const dynamicStyles = useMemo(
     () =>
       StyleSheet.create({
         modalOverlay: {
           flex: 1,
-          backgroundColor: colors.backgroundLight,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
         },
         modalContent: {
           flex: 1,
@@ -93,10 +109,32 @@ export default function FilterModal({
         headerContainer: {
           flexDirection: 'row',
           alignItems: 'center',
+          justifyContent: 'space-between',
           paddingHorizontal: moderateScale(20),
           paddingTop: moderateScale(16),
           paddingBottom: moderateScale(16),
           backgroundColor: colors.backgroundWhite,
+        },
+        headerLeft: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          flex: 1,
+        },
+        headerRight: {
+          flexDirection: 'row',
+          alignItems: 'center',
+        },
+        resetButton: {
+          paddingHorizontal: moderateScale(12),
+          paddingVertical: moderateScale(8),
+          borderRadius: moderateScale(8),
+          backgroundColor: colors.backgroundLight,
+          marginRight: moderateScale(8),
+        },
+        resetButtonText: {
+          ...Typography.semiBoldMd,
+          fontSize: moderateScale(14),
+          color: colors.primary,
         },
         backButton: {
           width: moderateScale(40),
@@ -142,7 +180,7 @@ export default function FilterModal({
         categoryTextSelected: {
           ...Typography.boldMd,
           fontSize: moderateScale(16),
-          color: colors.textPrimary,
+          color: colors.primary,
         },
         rightPanel: {
           flex: 1,
@@ -166,6 +204,20 @@ export default function FilterModal({
           color: colors.textPrimary,
           flex: 1,
         },
+        optionTextSelected: {
+          ...Typography.boldMd,
+          fontSize: moderateScale(16),
+          color: colors.primary,
+          flex: 1,
+        },
+        emptyMessage: {
+          ...Typography.regularMd,
+          fontSize: moderateScale(14),
+          color: colors.textTertiary,
+          paddingVertical: moderateScale(24),
+          paddingHorizontal: moderateScale(16),
+          textAlign: 'center',
+        },
         radioButton: {
           width: moderateScale(20),
           height: moderateScale(20),
@@ -184,26 +236,26 @@ export default function FilterModal({
           borderRadius: moderateScale(5),
           backgroundColor: colors.primary,
         },
-        blueLine: {
-          position: 'absolute',
-          left: 0,
-          top: 0,
-          bottom: 0,
-          width: moderateScale(4),
-          backgroundColor: colors.blue,
-        },
+        // blueLine: {
+        //   position: 'absolute',
+        //   left: 0,
+        //   top: 0,
+        //   bottom: 0,
+        //   width: moderateScale(4),
+        //   backgroundColor: colors.blue,
+        // },
         applyButtonContainer: {
           paddingHorizontal: moderateScale(20),
-          paddingTop: moderateScale(16),
-          paddingBottom: moderateScale(20),
-          backgroundColor: colors.backgroundWhite,
+          height: moderateScale(70),
+            backgroundColor: colors.backgroundWhite,
         },
         applyButton: {
-          paddingVertical: moderateScale(16),
+          // paddingVertical: moderateScale(16),
           borderRadius: moderateScale(12),
           backgroundColor: colors.primary,
           alignItems: 'center',
           justifyContent: 'center',
+          height: moderateScale(50),
         },
         applyButtonText: {
           ...Typography.semiBoldMd,
@@ -215,14 +267,24 @@ export default function FilterModal({
   );
 
   const handleCategorySelect = (categoryId: string) => {
-    setSelectedCategory(categoryId);
+    if (onCategorySelect) {
+      onCategorySelect(categoryId);
+    } else {
+      setInternalCategory(categoryId);
+    }
   };
 
   const handleOptionSelect = (optionValue: string) => {
-    setSelectedOptions(prev => ({
-      ...prev,
-      [selectedCategory]: optionValue,
-    }));
+    const isAlreadySelected = currentSelectedOption === optionValue;
+    const newValue = isAlreadySelected ? '' : optionValue;
+    if (onOptionSelect) {
+      onOptionSelect(selectedCategory, newValue);
+    } else {
+      setInternalOptions(prev => ({
+        ...prev,
+        [selectedCategory]: newValue,
+      }));
+    }
   };
 
   const handleApply = () => {
@@ -230,6 +292,27 @@ export default function FilterModal({
       category: selectedCategory,
       options: selectedOptions,
     });
+    onClose();
+  };
+
+  const handleReset = () => {
+    // Reset all selected options
+    const resetOptions: Record<string, string> = {};
+    const resetCategory = categories[0]?.id || '';
+
+    setInternalOptions(resetOptions);
+    setInternalCategory(resetCategory);
+
+    // Apply reset immediately so parent (and controlled state) stays in sync
+    onApply({
+      category: resetCategory,
+      options: resetOptions,
+    });
+
+    if (onReset) {
+      onReset();
+    }
+
     onClose();
   };
 
@@ -245,24 +328,34 @@ export default function FilterModal({
       <View style={[dynamicStyles.modalOverlay, {paddingTop: insets.top}]}>
         {/* Header */}
         <View style={dynamicStyles.headerContainer}>
-          <TouchableOpacity
-            style={dynamicStyles.backButton}
-            onPress={onClose}
-            activeOpacity={0.7}>
-            <Ionicons
-              name="arrow-back"
-              size={moderateScale(20)}
-              color={colors.textPrimary}
-            />
-          </TouchableOpacity>
-          <Text style={dynamicStyles.modalTitle}>{title}</Text>
+          <View style={dynamicStyles.headerLeft}>
+            <TouchableOpacity
+              style={dynamicStyles.backButton}
+              onPress={onClose}
+              activeOpacity={0.7}>
+              <Ionicons
+                name="arrow-back"
+                size={moderateScale(20)}
+                color={colors.textPrimary}
+              />
+            </TouchableOpacity>
+            <Text style={dynamicStyles.modalTitle}>{modalTitle}</Text>
+          </View>
+          <View style={dynamicStyles.headerRight}>
+            <TouchableOpacity
+              style={dynamicStyles.resetButton}
+              onPress={handleReset}
+              activeOpacity={0.7}>
+              <Text style={dynamicStyles.resetButtonText}>{t('common.reset')}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Two Panel Content */}
         <View style={dynamicStyles.contentContainer}>
           {/* Left Panel - Categories */}
           <View style={dynamicStyles.leftPanel}>
-            <View style={dynamicStyles.blueLine} />
+            {/* <View style={dynamicStyles.blueLine} /> */}
             <ScrollView
               style={dynamicStyles.leftPanelContent}
               showsVerticalScrollIndicator={false}>
@@ -287,32 +380,43 @@ export default function FilterModal({
             </ScrollView>
           </View>
 
-          {/* Right Panel - Options */}
+          {/* Right Panel - Options or empty message */}
           <View style={dynamicStyles.rightPanel}>
             <ScrollView
               style={dynamicStyles.rightPanelContent}
               showsVerticalScrollIndicator={false}>
-              {currentCategory?.options.map(option => {
-                const isSelected = currentSelectedOption === option.value;
-                return (
-                  <TouchableOpacity
-                    key={option.id}
-                    style={dynamicStyles.optionItem}
-                    onPress={() => handleOptionSelect(option.value)}
-                    activeOpacity={0.7}>
-                    <Text style={dynamicStyles.optionText}>{option.label}</Text>
-                    <View
-                      style={[
-                        dynamicStyles.radioButton,
-                        isSelected && dynamicStyles.radioButtonSelected,
-                      ]}>
-                      {isSelected && (
-                        <View style={dynamicStyles.radioButtonInner} />
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
+              {currentCategory &&
+              currentCategory.options.length === 0 &&
+              currentCategory.emptyMessage ? (
+                <Text style={dynamicStyles.emptyMessage}>
+                  {currentCategory.emptyMessage}
+                </Text>
+              ) : (
+                currentCategory?.options.map(option => {
+                  const isSelected = currentSelectedOption === option.value;
+                  return (
+                    <TouchableOpacity
+                      key={option.id}
+                      style={dynamicStyles.optionItem}
+                      onPress={() => handleOptionSelect(option.value)}
+                      activeOpacity={0.7}>
+                      <Text style={[
+                        dynamicStyles.optionText,
+                        isSelected && dynamicStyles.optionTextSelected,
+                      ]}>{option.label}</Text>
+                      <View
+                        style={[
+                          dynamicStyles.radioButton,
+                          isSelected && dynamicStyles.radioButtonSelected,
+                        ]}>
+                        {isSelected && (
+                          <View style={dynamicStyles.radioButtonInner} />
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })
+              )}
             </ScrollView>
           </View>
         </View>
@@ -321,13 +425,14 @@ export default function FilterModal({
         <View
           style={[
             dynamicStyles.applyButtonContainer,
-            {paddingBottom: Math.max(insets.bottom, moderateScale(20))},
+            {paddingBottom: insets.bottom + moderateScale(4)},
+            {paddingTop: moderateScale(12)},
           ]}>
           <TouchableOpacity
             style={dynamicStyles.applyButton}
             onPress={handleApply}
             activeOpacity={0.7}>
-            <Text style={dynamicStyles.applyButtonText}>Apply</Text>
+            <Text style={dynamicStyles.applyButtonText}>{t('common.apply')}</Text>
           </TouchableOpacity>
         </View>
       </View>

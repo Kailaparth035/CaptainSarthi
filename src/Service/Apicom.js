@@ -2,7 +2,13 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { showAlert } from '../utils/CustomAlertPopup';
 import { API_BASE_URL } from './constant';
-import { clearSession } from '../utils/session';
+import { clearSession, clearPendingNavigation } from '../utils/session';
+import { navigationRef } from '../navigation/RootNavigator';
+import { SCREEN_NAMES } from '../constants/screenNames';
+import { CommonActions } from '@react-navigation/native';
+
+const LANGUAGE_CODE_KEY = '@app_language';
+const LANGUAGE_ID_KEY = '@app_language_id';
 
 // Get auth token from AsyncStorage
 const getAuthToken = async () => {
@@ -33,14 +39,82 @@ const clearAuthToken = async () => {
   }
 };
 
-// Reset to login screen
-const resetToAuth = async () => {
+/**
+ * Clear all AsyncStorage values completely
+ * This ensures a clean logout for both dealer and farmer roles
+ * Clears: auth token, session data, user data, role, profile status, pending navigation, etc.
+ * Preserves: language selection, terms acceptance (these are one-time preferences)
+ */
+const clearAllAsyncStorage = async () => {
   try {
+    console.log('[Apicom] Starting comprehensive logout - clearing all AsyncStorage values...');
+    
+    // Clear auth token
     await clearAuthToken();
+    console.log('[Apicom] Auth token cleared');
+    
+    // Clear pending navigation (if any)
+    try {
+      await clearPendingNavigation();
+      console.log('[Apicom] Pending navigation cleared');
+    } catch (err) {
+      console.warn('[Apicom] Error clearing pending navigation (non-critical):', err);
+    }
+    
+    // Clear session data (includes user data, role, profile status, farmer profile data, etc.)
     await clearSession();
-    // Navigation reset will be handled by the component
+    console.log('[Apicom] Session data cleared');
+    
+    // Clear any additional AsyncStorage items that might exist
+    // Get all keys and remove them (except language and terms which should persist)
+    const allKeys = await AsyncStorage.getAllKeys();
+    const keysToKeep = [
+      '@language_selected',
+      '@terms_accepted',
+      LANGUAGE_CODE_KEY,
+      LANGUAGE_ID_KEY,
+    ]; // Persist language + one-time preferences
+    const keysToRemove = allKeys.filter(key => !keysToKeep.includes(key));
+    
+    if (keysToRemove.length > 0) {
+      await AsyncStorage.multiRemove(keysToRemove);
+      console.log(`[Apicom] Removed ${keysToRemove.length} additional AsyncStorage keys:`, keysToRemove);
+    }
+    
+    console.log('[Apicom] All AsyncStorage values cleared successfully - logout complete');
   } catch (error) {
-    console.error('Error resetting auth:', error);
+    console.error('[Apicom] Error clearing AsyncStorage:', error);
+    throw error;
+  }
+};
+
+/**
+ * Handle 401 Unauthorized - Auto logout and navigate to login
+ * Works for both dealer and farmer roles
+ */
+const handleUnauthorized = async () => {
+  try {
+    console.log('[Apicom] 401 Unauthorized detected - Auto logging out user...');
+    
+    // Clear all AsyncStorage values
+    await clearAllAsyncStorage();
+    
+    // Navigate to login screen using navigationRef
+    if (navigationRef.current && navigationRef.current.isReady()) {
+      console.log('[Apicom] Navigating to login screen...');
+      navigationRef.current.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: SCREEN_NAMES.Login }],
+        })
+      );
+      console.log('[Apicom] Successfully navigated to login screen');
+    } else {
+      console.warn('[Apicom] Navigation ref not ready - user will be logged out on next app open');
+    }
+  } catch (error) {
+    console.error('[Apicom] Error during auto logout:', error);
+    // Even if navigation fails, session is cleared so user will be redirected on next app open
   }
 };
 
@@ -53,12 +127,53 @@ const axiosInstance = axios.create({
   },
 });
 
+const shouldAttachLanguageId = (config) => {
+  const url = config?.url || '';
+  // Do not attach for common-auth endpoints (login / send-otp / languages)
+  if (url.includes('/api/common-auth/')) return false;
+
+  // Attach for content endpoints that are language dependent
+  // (Farmers: dashboard/events/stories + location variants)
+  if (
+    url.includes('/api/farmers/dashboard') ||
+    url.includes('/api/farmers/eventsbylocation') ||
+    url.includes('/api/farmers/storiesbylocation') ||
+    url.includes('/api/farmers/events') ||
+    url.includes('/api/farmers/stories')
+  ) {
+    return true;
+  }
+
+  // Safe default: don't attach elsewhere to avoid backend validation issues
+  return false;
+};
+
 // Add auth token to each request if available
 axiosInstance.interceptors.request.use(
   async config => {
     const token = await getAuthToken();
+    console.log("token ::",token);
+    
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    // Attach selected language_id (query param) for localized endpoints
+    try {
+      if (shouldAttachLanguageId(config)) {
+        const languageIdRaw = await AsyncStorage.getItem(LANGUAGE_ID_KEY);
+        const languageId = languageIdRaw ? Number(languageIdRaw) : null;
+        if (languageIdRaw && typeof languageId === 'number' && !Number.isNaN(languageId)) {
+          // Preserve existing params; don't overwrite if caller already set language_id
+          const existingParams = config.params || {};
+          if (existingParams.language_id === undefined && existingParams.languageId === undefined) {
+            config.params = { ...existingParams, language_id: languageId };
+          }
+        }
+      }
+    } catch (e) {
+      // Non-fatal: don't block requests if language_id can't be read
+      console.warn('[Apicom] Failed to attach language_id:', e?.message || e);
     }
 
     if (__DEV__) {
@@ -104,11 +219,33 @@ axiosInstance.interceptors.response.use(
           noText: '',
         });
       } else if (status === 401) {
+        // Auto logout on 401 - don't wait for user confirmation
+        // Works for both dealer and farmer roles
+        // This handles 401 from any API call: GET, POST, PUT, DELETE
+        console.log('[Apicom] 401 Unauthorized response received - auto logging out...');
+        console.log('[Apicom] Request that triggered 401:', {
+          method: config?.method?.toUpperCase(),
+          url: config?.url,
+          baseURL: config?.baseURL,
+        });
+        
+        // Automatically logout and navigate to login
+        // Call handleUnauthorized without await to avoid blocking, but handle errors
+        handleUnauthorized().catch(err => {
+          console.error('[Apicom] Error during auto logout:', err);
+          // Even if logout fails, session will be cleared on next app open
+        });
+        
+        // Show a brief message to user that session expired
+        // Note: Navigation happens in handleUnauthorized, so alert appears briefly before login screen
         showAlert({
-          title: 'Unauthorized',
-          message: 'Session expired. Please login again.',
-          onConfirm: async () => await resetToAuth(),
-          yesText: 'LOGIN',
+          title: 'Session Expired',
+          message: 'Your session has expired. Please login again.',
+          onConfirm: () => {
+            // User already on login screen or will be soon, just close alert
+            console.log('[Apicom] User acknowledged session expiry');
+          },
+          yesText: 'OK',
           noText: '',
         });
       } else if (
