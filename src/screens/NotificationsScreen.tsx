@@ -30,7 +30,7 @@ import useDeviceMetrics from '../utils/responsiveCustom';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import Button from '../components/Button';
 import SimpleBoxInput from '../components/FloatingInput';
-import {getData, putData} from '../Service/Apimethod';
+import {getData, putData, deleteData} from '../Service/Apimethod';
 import Apis from '../Service/constant';
 import {isLoggedIn, getUserRole} from '../utils/session';
 
@@ -72,6 +72,8 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
   const {t} = useLanguage();
   const tabNavigation = useNavigation<BottomTabNavigationProp<FarmerTabParamList & TabParamList>>();
   const [showFailedModal, setShowFailedModal] = useState(false);
+  const [showClearAllModal, setShowClearAllModal] = useState(false);
+  const [clearingReadNotifications, setClearingReadNotifications] = useState(false);
   const [selectedNotification, setSelectedNotification] =
     useState<NotificationItem | null>(null);
   const [firstName, setFirstName] = useState('');
@@ -270,15 +272,26 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
   }, []);
 
   // Fetch notifications from API
-  const fetchNotifications = useCallback(async (showRefreshing = false) => {
-    // Prevent multiple simultaneous API calls
+  const fetchNotifications = useCallback(async (
+    showRefreshing = false,
+    options: {force?: boolean} = {},
+  ) => {
     if (isFetchingRef.current) {
-      console.log('[NotificationsScreen] Already fetching, skipping duplicate call');
-      return;
+      if (!options.force) {
+        console.log('[NotificationsScreen] Already fetching, skipping duplicate call');
+        return;
+      }
+      isFetchingRef.current = false;
     }
 
     try {
       isFetchingRef.current = true;
+
+      if (showRefreshing) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
 
       // Check if user is logged in
       const loggedIn = await isLoggedIn();
@@ -310,12 +323,6 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
       let farmersList: any[] = [];
       if (role === 'dealer') {
         farmersList = await fetchFarmerList();
-      }
-
-      if (showRefreshing) {
-        setRefreshing(true);
-      } else {
-        setLoading(true);
       }
 
       // Pass page and limit as query parameters
@@ -434,10 +441,16 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
         header: {
           flexDirection: 'row',
           alignItems: 'center',
+          justifyContent: 'space-between',
           paddingHorizontal: moderateScale(16),
           paddingTop: insets.top + moderateScale(12),
           paddingBottom: moderateScale(12),
           backgroundColor: colors.backgroundLight,
+        },
+        headerLeft: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          flex: 1,
         },
         backButton: {
           width: moderateScale(40),
@@ -452,6 +465,15 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
           ...Typography.boldXxl,
           color: colors.textPrimary,
           fontSize: moderateScale(22),
+        },
+        clearAllButton: {
+          paddingVertical: moderateScale(4),
+          paddingLeft: moderateScale(8),
+        },
+        clearAllText: {
+          ...Typography.semiBoldMd,
+          fontSize: moderateScale(14),
+          color: colors.primary,
         },
         scrollContent: {
           padding: moderateScale(16),
@@ -717,6 +739,36 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
         modalInputContainer: {
           marginBottom: moderateScale(0),
         },
+        clearAllModalOverlay: {
+          flex: 1,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          justifyContent: 'center',
+          alignItems: 'center',
+          paddingHorizontal: moderateScale(24),
+        },
+        clearAllModalContainer: {
+          width: '100%',
+          backgroundColor: colors.backgroundWhite,
+          borderRadius: moderateScale(16),
+          padding: moderateScale(20),
+        },
+        clearAllModalMessage: {
+          ...Typography.regularMd,
+          fontSize: moderateScale(16),
+          color: colors.textPrimary,
+          lineHeight: moderateScale(24),
+          marginBottom: moderateScale(24),
+          textAlign: 'center',
+        },
+        clearAllModalActions: {
+          flexDirection: 'row',
+          gap: moderateScale(12),
+        },
+        clearAllModalButton: {
+          flex: 1,
+          marginTop: 0,
+          marginBottom: 0,
+        },
       }),
     [moderateScale, insets.top, insets.bottom],
   );
@@ -795,6 +847,44 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
     setFirstName('');
     setLastName('');
     setRejectionReason('');
+  };
+
+  const handleCloseClearAllModal = () => {
+    setShowClearAllModal(false);
+  };
+
+  const handleClearAllConfirm = async () => {
+    if (clearingReadNotifications) {
+      return;
+    }
+
+    try {
+      setClearingReadNotifications(true);
+      const role = userRole || (await getUserRole());
+      const apiEndpoint =
+        role === 'farmer'
+          ? Apis.FARMER_PUSH_NOTIFICATIONS_DELETE
+          : Apis.DEALER_PUSH_NOTIFICATIONS_DELETE
+
+      console.log(
+        '[NotificationsScreen] Deleting read notifications - Role:',
+        role,
+      );
+      const response = await deleteData(apiEndpoint);
+
+      if (response?.status === true) {
+        setShowClearAllModal(false);
+        isFetchingRef.current = false;
+        await fetchNotifications(true, {force: true});
+      }
+    } catch (error) {
+      console.error(
+        '[NotificationsScreen] Error deleting read notifications:',
+        error,
+      );
+    } finally {
+      setClearingReadNotifications(false);
+    }
   };
 
   const handleViewForm = async () => {
@@ -1135,7 +1225,7 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
 
   // List empty component
   const ListEmptyComponent = () => {
-    if (loading || refreshing) {
+    if (loading && !refreshing) {
       return null;
     }
     return (
@@ -1152,17 +1242,25 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+            activeOpacity={0.7}>
+            <Ionicons
+              name="arrow-back"
+              size={moderateScale(20)}
+              color={colors.textPrimary}
+            />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>{t('notifications.title')}</Text>
+        </View>
         <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          style={styles.clearAllButton}
+          onPress={() => setShowClearAllModal(true)}
           activeOpacity={0.7}>
-          <Ionicons
-            name="arrow-back"
-            size={moderateScale(20)}
-            color={colors.textPrimary}
-          />
+          <Text style={styles.clearAllText}>{t('notifications.clearAll')}</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('notifications.title')}</Text>
       </View>
 
       {/* Notifications List */}
@@ -1197,9 +1295,24 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
               </ScrollView>
             </View>
           ) : (
-            <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+            <ScrollView
+              style={{flex: 1}}
+              contentContainerStyle={{
+                flexGrow: 1,
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}
+              showsVerticalScrollIndicator={false}
+              refreshControl={
+                <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  colors={[colors.primary]}
+                  tintColor={colors.primary}
+                />
+              }>
               <ListEmptyComponent />
-            </View>
+            </ScrollView>
           )}
         </View>
       ) : (
@@ -1230,11 +1343,11 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
         <Pressable
           style={styles.modalOverlay}
           onPress={handleCloseModal}
-          activeOpacity={1}>
+          >
           <Pressable
             style={styles.modalContainer}
             onPress={e => e.stopPropagation()}
-            activeOpacity={1}>
+          >
             <ScrollView
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled">
@@ -1294,6 +1407,42 @@ const NotificationsScreen: React.FC<NotificationsScreenProps> = ({
                 style={styles.modalButton}
               />
             </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={showClearAllModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={handleCloseClearAllModal}>
+        <Pressable
+          style={styles.clearAllModalOverlay}
+          onPress={handleCloseClearAllModal}
+          >
+          <Pressable
+            style={styles.clearAllModalContainer}
+            onPress={e => e.stopPropagation()}
+          >
+            <Text style={styles.clearAllModalMessage}>
+              {t('notifications.deleteReadMessage')}
+            </Text>
+            <View style={styles.clearAllModalActions}>
+              <Button
+                title={t('notifications.cancel')}
+                onPress={handleCloseClearAllModal}
+                variant="outline"
+                disabled={clearingReadNotifications}
+                style={styles.clearAllModalButton}
+              />
+              <Button
+                title={t('notifications.confirm')}
+                onPress={handleClearAllConfirm}
+                loading={clearingReadNotifications}
+                disabled={clearingReadNotifications}
+                style={styles.clearAllModalButton}
+              />
+            </View>
           </Pressable>
         </Pressable>
       </Modal>

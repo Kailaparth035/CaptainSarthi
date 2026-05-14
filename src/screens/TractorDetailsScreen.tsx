@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  ActivityIndicator,
   RefreshControl,
   Dimensions,
   Modal,
@@ -44,54 +43,6 @@ type TractorDetailsRouteParams = {
 };
 
 type SpecificationTab = string; // Dynamic based on API response
-
-// Mock data for tractor details
-const getTractorDetails = (tractorId: string) => {
-  const defaultData = {
-    id: tractorId,
-    model: '120 Little master',
-    series: '12 HP Series',
-    description:
-      'The Captain Little Master 12 HP is a lightweight tractor specially designed for monsoon use, offering superior performance in wet and muddy fields.',
-    fullDescription:
-      'The Captain Little Master 12 HP is a lightweight tractor specially designed for monsoon use, offering superior performance in wet and muddy fields. It features advanced water-resistant components and enhanced traction capabilities that make it ideal for agricultural work during the rainy season. The compact design ensures easy maneuverability in tight spaces while maintaining robust performance.',
-    videoUri: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4', // Sample video URL - replace with actual video URL
-    thumbnailUri: undefined, // Optional: Add thumbnail image URL
-    specifications: {
-      engine: [
-        {label: 'Engine power (HP)', value: '12 HP'},
-        {label: 'No. of cylinder', value: '1'},
-        {label: 'Capacity (CC)', value: '611 CC'},
-        {label: 'Rated speed (RPM)', value: '3000 RPM'},
-        {label: 'Cooling system', value: 'Water cooled'},
-        {label: 'Bore/stroke (mm)', value: '92 / 92 mm'},
-      ],
-      tyre: [
-        {label: 'Front tyre', value: '6.00 x 16'},
-        {label: 'Rear tyre', value: '8.3 x 20'},
-        {label: 'Tyre type', value: 'Agricultural'},
-      ],
-      dimension: [
-        {label: 'Length (mm)', value: '2400 mm'},
-        {label: 'Width (mm)', value: '1200 mm'},
-        {label: 'Height (mm)', value: '1400 mm'},
-        {label: 'Wheelbase (mm)', value: '1500 mm'},
-      ],
-      transmission: [
-        {label: 'Gearbox', value: '6 Forward + 2 Reverse'},
-        {label: 'Clutch', value: 'Single plate'},
-        {label: 'PTO speed', value: '540 RPM'},
-      ],
-    },
-    thumbnails: [
-      {id: '1', type: 'image', uri: null},
-      {id: '2', type: 'image', uri: null},
-      {id: '3', type: 'more', count: 2},
-    ],
-  };
-
-  return defaultData;
-};
 
 // Specification Row Component
 const SpecRow = ({
@@ -143,7 +94,7 @@ const SpecRow = ({
 export default function TractorDetailsScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
-  const {t} = useLanguage();
+  const {t, currentLanguageId} = useLanguage();
   const route = useRoute();
   const navigation = useNavigation();
   const tabNavigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
@@ -174,19 +125,33 @@ export default function TractorDetailsScreen() {
           return;
         }
 
-        // Call API with tractorId as query parameter
-        // API endpoint: GET /api/dealers/tractors?tractorId=11
+        const selectedLanguageId = currentLanguageId || 1;
         console.log('[TractorDetailsScreen] Fetching tractor with ID:', tractorId);
-        const response = await getData(Apis.DEALER_TRACTOR_BY_ID, { tractorId: tractorId });
+        const response = await getData(Apis.DEALER_TRACTOR_BY_ID, {
+          tractorId,
+          language_id: String(selectedLanguageId),
+        });
         
         console.log('[TractorDetailsScreen] API Response:', JSON.stringify(response, null, 2));
         
-        // Handle API response structure: { status: true, data: { tractorId, title, series, description, mainImage, galleryImages, videoUrl, specifications } }
+        // Handle API response structure: { status: true, data: { [tractorId]: { ... } } }
         let tractorData = null;
         
         if (response?.status === true && response?.data) {
-          // Response data is an object with tractor details
-          tractorData = response.data;
+          const rawData = response.data;
+          if (rawData.tractorId != null || rawData.id != null || rawData.title) {
+            tractorData = rawData;
+          } else if (rawData[tractorId]) {
+            tractorData = rawData[tractorId];
+          } else {
+            const entries = Object.values(rawData).filter(
+              (item): item is Record<string, unknown> =>
+                !!item && typeof item === 'object',
+            );
+            if (entries.length === 1) {
+              tractorData = entries[0];
+            }
+          }
           console.log('[TractorDetailsScreen] Tractor Data:', JSON.stringify(tractorData, null, 2));
         }
         
@@ -261,15 +226,11 @@ export default function TractorDetailsScreen() {
           });
         } else {
           console.warn('Unexpected API response format:', response);
-          // Fallback to mock data if API fails
-          setTractorDetails(getTractorDetails(tractorId));
-          setSelectedTab('engine');
+          setTractorDetails(null);
         }
       } catch (error) {
         console.error('Error fetching tractor details:', error);
-        // Fallback to mock data on error
-        setTractorDetails(getTractorDetails(params?.tractorId || '1'));
-        setSelectedTab('engine');
+        setTractorDetails(null);
       } finally {
         setLoading(false);
         setRefreshing(false);
@@ -279,11 +240,11 @@ export default function TractorDetailsScreen() {
   // Handle pull to refresh
   const onRefresh = React.useCallback(() => {
     fetchTractorDetails(true);
-  }, []);
+  }, [currentLanguageId, params?.tractorId]);
 
   useEffect(() => {
     fetchTractorDetails();
-  }, [params?.tractorId]);
+  }, [params?.tractorId, currentLanguageId]);
 
   const dynamicStyles = useMemo(
     () =>
@@ -750,8 +711,33 @@ export default function TractorDetailsScreen() {
 
   if (!tractorDetails) {
     return (
-      <View style={[dynamicStyles.container, {justifyContent: 'center', alignItems: 'center'}]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View style={dynamicStyles.container}>
+        <View style={dynamicStyles.header}>
+          <View style={dynamicStyles.headerLeft}>
+            <TouchableOpacity
+              style={dynamicStyles.backButton}
+              onPress={() => {
+                if (params?.fromScreen === 'Home') {
+                  tabNavigation.navigate(SCREEN_NAMES.Home);
+                } else {
+                  navigation.goBack();
+                }
+              }}
+              activeOpacity={0.7}>
+              <Ionicons
+                name="arrow-back"
+                size={moderateScale(20)}
+                color={colors.textPrimary}
+              />
+            </TouchableOpacity>
+            <Text style={dynamicStyles.headerTitle}>{t("farmerProfile.tractorDetails")}</Text>
+          </View>
+        </View>
+        <View style={{flex: 1, justifyContent: 'center', alignItems: 'center', padding: moderateScale(32)}}>
+          <Text style={[Typography.regularMd, {fontSize: moderateScale(16), color: colors.textTertiary, textAlign: 'center'}]}>
+            {t('tractors.noDetailsAvailable')}
+          </Text>
+        </View>
       </View>
     );
   }

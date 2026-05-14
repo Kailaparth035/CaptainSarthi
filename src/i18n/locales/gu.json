@@ -126,7 +126,11 @@
     "enterFirstName": "તમારું નામ દાખલ કરો",
     "enterLastName": "અટક દાખલ કરો",
     "enterRejectionReason": "નકારવાનું કારણ દાખલ કરો",
-    "noNotificationsFound": "કોઈ સૂચનાઓ મળી નથી"
+    "noNotificationsFound": "કોઈ સૂચનાઓ મળી નથી",
+    "clearAll": "બધું સાફ કરો",
+    "deleteReadMessage": "શું તમે બધી વાંચેલી સૂચનાઓ કાઢી નાખવા માંગો છો?",
+    "confirm": "પુષ્ટિ કરો",
+    "cancel": "રદ કરો"
   },
   "language": {
     "title": "ભાષા",

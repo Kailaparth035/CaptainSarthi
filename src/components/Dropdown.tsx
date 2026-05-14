@@ -67,6 +67,7 @@ export default function Dropdown({
           backgroundColor: colors.white,
           paddingVertical: moderateScale(14),
           paddingHorizontal: moderateScale(15),
+          minHeight: moderateScale(56),
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -96,10 +97,18 @@ export default function Dropdown({
         selectedText: {
           fontSize: moderateScale(14),
           color: value ? colors.black : colors.placeholderText,
+          flex: 1,
+          flexShrink: 1,
+          paddingRight: moderateScale(8),
+          lineHeight: moderateScale(20),
         },
         placeholderText: {
           fontSize: moderateScale(14),
           color: colors.placeholderText,
+          flex: 1,
+          flexShrink: 1,
+          paddingRight: moderateScale(8),
+          lineHeight: moderateScale(20),
         },
         errorText: {
           marginTop: moderateScale(5),
@@ -198,6 +207,7 @@ export default function Dropdown({
           </Text>
         </View>
         <Text
+          numberOfLines={3}
           style={selectedOption ? styles.selectedText : styles.placeholderText}>
           {selectedOption ? selectedOption.label : placeholder}
         </Text>

@@ -126,7 +126,11 @@
     "enterFirstName": "Enter first name",
     "enterLastName": "Enter last name",
     "enterRejectionReason": "Enter rejection reason",
-    "noNotificationsFound": "No notifications found"
+    "noNotificationsFound": "No notifications found",
+    "clearAll": "Clear All",
+    "deleteReadMessage": "Do you want to delete all read notifications?",
+    "confirm": "Confirm",
+    "cancel": "Cancel"
   },
   "language": {
     "title": "Language",

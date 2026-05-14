@@ -101,6 +101,8 @@ export function RadioButtonQuestion({
   disabled = false,
 }: RadioButtonQuestionProps) {
   const {moderateScale} = useDeviceMetrics();
+  const shouldUseHorizontalLayout =
+    options.length === 2 && options.every(option => option.length <= 24);
 
   const styles = useMemo(
     () =>
@@ -120,11 +122,10 @@ export function RadioButtonQuestion({
         },
         optionsContainer: {
           flexDirection: 'column',
-          gap: moderateScale(8),
         },
         horizontalOptionsContainer: {
           flexDirection: 'row',
-          gap: moderateScale(12),
+          justifyContent: 'space-between',
         },
         optionButton: {
           flexDirection: 'row',
@@ -136,9 +137,11 @@ export function RadioButtonQuestion({
           borderWidth: 1,
           borderColor: colors.borderDefault,
           backgroundColor: colors.backgroundWhite,
+          marginBottom: moderateScale(8),
         },
         horizontalOptionButton: {
-          flex: 1,
+          width: '48%',
+          marginBottom: 0,
         },
         selectedOptionButton: {
           backgroundColor: colors.light_orange,
@@ -148,6 +151,9 @@ export function RadioButtonQuestion({
           ...Typography.regularMd,
           fontSize: moderateScale(14),
           color: colors.textPrimary,
+          flex: 1,
+          marginRight: moderateScale(10),
+          lineHeight: moderateScale(20),
         },
         radioCircle: {
           width: moderateScale(24),
@@ -157,6 +163,7 @@ export function RadioButtonQuestion({
           backgroundColor: colors.backgroundWhite,
           alignItems: 'center',
           justifyContent: 'center',
+          flexShrink: 0,
         },
         radioCircleSelected: {
           borderColor: colors.primary,
@@ -191,16 +198,19 @@ export function RadioButtonQuestion({
       <View
         style={[
           styles.optionsContainer,
-          options.length <= 2 && styles.horizontalOptionsContainer,
+          shouldUseHorizontalLayout && styles.horizontalOptionsContainer,
         ]}>
-        {options.map(option => {
+        {options.map((option, index) => {
           const isSelected = value === option;
           return (
             <TouchableOpacity
               key={option}
               style={[
                 styles.optionButton,
-                options.length <= 2 && styles.horizontalOptionButton,
+                shouldUseHorizontalLayout && styles.horizontalOptionButton,
+                shouldUseHorizontalLayout && index % 2 === 0
+                  ? {marginRight: moderateScale(6)}
+                  : undefined,
                 isSelected && styles.selectedOptionButton,
               ]}
               onPress={() => !disabled && onChange(option)}

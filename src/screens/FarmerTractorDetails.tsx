@@ -93,7 +93,7 @@ const SpecRow = ({
 export default function FarmerTractorDetails() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
-  const {t} = useLanguage();
+  const {t, currentLanguageId} = useLanguage();
   const route = useRoute();
   const navigation = useNavigation();
   const tabNavigation = useNavigation<BottomTabNavigationProp<TabParamList>>();
@@ -126,17 +126,33 @@ export default function FarmerTractorDetails() {
 
       // Call API with tractorId as query parameter
       // API endpoint: GET /api/dealers/tractors?tractorId=11
+      const selectedLanguageId = currentLanguageId || 1;
       console.log('[FarmerTractorDetails] Fetching tractor with ID:', tractorId);
-      const response = await getData(Apis.DEALER_TRACTOR_BY_ID, { tractorId: tractorId });
+      const response = await getData(Apis.DEALER_TRACTOR_BY_ID, {
+        tractorId,
+        language_id: String(selectedLanguageId),
+      });
       
       console.log('[FarmerTractorDetails] API Response:', JSON.stringify(response, null, 2));
       
-      // Handle API response structure: { status: true, data: { tractorId, title, series, description, mainImage, galleryImages, videoUrl, specifications } }
+      // Handle API response structure: { status: true, data: { [tractorId]: { ... } } }
       let tractorData = null;
       
       if (response?.status === true && response?.data) {
-        // Response data is an object with tractor details
-        tractorData = response.data;
+        const rawData = response.data;
+        if (rawData.tractorId != null || rawData.id != null || rawData.title) {
+          tractorData = rawData;
+        } else if (rawData[tractorId]) {
+          tractorData = rawData[tractorId];
+        } else {
+          const entries = Object.values(rawData).filter(
+            (item): item is Record<string, unknown> =>
+              !!item && typeof item === 'object',
+          );
+          if (entries.length === 1) {
+            tractorData = entries[0];
+          }
+        }
         console.log('[FarmerTractorDetails] Tractor Data:', JSON.stringify(tractorData, null, 2));
       }
       
@@ -218,12 +234,12 @@ export default function FarmerTractorDetails() {
   const onRefresh = React.useCallback(() => {
     fetchTractorDetails(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [currentLanguageId, params?.tractorId]);
 
   useEffect(() => {
     fetchTractorDetails();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params?.tractorId]);
+  }, [params?.tractorId, currentLanguageId]);
 
   const dynamicStyles = useMemo(
     () =>

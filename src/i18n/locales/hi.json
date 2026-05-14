@@ -126,7 +126,11 @@
     "enterFirstName": "आपका नाम दर्ज करें",
     "enterLastName": "सरनेम दर्ज करें",
     "enterRejectionReason": "अस्वीकृति का कारण दर्ज करें",
-    "noNotificationsFound": "कोई सूचना नहीं मिली"
+    "noNotificationsFound": "कोई सूचना नहीं मिली",
+    "clearAll": "सभी साफ करें",
+    "deleteReadMessage": "क्या आप सभी पढ़ी हुई सूचनाएं हटाना चाहते हैं?",
+    "confirm": "पुष्टि करें",
+    "cancel": "रद्द करें"
   },
   "language": {
     "title": "भाषा",
