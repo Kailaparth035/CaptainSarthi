@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Image,
   RefreshControl,
-  Dimensions,
   Modal,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -30,9 +29,6 @@ import Apis, {API_BASE_URL} from '../Service/constant';
 import {getImageUrl} from '../utils/imageUtils';
 import {isYouTubeUrl, getYouTubeThumbnailUrl, extractYouTubeVideoId} from '../utils/youtubeUtils';
 import YoutubePlayer from 'react-native-youtube-iframe';
-
-const screenWidth = Dimensions.get('window').width;
-const screenHeight = Dimensions.get('window').height;
 
 type TractorDetailsRouteParams = {
   tractorId: string;
@@ -93,7 +89,8 @@ const SpecRow = ({
 
 export default function TractorDetailsScreen() {
   const insets = useSafeAreaInsets();
-  const {moderateScale} = useDeviceMetrics();
+  const {moderateScale, deviceWidth: screenWidth, deviceHeight: screenHeight} =
+    useDeviceMetrics();
   const {t, currentLanguageId} = useLanguage();
   const route = useRoute();
   const navigation = useNavigation();

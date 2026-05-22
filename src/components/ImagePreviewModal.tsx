@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Image,
   ScrollView,
-  Dimensions,
   StatusBar,
   Platform,
 } from 'react-native';
@@ -16,8 +15,6 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import colors from '../utils/colors';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import {Typography} from '../utils/typography';
-
-const {width: SCREEN_WIDTH, height: SCREEN_HEIGHT} = Dimensions.get('window');
 
 export type ImageItem = {
   id: string;
@@ -42,7 +39,11 @@ export default function ImagePreviewModal({
   onReplaceImage,
 }: ImagePreviewModalProps) {
   const insets = useSafeAreaInsets();
-  const {moderateScale} = useDeviceMetrics();
+  const {
+    moderateScale,
+    deviceWidth: SCREEN_WIDTH,
+    deviceHeight: SCREEN_HEIGHT,
+  } = useDeviceMetrics();
   const scrollViewRef = useRef<ScrollView>(null);
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
 

@@ -82,8 +82,8 @@ android {
         applicationId "com.captainsaathi.farmerapp"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 3
-        versionName "1.2.0"
+        versionCode 7
+        versionName "1.2.4"
         // Ensure cleartext traffic is enabled for both debug and release builds
         buildConfigField "boolean", "USES_CLEARTEXT_TRAFFIC", "true"
     }
@@ -120,6 +120,11 @@ configurations.all {
     exclude group: 'com.android.support', module: 'support-media-compat'
     exclude group: 'com.android.support', module: 'support-v4'
     exclude group: 'com.android.support', module: 'support-annotations'
+    resolutionStrategy {
+        // Keep androidx.core on a compileSdk 35 compatible line.
+        force 'androidx.core:core:1.16.0'
+        force 'androidx.core:core-ktx:1.16.0'
+    }
 }
 
 dependencies {

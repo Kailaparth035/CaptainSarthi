@@ -35,9 +35,9 @@
       "abi": "arm64-v8a",
       "output": "/Users/abcom/Documents/kanna2/android/app/build/intermediates/cxx/Debug/2i4l3322/obj/arm64-v8a/libreact_codegen_RNCSlider.so",
       "runtimeFiles": [
-        "/private/var/folders/0j/r0zk9g3n38j1x__vl88gtb6m0000gn/T/cursor-sandbox-cache/d9d0a641eac3745e8cbb3027750a75b0/gradle/caches/8.13/transforms/b60c1380c227a6ffbce61b3c3b53d3af/transformed/fbjni-0.7.0/prefab/modules/fbjni/libs/android.arm64-v8a/libfbjni.so",
-        "/private/var/folders/0j/r0zk9g3n38j1x__vl88gtb6m0000gn/T/cursor-sandbox-cache/d9d0a641eac3745e8cbb3027750a75b0/gradle/caches/8.13/transforms/161e9dfa4b5204375f69b69c8b60834d/transformed/react-android-0.82.1-debug/prefab/modules/jsi/libs/android.arm64-v8a/libjsi.so",
-        "/private/var/folders/0j/r0zk9g3n38j1x__vl88gtb6m0000gn/T/cursor-sandbox-cache/d9d0a641eac3745e8cbb3027750a75b0/gradle/caches/8.13/transforms/161e9dfa4b5204375f69b69c8b60834d/transformed/react-android-0.82.1-debug/prefab/modules/reactnative/libs/android.arm64-v8a/libreactnative.so"
+        "/Users/abcom/.gradle/caches/8.13/transforms/b60c1380c227a6ffbce61b3c3b53d3af/transformed/fbjni-0.7.0/prefab/modules/fbjni/libs/android.arm64-v8a/libfbjni.so",
+        "/Users/abcom/.gradle/caches/8.13/transforms/161e9dfa4b5204375f69b69c8b60834d/transformed/react-android-0.82.1-debug/prefab/modules/jsi/libs/android.arm64-v8a/libjsi.so",
+        "/Users/abcom/.gradle/caches/8.13/transforms/161e9dfa4b5204375f69b69c8b60834d/transformed/react-android-0.82.1-debug/prefab/modules/reactnative/libs/android.arm64-v8a/libreactnative.so"
       ]
     },
     "react_codegen_RNVectorIconsSpec::@479809fae146501fd34d": {
@@ -50,9 +50,9 @@
       "abi": "arm64-v8a",
       "output": "/Users/abcom/Documents/kanna2/android/app/build/intermediates/cxx/Debug/2i4l3322/obj/arm64-v8a/libreact_codegen_safeareacontext.so",
       "runtimeFiles": [
-        "/private/var/folders/0j/r0zk9g3n38j1x__vl88gtb6m0000gn/T/cursor-sandbox-cache/d9d0a641eac3745e8cbb3027750a75b0/gradle/caches/8.13/transforms/b60c1380c227a6ffbce61b3c3b53d3af/transformed/fbjni-0.7.0/prefab/modules/fbjni/libs/android.arm64-v8a/libfbjni.so",
-        "/private/var/folders/0j/r0zk9g3n38j1x__vl88gtb6m0000gn/T/cursor-sandbox-cache/d9d0a641eac3745e8cbb3027750a75b0/gradle/caches/8.13/transforms/161e9dfa4b5204375f69b69c8b60834d/transformed/react-android-0.82.1-debug/prefab/modules/jsi/libs/android.arm64-v8a/libjsi.so",
-        "/private/var/folders/0j/r0zk9g3n38j1x__vl88gtb6m0000gn/T/cursor-sandbox-cache/d9d0a641eac3745e8cbb3027750a75b0/gradle/caches/8.13/transforms/161e9dfa4b5204375f69b69c8b60834d/transformed/react-android-0.82.1-debug/prefab/modules/reactnative/libs/android.arm64-v8a/libreactnative.so"
+        "/Users/abcom/.gradle/caches/8.13/transforms/b60c1380c227a6ffbce61b3c3b53d3af/transformed/fbjni-0.7.0/prefab/modules/fbjni/libs/android.arm64-v8a/libfbjni.so",
+        "/Users/abcom/.gradle/caches/8.13/transforms/161e9dfa4b5204375f69b69c8b60834d/transformed/react-android-0.82.1-debug/prefab/modules/jsi/libs/android.arm64-v8a/libjsi.so",
+        "/Users/abcom/.gradle/caches/8.13/transforms/161e9dfa4b5204375f69b69c8b60834d/transformed/react-android-0.82.1-debug/prefab/modules/reactnative/libs/android.arm64-v8a/libreactnative.so"
       ]
     },
     "react_codegen_RNPermissionsSpec::@7ad697819b753921c957": {
@@ -88,9 +88,9 @@
         "/Users/abcom/Documents/kanna2/android/app/build/intermediates/cxx/Debug/2i4l3322/obj/arm64-v8a/libreact_codegen_RNCSlider.so",
         "/Users/abcom/Documents/kanna2/android/app/build/intermediates/cxx/Debug/2i4l3322/obj/arm64-v8a/libreact_codegen_safeareacontext.so",
         "/Users/abcom/Documents/kanna2/android/app/build/intermediates/cxx/Debug/2i4l3322/obj/arm64-v8a/libreact_codegen_rnscreens.so",
-        "/private/var/folders/0j/r0zk9g3n38j1x__vl88gtb6m0000gn/T/cursor-sandbox-cache/d9d0a641eac3745e8cbb3027750a75b0/gradle/caches/8.13/transforms/b60c1380c227a6ffbce61b3c3b53d3af/transformed/fbjni-0.7.0/prefab/modules/fbjni/libs/android.arm64-v8a/libfbjni.so",
-        "/private/var/folders/0j/r0zk9g3n38j1x__vl88gtb6m0000gn/T/cursor-sandbox-cache/d9d0a641eac3745e8cbb3027750a75b0/gradle/caches/8.13/transforms/161e9dfa4b5204375f69b69c8b60834d/transformed/react-android-0.82.1-debug/prefab/modules/jsi/libs/android.arm64-v8a/libjsi.so",
-        "/private/var/folders/0j/r0zk9g3n38j1x__vl88gtb6m0000gn/T/cursor-sandbox-cache/d9d0a641eac3745e8cbb3027750a75b0/gradle/caches/8.13/transforms/161e9dfa4b5204375f69b69c8b60834d/transformed/react-android-0.82.1-debug/prefab/modules/reactnative/libs/android.arm64-v8a/libreactnative.so"
+        "/Users/abcom/.gradle/caches/8.13/transforms/b60c1380c227a6ffbce61b3c3b53d3af/transformed/fbjni-0.7.0/prefab/modules/fbjni/libs/android.arm64-v8a/libfbjni.so",
+        "/Users/abcom/.gradle/caches/8.13/transforms/161e9dfa4b5204375f69b69c8b60834d/transformed/react-android-0.82.1-debug/prefab/modules/jsi/libs/android.arm64-v8a/libjsi.so",
+        "/Users/abcom/.gradle/caches/8.13/transforms/161e9dfa4b5204375f69b69c8b60834d/transformed/react-android-0.82.1-debug/prefab/modules/reactnative/libs/android.arm64-v8a/libreactnative.so"
       ]
     },
     "react_codegen_rnworklets::@68f58d84d4754f193387": {
@@ -118,9 +118,9 @@
       "abi": "arm64-v8a",
       "output": "/Users/abcom/Documents/kanna2/android/app/build/intermediates/cxx/Debug/2i4l3322/obj/arm64-v8a/libreact_codegen_rnscreens.so",
       "runtimeFiles": [
-        "/private/var/folders/0j/r0zk9g3n38j1x__vl88gtb6m0000gn/T/cursor-sandbox-cache/d9d0a641eac3745e8cbb3027750a75b0/gradle/caches/8.13/transforms/161e9dfa4b5204375f69b69c8b60834d/transformed/react-android-0.82.1-debug/prefab/modules/reactnative/libs/android.arm64-v8a/libreactnative.so",
-        "/private/var/folders/0j/r0zk9g3n38j1x__vl88gtb6m0000gn/T/cursor-sandbox-cache/d9d0a641eac3745e8cbb3027750a75b0/gradle/caches/8.13/transforms/161e9dfa4b5204375f69b69c8b60834d/transformed/react-android-0.82.1-debug/prefab/modules/jsi/libs/android.arm64-v8a/libjsi.so",
-        "/private/var/folders/0j/r0zk9g3n38j1x__vl88gtb6m0000gn/T/cursor-sandbox-cache/d9d0a641eac3745e8cbb3027750a75b0/gradle/caches/8.13/transforms/b60c1380c227a6ffbce61b3c3b53d3af/transformed/fbjni-0.7.0/prefab/modules/fbjni/libs/android.arm64-v8a/libfbjni.so"
+        "/Users/abcom/.gradle/caches/8.13/transforms/161e9dfa4b5204375f69b69c8b60834d/transformed/react-android-0.82.1-debug/prefab/modules/reactnative/libs/android.arm64-v8a/libreactnative.so",
+        "/Users/abcom/.gradle/caches/8.13/transforms/161e9dfa4b5204375f69b69c8b60834d/transformed/react-android-0.82.1-debug/prefab/modules/jsi/libs/android.arm64-v8a/libjsi.so",
+        "/Users/abcom/.gradle/caches/8.13/transforms/b60c1380c227a6ffbce61b3c3b53d3af/transformed/fbjni-0.7.0/prefab/modules/fbjni/libs/android.arm64-v8a/libfbjni.so"
       ]
     }
   }

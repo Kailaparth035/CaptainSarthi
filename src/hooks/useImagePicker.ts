@@ -52,31 +52,14 @@ export function useImagePicker(): UseImagePickerReturn {
     }
   };
 
-  const requestStoragePermission = async (onError?: (message: string) => void): Promise<boolean> => {
-    try {
-      let permission;
-      if (Platform.OS === 'ios') {
-        // For iOS 14+, use PHOTO_LIBRARY for read/write access
-        // For iOS 11-13, PHOTO_LIBRARY also works
-        permission = PERMISSIONS.IOS.PHOTO_LIBRARY;
-      } else {
-        // For Android 13+ (API 33+), use READ_MEDIA_IMAGES
-        // For older versions, use READ_EXTERNAL_STORAGE
-        const androidVersion = typeof Platform.Version === 'number' 
-          ? Platform.Version 
-          : parseInt(Platform.Version as string, 10);
-        
-        console.log('[ImagePicker] Android version:', androidVersion);
-        
-        if (androidVersion >= 33) {
-          permission = PERMISSIONS.ANDROID.READ_MEDIA_IMAGES;
-          console.log('[ImagePicker] Using READ_MEDIA_IMAGES permission for Android 13+');
-        } else {
-          permission = PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE;
-          console.log('[ImagePicker] Using READ_EXTERNAL_STORAGE permission for Android < 13');
-        }
-      }
+  const requestGalleryPermission = async (onError?: (message: string) => void): Promise<boolean> => {
+    if (Platform.OS !== 'ios') {
+      // Android uses the system photo picker and does not require storage permissions.
+      return true;
+    }
 
+    try {
+      const permission = PERMISSIONS.IOS.PHOTO_LIBRARY;
       const result = await check(permission);
 
       if (result === RESULTS.GRANTED) {
@@ -89,16 +72,15 @@ export function useImagePicker(): UseImagePickerReturn {
       }
 
       if (result === RESULTS.BLOCKED) {
-        const message = 'Storage permission is required to access photos. Please enable it in your device settings.';
-        if (onError) {
-          onError(message);
-        }
+        const message =
+          'Photo library permission is required to access photos. Please enable it in your device settings.';
+        onError?.(message);
         return false;
       }
 
       return false;
     } catch (error) {
-      console.error('Error requesting storage permission:', error);
+      console.error('Error requesting photo library permission:', error);
       return false;
     }
   };
@@ -141,13 +123,10 @@ export function useImagePicker(): UseImagePickerReturn {
           saveToPhotos: Platform.OS === 'ios', // Only save to photos on iOS
         });
       } else {
-        console.log('[ImagePicker] Requesting storage permission...');
-        const hasPermission = await requestStoragePermission(options.onError);
+        const hasPermission = await requestGalleryPermission(options.onError);
         if (!hasPermission) {
-          console.log('[ImagePicker] Storage permission not granted, but attempting to launch gallery anyway...');
-          // Still try to launch - react-native-image-picker might handle permission request
-        } else {
-          console.log('[ImagePicker] Storage permission granted');
+          setIsPicking(false);
+          return null;
         }
         console.log('[ImagePicker] Launching gallery...');
 

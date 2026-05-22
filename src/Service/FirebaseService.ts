@@ -7,6 +7,8 @@ import messaging from '@react-native-firebase/messaging';
 import {Platform, PermissionsAndroid, Alert, AppState, AppStateStatus} from 'react-native';
 import {isEmulatorSync} from 'react-native-device-info';
 import {getUserRole} from '../utils/session';
+import {postData} from './Apimethod';
+import Apis from './constant';
 
 function formatMessagingError(error: unknown): string {
   if (error instanceof Error && error.message) {
@@ -231,6 +233,57 @@ class FirebaseService {
    */
   getCurrentToken(): string | null {
     return this.fcmToken;
+  }
+
+  /**
+   * Get FCM token with a timeout (for non-blocking flows like post-login).
+   */
+  async getTokenWithTimeout(timeoutMs: number = 5000): Promise<string | null> {
+    const cached = this.getCurrentToken();
+    if (cached) {
+      return cached;
+    }
+
+    try {
+      return await Promise.race([
+        this.getToken(0),
+        new Promise<null>(resolve =>
+          setTimeout(() => resolve(null), timeoutMs),
+        ),
+      ]);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Register device FCM token with backend after login. Runs in background — do not await on login screen.
+   */
+  registerFcmAfterLogin(role: string): void {
+    void this.registerFcmAfterLoginAsync(role);
+  }
+
+  private async registerFcmAfterLoginAsync(role: string): Promise<void> {
+    try {
+      const deviceToken = await this.getTokenWithTimeout(6000);
+      if (!deviceToken) {
+        console.log('[Firebase] FCM token not available for post-login registration');
+        return;
+      }
+
+      const deviceType = Platform.OS === 'android' ? 'android' : 'ios';
+      const bodyData = {device_token: deviceToken, device_type: deviceType};
+
+      if (role === 'farmer') {
+        await postData(Apis.FARMER_FCM_REGISTER, bodyData);
+        console.log('[Firebase] Farmer FCM token registered after login');
+      } else if (role === 'dealer') {
+        await postData(Apis.DEALER_FCM_REGISTER, bodyData);
+        console.log('[Firebase] Dealer FCM token registered after login');
+      }
+    } catch (error) {
+      console.error('[Firebase] Post-login FCM registration failed:', error);
+    }
   }
 
   /**

@@ -290,19 +290,21 @@ endif()
 # LIB_CUSTOM_SRCS at /Users/abcom/Documents/kanna2/node_modules/react-native-screens/android/src/main/jni/CMakeLists.txt:23 (file)
 file(GLOB NEW_GLOB LIST_DIRECTORIES true "/Users/abcom/Documents/kanna2/node_modules/react-native-screens/android/src/main/jni/../../../../common/cpp/react/renderer/components/rnscreens/*.cpp")
 set(OLD_GLOB
-  "/Users/abcom/Documents/kanna2/node_modules/react-native-screens/android/src/main/jni/../../../../common/cpp/react/renderer/components/rnscreens/RNSBottomTabsShadowNode.cpp"
-  "/Users/abcom/Documents/kanna2/node_modules/react-native-screens/android/src/main/jni/../../../../common/cpp/react/renderer/components/rnscreens/RNSBottomTabsState.cpp"
   "/Users/abcom/Documents/kanna2/node_modules/react-native-screens/android/src/main/jni/../../../../common/cpp/react/renderer/components/rnscreens/RNSFullWindowOverlayShadowNode.cpp"
   "/Users/abcom/Documents/kanna2/node_modules/react-native-screens/android/src/main/jni/../../../../common/cpp/react/renderer/components/rnscreens/RNSModalScreenShadowNode.cpp"
   "/Users/abcom/Documents/kanna2/node_modules/react-native-screens/android/src/main/jni/../../../../common/cpp/react/renderer/components/rnscreens/RNSSafeAreaViewShadowNode.cpp"
   "/Users/abcom/Documents/kanna2/node_modules/react-native-screens/android/src/main/jni/../../../../common/cpp/react/renderer/components/rnscreens/RNSSafeAreaViewState.cpp"
   "/Users/abcom/Documents/kanna2/node_modules/react-native-screens/android/src/main/jni/../../../../common/cpp/react/renderer/components/rnscreens/RNSScreenShadowNode.cpp"
+  "/Users/abcom/Documents/kanna2/node_modules/react-native-screens/android/src/main/jni/../../../../common/cpp/react/renderer/components/rnscreens/RNSScreenShadowNodeCommitHook.cpp"
   "/Users/abcom/Documents/kanna2/node_modules/react-native-screens/android/src/main/jni/../../../../common/cpp/react/renderer/components/rnscreens/RNSScreenStackHeaderConfigShadowNode.cpp"
   "/Users/abcom/Documents/kanna2/node_modules/react-native-screens/android/src/main/jni/../../../../common/cpp/react/renderer/components/rnscreens/RNSScreenStackHeaderConfigState.cpp"
   "/Users/abcom/Documents/kanna2/node_modules/react-native-screens/android/src/main/jni/../../../../common/cpp/react/renderer/components/rnscreens/RNSScreenStackHeaderSubviewShadowNode.cpp"
   "/Users/abcom/Documents/kanna2/node_modules/react-native-screens/android/src/main/jni/../../../../common/cpp/react/renderer/components/rnscreens/RNSScreenStackHeaderSubviewState.cpp"
   "/Users/abcom/Documents/kanna2/node_modules/react-native-screens/android/src/main/jni/../../../../common/cpp/react/renderer/components/rnscreens/RNSScreenState.cpp"
   "/Users/abcom/Documents/kanna2/node_modules/react-native-screens/android/src/main/jni/../../../../common/cpp/react/renderer/components/rnscreens/RNSSplitViewScreenShadowNode.cpp"
+  "/Users/abcom/Documents/kanna2/node_modules/react-native-screens/android/src/main/jni/../../../../common/cpp/react/renderer/components/rnscreens/RNSTabsBottomAccessoryShadowNode.cpp"
+  "/Users/abcom/Documents/kanna2/node_modules/react-native-screens/android/src/main/jni/../../../../common/cpp/react/renderer/components/rnscreens/RNSTabsHostShadowNode.cpp"
+  "/Users/abcom/Documents/kanna2/node_modules/react-native-screens/android/src/main/jni/../../../../common/cpp/react/renderer/components/rnscreens/RNSTabsHostState.cpp"
   )
 if(NOT "${NEW_GLOB}" STREQUAL "${OLD_GLOB}")
   message("-- GLOB mismatch!")

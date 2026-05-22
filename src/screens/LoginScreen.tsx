@@ -33,7 +33,17 @@ import SimpleBoxInput from '../components/FloatingInput';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Toast, { ToastType } from '../components/Toast';
-import { saveSession, saveLoginResponse, isTermsAccepted, isProfileCompleted, getPendingNavigation, clearPendingNavigation, saveTermsAccepted, saveProfileCompleted } from '../utils/session';
+import {
+  saveSession,
+  saveLoginResponse,
+  isTermsAccepted,
+  getPendingNavigation,
+  clearPendingNavigation,
+  saveTermsAccepted,
+  saveProfileCompleted,
+  isLanguageSelected,
+  UserDetails,
+} from '../utils/session';
 import { isFarmerRole } from '../utils/userRole';
 import { postData } from '../Service/Apimethod';
 import Apis from '../Service/constant';
@@ -41,6 +51,82 @@ import { saveAuthToken } from '../Service/Apicom';
 import FirebaseService from '../Service/FirebaseService';
 
 type LoginScreenProps = NativeStackScreenProps<RootStackParamList, 'Login'>;
+
+/** Navigate to the correct screen immediately after login — no artificial delay. */
+async function navigateAfterLogin(
+  navigation: LoginScreenProps['navigation'],
+  role: string,
+  user: UserDetails | undefined,
+  mobileNumber: string,
+): Promise<void> {
+  const languageSelected = await isLanguageSelected();
+  if (!languageSelected) {
+    navigation.replace(SCREEN_NAMES.LanguageSelect);
+    return;
+  }
+
+  const pendingNav = await getPendingNavigation();
+  const hasPendingNotificationNav =
+    pendingNav?.action === 'OPEN_NOTIFICATION_DETAIL' && role === 'farmer';
+  const hasPendingEventNav =
+    pendingNav?.action === 'OPEN_EVENT_DETAIL' && role === 'farmer';
+
+  const navigateToPendingEvent = (eventId: string) => {
+    setTimeout(() => {
+      (navigation as any).navigate(SCREEN_NAMES.FarmerTabs, {
+        screen: SCREEN_NAMES.Events,
+        params: {
+          screen: SCREEN_NAMES.EventDetails,
+          params: {eventId},
+        },
+      });
+      clearPendingNavigation();
+    }, 300);
+  };
+
+  const handleFarmerNavigation = async () => {
+    const isProfileCompletedFlag = user?.profile_completed === true;
+
+    if (isProfileCompletedFlag) {
+      const termsAccepted = await isTermsAccepted();
+      if (!termsAccepted) {
+        await saveTermsAccepted();
+      }
+      await saveProfileCompleted(true);
+      navigation.replace(SCREEN_NAMES.FarmerTabs);
+
+      if (hasPendingNotificationNav && pendingNav?.params?.eventId) {
+        navigateToPendingEvent(String(pendingNav.params.eventId));
+      } else if (hasPendingEventNav && pendingNav?.params?.eventId) {
+        navigateToPendingEvent(String(pendingNav.params.eventId));
+      }
+      return;
+    }
+
+    const termsAccepted = await isTermsAccepted();
+    if (!termsAccepted) {
+      navigation.replace(SCREEN_NAMES.Terms);
+    } else {
+      navigation.replace(SCREEN_NAMES.ReviewProfile);
+    }
+  };
+
+  if (role === 'farmer') {
+    await handleFarmerNavigation();
+  } else if (role === 'dealer') {
+    navigation.replace(SCREEN_NAMES.MainTabs);
+    if (pendingNav) {
+      await clearPendingNavigation();
+    }
+  } else if (isFarmerRole(mobileNumber)) {
+    await handleFarmerNavigation();
+  } else {
+    navigation.replace(SCREEN_NAMES.MainTabs);
+    if (pendingNav) {
+      await clearPendingNavigation();
+    }
+  }
+}
 
 export default function LoginScreen({ navigation }: LoginScreenProps) {
   const insets = useSafeAreaInsets();
@@ -404,242 +490,27 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
         
         console.log('[LoginScreen] Login successful - Role:', role, 'Token:', token ? 'Present' : 'Missing', 'Profile Completed:', profileCompleted);
         
-        // Save auth token if provided
-        if (token) {
-          await saveAuthToken(token);
-        }
+        await Promise.all([
+          token ? saveAuthToken(token) : Promise.resolve(),
+          saveLoginResponse({
+            token: token,
+            role: role,
+            user: user,
+            dealer: dealer,
+            farmer: farmer,
+            mobileNumber: mobileNumber,
+          }),
+          saveSession(mobileNumber),
+        ]);
 
-        // Save complete login response (token + role + user details) to AsyncStorage
-        await saveLoginResponse({
-          token: token,
-          role: role,
-          user: user,
-          dealer: dealer,
-          farmer: farmer,
-          mobileNumber: mobileNumber,
-        });
+        // Do not await — FCM can take 10+ seconds on iPad/iOS before retries finish
+        FirebaseService.registerFcmAfterLogin(role);
 
-        // Save session to AsyncStorage
-        await saveSession(mobileNumber);
-        
-        // Register FCM token after successful login (for both farmers and dealers)
-        try {
-          // Get FCM device token
-          const deviceToken = await FirebaseService.getToken();
-          
-          if (deviceToken) {
-            // Determine device type based on platform
-            const deviceType = Platform.OS === 'android' ? 'android' : 'ios';
-            
-            // Prepare request body
-            const fcmBodyData = {
-              device_token: deviceToken,
-              device_type: deviceType,
-            };
-            
-            // Call appropriate FCM register API based on role
-            let fcmResponse;
-            if (role === 'farmer') {
-              fcmResponse = await postData(Apis.FARMER_FCM_REGISTER, fcmBodyData);
-              console.log('[LoginScreen] Farmer FCM token registered successfully after login:', fcmResponse);
-            } else if (role === 'dealer') {
-              fcmResponse = await postData(Apis.DEALER_FCM_REGISTER, fcmBodyData);
-              console.log('[LoginScreen] Dealer FCM token registered successfully after login:', fcmResponse);
-            }
-            
-            if (!fcmResponse) {
-              console.log('[LoginScreen] FCM token registration failed or no response');
-            }
-          } else {
-            console.log('[LoginScreen] FCM token not available');
-          }
-        } catch (fcmError) {
-          console.error('[LoginScreen] Error registering FCM token after login:', fcmError);
-          // Silently fail - don't block login if FCM registration fails
-        }
-        
-        setLoading(false);
-        
-        // Show success message with green background
-        const successMsg = response?.message || 'Login successful';
-        showToastMessage(successMsg, 'success');
-        
-        // Clear any errors
         setErrors({});
-        
-        // Navigate to dashboard after a short delay to show the success message
-        setTimeout(async () => {
-          // First check if language has been selected
-          const {isLanguageSelected} = await import('../utils/session');
-          const languageSelected = await isLanguageSelected();
-          
-          if (!languageSelected) {
-            // Navigate to language selection screen first
-            navigation.replace(SCREEN_NAMES.LanguageSelect);
-            return;
-          }
-          
-          // Check for pending navigation (e.g., from notification click)
-          const pendingNav = await getPendingNavigation();
-          const hasPendingNotificationNav = pendingNav?.action === 'OPEN_NOTIFICATION_DETAIL' && role === 'farmer';
-          const hasPendingEventNav = pendingNav?.action === 'OPEN_EVENT_DETAIL' && role === 'farmer';
-          
-          // Navigate based on role from response
-          if (role === 'farmer') {
-            // Check profile_completed from API response first
-            const isProfileCompleted = user?.profile_completed === true;
-            console.log('[LoginScreen] Farmer login - Profile completed from API:', isProfileCompleted, 'Raw value:', user?.profile_completed);
-            
-            if (isProfileCompleted) {
-              // Profile is completed - navigate directly to FarmerTabs (FarmerHomeScreen)
-              // Save terms acceptance and profile completion status to prevent showing TermsScreen/ReviewProfileScreen on app restart
-              const termsAccepted = await isTermsAccepted();
-              if (!termsAccepted) {
-                await saveTermsAccepted();
-                console.log('[LoginScreen] Terms acceptance saved because profile is completed');
-              }
-              await saveProfileCompleted(true);
-              console.log('[LoginScreen] Profile completed status saved');
-              console.log('[LoginScreen] Profile completed - navigating to FarmerTabs');
-              navigation.replace(SCREEN_NAMES.FarmerTabs);
-              
-              // If there's a pending notification navigation, navigate to EventDetails screen (same as OPEN_EVENT_DETAIL)
-              if (hasPendingNotificationNav && pendingNav?.params?.eventId) {
-                console.log('[LoginScreen] Pending notification navigation detected - will navigate to EventDetails with notification_id:', pendingNav.params.eventId);
-                // Wait a bit for navigation to complete, then navigate to EventDetails
-                setTimeout(() => {
-                  (navigation as any).navigate(SCREEN_NAMES.FarmerTabs, {
-                    screen: SCREEN_NAMES.Events,
-                    params: {
-                      screen: SCREEN_NAMES.EventDetails,
-                      params: {
-                        eventId: pendingNav.params.eventId,
-                      },
-                    },
-                  });
-                  // Clear pending navigation
-                  clearPendingNavigation();
-                }, 500);
-              } else if (hasPendingEventNav && pendingNav?.params?.eventId) {
-                // If there's a pending event navigation, navigate to EventDetails screen
-                console.log('[LoginScreen] Pending event navigation detected - will navigate to EventDetails with eventId:', pendingNav.params.eventId);
-                setTimeout(() => {
-                  (navigation as any).navigate(SCREEN_NAMES.FarmerTabs, {
-                    screen: SCREEN_NAMES.Events,
-                    params: {
-                      screen: SCREEN_NAMES.EventDetails,
-                      params: {
-                        eventId: pendingNav.params.eventId,
-                      },
-                    },
-                  });
-                  // Clear pending navigation
-                  clearPendingNavigation();
-                }, 500);
-              }
-            } else {
-              // Profile not completed - show TermsScreen first, then ReviewProfileScreen in sequence
-              // Check if terms have been accepted
-              const termsAccepted = await isTermsAccepted();
-              if (!termsAccepted) {
-                // Show TermsScreen first, which will navigate to ReviewProfileScreen after acceptance
-                console.log('[LoginScreen] Profile not completed - navigating to TermsScreen first');
-                navigation.replace(SCREEN_NAMES.Terms);
-              } else {
-                // Terms already accepted, navigate directly to ReviewProfileScreen
-                console.log('[LoginScreen] Profile not completed - navigating to ReviewProfileScreen');
-                navigation.replace(SCREEN_NAMES.ReviewProfile);
-              }
-              // Store pending navigation for after profile completion
-              if (hasPendingNotificationNav || hasPendingEventNav) {
-                console.log('[LoginScreen] Profile not completed - storing pending navigation');
-              }
-            }
-          } else if (role === 'dealer') {
-            // Dealer role - navigate to MainTabs (dashboard)
-            navigation.replace(SCREEN_NAMES.MainTabs);
-            // Clear pending navigation if any (not for dealer)
-            if (pendingNav) {
-              await clearPendingNavigation();
-            }
-          } else {
-            // Fallback: if role is not provided, use mobile number check
-            if (isFarmerRole(mobileNumber)) {
-              // Check profile_completed from API response first
-              const isProfileCompleted = user?.profile_completed === true;
-              console.log('[LoginScreen] Farmer login (fallback) - Profile completed from API:', isProfileCompleted, 'Raw value:', user?.profile_completed);
-              
-              if (isProfileCompleted) {
-                // Profile is completed - navigate directly to FarmerTabs (FarmerHomeScreen)
-                // Save terms acceptance and profile completion status to prevent showing TermsScreen/ReviewProfileScreen on app restart
-                const termsAccepted = await isTermsAccepted();
-                if (!termsAccepted) {
-                  await saveTermsAccepted();
-                  console.log('[LoginScreen] Terms acceptance saved because profile is completed (fallback)');
-                }
-                await saveProfileCompleted(true);
-                console.log('[LoginScreen] Profile completed status saved (fallback)');
-                console.log('[LoginScreen] Profile completed (fallback) - navigating to FarmerTabs');
-                navigation.replace(SCREEN_NAMES.FarmerTabs);
-                
-                // If there's a pending notification navigation, navigate to EventDetails screen (same as OPEN_EVENT_DETAIL)
-                if (hasPendingNotificationNav && pendingNav?.params?.eventId) {
-                  console.log('[LoginScreen] Pending notification navigation detected (fallback) - will navigate to EventDetails with notification_id:', pendingNav.params.eventId);
-                  setTimeout(() => {
-                    (navigation as any).navigate(SCREEN_NAMES.FarmerTabs, {
-                      screen: SCREEN_NAMES.Events,
-                      params: {
-                        screen: SCREEN_NAMES.EventDetails,
-                        params: {
-                          eventId: pendingNav.params.eventId,
-                        },
-                      },
-                    });
-                    clearPendingNavigation();
-                  }, 500);
-                } else if (hasPendingEventNav && pendingNav?.params?.eventId) {
-                  // If there's a pending event navigation, navigate to EventDetails screen
-                  console.log('[LoginScreen] Pending event navigation detected (fallback) - will navigate to EventDetails with eventId:', pendingNav.params.eventId);
-                  setTimeout(() => {
-                    (navigation as any).navigate(SCREEN_NAMES.FarmerTabs, {
-                      screen: SCREEN_NAMES.Events,
-                      params: {
-                        screen: SCREEN_NAMES.EventDetails,
-                        params: {
-                          eventId: pendingNav.params.eventId,
-                        },
-                      },
-                    });
-                    clearPendingNavigation();
-                  }, 500);
-                }
-              } else {
-                // Profile not completed - show TermsScreen first, then ReviewProfileScreen in sequence
-                // Check if terms have been accepted
-                const termsAccepted = await isTermsAccepted();
-                if (!termsAccepted) {
-                  // Show TermsScreen first, which will navigate to ReviewProfileScreen after acceptance
-                  console.log('[LoginScreen] Profile not completed (fallback) - navigating to TermsScreen first');
-                  navigation.replace(SCREEN_NAMES.Terms);
-                } else {
-                  // Terms already accepted, navigate directly to ReviewProfileScreen
-                  console.log('[LoginScreen] Profile not completed (fallback) - navigating to ReviewProfileScreen');
-                  navigation.replace(SCREEN_NAMES.ReviewProfile);
-                }
-                // Store pending navigation for after profile completion
-                if (hasPendingNotificationNav || hasPendingEventNav) {
-                  console.log('[LoginScreen] Profile not completed (fallback) - storing pending navigation');
-                }
-              }
-            } else {
-              navigation.replace(SCREEN_NAMES.MainTabs);
-              // Clear pending navigation if any (not for farmer)
-              if (pendingNav) {
-                await clearPendingNavigation();
-              }
-            }
-          }
-        }, 1000); // Wait 1 second to show the success message
+        showToastMessage(response?.message || 'Login successful', 'success');
+
+        await navigateAfterLogin(navigation, role, user, mobileNumber);
+        setLoading(false);
       } else {
         setLoading(false);
         const errorMsg = response?.message || t('login.invalidOtp');

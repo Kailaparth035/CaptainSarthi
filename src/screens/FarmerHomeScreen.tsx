@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Image,
   FlatList,
-  Dimensions,
   RefreshControl,
   Modal,
   Pressable,
@@ -35,10 +34,6 @@ import {getImageUrl} from '../utils/imageUtils';
 import {saveFarmerProfileData, FarmerProfileData, getFarmerProfileData} from '../utils/session';
 import {isYouTubeUrl, getYouTubeThumbnailUrl, extractYouTubeVideoId} from '../utils/youtubeUtils';
 import YoutubePlayer from 'react-native-youtube-iframe';
-
-const screenWidth = Dimensions.get('window').width;
-const screenHeight = Dimensions.get('window').height;
-
 
 // Helper function to format date
 const formatDate = (dateString: string): string => {
@@ -78,7 +73,8 @@ const getEventDateDisplay = (event: any): string => {
 
 export default function FarmerHomeScreen() {
   const insets = useSafeAreaInsets();
-  const {moderateScale} = useDeviceMetrics();
+  const {moderateScale, deviceWidth: screenWidth, deviceHeight: screenHeight} =
+    useDeviceMetrics();
   const {t, currentLanguage, currentLanguageId} = useLanguage();
   const navigation = useNavigation();
   const tabNavigation = useNavigation<BottomTabNavigationProp<FarmerTabParamList>>();

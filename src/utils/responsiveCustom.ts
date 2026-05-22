@@ -36,13 +36,36 @@ const X_HEIGHT = 800;
 const XSMAX_WIDTH = 414;
 const XSMAX_HEIGHT = 896;
 
-const guidelineBaseWidth = 360;
-const guidelineBaseHeight = 800;
+const PHONE_BASE_WIDTH = 360;
+const PHONE_BASE_HEIGHT = 800;
+
+const TABLET_BASE_WIDTH = 768;
+const TABLET_BASE_HEIGHT = 1024;
+
+/** Minimum logical width (pt) to treat as tablet on Android */
+const ANDROID_TABLET_MIN = 600;
+
+export const isTabletDevice = (
+  width?: number,
+  height?: number,
+): boolean => {
+  if (Platform.isPad) {
+    return true;
+  }
+  const w = width ?? Dimensions.get('window').width;
+  const h = height ?? Dimensions.get('window').height;
+  return Math.min(w, h) >= ANDROID_TABLET_MIN;
+};
 
 // ---------------- HOOK: useDeviceMetrics ----------------
 
 export const useDeviceMetrics = () => {
   const { deviceWidth, deviceHeight } = useDeviceDimensions();
+
+  const isTablet = isTabletDevice(deviceWidth, deviceHeight);
+
+  const guidelineBaseWidth = isTablet ? TABLET_BASE_WIDTH : PHONE_BASE_WIDTH;
+  const guidelineBaseHeight = isTablet ? TABLET_BASE_HEIGHT : PHONE_BASE_HEIGHT;
 
   const sliderWidth = deviceWidth - 20;
   const itemWidth = deviceWidth - 20;
@@ -55,14 +78,14 @@ export const useDeviceMetrics = () => {
       (deviceWidth === XSMAX_WIDTH && deviceHeight === XSMAX_HEIGHT));
 
   const StatusBarHeight = Platform.select<number>({
-    ios: isIPhoneX() ? 44 : 44,
+    ios: isIPhoneX() ? 44 : isTablet ? 24 : 44,
     android: 44,
     default: 0,
   }) as number;
 
   const StatusBarHeightSecond = Platform.select<number>({
-    ios: isIPhoneX() ? 44 : 20,
-    android: 0, // Use safe area insets instead
+    ios: isIPhoneX() ? 44 : isTablet ? 24 : 20,
+    android: 0,
     default: 0,
   }) as number;
 
@@ -72,17 +95,21 @@ export const useDeviceMetrics = () => {
   const verticalScale = (size: number): number =>
     (deviceHeight / guidelineBaseHeight) * size;
 
-  const moderateScale = (size: number, factor: number = 0.5): number =>
-    size + (scale(size) - size) * factor;
+  const defaultModerateFactor = isTablet ? 0.3 : 0.5;
+
+  const moderateScale = (
+    size: number,
+    factor: number = defaultModerateFactor,
+  ): number => size + (scale(size) - size) * factor;
 
   const moderateScaleVertical = (
     size: number,
-    factor: number = 0.5,
+    factor: number = defaultModerateFactor,
   ): number => size + (verticalScale(size) - size) * factor;
 
   return {
     scale,
-    verticalScale,    
+    verticalScale,
     moderateScale,
     moderateScaleVertical,
     deviceWidth,
@@ -91,6 +118,7 @@ export const useDeviceMetrics = () => {
     itemWidth,
     StatusBarHeight,
     StatusBarHeightSecond,
+    isTablet,
   };
 };
 

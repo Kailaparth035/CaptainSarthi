@@ -89,25 +89,15 @@ const requestCameraPermission = async (): Promise<boolean> => {
 };
 
 /**
- * Request storage/photo library permission
+ * Request photo library permission (iOS only; Android uses the system photo picker).
  */
-const requestStoragePermission = async (): Promise<boolean> => {
-  try {
-    let permission;
-    if (Platform.OS === 'ios') {
-      permission = PERMISSIONS.IOS.PHOTO_LIBRARY;
-    } else {
-      const androidVersion = typeof Platform.Version === 'number' 
-        ? Platform.Version 
-        : parseInt(Platform.Version as string, 10);
-      
-      if (androidVersion >= 33) {
-        permission = PERMISSIONS.ANDROID.READ_MEDIA_IMAGES;
-      } else {
-        permission = PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE;
-      }
-    }
+const requestGalleryPermission = async (): Promise<boolean> => {
+  if (Platform.OS !== 'ios') {
+    return true;
+  }
 
+  try {
+    const permission = PERMISSIONS.IOS.PHOTO_LIBRARY;
     const result = await check(permission);
 
     if (result === RESULTS.GRANTED) {
@@ -121,7 +111,7 @@ const requestStoragePermission = async (): Promise<boolean> => {
 
     return false;
   } catch (error) {
-    console.error('Error requesting storage permission:', error);
+    console.error('Error requesting photo library permission:', error);
     return false;
   }
 };
@@ -185,8 +175,10 @@ export const pickAndCropImageFromGallery = async (
   options: CropImageOptions = {},
 ): Promise<string | null> => {
   try {
-    // Request storage permission first
-    await requestStoragePermission();
+    const hasGalleryPermission = await requestGalleryPermission();
+    if (!hasGalleryPermission) {
+      return null;
+    }
 
     const {
       width = 400,

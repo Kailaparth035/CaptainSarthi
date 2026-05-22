@@ -66,9 +66,13 @@ export const getScreenDimensions = () => ({
  * Check if device is tablet
  */
 export const isTablet = (): boolean => {
+  if (Platform.isPad) {
+    return true;
+  }
   return (
     (SCREEN_WIDTH >= 768 && SCREEN_HEIGHT >= 1024) ||
-    (SCREEN_HEIGHT >= 768 && SCREEN_WIDTH >= 1024)
+    (SCREEN_HEIGHT >= 768 && SCREEN_WIDTH >= 1024) ||
+    Math.min(SCREEN_WIDTH, SCREEN_HEIGHT) >= 600
   );
 };
 
