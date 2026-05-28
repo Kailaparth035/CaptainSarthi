@@ -20,12 +20,12 @@ import UpdateNumberModal from '../components/UpdateNumberModal';
 import ContactUsModal from '../components/ContactUsModal';
 import {SCREEN_NAMES} from '../constants/screenNames';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
-import {clearSession, getSession} from '../utils/session';
+import {getSession} from '../utils/session';
 import {useLanguage} from '../contexts/LanguageContext';
-import {getData, postData, postDataWithImage} from '../Service/Apimethod';
+import {getData, postDataWithImage} from '../Service/Apimethod';
 import Apis from '../Service/constant';
 import {getImageUrl} from '../utils/imageUtils';
-import FirebaseService from '../Service/FirebaseService';
+import {performLogout, LogoutNavigation} from '../utils/logout';
 import {pickAndCropImageFromCamera, pickAndCropImageFromGallery} from '../utils/imageCropUtils';
 import ImagePickerModal from '../components/ImagePickerModal';
 import Toast, {ToastType} from '../components/Toast';
@@ -430,38 +430,8 @@ export default function FarmerProfileScreen() {
     if (isLoggingOut) return;
     setIsLoggingOut(true);
     try {
-      // Unregister FCM token before logout
-      try {
-        const deviceToken = await FirebaseService.getToken();
-        
-        if (deviceToken) {
-          // Prepare request body
-          const bodyData = {
-            device_token: deviceToken,
-          };
-          
-          // Call FCM unregister API
-          const response = await postData(Apis.DEALER_FCM_UNREGISTER, bodyData);
-          
-          if (response) {
-            console.log('[FarmerProfileScreen] FCM token unregistered successfully:', response);
-          } else {
-            console.log('[FarmerProfileScreen] FCM token unregistration failed or no response');
-          }
-        } else {
-          console.log('[FarmerProfileScreen] FCM token not available for unregistration');
-        }
-      } catch (fcmError) {
-        console.error('[FarmerProfileScreen] Error unregistering FCM token:', fcmError);
-        // Continue with logout even if FCM unregistration fails
-      }
-      
-      // Clear session and navigate to login
-      await clearSession();
-      setLogoutModalVisible(false);
-      (navigation as any).reset({
-        index: 0,
-        routes: [{name: SCREEN_NAMES.Login}],
+      await performLogout(navigation as LogoutNavigation, {
+        onModalClose: () => setLogoutModalVisible(false),
       });
     } catch (error) {
       console.error('Error during logout:', error);

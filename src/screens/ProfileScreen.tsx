@@ -23,12 +23,11 @@ import LogoutModal from '../components/LogoutModal';
 import {SCREEN_NAMES} from '../constants/screenNames';
 import {ProfileStackParamList} from '../navigation/stacks/ProfileStack';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
-import {clearSession} from '../utils/session';
 import {useLanguage} from '../contexts/LanguageContext';
-import {getData, postData} from '../Service/Apimethod';
+import {getData} from '../Service/Apimethod';
 import Apis, {API_BASE_URL} from '../Service/constant';
 import {getImageUrl} from '../utils/imageUtils';
-import FirebaseService from '../Service/FirebaseService';
+import {performLogout} from '../utils/logout';
 
 type ProfileScreenNavigationProp = NativeStackNavigationProp<ProfileStackParamList>;
 
@@ -289,39 +288,8 @@ export default function ProfileScreen() {
     if (isLoggingOut) return;
     setIsLoggingOut(true);
     try {
-      // Unregister FCM token before logout
-      try {
-        const deviceToken = await FirebaseService.getToken();
-        
-        if (deviceToken) {
-          // Prepare request body
-          const bodyData = {
-            device_token: deviceToken,
-          };
-          
-          // Call FCM unregister API
-          const response = await postData(Apis.DEALER_FCM_UNREGISTER, bodyData);
-          
-          if (response) {
-            console.log('[ProfileScreen] FCM token unregistered successfully:', response);
-          } else {
-            console.log('[ProfileScreen] FCM token unregistration failed or no response');
-          }
-        } else {
-          console.log('[ProfileScreen] FCM token not available for unregistration');
-        }
-      } catch (fcmError) {
-        console.error('[ProfileScreen] Error unregistering FCM token:', fcmError);
-        // Continue with logout even if FCM unregistration fails
-      }
-      
-      // Clear session from AsyncStorage
-      await clearSession();
-      setLogoutModalVisible(false);
-      // Navigate to login screen
-      navigation.reset({
-        index: 0,
-        routes: [{name: SCREEN_NAMES.Login}],
+      await performLogout(navigation, {
+        onModalClose: () => setLogoutModalVisible(false),
       });
     } catch (error) {
       console.error('Error during logout:', error);

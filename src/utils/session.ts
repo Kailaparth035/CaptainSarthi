@@ -130,19 +130,20 @@ export const getSession = async (): Promise<UserSession | null> => {
  */
 export const clearSession = async (): Promise<void> => {
   try {
-    await AsyncStorage.removeItem(SESSION_KEY);
-    await AsyncStorage.removeItem(USER_DATA_KEY);
-    await AsyncStorage.removeItem(USER_ROLE_KEY);
-    await clearProfileCompleted();
-    await clearProfileReviewed();
-    await clearFarmerProfileData();
+    await Promise.all([
+      AsyncStorage.multiRemove([
+        SESSION_KEY,
+        USER_DATA_KEY,
+        USER_ROLE_KEY,
+        PROFILE_COMPLETED_KEY,
+        PROFILE_REVIEWED_KEY,
+        FARMER_PROFILE_DATA_KEY,
+        PENDING_NAVIGATION_KEY,
+      ]),
+      clearAuthToken(),
+    ]);
     // Terms acceptance is NOT cleared - it should persist across logins/logouts
-    // so that Onboarding screen doesn't show again after first login
-    // await clearTermsAccepted();
     // Language selection is NOT cleared - it should persist across logins/logouts
-    // await clearLanguageSelected();
-    // Also clear auth token
-    await clearAuthToken();
   } catch (error) {
     console.error('Error clearing session:', error);
     throw error;

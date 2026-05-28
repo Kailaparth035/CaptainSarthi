@@ -257,6 +257,45 @@ class FirebaseService {
   }
 
   /**
+   * Unregister FCM token on logout. Runs in background — do not await on profile screen.
+   * Pass role and cached token captured before clearSession() to avoid races.
+   */
+  unregisterFcmOnLogout(
+    role: string | null,
+    cachedToken: string | null = this.getCurrentToken(),
+  ): void {
+    void this.unregisterFcmOnLogoutAsync(role, cachedToken);
+  }
+
+  private async unregisterFcmOnLogoutAsync(
+    role: string | null,
+    cachedToken: string | null,
+  ): Promise<void> {
+    try {
+      const deviceToken =
+        cachedToken ?? (await this.getTokenWithTimeout(4000));
+      if (!deviceToken) {
+        console.log(
+          '[Firebase] FCM token not available for logout unregister',
+        );
+        return;
+      }
+
+      const bodyData = {device_token: deviceToken};
+
+      if (role === 'farmer') {
+        await postData(Apis.FARMER_FCM_UNREGISTER, bodyData);
+        console.log('[Firebase] Farmer FCM token unregistered on logout');
+      } else {
+        await postData(Apis.DEALER_FCM_UNREGISTER, bodyData);
+        console.log('[Firebase] Dealer FCM token unregistered on logout');
+      }
+    } catch (error) {
+      console.error('[Firebase] FCM unregister on logout failed:', error);
+    }
+  }
+
+  /**
    * Register device FCM token with backend after login. Runs in background — do not await on login screen.
    */
   registerFcmAfterLogin(role: string): void {
