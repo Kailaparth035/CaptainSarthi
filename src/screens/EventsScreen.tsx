@@ -396,8 +396,6 @@ export default function EventsScreen() {
           paddingVertical: moderateScale(6),
           alignSelf: 'flex-start',
           marginTop: moderateScale(4),
-          maxWidth: '100%',
-          flexShrink: 1,
           shadowColor: colors.primary,
           shadowOffset: {
             width: 0,
@@ -406,15 +404,17 @@ export default function EventsScreen() {
           shadowOpacity: 0.15,
           shadowRadius: moderateScale(4),
           elevation: 3,
-          overflow: 'hidden',
+        },
+        eventDateGradient: {
+          ...StyleSheet.absoluteFillObject,
+          borderRadius: moderateScale(8),
         },
         eventDateText: {
           ...Typography.regularMd,
           fontSize: moderateScale(14),
           color: colors.primary,
           marginLeft: moderateScale(6),
-          flexShrink: 1,
-          minWidth: 0,
+          flexShrink: 0,
         },
       }),
     [moderateScale, insets.top],
@@ -645,20 +645,22 @@ export default function EventsScreen() {
               </View>
 
               {/* Date/Time */}
-              <LinearGradient
-                colors={[colors.light_orange,colors.white]}
-                start={{x: 0, y: 0}}
-                end={{x: 1, y: 0}}
-                style={dynamicStyles.eventDate}>
+              <View style={dynamicStyles.eventDate}>
+                <LinearGradient
+                  colors={[colors.light_orange, colors.white]}
+                  start={{x: 0, y: 0}}
+                  end={{x: 1, y: 0}}
+                  style={dynamicStyles.eventDateGradient}
+                />
                 <Ionicons
                   name="calendar"
                   size={moderateScale(16)}
                   color={colors.primary}
                 />
-                <Text style={dynamicStyles.eventDateText} numberOfLines={1}>
+                <Text style={dynamicStyles.eventDateText}>
                   {event.date}
                 </Text>
-              </LinearGradient>
+              </View>
             </View>
           </TouchableOpacity>
             ))

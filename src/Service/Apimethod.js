@@ -216,3 +216,31 @@ export const deleteData = async (fullUrl, params = {}) => {
     };
   }
 };
+
+//  DELETE request with JSON body
+export const deleteDataWithBody = async (fullUrl, body = {}) => {
+  if (__DEV__) {
+    console.log('DELETE (body) Api Call ----fullUrl--->>>>', fullUrl);
+    console.log('DELETE (body) Api Call ----body--->>>>', body);
+  }
+
+  try {
+    const response = await axiosInstance.delete(fullUrl, {
+      headers: { 'Content-Type': 'application/json' },
+    });
+    return handleApiResponse(response);
+  } catch (error) {
+    console.log('DELETE (body) error:', error);
+    const net = networkFailurePayload(error);
+    if (net) {
+      return net;
+    }
+    if (error?.response?.data) {
+      return error.response.data;
+    }
+    return {
+      status: false,
+      message: error?.message || 'An error occurred while processing your request',
+    };
+  }
+};

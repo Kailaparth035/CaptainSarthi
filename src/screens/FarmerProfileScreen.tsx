@@ -16,13 +16,14 @@ import colors from '../utils/colors';
 import useDeviceMetrics from '../utils/responsiveCustom';
 import {Typography} from '../utils/typography';
 import LogoutModal from '../components/LogoutModal';
+import DeleteAccountModal from '../components/DeleteAccountModal';
 import UpdateNumberModal from '../components/UpdateNumberModal';
 import ContactUsModal from '../components/ContactUsModal';
 import {SCREEN_NAMES} from '../constants/screenNames';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
-import {getSession} from '../utils/session';
+import {getSession, clearSession, clearPendingNavigation, getUserData} from '../utils/session';
 import {useLanguage} from '../contexts/LanguageContext';
-import {getData, postDataWithImage} from '../Service/Apimethod';
+import {getData, postDataWithImage, deleteDataWithBody} from '../Service/Apimethod';
 import Apis from '../Service/constant';
 import {getImageUrl} from '../utils/imageUtils';
 import {performLogout, LogoutNavigation} from '../utils/logout';
@@ -38,6 +39,8 @@ export default function FarmerProfileScreen() {
   const navigation = useNavigation();
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [updateNumberModalVisible, setUpdateNumberModalVisible] = useState(false);
   const [contactModalVisible, setContactModalVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -390,6 +393,7 @@ export default function FarmerProfileScreen() {
           flexDirection: "row",
           alignItems: "center",
           justifyContent: "space-between",
+          paddingVertical: moderateScale(12),
         },
         logoutLeft: {
           flexDirection: "row",
@@ -437,6 +441,61 @@ export default function FarmerProfileScreen() {
       console.error('Error during logout:', error);
     } finally {
       setIsLoggingOut(false);
+    }
+  };
+
+  const handleDeleteAccount = () => {
+    setDeleteModalVisible(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (isDeleting) return;
+    setIsDeleting(true);
+    try {
+      // Use the token saved at login time (from the login API response)
+      // instead of the FCM token, which is unavailable on simulators.
+      const userData = await getUserData();
+      const deviceToken = userData?.token;
+      console.log('[FarmerProfileScreen] login token ::', deviceToken);
+
+      if (!deviceToken) {
+        showToastMessage(
+          'Unable to verify your device. Please try again.',
+          'error',
+        );
+        return;
+      }
+
+      const response = await deleteDataWithBody(Apis.FARMER_ACCOUNT_DELETE, {
+        device_token: deviceToken,
+      });
+      console.log("response success ::",response);
+      if (response?.status === true) {
+        await Promise.all([
+          clearSession(),
+          clearPendingNavigation().catch(() => undefined),
+        ]);
+        setDeleteModalVisible(false);
+        (navigation as LogoutNavigation).reset({
+          index: 0,
+          routes: [{name: SCREEN_NAMES.Login}],
+        });
+      } else {
+        console.log("response?.message ::",response?.message);
+        
+        showToastMessage(
+          response?.message || 'Failed to delete account. Please try again.',
+          'error',
+        );
+      }
+    } catch (error) {
+      console.error('[FarmerProfileScreen] Error deleting account:', error);
+      showToastMessage(
+        'Failed to delete account. Please try again.',
+        'error',
+      );
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -726,8 +785,37 @@ export default function FarmerProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Log Out Card */}
+        {/* Delete Account & Log Out Card */}
         <View style={dynamicStyles.card}>
+          {/* Delete Account Option */}
+          <TouchableOpacity
+            style={dynamicStyles.logoutRow}
+            onPress={handleDeleteAccount}
+            activeOpacity={0.7}
+          >
+            <View style={dynamicStyles.logoutLeft}>
+              <View style={dynamicStyles.logoutIcon}>
+                <Ionicons
+                  name="trash-outline"
+                  size={moderateScale(24)}
+                  color={colors.statusError}
+                />
+              </View>
+              <Text style={dynamicStyles.logoutText}>
+                {t("profile.deleteAccount")}
+              </Text>
+            </View>
+            <Ionicons
+              name="chevron-forward"
+              size={moderateScale(20)}
+              color={colors.textTertiary}
+            />
+          </TouchableOpacity>
+
+          {/* Divider */}
+          <View style={dynamicStyles.divider} />
+
+          {/* Log Out Option */}
           <TouchableOpacity
             style={dynamicStyles.logoutRow}
             onPress={handleLogout}
@@ -760,6 +848,14 @@ export default function FarmerProfileScreen() {
         onClose={() => !isLoggingOut && setLogoutModalVisible(false)}
         onConfirm={handleConfirmLogout}
         loading={isLoggingOut}
+      />
+
+      {/* Delete Account Confirmation Modal */}
+      <DeleteAccountModal
+        visible={deleteModalVisible}
+        onClose={() => !isDeleting && setDeleteModalVisible(false)}
+        onConfirm={handleConfirmDelete}
+        loading={isDeleting}
       />
 
       {/* Contact Us Modal */}
