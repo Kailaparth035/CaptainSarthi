@@ -8,6 +8,18 @@ require Pod::Executable.execute_command('node', ['-p',
 # RNMLKitTextRecognition requires iOS deployment target >= 15.5
 platform :ios, '15.5'
 
+# react-native-permissions: only link handlers we actually request in JS
+require Pod::Executable.execute_command('node', ['-p',
+  'require.resolve(
+    "react-native-permissions/scripts/setup.rb",
+    {paths: [process.argv[1]]},
+  )', __dir__]).strip
+
+setup_permissions([
+  'Camera',
+  'PhotoLibrary',
+])
+
 # Global use_modular_headers! breaks React Native on recent Xcode: duplicate
 # `react_runtime` module maps (React-jsitooling vs React-RuntimeCore) → UIKit/Foundation "Could not build module".
 # Use static Firebase frameworks instead; keep modular headers only where needed below.

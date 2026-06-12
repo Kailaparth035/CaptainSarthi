@@ -238,10 +238,13 @@ export default function FarmerProfileScreen() {
       }
     } catch (error: any) {
       console.error('[FarmerProfileScreen] Error in handleCameraPress:', error);
-      // Don't show error if user cancelled
-      if (error?.message !== 'User cancelled image selection' && !error?.message?.includes('User cancelled')) {
-        showToastMessage('Failed to open camera. Please try again.', 'error');
+      if (error?.message?.includes('User cancelled')) {
+        return;
       }
+      showToastMessage(
+        error?.message || 'Failed to open camera. Please try again.',
+        'error',
+      );
     }
   };
 
@@ -263,10 +266,13 @@ export default function FarmerProfileScreen() {
       }
     } catch (error: any) {
       console.error('[FarmerProfileScreen] Error in handleGalleryPress:', error);
-      // Don't show error if user cancelled
-      if (error?.message !== 'User cancelled image selection' && !error?.message?.includes('User cancelled')) {
-        showToastMessage('Failed to open gallery. Please try again.', 'error');
+      if (error?.message?.includes('User cancelled')) {
+        return;
       }
+      showToastMessage(
+        error?.message || 'Failed to open gallery. Please try again.',
+        'error',
+      );
     }
   };
 

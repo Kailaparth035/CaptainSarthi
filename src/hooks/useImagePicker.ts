@@ -28,13 +28,15 @@ export function useImagePicker(): UseImagePickerReturn {
 
       const result = await check(permission);
 
-      if (result === RESULTS.GRANTED) {
+      if (result === RESULTS.GRANTED || result === RESULTS.LIMITED) {
         return true;
       }
 
       if (result === RESULTS.DENIED) {
         const requestResult = await request(permission);
-        return requestResult === RESULTS.GRANTED;
+        return (
+          requestResult === RESULTS.GRANTED || requestResult === RESULTS.LIMITED
+        );
       }
 
       if (result === RESULTS.BLOCKED) {
@@ -62,13 +64,15 @@ export function useImagePicker(): UseImagePickerReturn {
       const permission = PERMISSIONS.IOS.PHOTO_LIBRARY;
       const result = await check(permission);
 
-      if (result === RESULTS.GRANTED) {
+      if (result === RESULTS.GRANTED || result === RESULTS.LIMITED) {
         return true;
       }
 
       if (result === RESULTS.DENIED) {
         const requestResult = await request(permission);
-        return requestResult === RESULTS.GRANTED;
+        return (
+          requestResult === RESULTS.GRANTED || requestResult === RESULTS.LIMITED
+        );
       }
 
       if (result === RESULTS.BLOCKED) {

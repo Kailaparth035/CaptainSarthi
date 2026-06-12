@@ -10,6 +10,7 @@
     <!-- Specifically allow cleartext for your API server -->
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">165.232.184.177</domain>
+        <domain includeSubdomains="true">139.59.32.197</domain>
         <domain includeSubdomains="true">api.captainsathi.com</domain>
     </domain-config>
 </network-security-config>

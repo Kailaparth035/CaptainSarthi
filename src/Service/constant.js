@@ -1,6 +1,7 @@
 /* eslint-disable quotes */
 // Base URLs
-const BASE_URL = 'http://165.232.184.177';
+// const BASE_URL = 'http://165.232.184.177';
+const BASE_URL = 'http://139.59.32.197';
 const LIVE_URL = 'https://api.captainsathi.com'; // Update when production URL is available
 
 // Toggle

@@ -1,8 +1,9 @@
-import React from 'react';
+import React, {useRef} from 'react';
 import {
   View,
   Text,
   Modal,
+  Platform,
   StyleSheet,
   TouchableOpacity,
   Pressable,
@@ -32,6 +33,32 @@ export default function ImagePickerModal({
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
   const {t} = useLanguage();
+
+  // Holds the action chosen by the user. On iOS the native picker can only be
+  // presented after this modal has FULLY finished dismissing, otherwise iOS
+  // silently drops the presentation and the gallery/camera never opens.
+  // Modal's onDismiss fires exactly at that moment, so we run the action there.
+  const pendingActionRef = useRef<(() => Promise<void>) | null>(null);
+
+  const runPendingAction = () => {
+    const action = pendingActionRef.current;
+    pendingActionRef.current = null;
+    if (!action) {
+      return;
+    }
+    action().catch(error => {
+      console.error('Error opening picker:', error);
+    });
+  };
+
+  const selectAction = (action: () => Promise<void>) => {
+    pendingActionRef.current = action;
+    onClose();
+    if (Platform.OS !== 'ios') {
+      // Android does not reliably call onDismiss; a short delay is enough there.
+      setTimeout(runPendingAction, 300);
+    }
+  };
 
   const styles = StyleSheet.create({
     modalOverlay: {
@@ -95,6 +122,7 @@ export default function ImagePickerModal({
       visible={visible}
       transparent={true}
       animationType="slide"
+      onDismiss={Platform.OS === 'ios' ? runPendingAction : undefined}
       onRequestClose={onClose}>
       <Pressable style={styles.modalOverlay} onPress={onClose}>
         <Pressable
@@ -104,17 +132,7 @@ export default function ImagePickerModal({
 
           <TouchableOpacity
             style={styles.optionButton}
-            onPress={async () => {
-              onClose();
-              // Wait for modal to close before opening camera (300ms delay)
-              setTimeout(async () => {
-                try {
-                  await onCameraPress();
-                } catch (error) {
-                  console.error('Error opening camera:', error);
-                }
-              }, 300);
-            }}
+            onPress={() => selectAction(onCameraPress)}
             activeOpacity={0.7}>
             <Ionicons
               name="camera"
@@ -127,17 +145,7 @@ export default function ImagePickerModal({
 
           <TouchableOpacity
             style={styles.optionButton}
-            onPress={async () => {
-              onClose();
-              // Wait for modal to close before opening gallery (300ms delay)
-              setTimeout(async () => {
-                try {
-                  await onGalleryPress();
-                } catch (error) {
-                  console.error('Error opening gallery:', error);
-                }
-              }, 300);
-            }}
+            onPress={() => selectAction(onGalleryPress)}
             activeOpacity={0.7}>
             <Ionicons
               name="images"
@@ -151,17 +159,7 @@ export default function ImagePickerModal({
           {onDocumentPress && (
             <TouchableOpacity
               style={styles.optionButton}
-              onPress={async () => {
-                onClose();
-                // Wait for modal to close before opening document picker (300ms delay)
-                setTimeout(async () => {
-                  try {
-                    await onDocumentPress();
-                  } catch (error) {
-                    console.error('Error opening document picker:', error);
-                  }
-                }, 300);
-              }}
+              onPress={() => selectAction(onDocumentPress)}
               activeOpacity={0.7}>
               <Ionicons
                 name="document-text"

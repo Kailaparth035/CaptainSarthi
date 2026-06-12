@@ -1,6 +1,7 @@
 import ImagePicker from 'react-native-image-crop-picker';
 import {Platform} from 'react-native';
 import {check, request, PERMISSIONS, RESULTS} from 'react-native-permissions';
+import {isEmulatorSync} from 'react-native-device-info';
 
 type CropImageOptions = {
   width?: number;
@@ -9,6 +10,18 @@ type CropImageOptions = {
   cropperCircleOverlay?: boolean;
   compressImageQuality?: number;
   freeStyleCropEnabled?: boolean;
+};
+
+const isPermissionGranted = (result: string) =>
+  result === RESULTS.GRANTED || result === RESULTS.LIMITED;
+
+const isUserCancelled = (error: any) => {
+  const errorMessage = error?.message || '';
+  return (
+    errorMessage.includes('User cancelled') ||
+    errorMessage.includes('cancelled') ||
+    error?.code === 'E_PICKER_CANCELLED'
+  );
 };
 
 /**
@@ -45,13 +58,7 @@ export const cropImage = async (
 
     return croppedImage.path || null;
   } catch (error: any) {
-    // User cancelled cropping - check for various cancellation messages
-    const errorMessage = error?.message || '';
-    if (
-      errorMessage.includes('User cancelled') ||
-      errorMessage.includes('cancelled') ||
-      error?.code === 'E_PICKER_CANCELLED'
-    ) {
+    if (isUserCancelled(error)) {
       console.log('[ImageCrop] User cancelled cropping');
       return null;
     }
@@ -72,13 +79,13 @@ const requestCameraPermission = async (): Promise<boolean> => {
 
     const result = await check(permission);
 
-    if (result === RESULTS.GRANTED) {
+    if (isPermissionGranted(result)) {
       return true;
     }
 
     if (result === RESULTS.DENIED) {
       const requestResult = await request(permission);
-      return requestResult === RESULTS.GRANTED;
+      return isPermissionGranted(requestResult);
     }
 
     return false;
@@ -100,13 +107,13 @@ const requestGalleryPermission = async (): Promise<boolean> => {
     const permission = PERMISSIONS.IOS.PHOTO_LIBRARY;
     const result = await check(permission);
 
-    if (result === RESULTS.GRANTED) {
+    if (isPermissionGranted(result)) {
       return true;
     }
 
     if (result === RESULTS.DENIED) {
       const requestResult = await request(permission);
-      return requestResult === RESULTS.GRANTED;
+      return isPermissionGranted(requestResult);
     }
 
     return false;
@@ -125,8 +132,18 @@ export const pickAndCropImageFromCamera = async (
   options: CropImageOptions = {},
 ): Promise<string | null> => {
   try {
-    // Request camera permission first
-    await requestCameraPermission();
+    if (Platform.OS === 'ios' && isEmulatorSync()) {
+      throw new Error(
+        'Camera is not available on the iOS Simulator. Please use a physical device or choose from gallery.',
+      );
+    }
+
+    const hasCameraPermission = await requestCameraPermission();
+    if (!hasCameraPermission) {
+      throw new Error(
+        'Camera permission is required. Please enable it in Settings.',
+      );
+    }
 
     const {
       width = 400,
@@ -151,13 +168,7 @@ export const pickAndCropImageFromCamera = async (
 
     return image.path || null;
   } catch (error: any) {
-    // User cancelled - check for various cancellation messages
-    const errorMessage = error?.message || '';
-    if (
-      errorMessage.includes('User cancelled') ||
-      errorMessage.includes('cancelled') ||
-      error?.code === 'E_PICKER_CANCELLED'
-    ) {
+    if (isUserCancelled(error)) {
       console.log('[ImageCrop] User cancelled camera picker');
       return null;
     }
@@ -177,7 +188,9 @@ export const pickAndCropImageFromGallery = async (
   try {
     const hasGalleryPermission = await requestGalleryPermission();
     if (!hasGalleryPermission) {
-      return null;
+      throw new Error(
+        'Photo library permission is required. Please enable it in Settings.',
+      );
     }
 
     const {
@@ -203,13 +216,7 @@ export const pickAndCropImageFromGallery = async (
 
     return image.path || null;
   } catch (error: any) {
-    // User cancelled - check for various cancellation messages
-    const errorMessage = error?.message || '';
-    if (
-      errorMessage.includes('User cancelled') ||
-      errorMessage.includes('cancelled') ||
-      error?.code === 'E_PICKER_CANCELLED'
-    ) {
+    if (isUserCancelled(error)) {
       console.log('[ImageCrop] User cancelled gallery picker');
       return null;
     }
@@ -217,4 +224,3 @@ export const pickAndCropImageFromGallery = async (
     throw error;
   }
 };
-
