@@ -1,0 +1,4 @@
+/Users/abcom/Documents/kana new /android/app/.cxx/RelWithDebInfo/5h3g5v3x/arm64-v8a/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/foo.dir
+/Users/abcom/Documents/kana new /android/app/.cxx/RelWithDebInfo/5h3g5v3x/arm64-v8a/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/boo.dir
+/Users/abcom/Documents/kana new /android/app/.cxx/RelWithDebInfo/5h3g5v3x/arm64-v8a/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/edit_cache.dir
+/Users/abcom/Documents/kana new /android/app/.cxx/RelWithDebInfo/5h3g5v3x/arm64-v8a/CMakeFiles/_CMakeLTOTest-CXX/bin/CMakeFiles/rebuild_cache.dir

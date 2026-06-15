@@ -21,7 +21,7 @@ index 6da7573..75f1dd8 100644
      return Promise.resolve(false);
    }
 diff --git a/node_modules/react-native-tts/ios/TextToSpeech/TextToSpeech.m b/node_modules/react-native-tts/ios/TextToSpeech/TextToSpeech.m
-index 1e769cc..703accc 100644
+index 1e769cc..b12ad00 100644
 --- a/node_modules/react-native-tts/ios/TextToSpeech/TextToSpeech.m
 +++ b/node_modules/react-native-tts/ios/TextToSpeech/TextToSpeech.m
 @@ -94,11 +94,11 @@ + (BOOL)requiresMainQueueSetup
@@ -68,7 +68,33 @@ index 1e769cc..703accc 100644
          AVAudioSession *session = [AVAudioSession sharedInstance];
          [session setCategory:AVAudioSessionCategoryPlayback
                   withOptions:AVAudioSessionCategoryOptionDuckOthers
-@@ -178,7 +178,7 @@ + (BOOL)requiresMainQueueSetup
+@@ -155,6 +155,25 @@ + (BOOL)requiresMainQueueSetup
+ {
+     AVSpeechSynthesisVoice *voice = [AVSpeechSynthesisVoice voiceWithLanguage:language];
+ 
++    if (!voice) {
++        NSString *langPrefix = [[language componentsSeparatedByString:@"-"] firstObject];
++        AVSpeechSynthesisVoice *bestVoice = nil;
++        AVSpeechSynthesisVoiceQuality bestQuality = AVSpeechSynthesisVoiceQualityDefault;
++
++        for (AVSpeechSynthesisVoice *candidate in [AVSpeechSynthesisVoice speechVoices]) {
++            if ([candidate.language isEqualToString:language] ||
++                [candidate.language hasPrefix:[langPrefix stringByAppendingString:@"-"]] ||
++                [candidate.language isEqualToString:langPrefix]) {
++                if (!bestVoice || candidate.quality > bestQuality) {
++                    bestVoice = candidate;
++                    bestQuality = candidate.quality;
++                }
++            }
++        }
++
++        voice = bestVoice;
++    }
++
+     if(voice) {
+         _defaultVoice = voice;
+         resolve(@"success");
+@@ -178,7 +197,7 @@ + (BOOL)requiresMainQueueSetup
  }
  
  RCT_EXPORT_METHOD(setDefaultRate:(float)rate

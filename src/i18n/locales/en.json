@@ -428,5 +428,11 @@
     "viewSavings": "View savings",
     "saved": "Saved",
     "noSavings": "No savings yet."
+  },
+  "appUpdate": {
+    "title": "Update Required",
+    "message": "A new version of Captain Saathi is available. Please update the app to continue.",
+    "updateNow": "Update Now",
+    "restartHint": "After updating from Play Store, reopen the app."
   }
 }

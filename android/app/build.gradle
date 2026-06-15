@@ -82,8 +82,8 @@ android {
         applicationId "com.captainsaathi.farmerapp"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 7
-        versionName "1.2.4"
+        versionCode 8
+        versionName "1.2.5"
         // Ensure cleartext traffic is enabled for both debug and release builds
         buildConfigField "boolean", "USES_CLEARTEXT_TRAFFIC", "true"
     }

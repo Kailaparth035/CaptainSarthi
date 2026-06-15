@@ -12,7 +12,7 @@ export default function TTSPlayer() {
   const {moderateScale} = useDeviceMetrics();
   const {state, stopTTS, pauseTTS, resumeTTS} = useTTS();
 
-  if (!state.isPlaying && state.progress === 0) {
+  if (!state.isPlaying && state.progress === 0 && state.currentPosition === 0) {
     return null;
   }
 
@@ -60,7 +60,6 @@ export default function TTSPlayer() {
     progressBar: {
       height: '100%',
       backgroundColor: colors.primary,
-      width: `${state.progress}%`,
     },
     timeText: {
       ...Typography.regularSm,
@@ -99,7 +98,12 @@ export default function TTSPlayer() {
         </TouchableOpacity>
 
         <View style={dynamicStyles.progressBarContainer}>
-          <View style={dynamicStyles.progressBar} />
+          <View
+            style={[
+              dynamicStyles.progressBar,
+              {width: `${Math.min(Math.max(state.progress, 0), 100)}%`},
+            ]}
+          />
         </View>
 
         {state.duration > 0 && (

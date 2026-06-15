@@ -1,0 +1,1 @@
+/Users/abcom/Documents/kana new /android/app/build/intermediates/cxx/RelWithDebInfo/5h3g5v3x/obj/arm64-v8a

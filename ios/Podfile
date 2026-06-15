@@ -43,6 +43,10 @@ target 'Farmer' do
   pod 'FirebaseCoreInternal', :modular_headers => true
   pod 'FirebaseInstallations', :modular_headers => true
   pod 'FirebaseMessaging', :modular_headers => true
+  pod 'FirebaseABTesting', :modular_headers => true
+  pod 'FirebaseRemoteConfig', :modular_headers => true
+  pod 'FirebaseRemoteConfigInterop', :modular_headers => true
+  pod 'FirebaseSharedSwift', :modular_headers => true
   pod 'GoogleDataTransport', :modular_headers => true
   pod 'PromisesObjC', :modular_headers => true
   pod 'nanopb', :modular_headers => true
