@@ -10,11 +10,6 @@ PODS:
   - Firebase/Messaging (12.10.0):
     - Firebase/CoreOnly
     - FirebaseMessaging (~> 12.10.0)
-  - Firebase/RemoteConfig (12.10.0):
-    - Firebase/CoreOnly
-    - FirebaseRemoteConfig (~> 12.10.0)
-  - FirebaseABTesting (12.10.0):
-    - FirebaseCore (~> 12.10.0)
   - FirebaseCore (12.10.0):
     - FirebaseCoreInternal (~> 12.10.0)
     - GoogleUtilities/Environment (~> 8.1)
@@ -37,16 +32,6 @@ PODS:
     - GoogleUtilities/Reachability (~> 8.1)
     - GoogleUtilities/UserDefaults (~> 8.1)
     - nanopb (~> 3.30910.0)
-  - FirebaseRemoteConfig (12.10.0):
-    - FirebaseABTesting (~> 12.10.0)
-    - FirebaseCore (~> 12.10.0)
-    - FirebaseInstallations (~> 12.10.0)
-    - FirebaseRemoteConfigInterop (~> 12.10.0)
-    - FirebaseSharedSwift (~> 12.10.0)
-    - GoogleUtilities/Environment (~> 8.1)
-    - "GoogleUtilities/NSData+zlib (~> 8.1)"
-  - FirebaseRemoteConfigInterop (12.10.0)
-  - FirebaseSharedSwift (12.10.0)
   - fmt (11.0.2)
   - glog (0.3.5)
   - GoogleDataTransport (10.1.0):
@@ -2151,6 +2136,8 @@ PODS:
     - Yoga
   - react-native-splash-screen (3.3.0):
     - React-Core
+  - react-native-version-check (3.5.0):
+    - React-Core
   - react-native-video (6.19.2):
     - boost
     - DoubleConversion
@@ -2926,36 +2913,6 @@ PODS:
     - RNFBApp
     - SocketRocket
     - Yoga
-  - RNFBRemoteConfig (23.8.8):
-    - boost
-    - DoubleConversion
-    - fast_float
-    - Firebase/RemoteConfig (= 12.10.0)
-    - fmt
-    - glog
-    - hermes-engine
-    - RCT-Folly
-    - RCT-Folly/Fabric
-    - RCTRequired
-    - RCTTypeSafety
-    - React-Core
-    - React-debug
-    - React-Fabric
-    - React-featureflags
-    - React-graphics
-    - React-ImageManager
-    - React-jsi
-    - React-NativeModulesApple
-    - React-RCTFabric
-    - React-renderercss
-    - React-rendererdebug
-    - React-utils
-    - ReactCodegen
-    - ReactCommon/turbomodule/bridging
-    - ReactCommon/turbomodule/core
-    - RNFBApp
-    - SocketRocket
-    - Yoga
   - RNGestureHandler (2.32.0):
     - boost
     - DoubleConversion
@@ -3366,14 +3323,10 @@ DEPENDENCIES:
   - DoubleConversion (from `../node_modules/react-native/third-party-podspecs/DoubleConversion.podspec`)
   - fast_float (from `../node_modules/react-native/third-party-podspecs/fast_float.podspec`)
   - FBLazyVector (from `../node_modules/react-native/Libraries/FBLazyVector`)
-  - FirebaseABTesting
   - FirebaseCore
   - FirebaseCoreInternal
   - FirebaseInstallations
   - FirebaseMessaging
-  - FirebaseRemoteConfig
-  - FirebaseRemoteConfigInterop
-  - FirebaseSharedSwift
   - fmt (from `../node_modules/react-native/third-party-podspecs/fmt.podspec`)
   - glog (from `../node_modules/react-native/third-party-podspecs/glog.podspec`)
   - GoogleDataTransport
@@ -3421,6 +3374,7 @@ DEPENDENCIES:
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
   - "react-native-slider (from `../node_modules/@react-native-community/slider`)"
   - react-native-splash-screen (from `../node_modules/react-native-splash-screen`)
+  - react-native-version-check (from `../node_modules/react-native-version-check`)
   - react-native-video (from `../node_modules/react-native-video`)
   - react-native-webview (from `../node_modules/react-native-webview`)
   - React-NativeModulesApple (from `../node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios`)
@@ -3461,7 +3415,6 @@ DEPENDENCIES:
   - RNFastImage (from `../node_modules/react-native-fast-image`)
   - "RNFBApp (from `../node_modules/@react-native-firebase/app`)"
   - "RNFBMessaging (from `../node_modules/@react-native-firebase/messaging`)"
-  - "RNFBRemoteConfig (from `../node_modules/@react-native-firebase/remote-config`)"
   - RNGestureHandler (from `../node_modules/react-native-gesture-handler`)
   - RNImageCropPicker (from `../node_modules/react-native-image-crop-picker`)
   - "RNMLKitTextRecognition (from `../node_modules/@react-native-ml-kit/text-recognition`)"
@@ -3477,15 +3430,11 @@ DEPENDENCIES:
 SPEC REPOS:
   trunk:
     - Firebase
-    - FirebaseABTesting
     - FirebaseCore
     - FirebaseCoreExtension
     - FirebaseCoreInternal
     - FirebaseInstallations
     - FirebaseMessaging
-    - FirebaseRemoteConfig
-    - FirebaseRemoteConfigInterop
-    - FirebaseSharedSwift
     - GoogleDataTransport
     - GoogleMLKit
     - GoogleToolboxForMac
@@ -3604,6 +3553,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/@react-native-community/slider"
   react-native-splash-screen:
     :path: "../node_modules/react-native-splash-screen"
+  react-native-version-check:
+    :path: "../node_modules/react-native-version-check"
   react-native-video:
     :path: "../node_modules/react-native-video"
   react-native-webview:
@@ -3684,8 +3635,6 @@ EXTERNAL SOURCES:
     :path: "../node_modules/@react-native-firebase/app"
   RNFBMessaging:
     :path: "../node_modules/@react-native-firebase/messaging"
-  RNFBRemoteConfig:
-    :path: "../node_modules/@react-native-firebase/remote-config"
   RNGestureHandler:
     :path: "../node_modules/react-native-gesture-handler"
   RNImageCropPicker:
@@ -3714,15 +3663,11 @@ SPEC CHECKSUMS:
   fast_float: b32c788ed9c6a8c584d114d0047beda9664e7cc6
   FBLazyVector: 0aa6183b9afe3c31fc65b5d1eeef1f3c19b63bfa
   Firebase: 99f203d3a114c6ba591f3b32263a9626e450af65
-  FirebaseABTesting: fae111fe5476bd9e249968d0c85cd036385404ba
   FirebaseCore: f4428e22415ea3b3eca652c2098413dabf2a23a9
   FirebaseCoreExtension: 3473a6ec16a91aee29fb75994a86c0220d2cddf3
   FirebaseCoreInternal: e7bbaeb00ab73011298f35ed223aa7371e212948
   FirebaseInstallations: 047343aa91fd6a1ebfa3eb374ddecf36a8aaddfd
   FirebaseMessaging: ed18fb50634e6e85b5d3e77e628c21e2c928cc53
-  FirebaseRemoteConfig: 684a4427fc0ce308cdb63f7b400e353809285b4e
-  FirebaseRemoteConfigInterop: a169873f4093b241eb5e27a4fbad91af36d64b8d
-  FirebaseSharedSwift: 3d1e448b7202e36821a492941c84592d1308ea14
   fmt: a40bb5bd0294ea969aaaba240a927bd33d878cdd
   glog: 5683914934d5b6e4240e497e0f4a3b42d1854183
   GoogleDataTransport: aae35b7ea0c09004c3797d53c8c41f66f219d6a7
@@ -3782,6 +3727,7 @@ SPEC CHECKSUMS:
   react-native-safe-area-context: ebd2c2ece5e6e650a6963184039ec8cfd8960d86
   react-native-slider: 4faf1b2266c73f1afb7b30cc6ebb3df238a37c0b
   react-native-splash-screen: 95994222cc95c236bd3cdc59fe45ed5f27969594
+  react-native-version-check: 842a3b0e7221798cbe8c6abaf24aab3ed0b485ce
   react-native-video: f8e9788554c53a1852166cd119d6e7c324b16dfe
   react-native-webview: 8407aaaf6b539b1e38b72fabb55d6885de03beaf
   React-NativeModulesApple: 46690a0fe94ec28fc6fc686ec797b911d251ded0
@@ -3822,7 +3768,6 @@ SPEC CHECKSUMS:
   RNFastImage: 462a183c4b0b6b26fdfd639e1ed6ba37536c3b87
   RNFBApp: a5d1961398f2810bbedeee5dde66a01d2f1b56f1
   RNFBMessaging: f59c305100376963a163f90ddcbf32b7e9f011e3
-  RNFBRemoteConfig: 4869e633d9c0edeac1e181cbcd8b4972a9d138cf
   RNGestureHandler: 945a93585afdd4d5c4b8ebe0ff56bf21dd75e4a4
   RNImageCropPicker: 5fd4ceaead64d8c53c787e4e559004f97bc76df7
   RNMLKitTextRecognition: 2d7c3481b9dabc72f7e31c67025c28b2c8d653b0
@@ -3838,6 +3783,6 @@ SPEC CHECKSUMS:
   TOCropViewController: 797deaf39c90e6e9ddd848d88817f6b9a8a09888
   Yoga: 689c8e04277f3ad631e60fe2a08e41d411daf8eb
 
-PODFILE CHECKSUM: 9811080541648bf65ab27c44c0b3be21cbcff88e
+PODFILE CHECKSUM: dbb24b0802674e8164abab6e76f7bbe2fd67817b
 
-COCOAPODS: 1.15.2
+COCOAPODS: 1.16.2

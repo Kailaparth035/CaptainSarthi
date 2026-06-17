@@ -20,7 +20,7 @@ import {StatusBar} from 'react-native';
 import {useEffect, useState} from 'react';
 import './src/i18n'; // Initialize i18n
 import FirebaseService from './src/Service/FirebaseService';
-import AppUpdateService from './src/Service/AppUpdateService';
+import {checkAppUpdate as checkForAppUpdate} from './src/utils/checkAppUpdate';
 import {isLoggedIn, getUserRole, savePendingNavigation} from './src/utils/session';
 import {SCREEN_NAMES} from './src/constants/screenNames';
 import {CommonActions} from '@react-navigation/native';
@@ -365,14 +365,14 @@ function AppContent() {
   useEffect(() => {
     let isMounted = true;
 
-    const checkAppUpdate = async () => {
+    const runVersionCheck = async () => {
       try {
-        const result = await AppUpdateService.checkForForceUpdate();
+        const result = await checkForAppUpdate();
         if (!isMounted) {
           return;
         }
 
-        if (result.required) {
+        if (result.showModal) {
           setForceUpdateRequired(true);
           setStoreUrl(result.storeUrl);
         }
@@ -385,7 +385,7 @@ function AppContent() {
       }
     };
 
-    checkAppUpdate();
+    runVersionCheck();
 
     return () => {
       isMounted = false;
