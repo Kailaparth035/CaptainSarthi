@@ -1,4 +1,4 @@
-import React, {useState, useMemo} from 'react';
+import React, {useState, useMemo, useRef} from 'react';
 import {
   View,
   Text,
@@ -49,6 +49,7 @@ export default function SearchableDropdown({
   const [isOpen, setIsOpen] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef<TextInput>(null);
 
   const selectedOption = options.find(opt => opt.value === value);
 
@@ -218,6 +219,7 @@ export default function SearchableDropdown({
   };
 
   const handleClose = () => {
+    Keyboard.dismiss();
     setIsOpen(false);
     setIsFocused(false);
     setSearchQuery('');
@@ -263,19 +265,21 @@ export default function SearchableDropdown({
                 {label}
                 {required && <Text style={{color: colors.statusError}}> *</Text>}
               </Text>
-              <View style={styles.searchContainer}>
+              <Pressable
+                style={styles.searchContainer}
+                onPress={() => searchInputRef.current?.focus()}>
                 <Ionicons
                   name="search"
                   size={moderateScale(20)}
                   color={colors.textTertiary}
                 />
                 <TextInput
+                  ref={searchInputRef}
                   style={styles.searchInput}
                   placeholder="Search..."
                   placeholderTextColor={colors.placeholderText}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
-                  autoFocus={true}
                 />
                 {searchQuery.length > 0 && (
                   <TouchableOpacity onPress={() => setSearchQuery('')}>
@@ -286,7 +290,7 @@ export default function SearchableDropdown({
                     />
                   </TouchableOpacity>
                 )}
-              </View>
+              </Pressable>
             </View>
             {loading ? (
               <View style={styles.loadingContainer}>
@@ -300,6 +304,8 @@ export default function SearchableDropdown({
               <FlatList
                 data={filteredOptions}
                 keyExtractor={item => item.value}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
                 renderItem={({item}) => (
                   <TouchableOpacity
                     style={styles.optionItem}

@@ -365,6 +365,7 @@
       "vehicleNumberRequired": "Vehicle number is required",
       "validVehicleNumberRequired": "Please enter a valid vehicle number (e.g., GJ 27 AJ 9314)",
       "dateOfPurchaseRequired": "Date of purchase is required",
+      "whoDrivesRequired": "Who drives is required",
       "atLeastOneTractorRequired": "At least one tractor is required",
       "invalidMonth": "Invalid month. Please enter a value between 01 and 12",
       "invalidDate": "Invalid date. Please enter a valid date",

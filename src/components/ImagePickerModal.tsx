@@ -1,4 +1,4 @@
-import React, {useRef} from 'react';
+import React, {useRef, useState} from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Pressable,
+  InteractionManager,
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import Ionicons from 'react-native-vector-icons/Ionicons';
@@ -23,6 +24,8 @@ type ImagePickerModalProps = {
   onDocumentPress?: () => Promise<void>;
 };
 
+const IOS_PICKER_LAUNCH_DELAY_MS = 400;
+
 export default function ImagePickerModal({
   visible,
   onClose,
@@ -34,31 +37,61 @@ export default function ImagePickerModal({
   const {moderateScale} = useDeviceMetrics();
   const {t} = useLanguage();
 
-  // Holds the action chosen by the user. On iOS the native picker can only be
-  // presented after this modal has FULLY finished dismissing, otherwise iOS
-  // silently drops the presentation and the gallery/camera never opens.
-  // Modal's onDismiss fires exactly at that moment, so we run the action there.
+  // Keep mounted until iOS finishes dismissing; otherwise native picker opens behind a ghost modal.
+  const [awaitingDismiss, setAwaitingDismiss] = useState(false);
   const pendingActionRef = useRef<(() => Promise<void>) | null>(null);
 
   const runPendingAction = () => {
     const action = pendingActionRef.current;
     pendingActionRef.current = null;
+    setAwaitingDismiss(false);
+
     if (!action) {
       return;
     }
-    action().catch(error => {
-      console.error('Error opening picker:', error);
-    });
+
+    const launch = () => {
+      action().catch(error => {
+        console.error('Error opening picker:', error);
+      });
+    };
+
+    if (Platform.OS === 'ios') {
+      InteractionManager.runAfterInteractions(() => {
+        requestAnimationFrame(() => {
+          setTimeout(launch, IOS_PICKER_LAUNCH_DELAY_MS);
+        });
+      });
+      return;
+    }
+
+    setTimeout(launch, 300);
   };
 
   const selectAction = (action: () => Promise<void>) => {
     pendingActionRef.current = action;
+    setAwaitingDismiss(true);
     onClose();
     if (Platform.OS !== 'ios') {
-      // Android does not reliably call onDismiss; a short delay is enough there.
       setTimeout(runPendingAction, 300);
     }
   };
+
+  const handleDismiss = () => {
+    if (Platform.OS === 'ios') {
+      runPendingAction();
+    }
+  };
+
+  const handleCancel = () => {
+    pendingActionRef.current = null;
+    setAwaitingDismiss(false);
+    onClose();
+  };
+
+  if (!visible && !awaitingDismiss) {
+    return null;
+  }
 
   const styles = StyleSheet.create({
     modalOverlay: {
@@ -120,11 +153,13 @@ export default function ImagePickerModal({
   return (
     <Modal
       visible={visible}
-      transparent={true}
+      transparent
       animationType="slide"
-      onDismiss={Platform.OS === 'ios' ? runPendingAction : undefined}
-      onRequestClose={onClose}>
-      <Pressable style={styles.modalOverlay} onPress={onClose}>
+      presentationStyle="overFullScreen"
+      statusBarTranslucent
+      onDismiss={Platform.OS === 'ios' ? handleDismiss : undefined}
+      onRequestClose={handleCancel}>
+      <Pressable style={styles.modalOverlay} onPress={handleCancel}>
         <Pressable
           style={styles.modalContainer}
           onPress={e => e.stopPropagation()}>
@@ -173,7 +208,7 @@ export default function ImagePickerModal({
 
           <TouchableOpacity
             style={styles.cancelButton}
-            onPress={onClose}
+            onPress={handleCancel}
             activeOpacity={0.7}>
             <Text style={styles.cancelButtonText}>{t('imagePicker.cancel')}</Text>
           </TouchableOpacity>
@@ -182,4 +217,3 @@ export default function ImagePickerModal({
     </Modal>
   );
 }
-

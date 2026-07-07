@@ -1,5 +1,11 @@
 import {useState} from 'react';
-import {launchCamera, launchImageLibrary, ImagePickerResponse, MediaType} from 'react-native-image-picker';
+import {
+  launchCamera,
+  launchImageLibrary,
+  ImagePickerResponse,
+  MediaType,
+} from 'react-native-image-picker';
+import ImageCropPicker from 'react-native-image-crop-picker';
 import {Platform} from 'react-native';
 import {check, request, PERMISSIONS, RESULTS} from 'react-native-permissions';
 
@@ -16,6 +22,28 @@ type UseImagePickerReturn = {
   isPicking: boolean;
 };
 
+const isPermissionGranted = (result: string) =>
+  result === RESULTS.GRANTED || result === RESULTS.LIMITED;
+
+const isUserCancelled = (error: any) => {
+  const errorMessage = error?.message || '';
+  return (
+    error?.code === 'E_PICKER_CANCELLED' ||
+    errorMessage.includes('User cancelled') ||
+    errorMessage.includes('cancelled')
+  );
+};
+
+const normalizeImagePath = (path?: string | null): string | null => {
+  if (!path) {
+    return null;
+  }
+  if (path.startsWith('file://') || path.startsWith('content://')) {
+    return path;
+  }
+  return `file://${path}`;
+};
+
 export function useImagePicker(): UseImagePickerReturn {
   const [isPicking, setIsPicking] = useState(false);
 
@@ -28,22 +56,19 @@ export function useImagePicker(): UseImagePickerReturn {
 
       const result = await check(permission);
 
-      if (result === RESULTS.GRANTED || result === RESULTS.LIMITED) {
+      if (isPermissionGranted(result)) {
         return true;
       }
 
       if (result === RESULTS.DENIED) {
         const requestResult = await request(permission);
-        return (
-          requestResult === RESULTS.GRANTED || requestResult === RESULTS.LIMITED
-        );
+        return isPermissionGranted(requestResult);
       }
 
       if (result === RESULTS.BLOCKED) {
-        const message = 'Camera permission is required to take photos. Please enable it in your device settings.';
-        if (onError) {
-          onError(message);
-        }
+        const message =
+          'Camera permission is required to take photos. Please enable it in your device settings.';
+        onError?.(message);
         return false;
       }
 
@@ -56,7 +81,6 @@ export function useImagePicker(): UseImagePickerReturn {
 
   const requestGalleryPermission = async (onError?: (message: string) => void): Promise<boolean> => {
     if (Platform.OS !== 'ios') {
-      // Android uses the system photo picker and does not require storage permissions.
       return true;
     }
 
@@ -64,15 +88,13 @@ export function useImagePicker(): UseImagePickerReturn {
       const permission = PERMISSIONS.IOS.PHOTO_LIBRARY;
       const result = await check(permission);
 
-      if (result === RESULTS.GRANTED || result === RESULTS.LIMITED) {
+      if (isPermissionGranted(result)) {
         return true;
       }
 
       if (result === RESULTS.DENIED) {
         const requestResult = await request(permission);
-        return (
-          requestResult === RESULTS.GRANTED || requestResult === RESULTS.LIMITED
-        );
+        return isPermissionGranted(requestResult);
       }
 
       if (result === RESULTS.BLOCKED) {
@@ -89,6 +111,98 @@ export function useImagePicker(): UseImagePickerReturn {
     }
   };
 
+  const pickImageWithCropPicker = async (
+    source: 'camera' | 'gallery',
+    options: ImagePickerOptions,
+  ): Promise<string | null> => {
+    const quality = options.quality ?? 0.8;
+
+    if (source === 'camera') {
+      const hasPermission = await requestCameraPermission(options.onError);
+      if (!hasPermission) {
+        return null;
+      }
+
+      const image = await ImageCropPicker.openCamera({
+        mediaType: 'photo',
+        cropping: false,
+        compressImageQuality: quality,
+        includeBase64: false,
+      });
+      return normalizeImagePath(image.path);
+    }
+
+    const hasPermission = await requestGalleryPermission(options.onError);
+    if (!hasPermission) {
+      return null;
+    }
+
+    const image = await ImageCropPicker.openPicker({
+      mediaType: 'photo',
+      cropping: false,
+      compressImageQuality: quality,
+      includeBase64: false,
+      multiple: false,
+    });
+
+    return normalizeImagePath(image.path);
+  };
+
+  const pickImageWithNativePicker = async (
+    source: 'camera' | 'gallery',
+    options: ImagePickerOptions,
+  ): Promise<string | null> => {
+    const defaultOptions: ImagePickerOptions = {
+      mediaType: 'photo',
+      quality: 0.8,
+      maxWidth: 2000,
+      maxHeight: 2000,
+      ...options,
+    };
+
+    let response: ImagePickerResponse;
+
+    if (source === 'camera') {
+      const hasPermission = await requestCameraPermission(options.onError);
+      if (!hasPermission) {
+        console.log('[ImagePicker] Camera permission not granted');
+      }
+
+      response = await launchCamera({
+        mediaType: defaultOptions.mediaType as 'photo',
+        quality: defaultOptions.quality,
+        maxWidth: defaultOptions.maxWidth,
+        maxHeight: defaultOptions.maxHeight,
+        saveToPhotos: false,
+      });
+    } else {
+      response = await launchImageLibrary({
+        mediaType: defaultOptions.mediaType as 'photo',
+        quality: defaultOptions.quality,
+        maxWidth: defaultOptions.maxWidth,
+        maxHeight: defaultOptions.maxHeight,
+        selectionLimit: 1,
+        includeBase64: false,
+      });
+    }
+
+    if (response.didCancel) {
+      return null;
+    }
+
+    if (response.errorCode || response.errorMessage) {
+      const errorMessage = response.errorMessage || 'Failed to pick image';
+      options.onError?.(errorMessage);
+      return null;
+    }
+
+    if (response.assets && response.assets.length > 0) {
+      return response.assets[0].uri || null;
+    }
+
+    return null;
+  };
+
   const pickImage = async (
     source: 'camera' | 'gallery',
     options: ImagePickerOptions = {},
@@ -96,112 +210,24 @@ export function useImagePicker(): UseImagePickerReturn {
     setIsPicking(true);
 
     try {
-      const defaultOptions: ImagePickerOptions = {
-        mediaType: 'photo',
-        quality: 0.8,
-        maxWidth: 2000,
-        maxHeight: 2000,
-        ...options,
-      };
+      console.log(`[ImagePicker] Starting ${source} picker on ${Platform.OS}...`);
 
-      let response: ImagePickerResponse;
-
-      console.log(`[ImagePicker] Starting ${source} picker...`);
-
-      if (source === 'camera') {
-        console.log('[ImagePicker] Requesting camera permission...');
-        const hasPermission = await requestCameraPermission(options.onError);
-        if (!hasPermission) {
-          console.log('[ImagePicker] Camera permission not granted, but attempting to launch camera anyway...');
-          // Still try to launch - react-native-image-picker might handle permission request
-        } else {
-          console.log('[ImagePicker] Camera permission granted');
-        }
-        console.log('[ImagePicker] Launching camera...');
-
-        response = await launchCamera({
-          mediaType: defaultOptions.mediaType as 'photo',
-          quality: defaultOptions.quality,
-          maxWidth: defaultOptions.maxWidth,
-          maxHeight: defaultOptions.maxHeight,
-          saveToPhotos: Platform.OS === 'ios', // Only save to photos on iOS
-        });
-      } else {
-        const hasPermission = await requestGalleryPermission(options.onError);
-        if (!hasPermission) {
-          setIsPicking(false);
-          return null;
-        }
-        console.log('[ImagePicker] Launching gallery...');
-
-        response = await launchImageLibrary({
-          mediaType: defaultOptions.mediaType as 'photo',
-          quality: defaultOptions.quality,
-          maxWidth: defaultOptions.maxWidth,
-          maxHeight: defaultOptions.maxHeight,
-          selectionLimit: 1,
-          includeBase64: false, // Don't include base64 for better performance
-        });
+      if (Platform.OS === 'ios') {
+        return await pickImageWithCropPicker(source, options);
       }
 
-      console.log('[ImagePicker] Response received:', {
-        didCancel: response.didCancel,
-        errorCode: response.errorCode,
-        errorMessage: response.errorMessage,
-        assetsCount: response.assets?.length || 0,
-      });
-
-      if (response.didCancel) {
+      return await pickImageWithNativePicker(source, options);
+    } catch (error: any) {
+      if (isUserCancelled(error)) {
         console.log('[ImagePicker] User cancelled image picker');
-        setIsPicking(false);
         return null;
       }
 
-      if (response.errorCode) {
-        console.error('[ImagePicker] Error code:', response.errorCode);
-        console.error('[ImagePicker] Error message:', response.errorMessage);
-        const errorMessage = response.errorMessage || 'Failed to pick image';
-        if (options.onError) {
-          options.onError(errorMessage);
-        }
-        setIsPicking(false);
-        return null;
-      }
-
-      if (response.errorMessage) {
-        console.error('[ImagePicker] Error:', response.errorMessage);
-        if (options.onError) {
-          options.onError(response.errorMessage);
-        }
-        setIsPicking(false);
-        return null;
-      }
-
-      if (response.assets && response.assets.length > 0) {
-        const asset = response.assets[0];
-        const uri = asset.uri;
-        console.log('[ImagePicker] Image selected successfully:', uri);
-        console.log('[ImagePicker] Asset details:', {
-          uri: asset.uri,
-          type: asset.type,
-          fileName: asset.fileName,
-          fileSize: asset.fileSize,
-        });
-        setIsPicking(false);
-        return uri || null;
-      }
-
-      console.log('[ImagePicker] No image selected - no assets in response');
-      setIsPicking(false);
-      return null;
-    } catch (error) {
       console.error('[ImagePicker] Exception caught:', error);
-      const errorMessage = 'Failed to pick image. Please try again.';
-      if (options.onError) {
-        options.onError(errorMessage);
-      }
-      setIsPicking(false);
+      options.onError?.('Failed to pick image. Please try again.');
       return null;
+    } finally {
+      setIsPicking(false);
     }
   };
 
@@ -210,4 +236,3 @@ export function useImagePicker(): UseImagePickerReturn {
     isPicking,
   };
 }
-

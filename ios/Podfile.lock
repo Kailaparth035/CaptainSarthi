@@ -3009,7 +3009,7 @@ PODS:
     - GoogleMLKit/TextRecognitionJapanese (= 8.0.0)
     - GoogleMLKit/TextRecognitionKorean (= 8.0.0)
     - React
-  - RNPermissions (5.5.3):
+  - RNPermissions (5.6.0):
     - boost
     - DoubleConversion
     - fast_float
@@ -3771,7 +3771,7 @@ SPEC CHECKSUMS:
   RNGestureHandler: 945a93585afdd4d5c4b8ebe0ff56bf21dd75e4a4
   RNImageCropPicker: 5fd4ceaead64d8c53c787e4e559004f97bc76df7
   RNMLKitTextRecognition: 2d7c3481b9dabc72f7e31c67025c28b2c8d653b0
-  RNPermissions: 9a47a649bd862575d89989b76d9d6b9ef84f073d
+  RNPermissions: ba2777828629a5af9ed5d33e8b9adc2d068e4f92
   RNReanimated: f1868b36f4b2b52a0ed00062cfda69506f75eaee
   RNScreens: 9269ab4971b2bd24917be84295d2c2ae7d06e9be
   RNVectorIcons: 791f13226ec4a3fd13062eda9e892159f0981fae

@@ -42,6 +42,7 @@ import {
 import {getData, postDataWithImage, putData, putDataWithImage} from '../Service/Apimethod';
 import Apis from '../Service/constant';
 import {getImageUrl} from '../utils/imageUtils';
+import {extractApiErrorMessage} from '../utils/apiError';
 import {extractDataFromRCImages, extractDataFromRCImage, RCExtractedData} from '../services/OCRService';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -538,6 +539,13 @@ export default function AddFarmerScreen() {
 
   const hideToast = () => {
     setShowToast(false);
+  };
+
+  const showApiErrorToast = (response: any) => {
+    const errorMessage = extractApiErrorMessage(response);
+    if (errorMessage) {
+      showToastMessage(errorMessage, 'error');
+    }
   };
 
   // Category
@@ -1841,7 +1849,6 @@ export default function AddFarmerScreen() {
 
   const handleCameraPress = async () => {
     try {
-      setImagePickerVisible(false); // Close picker modal first
       console.log('Opening camera for:', imagePickerType);
       const imageUri = await pickImage('camera', {
         onError: (message) => showToastMessage(message),
@@ -1868,7 +1875,6 @@ export default function AddFarmerScreen() {
 
   const handleGalleryPress = async () => {
     try {
-      setImagePickerVisible(false); // Close picker modal first
       console.log('Opening gallery for:', imagePickerType);
       const imageUri = await pickImage('gallery', {
         onError: (message) => showToastMessage(message),
@@ -2630,12 +2636,12 @@ export default function AddFarmerScreen() {
         console.log('✓ RC Back image validated');
       }
       
-      // console.log('Who from:', tractor.whoFrom || '✗ Missing');
-      // if (!tractor.whoFrom || !tractor.whoFrom.trim()) {
-      //   tractorErrorsObj.whoFrom = 'Who from is required';
-      //   tractorErrors = true;
-      //   console.log('ERROR: Who from is required');
-      // }
+      console.log('Who drives:', tractor.whoFrom || '✗ Missing');
+      if (!tractor.whoFrom || !tractor.whoFrom.trim()) {
+        tractorErrorsObj.whoFrom = t('addFarmer.errors.whoDrivesRequired');
+        tractorErrors = true;
+        console.log('ERROR: Who drives is required');
+      }
       
       const hasTractorErrors = Object.keys(tractorErrorsObj).length > 0;
       if (!hasTractorErrors) {
@@ -3470,39 +3476,11 @@ export default function AddFarmerScreen() {
           navigation.goBack();
         }, 2000);
       } else {
-        // Extract error message from various possible response structures
-        let errorMessage = '';
-        if (response) {
-          errorMessage = response?.message || 
-                        response?.data?.message || 
-                        response?.error?.message ||
-                        response?.error ||
-                        (typeof response === 'string' ? response : '');
-        }
-        
-        // Show error message from API response or fallback
-        const finalErrorMessage = errorMessage || 'Failed to update rejected farmer. Please try again.';
-        console.log('[AddFarmerScreen] Showing error toast with API message:', finalErrorMessage);
-        showToastMessage(finalErrorMessage, 'error');
+        showApiErrorToast(response);
       }
     } catch (error: any) {
       console.error('[AddFarmerScreen] Error updating rejected farmer:', error);
-      
-      // Extract error message from various possible error structures
-      let errorMessage = '';
-      if (error?.response?.data) {
-        errorMessage = error.response.data.message || 
-                      error.response.data.error?.message ||
-                      error.response.data.error ||
-                      '';
-      } else if (error?.message) {
-        errorMessage = error.message;
-      }
-      
-      // Show error message from API response or fallback
-      const finalErrorMessage = errorMessage || 'Failed to update rejected farmer. Please try again.';
-      console.log('[AddFarmerScreen] Showing error toast with API message:', finalErrorMessage);
-      showToastMessage(finalErrorMessage, 'error');
+      showApiErrorToast(error?.response?.data || error);
     } finally {
       setSubmitting(false);
     }
@@ -3666,39 +3644,11 @@ export default function AddFarmerScreen() {
           navigation.goBack();
         }, 2000);
       } else {
-        // Extract error message from various possible response structures
-        let errorMessage = '';
-        if (response) {
-          errorMessage = response?.message || 
-                        response?.data?.message || 
-                        response?.error?.message ||
-                        response?.error ||
-                        (typeof response === 'string' ? response : '');
-        }
-        
-        // Show error message from API response or fallback
-        const finalErrorMessage = errorMessage || 'Failed to update farmer. Please try again.';
-        console.log('[AddFarmerScreen] Showing error toast with API message:', finalErrorMessage);
-        showToastMessage(finalErrorMessage, 'error');
+        showApiErrorToast(response);
       }
     } catch (error: any) {
       console.error('[AddFarmerScreen] Error updating farmer:', error);
-      
-      // Extract error message from various possible error structures
-      let errorMessage = '';
-      if (error?.response?.data) {
-        errorMessage = error.response.data.message || 
-                      error.response.data.error?.message ||
-                      error.response.data.error ||
-                      '';
-      } else if (error?.message) {
-        errorMessage = error.message;
-      }
-      
-      // Show error message from API response or fallback
-      const finalErrorMessage = errorMessage || 'Failed to update farmer. Please try again.';
-      console.log('[AddFarmerScreen] Showing error toast with API message:', finalErrorMessage);
-      showToastMessage(finalErrorMessage, 'error');
+      showApiErrorToast(error?.response?.data || error);
     } finally {
       setSubmitting(false);
     }
@@ -4062,40 +4012,11 @@ export default function AddFarmerScreen() {
           navigation.goBack();
         }, 2000);
       } else {
-        // Extract error message from various possible response structures
-        let errorMessage = '';
-        if (response) {
-          // Try different possible response structures - prioritize message field
-          errorMessage = response?.message || 
-                        response?.data?.message || 
-                        response?.error?.message ||
-                        response?.error ||
-                        (typeof response === 'string' ? response : '');
-        }
-        
-        // Show error message from API response or fallback
-        const finalErrorMessage = errorMessage || 'Failed to add farmer. Please try again.';
-        console.log('Showing error toast with API message:', finalErrorMessage);
-        showToastMessage(finalErrorMessage, 'error');
+        showApiErrorToast(response);
       }
     } catch (error: any) {
       console.error('Error submitting farmer:', error);
-      
-      // Extract error message from various possible error structures
-      let errorMessage = '';
-      if (error?.response?.data) {
-        errorMessage = error.response.data.message || 
-                      error.response.data.error?.message ||
-                      error.response.data.error ||
-                      '';
-      } else if (error?.message) {
-        errorMessage = error.message;
-      }
-      
-      // Show error message from API response or fallback
-      const finalErrorMessage = errorMessage || 'Failed to add farmer. Please try again.';
-      console.log('Showing error toast with API message:', finalErrorMessage);
-      showToastMessage(finalErrorMessage, 'error');
+      showApiErrorToast(error?.response?.data || error);
     } finally {
       setSubmitting(false);
     }

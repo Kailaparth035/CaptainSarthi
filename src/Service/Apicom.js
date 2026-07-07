@@ -252,6 +252,7 @@ axiosInstance.interceptors.response.use(
         status !== 404 &&
         status !== 400 &&
         status !== 401 &&
+        status !== 413 &&
         data?.message
       ) {
         // Show fallback alert only if message is meaningful

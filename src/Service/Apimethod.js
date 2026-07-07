@@ -114,7 +114,8 @@ export const postDataWithImage = async (url, formData) => {
       headers: {
         Accept: 'application/json', 
         'Content-Type': 'multipart/form-data'
-      }
+      },
+      timeout: 120000,
     });
     return handleApiResponse(response);
   } catch (error) {
@@ -172,7 +173,8 @@ export const putDataWithImage = async (url, formData) => {
       headers: {
         Accept: 'application/json', 
         'Content-Type': 'multipart/form-data'
-      }
+      },
+      timeout: 120000,
     });
     return handleApiResponse(response);
   } catch (error) {

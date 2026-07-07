@@ -364,6 +364,7 @@
       "vehicleNumberRequired": "વાહન નંબર જરૂરી છે",
       "validVehicleNumberRequired": "કૃપા કરીને માન્ય વાહન નંબર દાખલ કરો (ઉદાહરણ: GJ 27 AJ 93xx)",
       "dateOfPurchaseRequired": "ખરીદીની તારીખ જરૂરી છે",
+      "whoDrivesRequired": "કોણ ચલાવે છે તે જરૂરી છે",
       "atLeastOneTractorRequired": "ઓછામાં ઓછું એક ટ્રેક્ટર જરૂરી છે",
       "invalidMonth": "અમાન્ય મહિનો. કૃપા કરીને 01 અને 12 વચ્ચેનું મૂલ્ય દાખલ કરો",
       "invalidDate": "અમાન્ય તારીખ. કૃપા કરીને માન્ય તારીખ દાખલ કરો",
