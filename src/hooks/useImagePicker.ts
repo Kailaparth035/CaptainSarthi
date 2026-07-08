@@ -115,7 +115,9 @@ export function useImagePicker(): UseImagePickerReturn {
     source: 'camera' | 'gallery',
     options: ImagePickerOptions,
   ): Promise<string | null> => {
-    const quality = options.quality ?? 0.8;
+    // Upload the original image without downscaling/compression so the file
+    // size matches the picked image (kept consistent with Android).
+    const quality = options.quality ?? 1;
 
     if (source === 'camera') {
       const hasPermission = await requestCameraPermission(options.onError);
@@ -152,15 +154,26 @@ export function useImagePicker(): UseImagePickerReturn {
     source: 'camera' | 'gallery',
     options: ImagePickerOptions,
   ): Promise<string | null> => {
+    // Upload the original image: no downscaling (no maxWidth/maxHeight) and
+    // full quality by default so the file size matches the picked image.
+    // maxWidth/maxHeight are only applied when explicitly passed via options.
     const defaultOptions: ImagePickerOptions = {
       mediaType: 'photo',
-      quality: 0.8,
-      maxWidth: 2000,
-      maxHeight: 2000,
+      quality: 1,
       ...options,
     };
 
     let response: ImagePickerResponse;
+
+    // Only include maxWidth/maxHeight when they are provided. Passing
+    // `undefined` values crashes the native picker (Options.java getInt).
+    const sizeOptions: {maxWidth?: number; maxHeight?: number} = {};
+    if (defaultOptions.maxWidth !== undefined) {
+      sizeOptions.maxWidth = defaultOptions.maxWidth;
+    }
+    if (defaultOptions.maxHeight !== undefined) {
+      sizeOptions.maxHeight = defaultOptions.maxHeight;
+    }
 
     if (source === 'camera') {
       const hasPermission = await requestCameraPermission(options.onError);
@@ -171,16 +184,14 @@ export function useImagePicker(): UseImagePickerReturn {
       response = await launchCamera({
         mediaType: defaultOptions.mediaType as 'photo',
         quality: defaultOptions.quality,
-        maxWidth: defaultOptions.maxWidth,
-        maxHeight: defaultOptions.maxHeight,
+        ...sizeOptions,
         saveToPhotos: false,
       });
     } else {
       response = await launchImageLibrary({
         mediaType: defaultOptions.mediaType as 'photo',
         quality: defaultOptions.quality,
-        maxWidth: defaultOptions.maxWidth,
-        maxHeight: defaultOptions.maxHeight,
+        ...sizeOptions,
         selectionLimit: 1,
         includeBase64: false,
       });

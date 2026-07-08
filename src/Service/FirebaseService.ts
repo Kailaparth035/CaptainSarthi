@@ -4,9 +4,8 @@
  */
 
 import messaging from '@react-native-firebase/messaging';
-import {Platform, PermissionsAndroid, Alert, AppState, AppStateStatus} from 'react-native';
+import {Platform, PermissionsAndroid, AppState, AppStateStatus} from 'react-native';
 import {isEmulatorSync} from 'react-native-device-info';
-import {getUserRole} from '../utils/session';
 import {postData} from './Apimethod';
 import Apis from './constant';
 
@@ -366,27 +365,8 @@ class FirebaseService {
         JSON.stringify(remoteMessage, null, 2),
       );
 
-      if (remoteMessage.notification) {
-        const {title, body} = remoteMessage.notification;
-        let showAlert = true;
-        try {
-          const userRole = await getUserRole();
-          if (userRole === 'farmer') {
-            showAlert = false;
-          }
-        } catch (e) {
-          console.warn('Firebase: Could not read user role for foreground alert:', formatMessagingError(e));
-        }
-        if (showAlert) {
-          Alert.alert(
-            title || 'Notification',
-            body || 'You have a new notification',
-            [{text: 'OK'}],
-            {cancelable: true},
-          );
-        }
-      }
-
+      // Do not show a blocking center alert for foreground notifications.
+      // The notification is still handled via the callback (list/badge update).
       if (callback) {
         callback(remoteMessage);
       }

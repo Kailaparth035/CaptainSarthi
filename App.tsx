@@ -373,7 +373,7 @@ function AppContent() {
         }
 
         if (result.showModal) {
-          setForceUpdateRequired(false);
+          setForceUpdateRequired(true);
           setStoreUrl(result.storeUrl);
         }
       } catch (error) {
