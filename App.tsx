@@ -15,10 +15,12 @@ import {StatusBarProvider, useStatusBar} from './src/contexts/StatusBarContext';
 import {TTSProvider} from './src/contexts/TTSContext';
 import {LanguageProvider} from './src/contexts/LanguageContext';
 import TTSPlayer from './src/components/TTSPlayer';
+import ForceUpdateModal from './src/components/ForceUpdateModal';
 import {StatusBar} from 'react-native';
-import {useEffect} from 'react';
+import {useEffect, useState} from 'react';
 import './src/i18n'; // Initialize i18n
 import FirebaseService from './src/Service/FirebaseService';
+import {checkAppUpdate as checkForAppUpdate} from './src/utils/checkAppUpdate';
 import {isLoggedIn, getUserRole, savePendingNavigation} from './src/utils/session';
 import {SCREEN_NAMES} from './src/constants/screenNames';
 import {CommonActions} from '@react-navigation/native';
@@ -356,8 +358,51 @@ function App() {
 
 function AppContent() {
   const {currentConfig} = useStatusBar();
+  const [forceUpdateRequired, setForceUpdateRequired] = useState(false);
+  const [storeUrl, setStoreUrl] = useState('');
+  const [updateCheckDone, setUpdateCheckDone] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
+
+    const runVersionCheck = async () => {
+      try {
+        const result = await checkForAppUpdate();
+        if (!isMounted) {
+          return;
+        }
+
+        if (result.showModal) {
+          setForceUpdateRequired(true);
+          setStoreUrl(result.storeUrl);
+        }
+      } catch (error) {
+        console.warn('App: Force update check failed:', error);
+      } finally {
+        if (isMounted) {
+          setUpdateCheckDone(true);
+        }
+      }
+    };
+
+    runVersionCheck();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!updateCheckDone) {
+      return;
+    }
+
+    SplashScreen.hide();
+
+    if (forceUpdateRequired) {
+      return;
+    }
+
     // Hide splash screen when navigation is ready
     // Wait for navigation container to be initialized
     const hideSplash = () => {
@@ -431,7 +476,25 @@ function AppContent() {
     
     // Increased delay to ensure app initialization is complete
     setTimeout(hideSplash, 500);
-  }, []);
+  }, [updateCheckDone, forceUpdateRequired]);
+
+  if (!updateCheckDone) {
+    return null;
+  }
+
+  if (forceUpdateRequired) {
+    return (
+      <>
+        <StatusBar
+          barStyle="dark-content"
+          backgroundColor={Platform.OS === 'android' ? colors.backgroundWhite : undefined}
+          translucent={Platform.OS === 'android' ? true : undefined}
+          hidden={false}
+        />
+        <ForceUpdateModal visible storeUrl={storeUrl} />
+      </>
+    );
+  }
 
   // Do not re-show splash on app state transitions.
   // Android 13 permission dialogs can trigger inactive/active transitions and

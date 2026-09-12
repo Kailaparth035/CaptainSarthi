@@ -364,6 +364,7 @@
       "vehicleNumberRequired": "वाहन संख्या आवश्यक है",
       "validVehicleNumberRequired": "कृपया मान्य वाहन संख्या दर्ज करें (उदाहरण: GJ 27 AJ 9314)",
       "dateOfPurchaseRequired": "खरीद की तारीख आवश्यक है",
+      "whoDrivesRequired": "कौन चलाता है यह आवश्यक है",
       "atLeastOneTractorRequired": "कम से कम एक ट्रेक्टर आवश्यक है",
       "invalidMonth": "अमान्य महीना. कृपया 01 और 12 के बीच का मान दर्ज करें",
       "invalidDate": "अमान्य तारीख. कृपया मान्य तारीख दर्ज करें",
@@ -427,5 +428,11 @@
     "viewSavings": "बचत देखें",
     "saved": "बचाया",
     "noSavings": "अभी कोई बचत नहीं है।"
+  },
+  "appUpdate": {
+    "title": "अपडेट आवश्यक है",
+    "message": "कैप्टन साथी का नया संस्करण उपलब्ध है। जारी रखने के लिए कृपया ऐप अपडेट करें।",
+    "updateNow": "अभी अपडेट करें",
+    "restartHint": "Play Store से अपडेट करने के बाद, ऐप को फिर से खोलें।"
   }
 }

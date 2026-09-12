@@ -82,8 +82,8 @@ android {
         applicationId "com.captainsaathi.farmerapp"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 7
-        versionName "1.2.4"
+        versionCode 12
+        versionName "1.2.9"
         // Ensure cleartext traffic is enabled for both debug and release builds
         buildConfigField "boolean", "USES_CLEARTEXT_TRAFFIC", "true"
     }
@@ -138,9 +138,12 @@ dependencies {
     }
 }
 
-// Workaround for corrupted Gradle cache during clean
+// Workaround: gradlew clean fails when CMake/native codegen paths contain spaces
+// (e.g. project folder "kana new ") or codegen jni dirs are already removed.
 afterEvaluate {
-    tasks.matching { it.name.contains("externalNativeBuildCleanRelease") }.configureEach {
+    tasks.matching {
+        it.name.contains("externalNativeBuildClean")
+    }.configureEach {
         enabled = false
         doFirst {
             println "Skipped ${it.name} - use 'npm run clean:android' or './clean-safe.sh' instead"
@@ -148,14 +151,13 @@ afterEvaluate {
     }
 }
 
-// Make clean task more resilient - remove .cxx before clean
+// Make clean task resilient - remove native/cmake caches before Gradle clean runs.
 tasks.named("clean").configure {
     doFirst {
-        // Remove .cxx directory before clean to avoid CMake errors
-        def cxxDir = file("${projectDir}/app/.cxx")
+        def cxxDir = file("${projectDir}/.cxx")
         if (cxxDir.exists()) {
             delete cxxDir
-            println "Removed .cxx directory to avoid CMake cache issues"
+            println "Removed ${cxxDir} to avoid CMake cache issues"
         }
     }
 }

@@ -117,7 +117,15 @@
     "invalidOtp": "Invalid OTP. Please enter the correct OTP.",
     "otpSentSuccess": "OTP sent successfully",
     "otpResentSuccess": "OTP resent successfully",
-    "yourOtpIs": "Your OTP is"
+    "yourOtpIs": "Your OTP is",
+    "password": "Password",
+    "enterPassword": "Enter password",
+    "loginWithPassword": "Login with Password",
+    "loginWithOtp": "Login with OTP",
+    "pleaseEnterPassword": "Please enter your password",
+    "invalidPassword": "Invalid mobile number or password.",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password"
   },
   "notifications": {
     "title": "Notifications",
@@ -365,6 +373,7 @@
       "vehicleNumberRequired": "Vehicle number is required",
       "validVehicleNumberRequired": "Please enter a valid vehicle number (e.g., GJ 27 AJ 9314)",
       "dateOfPurchaseRequired": "Date of purchase is required",
+      "whoDrivesRequired": "Who drives is required",
       "atLeastOneTractorRequired": "At least one tractor is required",
       "invalidMonth": "Invalid month. Please enter a value between 01 and 12",
       "invalidDate": "Invalid date. Please enter a valid date",
@@ -428,5 +437,11 @@
     "viewSavings": "View savings",
     "saved": "Saved",
     "noSavings": "No savings yet."
+  },
+  "appUpdate": {
+    "title": "Update Required",
+    "message": "A new version of Captain Saathi is available. Please update the app to continue.",
+    "updateNow": "Update Now",
+    "restartHint": "After updating from Play Store, reopen the app."
   }
 }

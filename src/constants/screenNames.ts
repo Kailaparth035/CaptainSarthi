@@ -8,6 +8,7 @@ export const SCREEN_NAMES = {
   ProfileDetails: 'ProfileDetails',
   Farmer: 'Farmer',
   FarmerDetails: 'FarmerDetails',
+  SaathiMembershipCertificate: 'SaathiMembershipCertificate',
   AddFarmer: 'AddFarmer',
   AddOffer: 'AddOffer',
   Tractors: 'Tractors',
@@ -33,5 +34,4 @@ export const SCREEN_NAMES = {
 } as const;
 
 export type ScreenName = typeof SCREEN_NAMES[keyof typeof SCREEN_NAMES];
-
 

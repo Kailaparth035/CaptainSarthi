@@ -1,6 +1,16 @@
 import axiosInstance from './Apicom';
 import { Alert } from 'react-native';
 
+const loggableRequestBody = body => {
+  if (!body || body instanceof FormData || typeof body !== 'object') {
+    return body;
+  }
+
+  return body.password
+    ? {...body, password: '[REDACTED]'}
+    : body;
+};
+
 /** Map transport failures (ATS, offline, timeout) to a clear message for the UI */
 const networkFailurePayload = error => {
   const code = error?.code;
@@ -81,7 +91,7 @@ export const getData = async (fullUrl, params = {}) => {
 export const postData = async (fullUrl, body = {}) => {
   if (__DEV__) {
     console.log('POST Api Call ----fullUrl--->>>>', fullUrl);
-    console.log('POST Api Call ----body--->>>>', body);
+    console.log('POST Api Call ----body--->>>>', loggableRequestBody(body));
   }
 
   try {
@@ -114,7 +124,8 @@ export const postDataWithImage = async (url, formData) => {
       headers: {
         Accept: 'application/json', 
         'Content-Type': 'multipart/form-data'
-      }
+      },
+      timeout: 120000,
     });
     return handleApiResponse(response);
   } catch (error) {
@@ -172,7 +183,8 @@ export const putDataWithImage = async (url, formData) => {
       headers: {
         Accept: 'application/json', 
         'Content-Type': 'multipart/form-data'
-      }
+      },
+      timeout: 120000,
     });
     return handleApiResponse(response);
   } catch (error) {

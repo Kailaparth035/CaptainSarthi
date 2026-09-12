@@ -2,4 +2,5 @@
 export * from './responsive';
 export * from './typography';
 export * from './imageUtils';
+export * from './apiError';
 

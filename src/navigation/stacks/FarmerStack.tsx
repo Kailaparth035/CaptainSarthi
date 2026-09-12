@@ -2,6 +2,7 @@ import React from 'react';
 import {createNativeStackNavigator} from '@react-navigation/native-stack';
 import FarmerScreen from '../../screens/FarmerScreen';
 import FarmerDetailsScreen from '../../screens/FarmerDetailsScreen';
+import SaathiMembershipCertificateScreen from '../../screens/SaathiMembershipCertificateScreen';
 import AddFarmerScreen from '../../screens/AddFarmerScreen';
 import AddOfferScreen from '../../screens/AddOfferScreen';
 import {SCREEN_NAMES} from '../../constants/screenNames';
@@ -15,6 +16,10 @@ export type FarmerStackParamList = {
     farmerPhone: string;
     farmerInitials: string;
     fromScreen?: 'Home' | 'List';
+  };
+  [SCREEN_NAMES.SaathiMembershipCertificate]: {
+    farmer: any;
+    dealer?: any;
   };
   [SCREEN_NAMES.AddFarmer]: {
     farmerId?: string;
@@ -38,6 +43,10 @@ export default function FarmerStack() {
         component={FarmerDetailsScreen}
       />
       <Stack.Screen
+        name={SCREEN_NAMES.SaathiMembershipCertificate}
+        component={SaathiMembershipCertificateScreen}
+      />
+      <Stack.Screen
         name={SCREEN_NAMES.AddFarmer}
         component={AddFarmerScreen}
       />
@@ -48,4 +57,3 @@ export default function FarmerStack() {
     </Stack.Navigator>
   );
 }
-

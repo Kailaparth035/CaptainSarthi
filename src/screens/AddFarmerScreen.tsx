@@ -22,6 +22,7 @@ import useDeviceMetrics from '../utils/responsiveCustom';
 import {Typography} from '../utils/typography';
 import {useDynamicStatusBar} from '../hooks/useDynamicStatusBar';
 import {useImagePicker} from '../hooks/useImagePicker';
+import {pickAndCropImageFromCamera, pickAndCropImageFromGallery} from '../utils/imageCropUtils';
 import {useLanguage} from '../contexts/LanguageContext';
 import {RootStackParamList} from '../navigation/RootNavigator';
 import SimpleBoxInput from '../components/FloatingInput';
@@ -42,6 +43,7 @@ import {
 import {getData, postDataWithImage, putData, putDataWithImage} from '../Service/Apimethod';
 import Apis from '../Service/constant';
 import {getImageUrl} from '../utils/imageUtils';
+import {extractApiErrorMessage} from '../utils/apiError';
 import {extractDataFromRCImages, extractDataFromRCImage, RCExtractedData} from '../services/OCRService';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -234,29 +236,30 @@ export default function AddFarmerScreen() {
   const {t, currentLanguage, currentLanguageId} = useLanguage();
   const scrollViewRef = useRef<ScrollView>(null);
   const {pickImage} = useImagePicker();
-  
+
   // Get route params for edit mode
-  const routeParams = route.params as {
-    farmerId?: string; 
-    editMode?: boolean; 
-    isEditMode?: boolean;
-    rejectedUpdate?: boolean; // New flag for rejected update from notifications
-  } | undefined;
+  const routeParams = route.params as
+    | {
+        farmerId?: string;
+        editMode?: boolean;
+        isEditMode?: boolean;
+        rejectedUpdate?: boolean; // New flag for rejected update from notifications
+      }
+    | undefined;
   const isEditMode = routeParams?.editMode === true || routeParams?.isEditMode === true;
   const isRejectedUpdate = routeParams?.rejectedUpdate === true; // Third flow: rejected update from notifications
   const farmerId = routeParams?.farmerId;
   // 'SATHI0004';
-  // routeParams?.farmerId || 
-  console.log("[AddFarmerScreen] Route params:", {
+  // routeParams?.farmerId ||
+  console.log('[AddFarmerScreen] Route params:', {
     farmerId,
     isEditMode,
     isRejectedUpdate,
     routeParams,
   });
-  
+
   // Store the numeric ID from API response for update API
   const [farmerNumericId, setFarmerNumericId] = useState<number | null>(null);
-
 
   // Refs for form fields to scroll to errors
   const fieldPositions = useRef<Record<string, number>>({});
@@ -266,7 +269,7 @@ export default function AddFarmerScreen() {
   const latestTractorsRef = useRef<TractorDetails[]>([]);
   const latestSubQuestionAnswersRef = useRef<Record<string, any>>({});
   const isPrefillingLocationRef = useRef<boolean>(false);
-  
+
   // Refs for date input fields (auto-focus)
   const dobDDRef = useRef<any>(null);
   const dobMMRef = useRef<any>(null);
@@ -274,32 +277,32 @@ export default function AddFarmerScreen() {
   const domDDRef = useRef<any>(null);
   const domMMRef = useRef<any>(null);
   const domYYYYRef = useRef<any>(null);
-  const purchaseDateRefs = useRef<Record<string, {dd: any, mm: any, yyyy: any}>>({});
-  
+  const purchaseDateRefs = useRef<Record<string, {dd: any; mm: any; yyyy: any}>>({});
+
   // Refs for address fields
   const houseNumberRef = useRef<any>(null);
   const streetNameRef = useRef<any>(null);
   const pincodeRef = useRef<any>(null);
-  
+
   // Refs for tractor fields (dynamic - stored by field key like "tractor_1_modelName")
   const tractorInputRefs = useRef<Record<string, any>>({});
-  
+
   // Track keyboard height
   const keyboardHeight = useRef<number>(0);
-  
+
   // Set up keyboard listeners
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      (e) => {
+      e => {
         keyboardHeight.current = e.endCoordinates.height;
-      }
+      },
     );
     const keyboardDidHideListener = Keyboard.addListener(
       Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
       () => {
         keyboardHeight.current = 0;
-      }
+      },
     );
 
     return () => {
@@ -307,7 +310,7 @@ export default function AddFarmerScreen() {
       keyboardDidHideListener.remove();
     };
   }, []);
-  
+
   // Function to register field position
   const registerFieldPosition = (fieldName: string) => {
     return (event: any) => {
@@ -323,16 +326,16 @@ export default function AddFarmerScreen() {
     }
     return inputRefs.current[fieldName];
   };
-  
+
   // Helper function to scroll to field and focus
   const scrollToFieldAndFocus = (fieldName: string) => {
     // Map field names to their refs
     const fieldRefMap: Record<string, any> = {
-      'houseNumber': houseNumberRef,
-      'streetName': streetNameRef,
-      'pincode': pincodeRef,
+      houseNumber: houseNumberRef,
+      streetName: streetNameRef,
+      pincode: pincodeRef,
     };
-    
+
     // Check if it's a tractor field (format: tractor_${id}_${fieldName})
     let inputRef = fieldRefMap[fieldName];
     if (!inputRef && fieldName.startsWith('tractor_')) {
@@ -352,15 +355,15 @@ export default function AddFarmerScreen() {
         inputRef = tractorInputRefs.current[fieldName];
       }
     }
-    
+
     const fieldViewRef = fieldViewRefs.current[fieldName];
     const storedY = fieldPositions.current[fieldName] || 0;
-    
+
     // Store ref in inputRefs for consistency
     if (inputRef) {
       inputRefs.current[fieldName] = inputRef;
     }
-    
+
     if (fieldViewRef && scrollViewRef.current) {
       try {
         // Use measureLayout to get accurate position relative to ScrollView
@@ -375,22 +378,25 @@ export default function AddFarmerScreen() {
                 inputRef.focus();
               }
             }
-            
+
             // Wait for keyboard to open, then scroll
-            setTimeout(() => {
-              const {height: screenHeight} = Dimensions.get('window');
-              const kbHeight = keyboardHeight.current;
-              // Available screen height (screen height minus keyboard height)
-              const availableHeight = screenHeight - (kbHeight || 0);
-              // Calculate position to show field above keyboard
-              // Position field in the upper portion of available space (about 1/3 from top)
-              const targetY = Math.max(0, y - (availableHeight / 3));
-              
-              scrollViewRef.current?.scrollTo({
-                y: targetY,
-                animated: true,
-              });
-            }, Platform.OS === 'ios' ? 300 : 100);
+            setTimeout(
+              () => {
+                const {height: screenHeight} = Dimensions.get('window');
+                const kbHeight = keyboardHeight.current;
+                // Available screen height (screen height minus keyboard height)
+                const availableHeight = screenHeight - (kbHeight || 0);
+                // Calculate position to show field above keyboard
+                // Position field in the upper portion of available space (about 1/3 from top)
+                const targetY = Math.max(0, y - availableHeight / 3);
+
+                scrollViewRef.current?.scrollTo({
+                  y: targetY,
+                  animated: true,
+                });
+              },
+              Platform.OS === 'ios' ? 300 : 100,
+            );
           },
           (error: any) => {
             // Fallback to using stored position if measureLayout fails
@@ -404,20 +410,23 @@ export default function AddFarmerScreen() {
                   inputRef.focus();
                 }
               }
-              
+
               // Wait for keyboard to open, then scroll
-              setTimeout(() => {
-                const {height: screenHeight} = Dimensions.get('window');
-                const kbHeight = keyboardHeight.current;
-                const availableHeight = screenHeight - (kbHeight || 0);
-                const targetY = Math.max(0, storedY - (availableHeight / 3));
-                scrollViewRef.current?.scrollTo({
-                  y: targetY,
-                  animated: true,
-                });
-              }, Platform.OS === 'ios' ? 300 : 100);
+              setTimeout(
+                () => {
+                  const {height: screenHeight} = Dimensions.get('window');
+                  const kbHeight = keyboardHeight.current;
+                  const availableHeight = screenHeight - (kbHeight || 0);
+                  const targetY = Math.max(0, storedY - availableHeight / 3);
+                  scrollViewRef.current?.scrollTo({
+                    y: targetY,
+                    animated: true,
+                  });
+                },
+                Platform.OS === 'ios' ? 300 : 100,
+              );
             }
-          }
+          },
         );
       } catch (error) {
         console.warn(`Error in measureLayout for ${fieldName}:`, error);
@@ -431,18 +440,21 @@ export default function AddFarmerScreen() {
               inputRef.focus();
             }
           }
-          
+
           // Wait for keyboard to open, then scroll
-          setTimeout(() => {
-            const {height: screenHeight} = Dimensions.get('window');
-            const kbHeight = keyboardHeight.current;
-            const availableHeight = screenHeight - (kbHeight || 0);
-            const targetY = Math.max(0, storedY - (availableHeight / 3));
-            scrollViewRef.current?.scrollTo({
-              y: targetY,
-              animated: true,
-            });
-          }, Platform.OS === 'ios' ? 300 : 100);
+          setTimeout(
+            () => {
+              const {height: screenHeight} = Dimensions.get('window');
+              const kbHeight = keyboardHeight.current;
+              const availableHeight = screenHeight - (kbHeight || 0);
+              const targetY = Math.max(0, storedY - availableHeight / 3);
+              scrollViewRef.current?.scrollTo({
+                y: targetY,
+                animated: true,
+              });
+            },
+            Platform.OS === 'ios' ? 300 : 100,
+          );
         }
       }
     } else {
@@ -456,38 +468,41 @@ export default function AddFarmerScreen() {
             inputRef.focus();
           }
         }
-        
+
         // Wait for keyboard to open, then scroll
-        setTimeout(() => {
-          const {height: screenHeight} = Dimensions.get('window');
-          const kbHeight = keyboardHeight.current;
-          const availableHeight = screenHeight - (kbHeight || 0);
-          const targetY = Math.max(0, storedY - (availableHeight / 3));
-          scrollViewRef.current?.scrollTo({
-            y: targetY,
-            animated: true,
-          });
-        }, Platform.OS === 'ios' ? 300 : 100);
+        setTimeout(
+          () => {
+            const {height: screenHeight} = Dimensions.get('window');
+            const kbHeight = keyboardHeight.current;
+            const availableHeight = screenHeight - (kbHeight || 0);
+            const targetY = Math.max(0, storedY - availableHeight / 3);
+            scrollViewRef.current?.scrollTo({
+              y: targetY,
+              animated: true,
+            });
+          },
+          Platform.OS === 'ios' ? 300 : 100,
+        );
       }
     }
   };
-  
+
   // Helper function to validate date
   const isValidDate = (dd: string, mm: string, yyyy: string): boolean => {
     const day = parseInt(dd, 10);
     const month = parseInt(mm, 10);
     const year = parseInt(yyyy, 10);
-    
+
     if (isNaN(day) || isNaN(month) || isNaN(year)) return false;
     if (day < 1 || day > 31) return false;
     if (month < 1 || month > 12) return false;
     if (year < 1900 || year > 2100) return false;
-    
+
     // Check if date is valid (e.g., Feb 30 is invalid)
     const date = new Date(year, month - 1, day);
     return date.getDate() === day && date.getMonth() === month - 1 && date.getFullYear() === year;
   };
-  
+
   // Helper function to compare dates
   const compareDates = (dd1: string, mm1: string, yyyy1: string, dd2: string, mm2: string, yyyy2: string): number => {
     const date1 = new Date(parseInt(yyyy1, 10), parseInt(mm1, 10) - 1, parseInt(dd1, 10));
@@ -498,9 +513,11 @@ export default function AddFarmerScreen() {
   // Profile photo
   const [profilePhoto, setProfilePhoto] = useState<string | null>(null);
   const [imagePickerVisible, setImagePickerVisible] = useState(false);
-  const [imagePickerType, setImagePickerType] = useState<'profile' | 'tractor' | 'rc' | 'rcFront' | 'rcBack'>('profile');
+  const [imagePickerType, setImagePickerType] = useState<'profile' | 'tractor' | 'rc' | 'rcFront' | 'rcBack'>(
+    'profile',
+  );
   const [currentTractorId, setCurrentTractorId] = useState<string>('');
-  
+
   // Image preview modal state
   const [previewModalVisible, setPreviewModalVisible] = useState(false);
   const [previewImageInfo, setPreviewImageInfo] = useState<{
@@ -513,12 +530,12 @@ export default function AddFarmerScreen() {
   // Dealer name (from logged in account)
   const [dealerName, setDealerName] = useState('');
   const [dealerNameLoading, setDealerNameLoading] = useState(true);
-  
+
   // Debug: Log dealer name changes
   useEffect(() => {
     console.log('[AddFarmerScreen] Dealer name state updated:', dealerName, 'Loading:', dealerNameLoading);
   }, [dealerName, dealerNameLoading]);
-  
+
   // Submission state
   const [submitting, setSubmitting] = useState(false);
   const [showToast, setShowToast] = useState(false);
@@ -540,16 +557,21 @@ export default function AddFarmerScreen() {
     setShowToast(false);
   };
 
+  const showApiErrorToast = (response: any) => {
+    const errorMessage = extractApiErrorMessage(response);
+    if (errorMessage) {
+      showToastMessage(errorMessage, 'error');
+    }
+  };
+
   // Category
   const [category, setCategory] = useState('');
   const [categoryOptions, setCategoryOptions] = useState<{label: string; value: string}[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(false);
   const [questions, setQuestions] = useState<any[]>([]);
   const [questionsLoading, setQuestionsLoading] = useState(false);
-  const [subQuestionAnswers, setSubQuestionAnswers] = useState<
-    Record<string, any>
-  >({});
-  
+  const [subQuestionAnswers, setSubQuestionAnswers] = useState<Record<string, any>>({});
+
   // Initialize ref with state
   useEffect(() => {
     latestSubQuestionAnswersRef.current = subQuestionAnswers;
@@ -575,25 +597,25 @@ export default function AddFarmerScreen() {
   const [houseNumber, setHouseNumber] = useState('');
   const [streetName, setStreetName] = useState('');
   const [landmark, setLandmark] = useState('');
-  
+
   // Location dropdowns - using IDs for API calls
   const [stateId, setStateId] = useState('');
   const [districtId, setDistrictId] = useState('');
   const [talukaId, setTalukaId] = useState('');
   const [villageId, setVillageId] = useState('');
-  
+
   // Location options for dropdowns
   const [states, setStates] = useState<{label: string; value: string}[]>([]);
   const [districts, setDistricts] = useState<{label: string; value: string}[]>([]);
   const [talukas, setTalukas] = useState<{label: string; value: string}[]>([]);
   const [villages, setVillages] = useState<{label: string; value: string}[]>([]);
-  
+
   // Loading states for location APIs
   const [statesLoading, setStatesLoading] = useState(false);
   const [districtsLoading, setDistrictsLoading] = useState(false);
   const [talukasLoading, setTalukasLoading] = useState(false);
   const [villagesLoading, setVillagesLoading] = useState(false);
-  
+
   const [pincode, setPincode] = useState('');
 
   // Tractors
@@ -616,7 +638,7 @@ export default function AddFarmerScreen() {
 
   // Errors
   const [errors, setErrors] = useState<FormErrors>({});
-  
+
   // Pull to refresh
   const [refreshing, setRefreshing] = useState(false);
 
@@ -631,33 +653,33 @@ export default function AddFarmerScreen() {
       setDealerNameLoading(true);
       console.log('[AddFarmerScreen] Fetching dealer profile...');
       const response = await getData(Apis.DEALER_PROFILE, {});
-      
+
       console.log('[AddFarmerScreen] Profile API response:', JSON.stringify(response, null, 2));
-      
+
       if (response?.status === true && response?.data) {
         const profileData = response.data;
         console.log('[AddFarmerScreen] Profile data:', JSON.stringify(profileData, null, 2));
-        
+
         // Try multiple possible field names for dealer name
-        const name = profileData.firm_name || profileData.name || 
-                     profileData.dealer_name || 
-                     profileData.dealerName ||
-                     profileData.full_name ||
-                     profileData.first_name ||
-                     (profileData.first_name && profileData.last_name 
-                       ? `${profileData.first_name} ${profileData.last_name}`.trim()
-                       : '') ||
-                     'Dealer';
-        
+        const name =
+          profileData.firm_name ||
+          profileData.name ||
+          profileData.dealer_name ||
+          profileData.dealerName ||
+          profileData.full_name ||
+          profileData.first_name ||
+          (profileData.first_name && profileData.last_name
+            ? `${profileData.first_name} ${profileData.last_name}`.trim()
+            : '') ||
+          'Dealer';
+
         console.log('[AddFarmerScreen] Extracted dealer name:', name);
         setDealerName(name);
       } else if (response?.data) {
         // Handle case where response.data exists but status might not be true
         const profileData = response.data;
-        const name = profileData.firm_name || profileData.name || 
-                     profileData.dealer_name || 
-                     profileData.dealerName 
-                     'Dealer';
+        const name = profileData.firm_name || profileData.name || profileData.dealer_name || profileData.dealerName;
+        ('Dealer');
         console.log('[AddFarmerScreen] Extracted dealer name (no status check):', name);
         setDealerName(name);
       } else {
@@ -852,7 +874,7 @@ export default function AddFarmerScreen() {
     React.useCallback(() => {
       console.log('[AddFarmerScreen] Screen focused - fetching dealer name');
       fetchDealerName();
-    }, [])
+    }, []),
   );
 
   // Fetch categories from API
@@ -860,16 +882,16 @@ export default function AddFarmerScreen() {
     try {
       setCategoriesLoading(true);
       const response = await getData(Apis.DEALER_CATEGORIES, {});
-      
+
       if (response?.status === true && response?.data) {
         const selectedLanguageId = currentLanguageId || 1; // Default to English (1)
-        
+
         // Filter categories based on current language
         const filteredCategories = response.data.filter((cat: any) => {
           // Show only categories with matching language_id (exclude null language_id)
           return cat.language_id === selectedLanguageId;
         });
-        
+
         const categories = filteredCategories.map((cat: any) => ({
           label: cat.name || '',
           value: cat.id?.toString() || '',
@@ -898,7 +920,7 @@ export default function AddFarmerScreen() {
     try {
       setQuestionsLoading(true);
       const response = await getData(`${Apis.DEALER_QUESTIONS}/${categoryId}`, {});
-      
+
       if (response?.status === true && response?.data) {
         setQuestions(response.data || []);
         console.log('Questions loaded for category:', categoryId, response.data);
@@ -919,7 +941,7 @@ export default function AddFarmerScreen() {
     React.useCallback(() => {
       console.log('[AddFarmerScreen] Screen focused - fetching latest categories');
       fetchCategories();
-    }, [currentLanguage])
+    }, [currentLanguage]),
   );
 
   // Refetch categories when language changes
@@ -930,40 +952,45 @@ export default function AddFarmerScreen() {
   // Fetch farmer details in edit mode or rejected update mode
   const fetchFarmerDetailsForEdit = async () => {
     if ((!isEditMode && !isRejectedUpdate) || !farmerId) return;
-    
+
     try {
       setCategoriesLoading(true);
-      const response = await getData(Apis.DEALER_FARMERS, { clientId: farmerId });
-      console.log("[AddFarmerScreen] Farmer details API response:", JSON.stringify(response, null, 2));
-      
+      const response = await getData(Apis.DEALER_FARMERS, {
+        clientId: farmerId,
+      });
+      console.log('[AddFarmerScreen] Farmer details API response:', JSON.stringify(response, null, 2));
+
       if (response?.status === true && response?.data) {
         const farmerData = response.data;
-        
+
         // Store farmerId (clientId) for update API - use the original farmerId passed from navigation
         // This is the clientId format like "SATHI0005"
-        console.log("Stored farmer ID for update API:", farmerId);
-        
+        console.log('Stored farmer ID for update API:', farmerId);
+
         // Also try to extract numeric ID if available
-        let numericId = farmerData.id || 
-                       farmerData.farmer_id || 
-                       (farmerData.farmerId && typeof farmerData.farmerId === 'number' ? farmerData.farmerId : null) ||
-                       (farmerData.farmerId && typeof farmerData.farmerId === 'string' && !isNaN(parseInt(farmerData.farmerId)) ? parseInt(farmerData.farmerId) : null);
-        
+        let numericId =
+          farmerData.id ||
+          farmerData.farmer_id ||
+          (farmerData.farmerId && typeof farmerData.farmerId === 'number' ? farmerData.farmerId : null) ||
+          (farmerData.farmerId && typeof farmerData.farmerId === 'string' && !isNaN(parseInt(farmerData.farmerId))
+            ? parseInt(farmerData.farmerId)
+            : null);
+
         // If not found in main data, check forms array for farmer_id
         if (!numericId && farmerData.forms && Array.isArray(farmerData.forms) && farmerData.forms.length > 0) {
           numericId = farmerData.forms[0]?.farmer_id || null;
         }
-        
+
         if (numericId) {
           setFarmerNumericId(numericId);
-          console.log("Stored farmer numeric ID for update API:", numericId);
+          console.log('Stored farmer numeric ID for update API:', numericId);
         }
-        
+
         // Prefill personal details
         setFirstName(farmerData.firstName || '');
         setMiddleName(farmerData.middleName || '');
         setLastName(farmerData.lastName || '');
-        
+
         // Parse mobile number and country code
         const mobile = farmerData.mobile || '';
         if (mobile.startsWith('+91')) {
@@ -973,7 +1000,7 @@ export default function AddFarmerScreen() {
           setCountryCode('+91');
           setPhoneNumber(mobile);
         }
-        
+
         // Parse dates
         if (farmerData.dateOfBirth) {
           const dobDate = new Date(farmerData.dateOfBirth);
@@ -981,31 +1008,31 @@ export default function AddFarmerScreen() {
           setDobMM(String(dobDate.getMonth() + 1).padStart(2, '0'));
           setDobYYYY(String(dobDate.getFullYear()));
         }
-        
+
         if (farmerData.dateOfMarriage) {
           const domDate = new Date(farmerData.dateOfMarriage);
           setDomDD(String(domDate.getDate()).padStart(2, '0'));
           setDomMM(String(domDate.getMonth() + 1).padStart(2, '0'));
           setDomYYYY(String(domDate.getFullYear()));
         }
-        
+
         // Prefill address
         setHouseNumber(farmerData.houseNumber || farmerData.house_number || '');
         setStreetName(farmerData.streetName || farmerData.street_name || '');
         setLandmark(farmerData.landmark || '');
         setPincode(farmerData.pincode || '');
-        
+
         // Prefill location IDs (state, district, village)
         // API returns: state, district, village (not stateId, districtId, villageId)
         const stateValue = farmerData.state || farmerData.stateId || farmerData.state_id;
         const districtValue = farmerData.district || farmerData.districtId || farmerData.district_id;
         const talukaValue = farmerData.taluka || farmerData.talukaId || farmerData.taluka_id;
         const villageValue = farmerData.village || farmerData.villageId || farmerData.village_id;
-        console.log("stateValue ::",stateValue,districtValue,talukaValue,villageValue);
-        
+        console.log('stateValue ::', stateValue, districtValue, talukaValue, villageValue);
+
         // Set flag to prevent useEffect hooks from interfering
         isPrefillingLocationRef.current = true;
-        
+
         // First, ensure states are loaded
         let currentStatesList = states;
         if (currentStatesList.length === 0) {
@@ -1025,35 +1052,35 @@ export default function AddFarmerScreen() {
             setStatesLoading(false);
           }
         }
-        
+
         // Match state value from API response with states list
         if (stateValue !== undefined && stateValue !== null) {
           const stateIdStr = String(stateValue);
-          console.log("stateIdStr ::",stateIdStr);
-          
+          console.log('stateIdStr ::', stateIdStr);
+
           // Fetch districts for the selected state
           try {
             setDistrictsLoading(true);
             const districtsResponse = await getData(`${Apis.GET_DISTRICTS}/${stateIdStr}`, {});
-            console.log("districtsResponse ::",districtsResponse);
-            
+            console.log('districtsResponse ::', districtsResponse);
+
             if (districtsResponse?.status === true && districtsResponse?.data) {
               const districtsList = districtsResponse.data.map((item: {id: number; name: string}) => ({
                 label: item.name,
                 value: item.id.toString(),
               }));
               setDistricts(districtsList);
-              
+
               // Match district value from API response
               if (districtValue !== undefined && districtValue !== null) {
                 const districtIdStr = String(districtValue);
-                console.log("districtIdStr ::",districtIdStr);
+                console.log('districtIdStr ::', districtIdStr);
 
                 // Fetch talukas for the selected district
                 try {
                   setTalukasLoading(true);
                   const talukasResponse = await getData(`${Apis.GET_TALUKAS}/${districtIdStr}`, {});
-                  console.log("talukasResponse ::",talukasResponse);
+                  console.log('talukasResponse ::', talukasResponse);
 
                   if (talukasResponse?.status === true && talukasResponse?.data) {
                     const talukasList = talukasResponse.data.map((item: {id: number; name: string}) => ({
@@ -1064,13 +1091,13 @@ export default function AddFarmerScreen() {
 
                     if (talukaValue !== undefined && talukaValue !== null) {
                       const talukaIdStr = String(talukaValue);
-                      console.log("talukaIdStr ::",talukaIdStr);
+                      console.log('talukaIdStr ::', talukaIdStr);
 
                       // Fetch villages for the selected taluka
                       try {
                         setVillagesLoading(true);
                         const villagesResponse = await getData(`${Apis.GET_VILLAGES}/${talukaIdStr}`, {});
-                        console.log("villagesResponse ::",villagesResponse);
+                        console.log('villagesResponse ::', villagesResponse);
 
                         if (villagesResponse?.status === true && villagesResponse?.data) {
                           const villagesList = villagesResponse.data.map((item: {id: number; name: string}) => ({
@@ -1081,7 +1108,7 @@ export default function AddFarmerScreen() {
 
                           if (villageValue !== undefined && villageValue !== null) {
                             const villageIdStr = String(villageValue);
-                            console.log("villageIdStr ::",villageIdStr);
+                            console.log('villageIdStr ::', villageIdStr);
                             setVillageId(villageIdStr);
                           }
                         }
@@ -1104,7 +1131,7 @@ export default function AddFarmerScreen() {
                 setDistrictId(districtIdStr);
               }
             }
-            
+
             // Set state ID after districts are loaded
             setStateId(stateIdStr);
           } catch (error) {
@@ -1113,13 +1140,13 @@ export default function AddFarmerScreen() {
             setDistrictsLoading(false);
           }
         }
-        
+
         // Reset flag after prefilling is complete
         // Use setTimeout to ensure all state updates are processed first
         setTimeout(() => {
           isPrefillingLocationRef.current = false;
         }, 1000);
-        
+
         // Set category and fetch questions
         if (farmerData.categoryId || farmerData.category) {
           const categoryId = String(farmerData.categoryId || farmerData.category);
@@ -1128,7 +1155,7 @@ export default function AddFarmerScreen() {
           // But we can also fetch immediately to ensure questions are available
           await fetchQuestions(categoryId);
         }
-        
+
         // Prefill profile photo
         if (farmerData.profileImage || farmerData.profile_image) {
           const imageUrl = getImageUrl(farmerData.profileImage || farmerData.profile_image);
@@ -1136,7 +1163,7 @@ export default function AddFarmerScreen() {
             setProfilePhoto(imageUrl);
           }
         }
-        
+
         // Prefill question answers if available
         if (farmerData.forms && Array.isArray(farmerData.forms) && farmerData.forms.length > 0) {
           const formData = farmerData.forms[0]?.form_data;
@@ -1153,7 +1180,7 @@ export default function AddFarmerScreen() {
                   // Handle answer_documents array, answer_text, or other URL sources
                   let fileUrls: string[] = [];
                   const seenUrls = new Set<string>(); // Track seen URLs to prevent duplicates
-                  
+
                   // Helper function to normalize URL for comparison (extract filename/path)
                   const normalizeUrl = (url: string): string => {
                     try {
@@ -1184,7 +1211,7 @@ export default function AddFarmerScreen() {
                       return filename.toLowerCase().trim();
                     }
                   };
-                  
+
                   // Priority 1: Check for answer_documents array directly on question (most reliable)
                   if (q.answer_documents && Array.isArray(q.answer_documents)) {
                     q.answer_documents.forEach((url: any) => {
@@ -1200,7 +1227,7 @@ export default function AddFarmerScreen() {
                       }
                     });
                   }
-                  
+
                   // Priority 2: Check for answer_documents in answer objects (if not already found)
                   // Process each answer object
                   if (q.answers && Array.isArray(q.answers)) {
@@ -1220,7 +1247,7 @@ export default function AddFarmerScreen() {
                           }
                         });
                       }
-                      
+
                       // Priority 3: Check for URL in answer_text only if no answer_documents found
                       // This prevents duplication when same URLs are in both fields
                       if (fileUrls.length === 0 || (!q.answer_documents && !a.answer_documents)) {
@@ -1242,10 +1269,10 @@ export default function AddFarmerScreen() {
                       }
                     });
                   }
-                  
+
                   // Final deduplication using Set (extra safety)
                   fileUrls = [...new Set(fileUrls)].filter((url: string) => url && url.length > 0);
-                  
+
                   if (fileUrls.length > 0) {
                     answers[questionKey] = fileUrls.map((url: string) => {
                       const fileName = url.split('/').pop() || url.split('\\').pop() || 'file';
@@ -1277,7 +1304,7 @@ export default function AddFarmerScreen() {
                 // Handle answer_documents array, answer_text, or other URL sources
                 let fileUrls: string[] = [];
                 const seenUrls = new Set<string>(); // Track seen URLs to prevent duplicates
-                
+
                 // Helper function to normalize URL for comparison (extract filename/path)
                 const normalizeUrl = (url: string): string => {
                   try {
@@ -1308,7 +1335,7 @@ export default function AddFarmerScreen() {
                     return filename.toLowerCase().trim();
                   }
                 };
-                
+
                 // Priority 1: Check for answer_documents array directly on question (most reliable)
                 if (q.answer_documents && Array.isArray(q.answer_documents)) {
                   q.answer_documents.forEach((url: any) => {
@@ -1324,7 +1351,7 @@ export default function AddFarmerScreen() {
                     }
                   });
                 }
-                
+
                 // Priority 2: Check for answer_documents in answer objects (if not already found)
                 // Process each answer object
                 if (q.answers && Array.isArray(q.answers)) {
@@ -1344,7 +1371,7 @@ export default function AddFarmerScreen() {
                         }
                       });
                     }
-                    
+
                     // Priority 3: Check for URL in answer_text only if no answer_documents found
                     // This prevents duplication when same URLs are in both fields
                     if (fileUrls.length === 0 || (!q.answer_documents && !a.answer_documents)) {
@@ -1366,10 +1393,10 @@ export default function AddFarmerScreen() {
                     }
                   });
                 }
-                
+
                 // Final deduplication using Set (extra safety)
                 fileUrls = [...new Set(fileUrls)].filter((url: string) => url && url.length > 0);
-                
+
                 if (fileUrls.length > 0) {
                   answers[questionKey] = fileUrls.map((url: string) => {
                     const fileName = url.split('/').pop() || url.split('\\').pop() || 'file';
@@ -1388,34 +1415,36 @@ export default function AddFarmerScreen() {
           });
           setSubQuestionAnswers(answers);
         }
-        
+
         // Prefill tractor details if available
         // Check multiple possible locations for tractor data
-        const tractorsData = farmerData.tractors || 
-                            farmerData.tractor_list || 
-                            farmerData.tractorDetails || 
-                            (farmerData.tractor_details?.tractor_list) ||
-                            [];
-        
-        console.log("[AddFarmerScreen] Tractor data found:", {
+        const tractorsData =
+          farmerData.tractors ||
+          farmerData.tractor_list ||
+          farmerData.tractorDetails ||
+          farmerData.tractor_details?.tractor_list ||
+          [];
+
+        console.log('[AddFarmerScreen] Tractor data found:', {
           tractors: farmerData.tractors?.length || 0,
           tractor_list: farmerData.tractor_list?.length || 0,
           tractorDetails: farmerData.tractorDetails?.length || 0,
           tractor_details_tractor_list: farmerData.tractor_details?.tractor_list?.length || 0,
           finalTractorsData: tractorsData.length,
         });
-        
+
         if (Array.isArray(tractorsData) && tractorsData.length > 0) {
           console.log('[AddFarmerScreen] Prefilling tractors:', tractorsData.length);
           const prefilledTractors: TractorDetails[] = tractorsData.map((tractor: any, index: number) => {
             // Extract tractor_id from API response - check multiple possible field names
             // This is critical for update operations
-            const apiTractorId = tractor.tractor_id || 
-                                tractor.id || 
-                                tractor.tractorId ||
-                                (tractor.tractor_id && String(tractor.tractor_id)) ||
-                                undefined;
-            
+            const apiTractorId =
+              tractor.tractor_id ||
+              tractor.id ||
+              tractor.tractorId ||
+              (tractor.tractor_id && String(tractor.tractor_id)) ||
+              undefined;
+
             console.log(`[AddFarmerScreen] Processing tractor ${index + 1}:`, {
               tractor_id: apiTractorId,
               tractor_id_type: typeof apiTractorId,
@@ -1423,13 +1452,13 @@ export default function AddFarmerScreen() {
               vehicle_no: tractor.vehicle_number || tractor.vehicleNo,
               all_tractor_fields: Object.keys(tractor),
             });
-            
+
             // Parse purchase date - check multiple field names
             // Priority: date_of_registration (for purchase date), then date_of_invoice, then other fields
             let purchaseDateDD = '';
             let purchaseDateMM = '';
             let purchaseDateYYYY = '';
-            
+
             // Check date_of_registration first (as per user requirement)
             if (tractor.date_of_registration) {
               const date = new Date(tractor.date_of_registration);
@@ -1438,8 +1467,14 @@ export default function AddFarmerScreen() {
                 purchaseDateMM = String(date.getMonth() + 1).padStart(2, '0');
                 purchaseDateYYYY = String(date.getFullYear());
               }
-            } else if (tractor.date_of_invoice || tractor.invoice_date || tractor.purchase_date || tractor.dateOfInvoice) {
-              const dateStr = tractor.date_of_invoice || tractor.invoice_date || tractor.purchase_date || tractor.dateOfInvoice;
+            } else if (
+              tractor.date_of_invoice ||
+              tractor.invoice_date ||
+              tractor.purchase_date ||
+              tractor.dateOfInvoice
+            ) {
+              const dateStr =
+                tractor.date_of_invoice || tractor.invoice_date || tractor.purchase_date || tractor.dateOfInvoice;
               const date = new Date(dateStr);
               if (!isNaN(date.getTime())) {
                 purchaseDateDD = String(date.getDate()).padStart(2, '0');
@@ -1455,10 +1490,10 @@ export default function AddFarmerScreen() {
               purchaseDateMM = String(tractor.registration_month).padStart(2, '0');
               purchaseDateYYYY = String(tractor.registration_year);
             }
-            
+
             // Get tractor images - check multiple field names and formats
             const tractorImages: string[] = [];
-            
+
             // Priority 1: Check for tractorImages array (exact match from API)
             if (tractor.tractorImages && Array.isArray(tractor.tractorImages)) {
               tractor.tractorImages.forEach((imgUrl: string) => {
@@ -1470,11 +1505,11 @@ export default function AddFarmerScreen() {
                 }
               });
             }
-            
+
             // Priority 2: Check for tractor_images array (alternative format)
             if (tractor.tractor_images && Array.isArray(tractor.tractor_images)) {
               tractor.tractor_images.forEach((img: any) => {
-                const imgUrl = typeof img === 'string' ? img : (img.url || img.image_url || img.uri || img);
+                const imgUrl = typeof img === 'string' ? img : img.url || img.image_url || img.uri || img;
                 if (imgUrl) {
                   const fullUrl = getImageUrl(imgUrl) || imgUrl;
                   if (fullUrl && !tractorImages.includes(fullUrl)) {
@@ -1483,7 +1518,7 @@ export default function AddFarmerScreen() {
                 }
               });
             }
-            
+
             // Priority 3: Check for tractor_images_url array
             if (tractor.tractor_images_url && Array.isArray(tractor.tractor_images_url)) {
               tractor.tractor_images_url.forEach((imgUrl: string) => {
@@ -1493,7 +1528,7 @@ export default function AddFarmerScreen() {
                 }
               });
             }
-            
+
             // Priority 4: Check for single tractor image (tractorImage or tractor_image)
             if (tractor.tractorImage || tractor.tractor_image || tractor.tractor_image_url) {
               const singleImg = tractor.tractorImage || tractor.tractor_image || tractor.tractor_image_url;
@@ -1502,7 +1537,7 @@ export default function AddFarmerScreen() {
                 tractorImages.unshift(fullUrl); // Add to beginning
               }
             }
-            
+
             // Ensure at least one empty slot if no images (for adding new images)
             if (tractorImages.length === 0) {
               tractorImages.push('');
@@ -1510,7 +1545,7 @@ export default function AddFarmerScreen() {
               // If we have 1 image, add an empty slot for second image
               tractorImages.push('');
             }
-            
+
             // Get RC front image - check multiple field names (priority: rcImagesFront from API)
             let rcFront: string | undefined = undefined;
             const rcFrontFields = [
@@ -1522,7 +1557,7 @@ export default function AddFarmerScreen() {
               tractor.rc_book_front,
               tractor.rc_front_url,
             ];
-            
+
             for (const field of rcFrontFields) {
               if (field) {
                 const fullUrl = getImageUrl(field) || field;
@@ -1532,7 +1567,7 @@ export default function AddFarmerScreen() {
                 }
               }
             }
-            
+
             // Get RC back image - check multiple field names (priority: rcImagesBack from API)
             let rcBack: string | undefined = undefined;
             const rcBackFields = [
@@ -1544,7 +1579,7 @@ export default function AddFarmerScreen() {
               tractor.rc_book_back,
               tractor.rc_back_url,
             ];
-            
+
             for (const field of rcBackFields) {
               if (field) {
                 const fullUrl = getImageUrl(field) || field;
@@ -1554,13 +1589,13 @@ export default function AddFarmerScreen() {
                 }
               }
             }
-            
+
             console.log(`[AddFarmerScreen] Tractor ${index + 1} images:`, {
               tractorImages: tractorImages.length,
               rcFront: rcFront ? 'present' : 'missing',
               rcBack: rcBack ? 'present' : 'missing',
             });
-            
+
             return {
               id: String(index + 1), // Keep local ID for UI operations
               tractorId: apiTractorId ? String(apiTractorId) : undefined, // Store API's tractor_id as string for consistency
@@ -1579,15 +1614,18 @@ export default function AddFarmerScreen() {
               errors: {},
             };
           });
-          
+
           setTractors(prefilledTractors);
           console.log('[AddFarmerScreen] Prefilled tractors:', prefilledTractors.length);
-          console.log('[AddFarmerScreen] Tractor IDs verification:', prefilledTractors.map(t => ({
-            local_id: t.id,
-            tractor_id: t.tractorId,
-            model: t.modelName,
-            has_tractor_id: !!t.tractorId,
-          })));
+          console.log(
+            '[AddFarmerScreen] Tractor IDs verification:',
+            prefilledTractors.map(t => ({
+              local_id: t.id,
+              tractor_id: t.tractorId,
+              model: t.modelName,
+              has_tractor_id: !!t.tractorId,
+            })),
+          );
         } else {
           console.log('[AddFarmerScreen] No tractor data found in API response');
         }
@@ -1671,7 +1709,7 @@ export default function AddFarmerScreen() {
         },
         profilePhotoContainer: {
           flexDirection: 'row',
-          alignItems: 'center',          
+          alignItems: 'center',
           marginBottom: moderateScale(20),
         },
         profilePhotoPlaceholder: {
@@ -1742,7 +1780,7 @@ export default function AddFarmerScreen() {
           paddingVertical: moderateScale(8),
           paddingHorizontal: moderateScale(12),
           borderRadius: moderateScale(8),
-          alignSelf:'flex-start'
+          alignSelf: 'flex-start',
           // backgroundColor: colors.backgroundGray,
         },
         addNewText: {
@@ -1830,7 +1868,11 @@ export default function AddFarmerScreen() {
     [moderateScale, insets.top],
   );
 
-  const handleImagePicker = (type: 'profile' | 'tractor' | 'rc' | 'rcFront' | 'rcBack', tractorId?: string, imageIndex?: number) => {
+  const handleImagePicker = (
+    type: 'profile' | 'tractor' | 'rc' | 'rcFront' | 'rcBack',
+    tractorId?: string,
+    imageIndex?: number,
+  ) => {
     setImagePickerType(type);
     if (tractorId) {
       // Format: "tractorId-imageIndex" for tractor images, just "tractorId" for others
@@ -1841,11 +1883,20 @@ export default function AddFarmerScreen() {
 
   const handleCameraPress = async () => {
     try {
-      setImagePickerVisible(false); // Close picker modal first
       console.log('Opening camera for:', imagePickerType);
-      const imageUri = await pickImage('camera', {
-        onError: (message) => showToastMessage(message),
-      });
+      const imageUri =
+        imagePickerType === 'profile'
+          ? await pickAndCropImageFromCamera({
+              width: 400,
+              height: 400,
+              cropping: true,
+              cropperCircleOverlay: true,
+              compressImageQuality: 0.8,
+              freeStyleCropEnabled: false,
+            })
+          : await pickImage('camera', {
+              onError: message => showToastMessage(message),
+            });
       console.log('Camera result:', imageUri);
       if (imageUri) {
         if (imagePickerType === 'profile') {
@@ -1868,17 +1919,27 @@ export default function AddFarmerScreen() {
 
   const handleGalleryPress = async () => {
     try {
-      setImagePickerVisible(false); // Close picker modal first
       console.log('Opening gallery for:', imagePickerType);
-      const imageUri = await pickImage('gallery', {
-        onError: (message) => showToastMessage(message),
-      });
+      const imageUri =
+        imagePickerType === 'profile'
+          ? await pickAndCropImageFromGallery({
+              width: 400,
+              height: 400,
+              cropping: true,
+              cropperCircleOverlay: true,
+              compressImageQuality: 0.8,
+              freeStyleCropEnabled: false,
+            })
+          : await pickImage('gallery', {
+              onError: message => showToastMessage(message),
+            });
       console.log('Gallery result:', imageUri);
       if (imageUri) {
         if (imagePickerType === 'profile') {
           setProfilePhoto(imageUri);
         } else if (currentTractorId) {
-          const tractorImageIndex = imagePickerType === 'tractor' ? parseInt(currentTractorId.split('-')[1] || '0') : undefined;
+          const tractorImageIndex =
+            imagePickerType === 'tractor' ? parseInt(currentTractorId.split('-')[1] || '0') : undefined;
           updateTractorImage(currentTractorId.split('-')[0], imagePickerType, imageUri, tractorImageIndex);
         }
       }
@@ -1952,18 +2013,18 @@ export default function AddFarmerScreen() {
   // Handle replacing image from preview modal
   const handleReplaceImage = async (imageId: string) => {
     if (!previewImageInfo) return;
-    
+
     // Close preview modal first
     setPreviewModalVisible(false);
-    
+
     // Set up image picker for replacement
     setImagePickerType(previewImageInfo.type);
     setCurrentTractorId(
       previewImageInfo.type === 'tractor' && previewImageInfo.imageIndex !== undefined
         ? `${previewImageInfo.tractorId}-${previewImageInfo.imageIndex}`
-        : previewImageInfo.tractorId
+        : previewImageInfo.tractorId,
     );
-    
+
     // Open image picker
     setImagePickerVisible(true);
   };
@@ -2095,23 +2156,17 @@ export default function AddFarmerScreen() {
       if (extractedData.registrationDate) foundFields.push('Registration Date');
 
       if (foundFields.length > 0) {
-        showToastMessage(
-          `Successfully extracted: ${foundFields.join(', ')}`,
-          'success',
-        );
+        showToastMessage(`Successfully extracted: ${foundFields.join(', ')}`, 'success');
       } else {
         // No fields extracted - this is not necessarily an error, just informational
         // User can still manually fill the fields
-        showToastMessage(
-          'RC Book validated. Please review and fill the fields manually if needed.',
-          'success',
-        );
+        showToastMessage('RC Book validated. Please review and fill the fields manually if needed.', 'success');
       }
 
       console.log('[AddFarmerScreen] OCR processing complete:', extractedData);
     } catch (error: any) {
       console.error('[AddFarmerScreen] Error during OCR processing:', error);
-      
+
       // Show user-friendly error message
       const errorMessage = error?.message || 'Failed to extract data from RC Book images';
       showToastMessage(errorMessage, 'error');
@@ -2129,10 +2184,7 @@ export default function AddFarmerScreen() {
    * @param tractorId - ID of the tractor to auto-fill
    * @param extractedData - Data extracted from OCR
    */
-  const autoFillTractorFromOCR = (
-    tractorId: string,
-    extractedData: RCExtractedData,
-  ) => {
+  const autoFillTractorFromOCR = (tractorId: string, extractedData: RCExtractedData) => {
     setTractors(prev =>
       prev.map(tractor => {
         if (tractor.id === tractorId) {
@@ -2204,9 +2256,7 @@ export default function AddFarmerScreen() {
             (!tractor.purchaseDateDD || !tractor.purchaseDateMM || !tractor.purchaseDateYYYY)
           ) {
             // Parse registration date (format: DD/MM/YYYY or DD-MM-YYYY)
-            const dateMatch = extractedData.registrationDate.match(
-              /(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/,
-            );
+            const dateMatch = extractedData.registrationDate.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
             if (dateMatch && dateMatch.length >= 4) {
               const day = dateMatch[1].padStart(2, '0');
               const month = dateMatch[2].padStart(2, '0');
@@ -2290,11 +2340,7 @@ export default function AddFarmerScreen() {
     }
   };
 
-  const updateTractorField = (
-    tractorId: string,
-    field: keyof TractorDetails,
-    value: string,
-  ) => {
+  const updateTractorField = (tractorId: string, field: keyof TractorDetails, value: string) => {
     setTractors(prev =>
       prev.map(tractor => {
         if (tractor.id === tractorId) {
@@ -2305,9 +2351,10 @@ export default function AddFarmerScreen() {
               ...tractor.errors,
               [field]: undefined,
               // Clear date error when any date field changes
-              purchaseDateError: (field === 'purchaseDateDD' || field === 'purchaseDateMM' || field === 'purchaseDateYYYY') 
-                ? undefined 
-                : tractor.errors.purchaseDateError,
+              purchaseDateError:
+                field === 'purchaseDateDD' || field === 'purchaseDateMM' || field === 'purchaseDateYYYY'
+                  ? undefined
+                  : tractor.errors.purchaseDateError,
             },
           };
         }
@@ -2315,7 +2362,7 @@ export default function AddFarmerScreen() {
       }),
     );
   };
-  
+
   const updateTractorDateError = (tractorId: string, error: string | undefined) => {
     setTractors(prev =>
       prev.map(tractor => {
@@ -2355,102 +2402,109 @@ export default function AddFarmerScreen() {
     if (!isEditMode) {
       console.log('=== SUB-QUESTIONS VALIDATION ===');
       console.log('Total questions:', questions.length);
-      
+
       // Use ref if available (updated immediately), otherwise fall back to state
-      const answersToCheck = Object.keys(latestSubQuestionAnswersRef.current).length > 0 
-        ? latestSubQuestionAnswersRef.current 
-        : subQuestionAnswers;
-      
+      const answersToCheck =
+        Object.keys(latestSubQuestionAnswersRef.current).length > 0
+          ? latestSubQuestionAnswersRef.current
+          : subQuestionAnswers;
+
       console.log('All subQuestionAnswers keys:', Object.keys(answersToCheck));
       console.log('All subQuestionAnswers values:', JSON.stringify(answersToCheck, null, 2));
-      
+
       if (category && questions.length > 0) {
-      const unansweredQuestions = questions.filter((question, index) => {
-        const questionKey = `question_${question.id}_${index}`;
-        const answer = answersToCheck[questionKey];
-        
-        console.log(`\nChecking Question ${index + 1}:`);
-        console.log('  - Question ID:', question.id);
-        console.log('  - Question text:', question.question_text);
-        console.log('  - Question type:', question.question_type);
-        console.log('  - Question key:', questionKey);
-        console.log('  - Answer value:', answer);
-        console.log('  - Answer type:', typeof answer);
-        console.log('  - Is array?', Array.isArray(answer));
-        if (Array.isArray(answer)) {
-          console.log('  - Array length:', answer.length);
-          console.log('  - Array contents:', answer);
-        }
-        
-        let isUnanswered = false;
-        
-        if (answer === undefined || answer === null) {
-          isUnanswered = true;
-          console.log('  - Status: ✗ Unanswered (undefined/null)');
-        } else if (Array.isArray(answer)) {
-          // For arrays, check if it has at least one non-empty element
-          // Handle file arrays (objects with uri property) differently from string arrays
-          const questionType = question.question_type?.toLowerCase() || 'textbox';
-          let nonEmptyItems: any[] = [];
-          
-          if (questionType === 'file' || questionType === 'document') {
-            // For file arrays, check if objects have valid uri
-            nonEmptyItems = answer.filter((item: any) => 
-              item && typeof item === 'object' && item.uri && item.uri.trim() !== ''
-            );
-          } else {
-            // For other arrays (checkbox, etc.), check strings
-            nonEmptyItems = answer.filter((item: any) => {
-              if (typeof item === 'string') {
-                return item.trim() !== '';
-              }
-              return item !== null && item !== undefined;
-            });
+        const unansweredQuestions = questions.filter((question, index) => {
+          const questionKey = `question_${question.id}_${index}`;
+          const answer = answersToCheck[questionKey];
+
+          console.log(`\nChecking Question ${index + 1}:`);
+          console.log('  - Question ID:', question.id);
+          console.log('  - Question text:', question.question_text);
+          console.log('  - Question type:', question.question_type);
+          console.log('  - Question key:', questionKey);
+          console.log('  - Answer value:', answer);
+          console.log('  - Answer type:', typeof answer);
+          console.log('  - Is array?', Array.isArray(answer));
+          if (Array.isArray(answer)) {
+            console.log('  - Array length:', answer.length);
+            console.log('  - Array contents:', answer);
           }
-          
-          if (nonEmptyItems.length === 0) {
+
+          let isUnanswered = false;
+
+          if (answer === undefined || answer === null) {
             isUnanswered = true;
-            console.log('  - Status: ✗ Unanswered (empty array or all empty items)');
+            console.log('  - Status: ✗ Unanswered (undefined/null)');
+          } else if (Array.isArray(answer)) {
+            // For arrays, check if it has at least one non-empty element
+            // Handle file arrays (objects with uri property) differently from string arrays
+            const questionType = question.question_type?.toLowerCase() || 'textbox';
+            let nonEmptyItems: any[] = [];
+
+            if (questionType === 'file' || questionType === 'document') {
+              // For file arrays, check if objects have valid uri
+              nonEmptyItems = answer.filter(
+                (item: any) => item && typeof item === 'object' && item.uri && item.uri.trim() !== '',
+              );
+            } else {
+              // For other arrays (checkbox, etc.), check strings
+              nonEmptyItems = answer.filter((item: any) => {
+                if (typeof item === 'string') {
+                  return item.trim() !== '';
+                }
+                return item !== null && item !== undefined;
+              });
+            }
+
+            if (nonEmptyItems.length === 0) {
+              isUnanswered = true;
+              console.log('  - Status: ✗ Unanswered (empty array or all empty items)');
+            } else {
+              console.log('  - Status: ✓ Answered (array with', nonEmptyItems.length, 'non-empty items)');
+            }
+          } else if (typeof answer === 'string') {
+            const trimmed = answer.trim();
+            if (trimmed === '') {
+              isUnanswered = true;
+              console.log('  - Status: ✗ Unanswered (empty string)');
+            } else {
+              console.log('  - Status: ✓ Answered (string:', trimmed, ')');
+            }
+          } else if (typeof answer === 'number') {
+            // Numbers are considered answered
+            console.log('  - Status: ✓ Answered (number:', answer, ')');
+          } else if (typeof answer === 'boolean') {
+            // Booleans are considered answered
+            console.log('  - Status: ✓ Answered (boolean:', answer, ')');
           } else {
-            console.log('  - Status: ✓ Answered (array with', nonEmptyItems.length, 'non-empty items)');
+            // For other types, consider it answered
+            console.log('  - Status: ✓ Answered (other type:', typeof answer, ', value:', answer, ')');
           }
-        } else if (typeof answer === 'string') {
-          const trimmed = answer.trim();
-          if (trimmed === '') {
-            isUnanswered = true;
-            console.log('  - Status: ✗ Unanswered (empty string)');
-          } else {
-            console.log('  - Status: ✓ Answered (string:', trimmed, ')');
-          }
-        } else if (typeof answer === 'number') {
-          // Numbers are considered answered
-          console.log('  - Status: ✓ Answered (number:', answer, ')');
-        } else if (typeof answer === 'boolean') {
-          // Booleans are considered answered
-          console.log('  - Status: ✓ Answered (boolean:', answer, ')');
-        } else {
-          // For other types, consider it answered
-          console.log('  - Status: ✓ Answered (other type:', typeof answer, ', value:', answer, ')');
-        }
-        
-        return isUnanswered;
-      });
-      
-      console.log('\n=== SUB-QUESTIONS VALIDATION RESULT ===');
-      console.log('Unanswered questions count:', unansweredQuestions.length);
-      console.log('Total questions:', questions.length);
-      
-      if (unansweredQuestions.length > 0) {
-        console.log('Unanswered question IDs:', unansweredQuestions.map(q => q.id));
-        console.log('Unanswered question texts:', unansweredQuestions.map(q => q.question_text));
-        const plural = questions.length > 1 ? 's' : '';
-        newErrors.selectedSubQuestion = t('addFarmer.errors.answerAllQuestions', {
-          count: questions.length,
-          plural: plural,
+
+          return isUnanswered;
         });
-        console.log(`ERROR: ${unansweredQuestions.length} out of ${questions.length} questions are unanswered`);
-      } else {
-        console.log('✓ All questions answered successfully');
+
+        console.log('\n=== SUB-QUESTIONS VALIDATION RESULT ===');
+        console.log('Unanswered questions count:', unansweredQuestions.length);
+        console.log('Total questions:', questions.length);
+
+        if (unansweredQuestions.length > 0) {
+          console.log(
+            'Unanswered question IDs:',
+            unansweredQuestions.map(q => q.id),
+          );
+          console.log(
+            'Unanswered question texts:',
+            unansweredQuestions.map(q => q.question_text),
+          );
+          const plural = questions.length > 1 ? 's' : '';
+          newErrors.selectedSubQuestion = t('addFarmer.errors.answerAllQuestions', {
+            count: questions.length,
+            plural: plural,
+          });
+          console.log(`ERROR: ${unansweredQuestions.length} out of ${questions.length} questions are unanswered`);
+        } else {
+          console.log('✓ All questions answered successfully');
         }
       } else {
         console.log('No questions to validate (category:', category, ', questions.length:', questions.length, ')');
@@ -2464,34 +2518,34 @@ export default function AddFarmerScreen() {
       newErrors.firstName = t('addFarmer.errors.firstNameRequired');
       console.log('ERROR: First name is required');
     }
-    
+
     console.log('Last name:', lastName || '✗ Missing');
     if (!lastName || !lastName.trim()) {
       newErrors.lastName = t('addFarmer.errors.lastNameRequired');
       console.log('ERROR: Last name is required');
     }
-    
+
     console.log('Country code:', countryCode || '✗ Missing');
     if (!countryCode || !countryCode.trim()) {
       newErrors.countryCode = t('addFarmer.errors.countryCodeRequired');
       console.log('ERROR: Country code is required');
     }
-    
+
     console.log('Phone number:', phoneNumber || '✗ Missing');
     if (!phoneNumber || !phoneNumber.trim()) {
       newErrors.phoneNumber = t('addFarmer.errors.phoneNumberRequired');
       console.log('ERROR: Phone number is required');
     }
-    
+
     console.log('Date of birth - DD:', dobDD, 'MM:', dobMM, 'YYYY:', dobYYYY);
     if (!dobDD || !dobDD.trim() || !dobMM || !dobMM.trim() || !dobYYYY || !dobYYYY.trim()) {
       newErrors.dobDD = t('addFarmer.errors.dateOfBirthRequired');
       console.log('ERROR: Date of birth is required');
     }
-    
+
     console.log('Date of marriage - DD:', domDD, 'MM:', domMM, 'YYYY:', domYYYY);
     // Date of marriage is optional - no required validation
-    
+
     // console.log('Who from:', whoFrom || '✗ Missing');
     // if (!whoFrom || !whoFrom.trim()) {
     //   newErrors.whoFrom = 'Who from is required';
@@ -2505,28 +2559,28 @@ export default function AddFarmerScreen() {
       newErrors.houseNumber = t('addFarmer.errors.houseNumberRequired');
       console.log('ERROR: House number is required');
     }
-    
+
     // Street name is optional
     console.log('Street name:', streetName || 'Optional - empty');
-    
+
     console.log('State ID:', stateId || '✗ Missing');
     if (!stateId || !stateId.trim()) {
       newErrors.state = t('addFarmer.errors.stateRequired');
       console.log('ERROR: State is required');
     }
-    
+
     console.log('District ID:', districtId || '✗ Missing');
     if (!districtId || !districtId.trim()) {
       newErrors.district = t('addFarmer.errors.districtRequired');
       console.log('ERROR: District is required');
     }
-    
+
     // Taluka is optional
     console.log('Taluka ID:', talukaId || 'Optional - empty');
-    
+
     // Village is optional
     console.log('Village ID:', villageId || 'Optional - empty');
-    
+
     console.log('Pincode:', pincode || '✗ Missing');
     if (!pincode || !pincode.trim()) {
       newErrors.pincode = t('addFarmer.errors.pincodeRequired');
@@ -2547,9 +2601,15 @@ export default function AddFarmerScreen() {
       // Validate tractor images (min 1 required)
       // Filter out empty strings and null/undefined values
       const uploadedTractorImages = (tractor.tractorImages || []).filter(
-        img => img && typeof img === 'string' && img.trim() !== ''
+        img => img && typeof img === 'string' && img.trim() !== '',
       );
-      console.log('Tractor images:', uploadedTractorImages.length, 'uploaded out of', (tractor.tractorImages || []).length, 'slots');
+      console.log(
+        'Tractor images:',
+        uploadedTractorImages.length,
+        'uploaded out of',
+        (tractor.tractorImages || []).length,
+        'slots',
+      );
       if (uploadedTractorImages.length === 0) {
         tractorErrorsObj.tractorImages = t('addFarmer.errors.atLeastOneTractorImageRequired');
         tractorErrors = true;
@@ -2564,28 +2624,28 @@ export default function AddFarmerScreen() {
         tractorErrors = true;
         console.log('ERROR: Model name is required');
       }
-      
+
       console.log('Chassis number:', tractor.chassisNumber || '✗ Missing');
       if (!tractor.chassisNumber || !tractor.chassisNumber.trim()) {
         tractorErrorsObj.chassisNumber = t('addFarmer.errors.chassisNumberRequired');
         tractorErrors = true;
         console.log('ERROR: Chassis number is required');
       }
-      
+
       console.log('Engine number:', tractor.engineNumber || '✗ Missing');
       if (!tractor.engineNumber || !tractor.engineNumber.trim()) {
         tractorErrorsObj.engineNumber = t('addFarmer.errors.engineNumberRequired');
         tractorErrors = true;
         console.log('ERROR: Engine number is required');
       }
-      
+
       console.log('Owner name:', tractor.ownerName || '✗ Missing');
       if (!tractor.ownerName || !tractor.ownerName.trim()) {
         tractorErrorsObj.ownerName = t('addFarmer.errors.ownerNameRequired');
         tractorErrors = true;
         console.log('ERROR: Owner name is required');
       }
-      
+
       console.log('Vehicle number:', tractor.vehicleNumber || '✗ Missing');
       if (!tractor.vehicleNumber || !tractor.vehicleNumber.trim()) {
         tractorErrorsObj.vehicleNumber = t('addFarmer.errors.vehicleNumberRequired');
@@ -2600,16 +2660,28 @@ export default function AddFarmerScreen() {
           console.log('ERROR: Invalid vehicle number format');
         }
       }
-      
-      console.log('Purchase date - DD:', tractor.purchaseDateDD, 'MM:', tractor.purchaseDateMM, 'YYYY:', tractor.purchaseDateYYYY);
-      if (!tractor.purchaseDateDD || !tractor.purchaseDateDD.trim() || 
-          !tractor.purchaseDateMM || !tractor.purchaseDateMM.trim() || 
-          !tractor.purchaseDateYYYY || !tractor.purchaseDateYYYY.trim()) {
+
+      console.log(
+        'Purchase date - DD:',
+        tractor.purchaseDateDD,
+        'MM:',
+        tractor.purchaseDateMM,
+        'YYYY:',
+        tractor.purchaseDateYYYY,
+      );
+      if (
+        !tractor.purchaseDateDD ||
+        !tractor.purchaseDateDD.trim() ||
+        !tractor.purchaseDateMM ||
+        !tractor.purchaseDateMM.trim() ||
+        !tractor.purchaseDateYYYY ||
+        !tractor.purchaseDateYYYY.trim()
+      ) {
         tractorErrorsObj.purchaseDateDD = t('addFarmer.errors.dateOfPurchaseRequired');
         tractorErrors = true;
         console.log('ERROR: Date of purchase is required');
       }
-      
+
       // Validate RC Front image (required)
       console.log('RC Front image:', tractor.rcFront || '✗ Missing');
       if (!tractor.rcFront || !tractor.rcFront.trim()) {
@@ -2619,7 +2691,7 @@ export default function AddFarmerScreen() {
       } else {
         console.log('✓ RC Front image validated');
       }
-      
+
       // Validate RC Back image (required)
       console.log('RC Back image:', tractor.rcBack || '✗ Missing');
       if (!tractor.rcBack || !tractor.rcBack.trim()) {
@@ -2629,14 +2701,14 @@ export default function AddFarmerScreen() {
       } else {
         console.log('✓ RC Back image validated');
       }
-      
-      // console.log('Who from:', tractor.whoFrom || '✗ Missing');
-      // if (!tractor.whoFrom || !tractor.whoFrom.trim()) {
-      //   tractorErrorsObj.whoFrom = 'Who from is required';
-      //   tractorErrors = true;
-      //   console.log('ERROR: Who from is required');
-      // }
-      
+
+      console.log('Who drives:', tractor.whoFrom || '✗ Missing');
+      if (!tractor.whoFrom || !tractor.whoFrom.trim()) {
+        tractorErrorsObj.whoFrom = t('addFarmer.errors.whoDrivesRequired');
+        tractorErrors = true;
+        console.log('ERROR: Who drives is required');
+      }
+
       const hasTractorErrors = Object.keys(tractorErrorsObj).length > 0;
       if (!hasTractorErrors) {
         console.log('✓ Tractor', tractorIndex + 1, 'is valid');
@@ -2657,7 +2729,7 @@ export default function AddFarmerScreen() {
 
     const hasFormErrors = Object.keys(newErrors).length > 0;
     const isValid = !hasFormErrors && !tractorErrors;
-    
+
     // Log validation result for debugging
     console.log('\n=== VALIDATION SUMMARY ===');
     console.log('Form errors count:', Object.keys(newErrors).length);
@@ -2666,14 +2738,17 @@ export default function AddFarmerScreen() {
     }
     console.log('Tractor errors:', tractorErrors ? 'Yes' : 'No');
     if (tractorErrors) {
-      console.log('Tractor errors details:', updatedTractors.map(t => ({
-        id: t.id,
-        errors: t.errors
-      })));
+      console.log(
+        'Tractor errors details:',
+        updatedTractors.map(t => ({
+          id: t.id,
+          errors: t.errors,
+        })),
+      );
     }
     console.log('Overall validation result:', isValid ? '✓ VALID' : '✗ INVALID');
     console.log('=== VALIDATION END ===\n');
-    
+
     return isValid;
   };
 
@@ -2683,25 +2758,25 @@ export default function AddFarmerScreen() {
       console.error('handleRejectedUpdate called but not in rejected update mode or farmerId missing');
       return;
     }
-    
+
     console.log('[AddFarmerScreen] Updating rejected farmer with ID:', farmerId);
 
     // Small delay to ensure all state updates are complete before validation
     await new Promise<void>(resolve => setTimeout(() => resolve(), 100));
-    
+
     // Validate form for rejected update mode (validate all fields including tractors)
     const isValid = validateForm();
-    
+
     if (!isValid) {
       // Scroll to first error field (same as handleUpdateFarmer)
       setTimeout(() => {
         const currentErrors = latestErrorsRef.current;
         const currentTractors = latestTractorsRef.current;
-        
+
         // Find first error field
         let firstErrorField: string | null = null;
         let firstErrorY = 0;
-        
+
         // Priority order for error fields
         const errorFieldOrder = [
           'firstName',
@@ -2717,7 +2792,7 @@ export default function AddFarmerScreen() {
           'state',
           'pincode',
         ];
-        
+
         // Check form errors in priority order
         for (const fieldName of errorFieldOrder) {
           if (currentErrors[fieldName as keyof FormErrors]) {
@@ -2726,15 +2801,13 @@ export default function AddFarmerScreen() {
             break;
           }
         }
-        
+
         // If no form error, check tractor errors
         if (!firstErrorField) {
-          const firstTractorError = currentTractors.find(t => 
-            Object.values(t.errors).some(err => err)
-          );
+          const firstTractorError = currentTractors.find(t => Object.values(t.errors).some(err => err));
           if (firstTractorError) {
             const tractorErrorKeys = Object.keys(firstTractorError.errors).filter(
-              key => firstTractorError.errors[key as keyof TractorDetails['errors']]
+              key => firstTractorError.errors[key as keyof TractorDetails['errors']],
             );
             if (tractorErrorKeys.length > 0) {
               firstErrorField = `tractor_${firstTractorError.id}_${tractorErrorKeys[0]}`;
@@ -2742,7 +2815,7 @@ export default function AddFarmerScreen() {
             }
           }
         }
-        
+
         // Scroll to first error field
         if (firstErrorField) {
           scrollToFieldAndFocus(firstErrorField);
@@ -2757,31 +2830,40 @@ export default function AddFarmerScreen() {
       setSubmitting(true);
 
       // Format questions array with all question details from API (same as handleUpdateFarmer)
-      console.log('[AddFarmerScreen] Formatting question array for rejected update, total questions:', questions.length);
+      console.log(
+        '[AddFarmerScreen] Formatting question array for rejected update, total questions:',
+        questions.length,
+      );
       console.log('[AddFarmerScreen] subQuestionAnswers:', Object.keys(subQuestionAnswers));
-      
+
       const questionArray = questions.map((question, index) => {
         const questionKey = `question_${question.id}_${index}`;
         const answer = subQuestionAnswers[questionKey];
-        
-        console.log(`[AddFarmerScreen] Processing question ${index} (ID: ${question.id}), key: ${questionKey}, answer:`, answer);
-        
+
+        console.log(
+          `[AddFarmerScreen] Processing question ${index} (ID: ${question.id}), key: ${questionKey}, answer:`,
+          answer,
+        );
+
         const answers: {id: number; answer_text: string}[] = [];
-        
+
         if (answer !== undefined && answer !== null && answer !== '') {
           const questionType = question.question_type?.toLowerCase() || 'textbox';
-          
+
           // Get options from answers (preferred), answer_options or options
           const questionOptions = question.answers || question.answer_options || question.options || [];
-          
+
           // Handle file/document type separately - files are uploaded separately
           if ((questionType === 'file' || questionType === 'document') && Array.isArray(answer)) {
-            console.log(`[AddFarmerScreen] File question detected for question ${index}, answer array length:`, answer.length);
-            
+            console.log(
+              `[AddFarmerScreen] File question detected for question ${index}, answer array length:`,
+              answer.length,
+            );
+
             // Separate existing files (URLs) and new files (local URIs)
             const existingFiles: string[] = [];
             const newFiles: any[] = [];
-            
+
             answer.forEach((file: any, fileIdx: number) => {
               console.log(`[AddFarmerScreen] Processing file ${fileIdx}:`, {
                 file: file,
@@ -2789,7 +2871,7 @@ export default function AddFarmerScreen() {
                 hasUri: file?.uri ? true : false,
                 uri: file?.uri?.substring(0, 50) + '...',
               });
-              
+
               if (file && typeof file === 'object' && file.uri) {
                 const uri = file.uri;
                 // Check if it's a new file (local URI) or existing file (URL)
@@ -2809,49 +2891,62 @@ export default function AddFarmerScreen() {
                 console.warn(`[AddFarmerScreen] File ${fileIdx} has invalid format:`, file);
               }
             });
-            
-            console.log(`[AddFarmerScreen] Separated files - Existing: ${existingFiles.length}, New: ${newFiles.length}`);
-            
+
+            console.log(
+              `[AddFarmerScreen] Separated files - Existing: ${existingFiles.length}, New: ${newFiles.length}`,
+            );
+
             // For rejected update: Handle existing and new files separately to prevent duplicates
             // Existing files (URLs) -> include in answer_text and answer_documents (NOT uploaded via FormData)
             // New files (local URIs) -> upload via FormData, include count in answer_text
             if (existingFiles.length > 0 || newFiles.length > 0) {
               // Prepare answer_text based on what we have
               let answerText = '';
-              
+
               if (existingFiles.length > 0 && newFiles.length > 0) {
                 // Both existing and new files
                 // Send existing URLs in answer_text, new files will be uploaded via FormData
                 answerText = existingFiles.join(', ');
-                console.log(`[AddFarmerScreen] Question ${index}: Both existing (${existingFiles.length}) and new (${newFiles.length}) files - existing URLs in answer_text, new files will be uploaded`);
+                console.log(
+                  `[AddFarmerScreen] Question ${index}: Both existing (${existingFiles.length}) and new (${newFiles.length}) files - existing URLs in answer_text, new files will be uploaded`,
+                );
               } else if (existingFiles.length > 0) {
                 // Only existing files - no changes made
                 // Send existing URLs in answer_text, NO upload via FormData (prevents duplicates)
                 answerText = existingFiles.join(', ');
-                console.log(`[AddFarmerScreen] Question ${index}: Only existing files (${existingFiles.length}) - URLs in answer_text, NO upload to prevent duplicates`);
+                console.log(
+                  `[AddFarmerScreen] Question ${index}: Only existing files (${existingFiles.length}) - URLs in answer_text, NO upload to prevent duplicates`,
+                );
               } else if (newFiles.length > 0) {
                 // Only new files - user removed all existing and added new
                 // Send count message, new files will be uploaded via FormData
                 answerText = `${newFiles.length} file(s) uploaded`;
-                console.log(`[AddFarmerScreen] Question ${index}: Only new files (${newFiles.length}) - will be uploaded via FormData`);
+                console.log(
+                  `[AddFarmerScreen] Question ${index}: Only new files (${newFiles.length}) - will be uploaded via FormData`,
+                );
               }
-              
+
               // Always add answer entry for file questions (required for API)
               const answerObj: any = {
                 id: question.id || Date.now(),
                 answer_text: answerText,
               };
-              
+
               // Include answer_documents array with existing file URLs (if any)
               // This tells API to preserve these documents
               // New files are uploaded separately via FormData
               if (existingFiles.length > 0) {
                 answerObj.answer_documents = existingFiles;
-                console.log(`[AddFarmerScreen] Added answer_documents array with ${existingFiles.length} existing file URL(s) for question ${index}`);
+                console.log(
+                  `[AddFarmerScreen] Added answer_documents array with ${existingFiles.length} existing file URL(s) for question ${index}`,
+                );
               }
-              
+
               answers.push(answerObj);
-              console.log(`[AddFarmerScreen] Added answer entry for question ${index} with answer_text:`, answerText.substring(0, 100));
+              console.log(
+                `[AddFarmerScreen] Added answer entry for question ${index} with answer_text:`,
+                answerText.substring(0, 100),
+              );
             } else {
               console.warn(`[AddFarmerScreen] Question ${index} has file type but no valid files found`);
             }
@@ -2859,17 +2954,16 @@ export default function AddFarmerScreen() {
             // For checkbox questions, each selected option becomes an answer
             answer.forEach((selectedOption: string) => {
               if (selectedOption && selectedOption.trim()) {
-                const option = questionOptions.find((opt: any) =>
-                  opt.answer_text === selectedOption ||
-                  opt.option_text === selectedOption ||
-                  opt.text === selectedOption ||
-                  opt.value === selectedOption ||
-                  opt === selectedOption
+                const option = questionOptions.find(
+                  (opt: any) =>
+                    opt.answer_text === selectedOption ||
+                    opt.option_text === selectedOption ||
+                    opt.text === selectedOption ||
+                    opt.value === selectedOption ||
+                    opt === selectedOption,
                 );
-                const answerId = option?.id || 
-                                option?.option_id || 
-                                Date.now();
-                
+                const answerId = option?.id || option?.option_id || Date.now();
+
                 answers.push({
                   id: answerId,
                   answer_text: selectedOption,
@@ -2877,43 +2971,39 @@ export default function AddFarmerScreen() {
               }
             });
           } else if (questionType === 'radio' && typeof answer === 'string') {
-            const option = questionOptions.find((opt: any) =>
-              opt.answer_text === answer ||
-              opt.option_text === answer ||
-              opt.text === answer ||
-              opt.value === answer ||
-              opt === answer
+            const option = questionOptions.find(
+              (opt: any) =>
+                opt.answer_text === answer ||
+                opt.option_text === answer ||
+                opt.text === answer ||
+                opt.value === answer ||
+                opt === answer,
             );
-            const answerId = option?.id || 
-                            option?.option_id || 
-                            Date.now();
-            
+            const answerId = option?.id || option?.option_id || Date.now();
+
             answers.push({
               id: answerId,
               answer_text: answer,
             });
           } else if (questionType === 'dropdown' && typeof answer === 'string') {
-            const option = questionOptions.find((opt: any) =>
-              opt.answer_text === answer ||
-              opt.option_text === answer ||
-              opt.text === answer ||
-              opt.value === answer ||
-              opt === answer
+            const option = questionOptions.find(
+              (opt: any) =>
+                opt.answer_text === answer ||
+                opt.option_text === answer ||
+                opt.text === answer ||
+                opt.value === answer ||
+                opt === answer,
             );
-            const answerId = option?.id || 
-                            option?.option_id || 
-                            Date.now();
-            
+            const answerId = option?.id || option?.option_id || Date.now();
+
             answers.push({
               id: answerId,
               answer_text: answer,
             });
           } else {
             // For text questions
-            const answerText = Array.isArray(answer) 
-              ? answer.filter(item => item).join(', ')
-              : String(answer).trim();
-            
+            const answerText = Array.isArray(answer) ? answer.filter(item => item).join(', ') : String(answer).trim();
+
             if (answerText) {
               answers.push({
                 id: question.id || Date.now(),
@@ -2922,20 +3012,23 @@ export default function AddFarmerScreen() {
             }
           }
         }
-        
+
         // Build question object with answers
         const questionObj: any = {
           ...question,
           answers: answers,
         };
-        
+
         // For file/document questions, also include answer_documents array if we have existing files
         // This helps API properly handle file preservation and merging
         const questionType = question.question_type?.toLowerCase() || 'textbox';
-        if ((questionType === 'file' || questionType === 'document') && Array.isArray(subQuestionAnswers[questionKey])) {
+        if (
+          (questionType === 'file' || questionType === 'document') &&
+          Array.isArray(subQuestionAnswers[questionKey])
+        ) {
           const answer = subQuestionAnswers[questionKey];
           const existingFiles: string[] = [];
-          
+
           // Extract existing file URLs (not local URIs)
           answer.forEach((file: any) => {
             if (file && typeof file === 'object' && file.uri) {
@@ -2947,16 +3040,18 @@ export default function AddFarmerScreen() {
               existingFiles.push(file);
             }
           });
-          
+
           // Include answer_documents array with existing file URLs
           // This tells API to preserve these documents
           // New files are uploaded separately via FormData
           if (existingFiles.length > 0) {
             questionObj.answer_documents = existingFiles;
-            console.log(`[AddFarmerScreen] Added answer_documents array (${existingFiles.length} files) for question ${index}`);
+            console.log(
+              `[AddFarmerScreen] Added answer_documents array (${existingFiles.length} files) for question ${index}`,
+            );
           }
         }
-        
+
         return questionObj;
       });
 
@@ -2972,7 +3067,9 @@ export default function AddFarmerScreen() {
           // This ensures we don't send new tractors that shouldn't be added
           const hasTractorId = !!tractor.tractorId;
           if (!hasTractorId) {
-            console.warn(`[AddFarmerScreen] Filtering out tractor ${tractor.id} - no tractorId (not an existing tractor from API)`);
+            console.warn(
+              `[AddFarmerScreen] Filtering out tractor ${tractor.id} - no tractorId (not an existing tractor from API)`,
+            );
           }
           return hasTractorId;
         })
@@ -2980,12 +3077,14 @@ export default function AddFarmerScreen() {
           // Get the tractor_id from API response (stored in tractor.tractorId during prefill)
           // This is the actual tractor_id from the API's tractors array
           const apiTractorId = tractor.tractorId;
-          
+
           if (!apiTractorId) {
-            console.error(`[AddFarmerScreen] ERROR: Tractor ${tractor.id} at index ${tractorIndex} has no tractorId! This should not happen.`);
+            console.error(
+              `[AddFarmerScreen] ERROR: Tractor ${tractor.id} at index ${tractorIndex} has no tractorId! This should not happen.`,
+            );
             console.error(`[AddFarmerScreen] Tractor object:`, JSON.stringify(tractor, null, 2));
           }
-          
+
           // Convert tractor_id to number if it's a numeric string (API might expect number)
           // Otherwise keep as string
           let formattedTractorId: string | number;
@@ -3003,14 +3102,14 @@ export default function AddFarmerScreen() {
             // Keep as string
             formattedTractorId = String(apiTractorId);
           }
-          
+
           const tractorDetail: any = {
             // Include tractor_id FIRST - this is the key field that tells API which tractor to update
             // This comes from the API response (farmerDetails -> tractors array -> tractor_id)
             // CRITICAL: tractor_id must be present and correct for update to work
             tractor_id: formattedTractorId, // Use formatted tractor_id - API needs this to identify which tractor to update
             id: formattedTractorId, // Also include id for compatibility
-            
+
             // Include all tractor details fields that can be updated
             model_name: tractor.modelName || '',
             vehicle_number: tractor.vehicleNumber || '',
@@ -3025,45 +3124,43 @@ export default function AddFarmerScreen() {
             who_drives: tractor.whoFrom || '',
             owner_name: tractor.ownerName || '',
           };
-          
-          console.log(
-            `[AddFarmerScreen] Including existing tractor ${
-              tractorIndex + 1
-            } for update:`,
-            {
-              local_id: tractor.id,
-              api_tractor_id: apiTractorId,
-              formatted_tractor_id: formattedTractorId,
-              tractor_id_type: typeof formattedTractorId,
-              model_name: tractor.modelName,
-              vehicle_number: tractor.vehicleNumber,
-              chassis_number: tractor.chassisNumber,
-              engine_number: tractor.engineNumber,
-              owner_name: tractor.ownerName,
-              registration_day: tractor.purchaseDateDD, // Use purchase date for registration
-              registration_month: tractor.purchaseDateMM, // Use purchase date for registration
-              registration_year: tractor.purchaseDateYYYY, // Use pu
-              // purchase_date: `${tractor.purchaseDateDD}/${tractor.purchaseDateMM}/${tractor.purchaseDateYYYY}`,
-              has_images: (tractor.tractorImages || []).filter(
-                (img: string) => img && img.trim() !== ""
-              ).length,
-              has_rc_front: !!tractor.rcFront,
-              has_rc_back: !!tractor.rcBack,
-            }
-          );
-          
+
+          console.log(`[AddFarmerScreen] Including existing tractor ${tractorIndex + 1} for update:`, {
+            local_id: tractor.id,
+            api_tractor_id: apiTractorId,
+            formatted_tractor_id: formattedTractorId,
+            tractor_id_type: typeof formattedTractorId,
+            model_name: tractor.modelName,
+            vehicle_number: tractor.vehicleNumber,
+            chassis_number: tractor.chassisNumber,
+            engine_number: tractor.engineNumber,
+            owner_name: tractor.ownerName,
+            registration_day: tractor.purchaseDateDD, // Use purchase date for registration
+            registration_month: tractor.purchaseDateMM, // Use purchase date for registration
+            registration_year: tractor.purchaseDateYYYY, // Use pu
+            // purchase_date: `${tractor.purchaseDateDD}/${tractor.purchaseDateMM}/${tractor.purchaseDateYYYY}`,
+            has_images: (tractor.tractorImages || []).filter((img: string) => img && img.trim() !== '').length,
+            has_rc_front: !!tractor.rcFront,
+            has_rc_back: !!tractor.rcBack,
+          });
+
           console.log(`[AddFarmerScreen] Tractor detail object for API:`, JSON.stringify(tractorDetail, null, 2));
-          
+
           return tractorDetail;
         });
-      
-      console.log('[AddFarmerScreen] Tractor details array for rejected update (only existing tractors with tractor_id from API):', JSON.stringify(tractorDetailsArray, null, 2));
+
+      console.log(
+        '[AddFarmerScreen] Tractor details array for rejected update (only existing tractors with tractor_id from API):',
+        JSON.stringify(tractorDetailsArray, null, 2),
+      );
       console.log(`[AddFarmerScreen] Total existing tractors to update: ${tractorDetailsArray.length}`);
-      
+
       // Verify all tractors have tractor_id
       const tractorsWithoutId = tractorDetailsArray.filter(t => !t.tractor_id);
       if (tractorsWithoutId.length > 0) {
-        console.error(`[AddFarmerScreen] ERROR: ${tractorsWithoutId.length} tractor(s) without tractor_id found! This will cause update to fail.`);
+        console.error(
+          `[AddFarmerScreen] ERROR: ${tractorsWithoutId.length} tractor(s) without tractor_id found! This will cause update to fail.`,
+        );
       }
 
       // Get names from selected IDs
@@ -3075,8 +3172,8 @@ export default function AddFarmerScreen() {
       // Prepare the data object according to API structure (same as handleUpdateFarmer but for rejected update)
       // Use numeric ID if available, otherwise use clientId format
       const updateFarmerId = farmerNumericId || routeParams?.farmerId;
-      console.log("updateFarmerId ::",updateFarmerId);
-      
+      console.log('updateFarmerId ::', updateFarmerId);
+
       const farmerData = {
         farmer_id: routeParams?.farmerId, // Include farmer_id for update
         first_name: firstName,
@@ -3111,22 +3208,23 @@ export default function AddFarmerScreen() {
 
       // Create FormData
       const formData = new FormData();
-      
+
       // Add data as JSON string
       formData.append('data', JSON.stringify(farmerData));
-      
+
       // Add profile photo (if it exists - new local image or existing URL)
       // For rejected update, include profile photo even if it's an existing URL to ensure it's preserved
       if (profilePhoto) {
         const isLocalImage = profilePhoto.startsWith('file://') || profilePhoto.startsWith('content://');
-        
+
         if (isLocalImage) {
           // New local image - upload it
           const profileUriParts = profilePhoto.split('.');
-          const profileFileExtension = profileUriParts.length > 1 ? profileUriParts[profileUriParts.length - 1].toLowerCase() : 'jpg';
+          const profileFileExtension =
+            profileUriParts.length > 1 ? profileUriParts[profileUriParts.length - 1].toLowerCase() : 'jpg';
           const profileMimeType = profileFileExtension === 'png' ? 'image/png' : 'image/jpeg';
           const profileFileName = `profile-photo-${Date.now()}.${profileFileExtension}`;
-          
+
           formData.append('profile_photo', {
             uri: profilePhoto,
             type: profileMimeType,
@@ -3136,14 +3234,18 @@ export default function AddFarmerScreen() {
         } else {
           // Existing URL - include it in data so API knows to preserve it
           // Also try to include it in FormData if API supports it
-          console.log('[AddFarmerScreen] Profile photo is existing URL, including in data:', profilePhoto.substring(0, 50));
+          console.log(
+            '[AddFarmerScreen] Profile photo is existing URL, including in data:',
+            profilePhoto.substring(0, 50),
+          );
           // The profile photo URL should be included in the farmerData if API expects it
           // For now, we'll also try to append it to FormData - API should handle existing URLs
           const profileUriParts = profilePhoto.split('.');
-          const profileFileExtension = profileUriParts.length > 1 ? profileUriParts[profileUriParts.length - 1].toLowerCase() : 'jpg';
+          const profileFileExtension =
+            profileUriParts.length > 1 ? profileUriParts[profileUriParts.length - 1].toLowerCase() : 'jpg';
           const profileMimeType = profileFileExtension === 'png' ? 'image/png' : 'image/jpeg';
           const profileFileName = `profile-photo-${Date.now()}.${profileFileExtension}`;
-          
+
           // Try to append existing URL - API might handle it or we might need to download it first
           // For now, we'll include it - if API doesn't support URLs directly, we may need to download first
           formData.append('profile_photo', {
@@ -3157,21 +3259,30 @@ export default function AddFarmerScreen() {
       // Helper function to append file (image or document) to FormData
       // Same behavior as add farmer - upload ALL images (both new local URIs and existing URLs)
       const appendFile = (key: string, fileUri: string, fileType: 'image' | 'document', index?: number) => {
-        console.log('[AddFarmerScreen] appendFile called:', { key, fileUri: fileUri?.substring(0, 50) + '...', fileType, index });
-        
+        console.log('[AddFarmerScreen] appendFile called:', {
+          key,
+          fileUri: fileUri?.substring(0, 50) + '...',
+          fileType,
+          index,
+        });
+
         if (!fileUri || fileUri.trim() === '') {
           console.warn('[AddFarmerScreen] appendFile: Empty fileUri, skipping');
           return;
         }
-        
+
         // Same as add farmer - upload ALL images (both new local URIs and existing URLs)
         // API will handle both types correctly
         const isLocalUri = fileUri.startsWith('file://') || fileUri.startsWith('content://');
-        console.log(`[AddFarmerScreen] appendFile: ${isLocalUri ? 'Local URI (new image)' : 'URL (existing image)'} - uploading both types like add farmer`);
-        
+        console.log(
+          `[AddFarmerScreen] appendFile: ${
+            isLocalUri ? 'Local URI (new image)' : 'URL (existing image)'
+          } - uploading both types like add farmer`,
+        );
+
         const uriParts = fileUri.split('.');
         const fileExtension = uriParts.length > 1 ? uriParts[uriParts.length - 1].toLowerCase() : 'jpg';
-        
+
         // Determine MIME type based on file extension and fileType
         let mimeType: string;
         if (fileType === 'document') {
@@ -3221,9 +3332,9 @@ export default function AddFarmerScreen() {
               mimeType = 'image/jpeg'; // Default to JPEG
           }
         }
-        
+
         const fileName = `${key}-${Date.now()}-${index || 0}.${fileExtension}`;
-        
+
         console.log('[AddFarmerScreen] Appending file to FormData:', {
           key,
           fileName,
@@ -3231,7 +3342,7 @@ export default function AddFarmerScreen() {
           fileExtension,
           fileType,
         });
-        
+
         formData.append(key, {
           uri: fileUri,
           type: mimeType,
@@ -3245,7 +3356,7 @@ export default function AddFarmerScreen() {
         const questionKey = `question_${question.id}_${questionIndex}`;
         const answer = subQuestionAnswers[questionKey];
         const questionType = question.question_type?.toLowerCase() || 'textbox';
-        
+
         // Handle file/document type questions
         if ((questionType === 'file' || questionType === 'document') && Array.isArray(answer)) {
           console.log(`[AddFarmerScreen] Processing question ${questionIndex} (${question.id}):`, {
@@ -3253,7 +3364,7 @@ export default function AddFarmerScreen() {
             answerLength: answer.length,
             answer: answer,
           });
-          
+
           // For rejected update: Only upload NEW files (local URIs), NOT existing URLs
           // Existing URLs are already included in answer_text and answer_documents array
           // Uploading existing URLs again would cause duplicates
@@ -3263,7 +3374,9 @@ export default function AddFarmerScreen() {
               const isNewFile = file.uri && (file.uri.startsWith('file://') || file.uri.startsWith('content://'));
               console.log(`[AddFarmerScreen] File check for rejected update:`, {
                 uri: file.uri?.substring(0, 50) + '...',
-                isNewFile: isNewFile ? 'New/changed file - WILL UPLOAD' : 'Existing/unchanged file URL - SKIP UPLOAD (already in answer_text)',
+                isNewFile: isNewFile
+                  ? 'New/changed file - WILL UPLOAD'
+                  : 'Existing/unchanged file URL - SKIP UPLOAD (already in answer_text)',
                 type: file.type,
                 name: file.name,
               });
@@ -3272,9 +3385,12 @@ export default function AddFarmerScreen() {
             }
             return false;
           });
-          
-          console.log(`[AddFarmerScreen] Valid NEW files to upload for question ${questionIndex} (existing URLs skipped to prevent duplicates):`, validFiles.length);
-          
+
+          console.log(
+            `[AddFarmerScreen] Valid NEW files to upload for question ${questionIndex} (existing URLs skipped to prevent duplicates):`,
+            validFiles.length,
+          );
+
           // Upload only NEW files (local URIs) - existing URLs are already in answer_text
           validFiles.forEach((file: any, fileIndex: number) => {
             const fileKey = `question_docs_${questionIndex}`;
@@ -3285,14 +3401,14 @@ export default function AddFarmerScreen() {
               const fileName = file.name || file.uri.split('/').pop() || file.uri.split('\\').pop() || 'file';
               fileType = getFileTypeFromUrl(file.uri, fileName);
             }
-            
+
             console.log(`[AddFarmerScreen] Uploading file for question ${questionIndex}, fileIndex ${fileIndex}:`, {
               fileKey,
               uri: file.uri?.substring(0, 50) + '...',
               fileType,
               name: file.name,
             });
-            
+
             appendFile(fileKey, file.uri, fileType, fileIndex);
           });
         }
@@ -3304,39 +3420,44 @@ export default function AddFarmerScreen() {
       // IMPORTANT: In rejected update mode, only process existing tractors (with tractorId)
       // The index used for image keys (tractor_images_0, etc.) should match the order in tractorDetailsArray
       // This ensures API can match images to the correct tractor using the tractor_id in tractorDetailsArray
-      
+
       // First, get the list of existing tractors (same filter as tractorDetailsArray)
-      const existingTractors = isRejectedUpdate 
-        ? tractors.filter(tractor => tractor.tractorId)
-        : tractors;
-      
+      const existingTractors = isRejectedUpdate ? tractors.filter(tractor => tractor.tractorId) : tractors;
+
       console.log(`[AddFarmerScreen] Processing ${existingTractors.length} tractor(s) for image upload`);
-      console.log(`[AddFarmerScreen] Tractor order in array:`, existingTractors.map((t, idx) => ({
-        index: idx,
-        local_id: t.id,
-        tractor_id: t.tractorId,
-        model: t.modelName,
-      })));
-      
+      console.log(
+        `[AddFarmerScreen] Tractor order in array:`,
+        existingTractors.map((t, idx) => ({
+          index: idx,
+          local_id: t.id,
+          tractor_id: t.tractorId,
+          model: t.modelName,
+        })),
+      );
+
       existingTractors.forEach((tractor, arrayIndex) => {
         // Use arrayIndex (from filtered array) for image key naming
         // This matches the order in tractorDetailsArray (which also filters existing tractors)
         const tractorIndex = arrayIndex;
-        
-        console.log(`[AddFarmerScreen] Processing tractor at arrayIndex ${tractorIndex} (local ID: ${tractor.id}, API tractor_id: ${tractor.tractorId})`);
-        
+
+        console.log(
+          `[AddFarmerScreen] Processing tractor at arrayIndex ${tractorIndex} (local ID: ${tractor.id}, API tractor_id: ${tractor.tractorId})`,
+        );
+
         // In rejected update mode, ensure tractor has tractorId (should be guaranteed by filter, but double-check)
         if (isRejectedUpdate && !tractor.tractorId) {
-          console.error(`[AddFarmerScreen] ERROR: Tractor ${tractor.id} at index ${tractorIndex} has no tractorId! This should not happen after filtering.`);
+          console.error(
+            `[AddFarmerScreen] ERROR: Tractor ${tractor.id} at index ${tractorIndex} has no tractorId! This should not happen after filtering.`,
+          );
           return; // Skip this tractor - don't upload its images
         }
-        
+
         // Add tractor images (min 1, max 2)
         // Format: tractor_images_0, tractor_images_1, etc. (same as add farmer)
         if (tractor.tractorImages && tractor.tractorImages.length > 0) {
           const validImages = tractor.tractorImages.filter(img => img && img.trim() !== '');
           console.log(`[AddFarmerScreen] Tractor ${tractorIndex} has ${validImages.length} images`);
-          
+
           validImages.forEach((imageUri, imageIndex) => {
             // Check if it's a new file (local URI) or existing file (URL)
             const isNewFile = imageUri.startsWith('file://') || imageUri.startsWith('content://');
@@ -3344,7 +3465,7 @@ export default function AddFarmerScreen() {
               uri: imageUri?.substring(0, 50) + '...',
               isNewFile: isNewFile ? 'Local URI (new/changed)' : 'URL (existing/unchanged)',
             });
-            
+
             // Same as add farmer - upload ALL images (both new local URIs and existing URLs)
             // If changed (new local URI) -> upload it
             // If unchanged (existing URL) -> upload URL so API can preserve it
@@ -3369,16 +3490,19 @@ export default function AddFarmerScreen() {
               // Fallback for any additional tractors
               imageKey = `tractor_images_${tractorIndex}`;
             }
-            
-            console.log(`[AddFarmerScreen] Uploading tractor image (same as add farmer - uploads both new and existing):`, {
-              tractorIndex: tractorIndex,
-              api_tractor_id: tractor.tractorId,
-              imageIndex: imageIndex,
-              imageKey: imageKey,
-              uri: imageUri?.substring(0, 50) + '...',
-              isNewFile: isNewFile ? 'New/changed image' : 'Existing/unchanged image URL',
-              note: `This image will be matched to tractor at index ${tractorIndex} in tractorDetailsArray (tractor_id: ${tractor.tractorId})`,
-            });
+
+            console.log(
+              `[AddFarmerScreen] Uploading tractor image (same as add farmer - uploads both new and existing):`,
+              {
+                tractorIndex: tractorIndex,
+                api_tractor_id: tractor.tractorId,
+                imageIndex: imageIndex,
+                imageKey: imageKey,
+                uri: imageUri?.substring(0, 50) + '...',
+                isNewFile: isNewFile ? 'New/changed image' : 'Existing/unchanged image URL',
+                note: `This image will be matched to tractor at index ${tractorIndex} in tractorDetailsArray (tractor_id: ${tractor.tractorId})`,
+              },
+            );
             appendFile(imageKey, imageUri, 'image', imageIndex);
           });
         }
@@ -3389,10 +3513,13 @@ export default function AddFarmerScreen() {
           // Same as add farmer - upload ALL images (both new local URIs and existing URLs)
           // If changed (new local URI) -> upload it
           // If unchanged (existing URL) -> upload URL so API can preserve it
-          console.log(`[AddFarmerScreen] Uploading RC front image for tractor ${tractorIndex} (same as add farmer - uploads both new and existing):`, {
-            isNewFile: isNewFile ? 'New/changed image' : 'Existing/unchanged image URL',
-            uri: tractor.rcFront?.substring(0, 50) + '...',
-          });
+          console.log(
+            `[AddFarmerScreen] Uploading RC front image for tractor ${tractorIndex} (same as add farmer - uploads both new and existing):`,
+            {
+              isNewFile: isNewFile ? 'New/changed image' : 'Existing/unchanged image URL',
+              uri: tractor.rcFront?.substring(0, 50) + '...',
+            },
+          );
           // Use same format as add farmer: tractor_rc_front_{tractorIndex}
           appendFile(`tractor_rc_front_${tractorIndex}`, tractor.rcFront, 'image');
         }
@@ -3403,10 +3530,13 @@ export default function AddFarmerScreen() {
           // Same as add farmer - upload ALL images (both new local URIs and existing URLs)
           // If changed (new local URI) -> upload it
           // If unchanged (existing URL) -> upload URL so API can preserve it
-          console.log(`[AddFarmerScreen] Uploading RC back image for tractor ${tractorIndex} (same as add farmer - uploads both new and existing):`, {
-            isNewFile: isNewFile ? 'New/changed image' : 'Existing/unchanged image URL',
-            uri: tractor.rcBack?.substring(0, 50) + '...',
-          });
+          console.log(
+            `[AddFarmerScreen] Uploading RC back image for tractor ${tractorIndex} (same as add farmer - uploads both new and existing):`,
+            {
+              isNewFile: isNewFile ? 'New/changed image' : 'Existing/unchanged image URL',
+              uri: tractor.rcBack?.substring(0, 50) + '...',
+            },
+          );
           // Use same format as add farmer: tractor_rc_back_{tractorIndex}
           appendFile(`tractor_rc_back_${tractorIndex}`, tractor.rcBack, 'image');
         }
@@ -3416,93 +3546,86 @@ export default function AddFarmerScreen() {
       console.log('[AddFarmerScreen] Rejected update payload summary:');
       console.log('[AddFarmerScreen] - farmer_id:', farmerData.farmer_id);
       console.log('[AddFarmerScreen] - Total questions in array:', questionArray.length);
-      console.log('[AddFarmerScreen] - Questions with file answers:', questionArray.filter(q => {
-        const hasFileAnswer = q.answers?.some((a: any) => 
-          a.answer_text && (a.answer_text.includes('file(s) uploaded') || a.answer_text.includes(',') || a.answer_text.startsWith('http'))
-        );
-        return hasFileAnswer;
-      }).length);
+      console.log(
+        '[AddFarmerScreen] - Questions with file answers:',
+        questionArray.filter(q => {
+          const hasFileAnswer = q.answers?.some(
+            (a: any) =>
+              a.answer_text &&
+              (a.answer_text.includes('file(s) uploaded') ||
+                a.answer_text.includes(',') ||
+                a.answer_text.startsWith('http')),
+          );
+          return hasFileAnswer;
+        }).length,
+      );
       console.log('[AddFarmerScreen] - Total tractors:', tractorDetailsArray.length);
-      console.log('[AddFarmerScreen] Tractor details array:', JSON.stringify(tractorDetailsArray.map(t => ({
-        tractor_id: t.tractor_id || t.id,
-        model_name: t.model_name,
-        vehicle_number: t.vehicle_number,
-        chassis_number: t.chassis_number,
-        engine_number: t.engine_number,
-        owner_name: t.owner_name,
-      })), null, 2));
-      console.log('[AddFarmerScreen] Current tractors state:', tractors.map(t => ({
-        id: t.id,
-        tractorId: t.tractorId,
-        modelName: t.modelName,
-        tractorImages_count: (t.tractorImages || []).filter((img: string) => img && img.trim() !== '').length,
-        hasRcFront: !!t.rcFront,
-        hasRcBack: !!t.rcBack,
-      })));
+      console.log(
+        '[AddFarmerScreen] Tractor details array:',
+        JSON.stringify(
+          tractorDetailsArray.map(t => ({
+            tractor_id: t.tractor_id || t.id,
+            model_name: t.model_name,
+            vehicle_number: t.vehicle_number,
+            chassis_number: t.chassis_number,
+            engine_number: t.engine_number,
+            owner_name: t.owner_name,
+          })),
+          null,
+          2,
+        ),
+      );
+      console.log(
+        '[AddFarmerScreen] Current tractors state:',
+        tractors.map(t => ({
+          id: t.id,
+          tractorId: t.tractorId,
+          modelName: t.modelName,
+          tractorImages_count: (t.tractorImages || []).filter((img: string) => img && img.trim() !== '').length,
+          hasRcFront: !!t.rcFront,
+          hasRcBack: !!t.rcBack,
+        })),
+      );
       console.log('[AddFarmerScreen] farmerData (summary):', {
         farmer_id: farmerData.farmer_id,
         questions_count: farmerData.questions?.length || 0,
         tractorDetails_count: farmerData.tractorDetails?.length || 0,
       });
-      console.log('[AddFarmerScreen] Question array (with answers):', questionArray.map(q => ({
-        id: q.id,
-        question_text: q.question_text?.substring(0, 50) + '...',
-        question_type: q.question_type,
-        answers_count: q.answers?.length || 0,
-        answer_texts: q.answers?.map((a: any) => a.answer_text?.substring(0, 50) + '...') || [],
-      })));
+      console.log(
+        '[AddFarmerScreen] Question array (with answers):',
+        questionArray.map(q => ({
+          id: q.id,
+          question_text: q.question_text?.substring(0, 50) + '...',
+          question_type: q.question_type,
+          answers_count: q.answers?.length || 0,
+          answer_texts: q.answers?.map((a: any) => a.answer_text?.substring(0, 50) + '...') || [],
+        })),
+      );
 
       // Call rejected update API - Use PUT method with form-data (as shown in Postman image)
       // This matches the Postman structure: PUT /api/dealer/v1/farmer/update with form-data
       // The data includes farmer_id and all form fields like add farmer API
       const response = await putDataWithImage(Apis.DEALER_UPDATE_FARMER_V1, formData);
-      
+
       console.log('[AddFarmerScreen] Rejected update API Response:', JSON.stringify(response, null, 2));
 
       // Check if response exists and has status
       if (response && response.status === true) {
         // Show success toast
-        const successMessage = response?.message || 'Update request sent for verification. Check notifications for update.';
+        const successMessage =
+          response?.message || 'Update request sent for verification. Check notifications for update.';
         showToastMessage(successMessage, 'success');
-        
+
         // Navigate back after a short delay to allow toast to be visible
         setTimeout(() => {
           navigation.goBack();
         }, 2000);
       } else {
-        // Extract error message from various possible response structures
-        let errorMessage = '';
-        if (response) {
-          errorMessage = response?.message || 
-                        response?.data?.message || 
-                        response?.error?.message ||
-                        response?.error ||
-                        (typeof response === 'string' ? response : '');
-        }
-        
-        // Show error message from API response or fallback
-        const finalErrorMessage = errorMessage || 'Failed to update rejected farmer. Please try again.';
-        console.log('[AddFarmerScreen] Showing error toast with API message:', finalErrorMessage);
-        showToastMessage(finalErrorMessage, 'error');
+        showApiErrorToast(response);
       }
     } catch (error: any) {
       console.error('[AddFarmerScreen] Error updating rejected farmer:', error);
-      
-      // Extract error message from various possible error structures
-      let errorMessage = '';
-      if (error?.response?.data) {
-        errorMessage = error.response.data.message || 
-                      error.response.data.error?.message ||
-                      error.response.data.error ||
-                      '';
-      } else if (error?.message) {
-        errorMessage = error.message;
-      }
-      
-      // Show error message from API response or fallback
-      const finalErrorMessage = errorMessage || 'Failed to update rejected farmer. Please try again.';
-      console.log('[AddFarmerScreen] Showing error toast with API message:', finalErrorMessage);
-      showToastMessage(finalErrorMessage, 'error');
+      showApiErrorToast(error?.response?.data || error);
     } finally {
       setSubmitting(false);
     }
@@ -3514,21 +3637,21 @@ export default function AddFarmerScreen() {
       console.error('handleUpdateFarmer called but not in edit mode or farmerId missing');
       return;
     }
-    
+
     // Use numeric ID if available, otherwise try to parse farmerId
     const updateId = farmerNumericId || (farmerId && !isNaN(parseInt(farmerId)) ? parseInt(farmerId) : null);
-    
+
     if (!updateId) {
       console.error('No valid numeric ID available for update API');
       showToastMessage(t('addFarmer.errors.invalidFarmerId'), 'error');
       return;
     }
-    
+
     console.log('[AddFarmerScreen] Updating farmer with ID:', updateId);
 
     // Small delay to ensure all state updates are complete before validation
     await new Promise<void>(resolve => setTimeout(() => resolve(), 100));
-    
+
     // Validate form for edit mode (only personal details and address, no tractors/category)
     const newErrors: FormErrors = {};
 
@@ -3550,7 +3673,7 @@ export default function AddFarmerScreen() {
     }
     // Date of marriage is optional - no required validation
 
-        // Address validation
+    // Address validation
     if (!houseNumber || !houseNumber.trim()) {
       newErrors.houseNumber = t('addFarmer.errors.houseNumberRequired');
     }
@@ -3570,7 +3693,7 @@ export default function AddFarmerScreen() {
     latestErrorsRef.current = newErrors;
 
     const hasFormErrors = Object.keys(newErrors).length > 0;
-    
+
     if (hasFormErrors) {
       // Scroll to first error field
       setTimeout(() => {
@@ -3589,7 +3712,7 @@ export default function AddFarmerScreen() {
           'state',
           'pincode',
         ];
-        
+
         for (const fieldName of errorFieldOrder) {
           if (currentErrors[fieldName as keyof FormErrors]) {
             scrollToFieldAndFocus(fieldName);
@@ -3624,23 +3747,24 @@ export default function AddFarmerScreen() {
           pincode: pincode,
         },
       };
-      
+
       console.log('[AddFarmerScreen] Updating farmer data (simple edit):', JSON.stringify(updateData, null, 2));
-      
+
       // Upload profile photo separately if it's a new image
       if (profilePhoto && (profilePhoto.startsWith('file://') || profilePhoto.startsWith('content://'))) {
         const profileUriParts = profilePhoto.split('.');
-        const profileFileExtension = profileUriParts.length > 1 ? profileUriParts[profileUriParts.length - 1].toLowerCase() : 'jpg';
+        const profileFileExtension =
+          profileUriParts.length > 1 ? profileUriParts[profileUriParts.length - 1].toLowerCase() : 'jpg';
         const profileMimeType = profileFileExtension === 'png' ? 'image/png' : 'image/jpeg';
         const profileFileName = `profile-photo-${Date.now()}.${profileFileExtension}`;
-        
+
         const imageFormData = new FormData();
         imageFormData.append('image', {
           uri: profilePhoto,
           type: profileMimeType,
           name: profileFileName,
         } as any);
-        
+
         // Upload profile image first
         const imageResponse = await postDataWithImage(Apis.DEALER_PROFILE_IMAGE, imageFormData);
         if (imageResponse?.status !== true) {
@@ -3649,56 +3773,29 @@ export default function AddFarmerScreen() {
           return;
         }
       }
-      
+
       // Call update API (PUT request with simple structure)
       const response = await putData(Apis.DEALER_UPDATE_FARMER, updateData);
-      
+
       console.log('[AddFarmerScreen] Update API Response:', JSON.stringify(response, null, 2));
 
       // Check if response exists and has status
       if (response && response.status === true) {
         // Show success toast
-        const successMessage = response?.message || 'Update request sent for verification. Check notifications for update.';
+        const successMessage =
+          response?.message || 'Update request sent for verification. Check notifications for update.';
         showToastMessage(successMessage, 'success');
-        
+
         // Navigate back after a short delay to allow toast to be visible
         setTimeout(() => {
           navigation.goBack();
         }, 2000);
       } else {
-        // Extract error message from various possible response structures
-        let errorMessage = '';
-        if (response) {
-          errorMessage = response?.message || 
-                        response?.data?.message || 
-                        response?.error?.message ||
-                        response?.error ||
-                        (typeof response === 'string' ? response : '');
-        }
-        
-        // Show error message from API response or fallback
-        const finalErrorMessage = errorMessage || 'Failed to update farmer. Please try again.';
-        console.log('[AddFarmerScreen] Showing error toast with API message:', finalErrorMessage);
-        showToastMessage(finalErrorMessage, 'error');
+        showApiErrorToast(response);
       }
     } catch (error: any) {
       console.error('[AddFarmerScreen] Error updating farmer:', error);
-      
-      // Extract error message from various possible error structures
-      let errorMessage = '';
-      if (error?.response?.data) {
-        errorMessage = error.response.data.message || 
-                      error.response.data.error?.message ||
-                      error.response.data.error ||
-                      '';
-      } else if (error?.message) {
-        errorMessage = error.message;
-      }
-      
-      // Show error message from API response or fallback
-      const finalErrorMessage = errorMessage || 'Failed to update farmer. Please try again.';
-      console.log('[AddFarmerScreen] Showing error toast with API message:', finalErrorMessage);
-      showToastMessage(finalErrorMessage, 'error');
+      showApiErrorToast(error?.response?.data || error);
     } finally {
       setSubmitting(false);
     }
@@ -3707,20 +3804,20 @@ export default function AddFarmerScreen() {
   const handleSubmit = async () => {
     // Small delay to ensure all state updates are complete before validation
     await new Promise<void>(resolve => setTimeout(() => resolve(), 100));
-    
+
     // Validate form - this sets errors in state
     const isValid = validateForm();
-    
+
     if (!isValid) {
       // Wait for state to update, then find first error field and scroll to it
       setTimeout(() => {
         const currentErrors = latestErrorsRef.current;
         const currentTractors = latestTractorsRef.current;
-        
+
         // Find first error field
         let firstErrorField: string | null = null;
         let firstErrorY = 0;
-        
+
         // Priority order for error fields
         const errorFieldOrder = [
           'profilePhoto',
@@ -3739,7 +3836,7 @@ export default function AddFarmerScreen() {
           'state',
           'pincode',
         ];
-        
+
         // Check form errors in priority order
         for (const fieldName of errorFieldOrder) {
           if (currentErrors[fieldName as keyof FormErrors]) {
@@ -3748,15 +3845,13 @@ export default function AddFarmerScreen() {
             break;
           }
         }
-        
+
         // If no form error, check tractor errors
         if (!firstErrorField) {
-          const firstTractorError = currentTractors.find(t => 
-            Object.values(t.errors).some(err => err)
-          );
+          const firstTractorError = currentTractors.find(t => Object.values(t.errors).some(err => err));
           if (firstTractorError) {
             const tractorErrorKeys = Object.keys(firstTractorError.errors).filter(
-              key => firstTractorError.errors[key as keyof TractorDetails['errors']]
+              key => firstTractorError.errors[key as keyof TractorDetails['errors']],
             );
             if (tractorErrorKeys.length > 0) {
               firstErrorField = `tractor_${firstTractorError.id}_${tractorErrorKeys[0]}`;
@@ -3764,7 +3859,7 @@ export default function AddFarmerScreen() {
             }
           }
         }
-        
+
         // Scroll to first error field and center it on screen
         if (firstErrorField) {
           console.log(`Scrolling to error field: ${firstErrorField}`);
@@ -3786,15 +3881,15 @@ export default function AddFarmerScreen() {
       const questionArray = questions.map((question, index) => {
         const questionKey = `question_${question.id}_${index}`;
         const answer = subQuestionAnswers[questionKey];
-        
+
         const answers: {id: number; answer_text: string}[] = [];
-        
+
         if (answer !== undefined && answer !== null && answer !== '') {
           const questionType = question.question_type?.toLowerCase() || 'textbox';
-          
+
           // Get options from answers (preferred), answer_options or options
           const questionOptions = question.answers || question.answer_options || question.options || [];
-          
+
           // Handle file/document type separately - files are uploaded separately
           if ((questionType === 'file' || questionType === 'document') && Array.isArray(answer)) {
             // For file questions, the files will be uploaded separately with question_docs_{index} key
@@ -3811,18 +3906,17 @@ export default function AddFarmerScreen() {
             answer.forEach((selectedOption: string) => {
               if (selectedOption && selectedOption.trim()) {
                 // Find the answer option ID from question options
-                const option = questionOptions.find((opt: any) =>
-                  opt.answer_text === selectedOption ||
-                  opt.option_text === selectedOption ||
-                  opt.text === selectedOption ||
-                  opt.value === selectedOption ||
-                  opt === selectedOption
+                const option = questionOptions.find(
+                  (opt: any) =>
+                    opt.answer_text === selectedOption ||
+                    opt.option_text === selectedOption ||
+                    opt.text === selectedOption ||
+                    opt.value === selectedOption ||
+                    opt === selectedOption,
                 );
                 // Use option ID if available, otherwise use a generated ID
-                const answerId = option?.id || 
-                                option?.option_id || 
-                                Date.now(); // Fallback to timestamp
-                
+                const answerId = option?.id || option?.option_id || Date.now(); // Fallback to timestamp
+
                 answers.push({
                   id: answerId,
                   answer_text: selectedOption,
@@ -3831,34 +3925,32 @@ export default function AddFarmerScreen() {
             });
           } else if (questionType === 'radio' && typeof answer === 'string') {
             // For radio questions, single answer
-            const option = questionOptions.find((opt: any) =>
-              opt.answer_text === answer ||
-              opt.option_text === answer ||
-              opt.text === answer ||
-              opt.value === answer ||
-              opt === answer
+            const option = questionOptions.find(
+              (opt: any) =>
+                opt.answer_text === answer ||
+                opt.option_text === answer ||
+                opt.text === answer ||
+                opt.value === answer ||
+                opt === answer,
             );
-            const answerId = option?.id || 
-                            option?.option_id || 
-                            Date.now();
-            
+            const answerId = option?.id || option?.option_id || Date.now();
+
             answers.push({
               id: answerId,
               answer_text: answer,
             });
           } else if (questionType === 'dropdown' && typeof answer === 'string') {
             // For dropdown questions, similar to radio
-            const option = questionOptions.find((opt: any) =>
-              opt.answer_text === answer ||
-              opt.option_text === answer ||
-              opt.text === answer ||
-              opt.value === answer ||
-              opt === answer
+            const option = questionOptions.find(
+              (opt: any) =>
+                opt.answer_text === answer ||
+                opt.option_text === answer ||
+                opt.text === answer ||
+                opt.value === answer ||
+                opt === answer,
             );
-            const answerId = option?.id || 
-                            option?.option_id || 
-                            Date.now();
-            
+            const answerId = option?.id || option?.option_id || Date.now();
+
             answers.push({
               id: answerId,
               answer_text: answer,
@@ -3866,10 +3958,8 @@ export default function AddFarmerScreen() {
           } else {
             // For text questions, use the text as answer_text
             // For text inputs, we might not have answer option IDs, so use question ID or generate one
-            const answerText = Array.isArray(answer) 
-              ? answer.filter(item => item).join(', ')
-              : String(answer).trim();
-            
+            const answerText = Array.isArray(answer) ? answer.filter(item => item).join(', ') : String(answer).trim();
+
             if (answerText) {
               // For text questions, use question ID as answer ID or generate one
               answers.push({
@@ -3879,7 +3969,7 @@ export default function AddFarmerScreen() {
             }
           }
         }
-        
+
         // Return all question details from API along with answers
         return {
           ...question, // Include all question properties from API (id, question_text, question_type, answer_options, category_id, etc.)
@@ -3889,7 +3979,7 @@ export default function AddFarmerScreen() {
 
       // Format tractor details
       // Use purchase date values for registration date fields
-      const tractorDetailsArray = tractors.map(tractor => ({        
+      const tractorDetailsArray = tractors.map(tractor => ({
         model_name: tractor.modelName,
         vehicle_number: tractor.vehicleNumber,
         chassis_number: tractor.chassisNumber,
@@ -3941,17 +4031,18 @@ export default function AddFarmerScreen() {
 
       // Create FormData
       const formData = new FormData();
-      
+
       // Add data as JSON string
       formData.append('data', JSON.stringify(farmerData));
-      
+
       // Add profile photo (optional)
       if (profilePhoto) {
         const profileUriParts = profilePhoto.split('.');
-        const profileFileExtension = profileUriParts.length > 1 ? profileUriParts[profileUriParts.length - 1].toLowerCase() : 'jpg';
+        const profileFileExtension =
+          profileUriParts.length > 1 ? profileUriParts[profileUriParts.length - 1].toLowerCase() : 'jpg';
         const profileMimeType = profileFileExtension === 'png' ? 'image/png' : 'image/jpeg';
         const profileFileName = `profile-photo-${Date.now()}.${profileFileExtension}`;
-        
+
         formData.append('profile_photo', {
           uri: profilePhoto,
           type: profileMimeType,
@@ -3961,13 +4052,14 @@ export default function AddFarmerScreen() {
 
       // Helper function to append file (image or document) to FormData
       const appendFile = (key: string, fileUri: string, fileType: 'image' | 'document', index?: number) => {
-        console.log("file upload key and value:", key, fileUri, fileType, index);
-        
+        console.log('file upload key and value:', key, fileUri, fileType, index);
+
         if (!fileUri || fileUri.trim() === '') return;
-        
+
         const uriParts = fileUri.split('.');
-        const fileExtension = uriParts.length > 1 ? uriParts[uriParts.length - 1].toLowerCase() : (fileType === 'document' ? 'pdf' : 'jpg');
-        
+        const fileExtension =
+          uriParts.length > 1 ? uriParts[uriParts.length - 1].toLowerCase() : fileType === 'document' ? 'pdf' : 'jpg';
+
         let mimeType: string;
         if (fileType === 'document' || fileExtension === 'pdf') {
           mimeType = 'application/pdf';
@@ -3976,9 +4068,9 @@ export default function AddFarmerScreen() {
         } else {
           mimeType = 'image/jpeg';
         }
-        
+
         const fileName = `${key}-${Date.now()}-${index || 0}.${fileExtension}`;
-        
+
         formData.append(key, {
           uri: fileUri,
           type: mimeType,
@@ -3991,14 +4083,14 @@ export default function AddFarmerScreen() {
         const questionKey = `question_${question.id}_${questionIndex}`;
         const answer = subQuestionAnswers[questionKey];
         const questionType = question.question_type?.toLowerCase() || 'textbox';
-        console.log("questionIndex ::",questionIndex);
+        console.log('questionIndex ::', questionIndex);
         // Handle file/document type questions
         if ((questionType === 'file' || questionType === 'document') && Array.isArray(answer)) {
           const validFiles = answer.filter((file: any) => file && file.uri && file.uri.trim() !== '');
           validFiles.forEach((file: any, fileIndex: number) => {
-            // Use question ID instead of array index for the key            
+            // Use question ID instead of array index for the key
             const fileKey = `question_docs_${questionIndex}`;
-            console.log("fileKey ::",fileKey);            
+            console.log('fileKey ::', fileKey);
             appendFile(fileKey, file.uri, file.type || 'image', fileIndex);
           });
         }
@@ -4022,7 +4114,7 @@ export default function AddFarmerScreen() {
               imageKey = 'tractor_images_0';
             } else if (tractorIndex === 1) {
               // Second tractor: first image uses Tackertar_1, second uses Tackertar_2
-              imageKey =  'tractor_images_1' ;
+              imageKey = 'tractor_images_1';
             } else {
               // Fallback for any additional tractors (shouldn't happen based on current logic)
               imageKey = `tractor_images_${tractorIndex}`;
@@ -4043,7 +4135,17 @@ export default function AddFarmerScreen() {
       });
 
       console.log('Submitting farmer data:', JSON.stringify(farmerData, null, 2));
-      console.log('Tractor details with owner names:', JSON.stringify(tractorDetailsArray.map(t => ({ model: t.model_name, owner_name: t.owner_name })), null, 2));
+      console.log(
+        'Tractor details with owner names:',
+        JSON.stringify(
+          tractorDetailsArray.map(t => ({
+            model: t.model_name,
+            owner_name: t.owner_name,
+          })),
+          null,
+          2,
+        ),
+      );
       console.log('Profile photo URI:', JSON.stringify(formData));
 
       // Add mode: Call add API
@@ -4056,46 +4158,17 @@ export default function AddFarmerScreen() {
         // Show success toast
         const successMessage = response?.message || 'Sent for verification check notifications for update';
         showToastMessage(successMessage, 'success');
-        
+
         // Navigate back after a short delay to allow toast to be visible
         setTimeout(() => {
           navigation.goBack();
         }, 2000);
       } else {
-        // Extract error message from various possible response structures
-        let errorMessage = '';
-        if (response) {
-          // Try different possible response structures - prioritize message field
-          errorMessage = response?.message || 
-                        response?.data?.message || 
-                        response?.error?.message ||
-                        response?.error ||
-                        (typeof response === 'string' ? response : '');
-        }
-        
-        // Show error message from API response or fallback
-        const finalErrorMessage = errorMessage || 'Failed to add farmer. Please try again.';
-        console.log('Showing error toast with API message:', finalErrorMessage);
-        showToastMessage(finalErrorMessage, 'error');
+        showApiErrorToast(response);
       }
     } catch (error: any) {
       console.error('Error submitting farmer:', error);
-      
-      // Extract error message from various possible error structures
-      let errorMessage = '';
-      if (error?.response?.data) {
-        errorMessage = error.response.data.message || 
-                      error.response.data.error?.message ||
-                      error.response.data.error ||
-                      '';
-      } else if (error?.message) {
-        errorMessage = error.message;
-      }
-      
-      // Show error message from API response or fallback
-      const finalErrorMessage = errorMessage || 'Failed to add farmer. Please try again.';
-      console.log('Showing error toast with API message:', finalErrorMessage);
-      showToastMessage(finalErrorMessage, 'error');
+      showApiErrorToast(error?.response?.data || error);
     } finally {
       setSubmitting(false);
     }
@@ -4129,20 +4202,20 @@ export default function AddFarmerScreen() {
         }
         return;
       }
-      
+
       const dayNum = parseInt(day, 10);
       const monthNum = parseInt(month, 10);
       const yearNum = parseInt(year, 10);
-      
+
       if (isNaN(dayNum) || isNaN(monthNum) || isNaN(yearNum)) {
         return;
       }
-      
+
       const currentDate = new Date();
       const currentDD = String(currentDate.getDate()).padStart(2, '0');
       const currentMM = String(currentDate.getMonth() + 1).padStart(2, '0');
       const currentYYYY = String(currentDate.getFullYear());
-      
+
       // Validate month first
       if (monthNum < 1 || monthNum > 12) {
         if (setDateError) {
@@ -4150,7 +4223,7 @@ export default function AddFarmerScreen() {
         }
         return;
       }
-      
+
       // Validate date format
       if (!isValidDate(day, month, year)) {
         if (setDateError) {
@@ -4158,7 +4231,7 @@ export default function AddFarmerScreen() {
         }
         return;
       }
-      
+
       // Date validation based on type
       if (dateType === 'dob') {
         // Birth date must be less than current date
@@ -4223,17 +4296,17 @@ export default function AddFarmerScreen() {
         }
       }
     };
-    
+
     const handleDDChange = (text: string) => {
       // Only allow numbers
       const numericText = text.replace(/[^0-9]/g, '');
       setDD(numericText);
-      
+
       // Auto-focus to MM when DD reaches maxLength
       if (numericText.length === 2 && mmRef?.current) {
         mmRef.current.focus();
       }
-      
+
       // Re-validate date if MM and YYYY are already filled
       if (mm && mm.length === 2 && yyyy && yyyy.length === 4) {
         // Use the new DD value directly for validation
@@ -4245,27 +4318,27 @@ export default function AddFarmerScreen() {
         }
       }
     };
-    
+
     const handleMMChange = (text: string) => {
       // Only allow numbers
       const numericText = text.replace(/[^0-9]/g, '');
       setMM(numericText);
-      
-        // Validate month (1-12) immediately
-        if (numericText.length === 2) {
-          const month = parseInt(numericText, 10);
-          if (month < 1 || month > 12) {
-            if (setDateError) {
-              setDateError(t('addFarmer.errors.invalidMonth'));
-            }
-          } else {
+
+      // Validate month (1-12) immediately
+      if (numericText.length === 2) {
+        const month = parseInt(numericText, 10);
+        if (month < 1 || month > 12) {
+          if (setDateError) {
+            setDateError(t('addFarmer.errors.invalidMonth'));
+          }
+        } else {
           // Auto-focus to YYYY when MM reaches maxLength
           if (yyyyRef?.current) {
             yyyyRef.current.focus();
           }
         }
       }
-      
+
       // Re-validate date if DD and YYYY are already filled
       if (dd && dd.length === 2 && yyyy && yyyy.length === 4) {
         // Use the new MM value directly for validation
@@ -4277,12 +4350,12 @@ export default function AddFarmerScreen() {
         }
       }
     };
-    
+
     const handleYYYYChange = (text: string) => {
       // Only allow numbers
       const numericText = text.replace(/[^0-9]/g, '');
       setYYYY(numericText);
-      
+
       // Clear error when user is still typing (less than 4 digits)
       if (numericText.length < 4) {
         if (setDateError) {
@@ -4290,7 +4363,7 @@ export default function AddFarmerScreen() {
         }
         return;
       }
-      
+
       // Validate and check date constraints when YYYY is complete
       if (numericText.length === 4 && dd && mm) {
         // Use setTimeout to ensure state is updated
@@ -4299,7 +4372,7 @@ export default function AddFarmerScreen() {
         }, 0);
       }
     };
-    
+
     return (
       <View>
         <View style={styles.dateRow}>
@@ -4347,9 +4420,7 @@ export default function AddFarmerScreen() {
             />
           </View>
         </View>
-        {(error || dateError) && (
-          <Text style={styles.errorText}>{error || dateError}</Text>
-        )}
+        {(error || dateError) && <Text style={styles.errorText}>{error || dateError}</Text>}
       </View>
     );
   };
@@ -4364,18 +4435,11 @@ export default function AddFarmerScreen() {
     <TouchableOpacity
       style={fullWidth ? styles.imageUploadItemFullWidth : styles.imageUploadItem}
       onPress={imageUri && onImagePress ? onImagePress : onPress}
-      activeOpacity={0.7}>
-      <View
-        style={[
-          styles.imageUploadBox,
-          imageUri && styles.imageUploadBoxFilled,
-        ]}>
+      activeOpacity={0.7}
+    >
+      <View style={[styles.imageUploadBox, imageUri && styles.imageUploadBoxFilled]}>
         {imageUri ? (
-          <Image
-            source={{uri: imageUri}}
-            style={styles.uploadedImage}
-            resizeMode="cover"
-          />
+          <Image source={{uri: imageUri}} style={styles.uploadedImage} resizeMode="cover" />
         ) : (
           <>
             <Ionicons
@@ -4395,34 +4459,26 @@ export default function AddFarmerScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-          activeOpacity={0.7}
-        >
-          <Ionicons
-            name="arrow-back"
-            size={moderateScale(20)}
-            color={colors.textPrimary}
-          />
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.7}>
+          <Ionicons name="arrow-back" size={moderateScale(20)} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
           {isRejectedUpdate
-            ? t("addFarmer.updateRejectedFarmer")
+            ? t('addFarmer.updateRejectedFarmer')
             : isEditMode
-            ? t("addFarmer.editFarmer")
-            : t("addFarmer.addNewFarmer")}
+            ? t('addFarmer.editFarmer')
+            : t('addFarmer.addNewFarmer')}
         </Text>
       </View>
 
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Platform.OS === "ios" ? insets.top : 0}
+        style={{flex: 1}}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top : 0}
       >
         <ScrollView
           ref={scrollViewRef}
-          style={{ flex: 1 }}
+          style={{flex: 1}}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
@@ -4432,11 +4488,7 @@ export default function AddFarmerScreen() {
               refreshing={refreshing}
               onRefresh={async () => {
                 setRefreshing(true);
-                await Promise.all([
-                  fetchDealerName(),
-                  fetchCategories(),
-                  fetchStates(),
-                ]);
+                await Promise.all([fetchDealerName(), fetchCategories(), fetchStates()]);
                 setRefreshing(false);
               }}
               colors={[colors.primary]}
@@ -4446,65 +4498,42 @@ export default function AddFarmerScreen() {
         >
           {/* Personal Details Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              {t("addFarmer.personalDetails")}
-            </Text>
+            <Text style={styles.sectionTitle}>{t('addFarmer.personalDetails')}</Text>
 
             {/* Profile Photo - Hidden in edit mode (from farmer list), but shown in rejected update */}
             {!isEditMode && !isRejectedUpdate && (
               <>
-                <View
-                  style={styles.profilePhotoContainer}
-                  onLayout={registerFieldPosition("profilePhoto")}
-                >
-                  <TouchableOpacity
-                    onPress={() => handleImagePicker("profile")}
-                    activeOpacity={0.7}
-                  >
+                <View style={styles.profilePhotoContainer} onLayout={registerFieldPosition('profilePhoto')}>
+                  <TouchableOpacity onPress={() => handleImagePicker('profile')} activeOpacity={0.7}>
                     {profilePhoto ? (
                       <View>
-                        <Image
-                          source={{ uri: profilePhoto }}
-                          style={styles.profilePhoto}
-                        />
+                        <Image source={{uri: profilePhoto}} style={styles.profilePhoto} />
                         <View style={styles.cameraIcon}>
-                          <Ionicons
-                            name="camera"
-                            size={moderateScale(16)}
-                            color={colors.textWhite}
-                          />
+                          <Ionicons name="camera" size={moderateScale(16)} color={colors.textWhite} />
                         </View>
                       </View>
                     ) : (
                       <View style={styles.profilePhotoPlaceholder}>
-                        <Ionicons
-                          name="cloud-upload-outline"
-                          size={moderateScale(24)}
-                          color={colors.textPrimary}
-                        />
+                        <Ionicons name="cloud-upload-outline" size={moderateScale(24)} color={colors.textPrimary} />
                       </View>
                     )}
                   </TouchableOpacity>
                   <TouchableOpacity
-                    onPress={() => handleImagePicker("profile")}
+                    onPress={() => handleImagePicker('profile')}
                     activeOpacity={0.7}
-                    style={{ marginTop: moderateScale(20) }}
+                    style={{marginTop: moderateScale(20)}}
                   >
-                    <Text style={styles.uploadText}>
-                      {t("addFarmer.uploadProfilePhoto")}
-                    </Text>
+                    <Text style={styles.uploadText}>{t('addFarmer.uploadProfilePhoto')}</Text>
                   </TouchableOpacity>
                 </View>
-                {errors.profilePhoto && (
-                  <Text style={styles.errorText}>{errors.profilePhoto}</Text>
-                )}
+                {errors.profilePhoto && <Text style={styles.errorText}>{errors.profilePhoto}</Text>}
               </>
             )}
 
             {/* Dealer Name */}
             <SimpleBoxInput
-              label={t("addFarmer.dealerName")}
-              value={dealerNameLoading ? "Loading..." : dealerName || ""}
+              label={t('addFarmer.dealerName')}
+              value={dealerNameLoading ? 'Loading...' : dealerName || ''}
               onChangeText={() => {}}
               editable={false}
               numberOfLinesLabel={1}
@@ -4512,12 +4541,12 @@ export default function AddFarmerScreen() {
 
             {/* Category Dropdown - Hidden in edit mode (from farmer list), but shown in rejected update */}
             {(!isEditMode || isRejectedUpdate) && (
-              <View onLayout={registerFieldPosition("category")}>
+              <View onLayout={registerFieldPosition('category')}>
                 <Dropdown
-                  label={t("addFarmer.selectCategory")}
+                  label={t('addFarmer.selectCategory')}
                   value={category}
                   options={categoryOptions}
-                  onSelect={(value) => {
+                  onSelect={value => {
                     setCategory(value);
                     setSubQuestionAnswers({});
                     setErrors({
@@ -4526,11 +4555,7 @@ export default function AddFarmerScreen() {
                       selectedSubQuestion: undefined,
                     });
                   }}
-                  placeholder={
-                    categoriesLoading
-                      ? t("addFarmer.loadingCategories")
-                      : t("addFarmer.selectCategory")
-                  }
+                  placeholder={categoriesLoading ? t('addFarmer.loadingCategories') : t('addFarmer.selectCategory')}
                   error={errors.category}
                   required={true}
                 />
@@ -4538,7 +4563,7 @@ export default function AddFarmerScreen() {
                   <View
                     style={{
                       marginTop: moderateScale(8),
-                      alignItems: "center",
+                      alignItems: 'center',
                     }}
                   >
                     <ActivityIndicator size="small" color={colors.primary} />
@@ -4554,7 +4579,7 @@ export default function AddFarmerScreen() {
                   <View
                     style={{
                       marginVertical: moderateScale(20),
-                      alignItems: "center",
+                      alignItems: 'center',
                     }}
                   >
                     <ActivityIndicator size="small" color={colors.primary} />
@@ -4581,151 +4606,103 @@ export default function AddFarmerScreen() {
                       console.log(
                         `[Answer Changed] Question Key: ${questionKey}, Question ID: ${question.id}, Value:`,
                         value,
-                        "Type:",
+                        'Type:',
                         typeof value,
                       );
-                      setSubQuestionAnswers((prev) => {
+                      setSubQuestionAnswers(prev => {
                         const updated = {
                           ...prev,
                           [questionKey]: value,
                         };
                         // Update ref immediately for validation
                         latestSubQuestionAnswersRef.current = updated;
-                        console.log(
-                          `[Answer Stored] Updated subQuestionAnswers:`,
-                          updated,
-                        );
+                        console.log(`[Answer Stored] Updated subQuestionAnswers:`, updated);
                         return updated;
                       });
-                      setErrors({ ...errors, selectedSubQuestion: undefined });
+                      setErrors({...errors, selectedSubQuestion: undefined});
                     };
 
                     // Map API question_type to component type
-                    const questionType =
-                      question.question_type?.toLowerCase() || "textbox";
+                    const questionType = question.question_type?.toLowerCase() || 'textbox';
 
                     switch (questionType) {
-                      case "textbox":
-                      case "text":
+                      case 'textbox':
+                      case 'text':
                         return (
                           <View
                             key={questionKey}
-                            onLayout={
-                              index === 0
-                                ? registerFieldPosition("selectedSubQuestion")
-                                : undefined
-                            }
+                            onLayout={index === 0 ? registerFieldPosition('selectedSubQuestion') : undefined}
                           >
                             <TextInputQuestion
-                              question={question.question_text || ""}
-                              value={
-                                typeof currentAnswer === "string"
-                                  ? currentAnswer
-                                  : ""
-                              }
+                              question={question.question_text || ''}
+                              value={typeof currentAnswer === 'string' ? currentAnswer : ''}
                               onChangeText={handleAnswerChange}
-                              placeholder={t("addFarmer.yourAnswerHere")}
-                              error={
-                                errors.selectedSubQuestion && index === 0
-                                  ? errors.selectedSubQuestion
-                                  : undefined
-                              }
+                              placeholder={t('addFarmer.yourAnswerHere')}
+                              error={errors.selectedSubQuestion && index === 0 ? errors.selectedSubQuestion : undefined}
                               required={true}
                               editable={true}
                             />
                           </View>
                         );
 
-                      case "radio":
+                      case 'radio':
                         // Get options from question.answers (preferred), question.answer_options or question.options
                         const radioOptions = question.answers?.map(
-                          (opt: any) =>
-                            opt.answer_text ||
-                            opt.option_text ||
-                            opt.text ||
-                            opt.value ||
-                            opt,
+                          (opt: any) => opt.answer_text || opt.option_text || opt.text || opt.value || opt,
                         ) ||
-                          question.answer_options?.map(
-                            (opt: any) =>
-                              opt.option_text || opt.text || opt.value || opt,
-                          ) ||
-                          question.options?.map(
-                            (opt: any) =>
-                              opt.option_text || opt.text || opt.value || opt,
-                          ) || ["Yes", "No"];
+                          question.answer_options?.map((opt: any) => opt.option_text || opt.text || opt.value || opt) ||
+                          question.options?.map((opt: any) => opt.option_text || opt.text || opt.value || opt) || [
+                            'Yes',
+                            'No',
+                          ];
 
                         return (
                           <RadioButtonQuestion
                             key={questionKey}
-                            question={question.question_text || ""}
-                            value={
-                              typeof currentAnswer === "string"
-                                ? currentAnswer
-                                : null
-                            }
+                            question={question.question_text || ''}
+                            value={typeof currentAnswer === 'string' ? currentAnswer : null}
                             onChange={handleAnswerChange}
                             options={radioOptions}
-                            error={
-                              errors.selectedSubQuestion && index === 0
-                                ? errors.selectedSubQuestion
-                                : undefined
-                            }
+                            error={errors.selectedSubQuestion && index === 0 ? errors.selectedSubQuestion : undefined}
                             required={true}
                             disabled={false}
                           />
                         );
 
-                      case "checkbox":
+                      case 'checkbox':
                         // Get options from question.answers (preferred), question.answer_options or question.options
                         const checkboxOptions = question.answers?.map(
-                          (opt: any) =>
-                            opt.answer_text ||
-                            opt.option_text ||
-                            opt.text ||
-                            opt.value ||
-                            opt,
+                          (opt: any) => opt.answer_text || opt.option_text || opt.text || opt.value || opt,
                         ) ||
-                          question.answer_options?.map(
-                            (opt: any) =>
-                              opt.option_text || opt.text || opt.value || opt,
-                          ) ||
-                          question.options?.map(
-                            (opt: any) =>
-                              opt.option_text || opt.text || opt.value || opt,
-                          ) || ["Option 1", "Option 2", "Option 3"];
+                          question.answer_options?.map((opt: any) => opt.option_text || opt.text || opt.value || opt) ||
+                          question.options?.map((opt: any) => opt.option_text || opt.text || opt.value || opt) || [
+                            'Option 1',
+                            'Option 2',
+                            'Option 3',
+                          ];
 
                         return (
                           <CheckboxQuestion
                             key={questionKey}
-                            question={question.question_text || ""}
-                            selectedValues={
-                              Array.isArray(currentAnswer) ? currentAnswer : []
-                            }
+                            question={question.question_text || ''}
+                            selectedValues={Array.isArray(currentAnswer) ? currentAnswer : []}
                             onChange={handleAnswerChange}
                             options={checkboxOptions}
-                            error={
-                              errors.selectedSubQuestion && index === 0
-                                ? errors.selectedSubQuestion
-                                : undefined
-                            }
+                            error={errors.selectedSubQuestion && index === 0 ? errors.selectedSubQuestion : undefined}
                             required={true}
                             disabled={false}
                           />
                         );
 
-                      case "file":
-                      case "document":
+                      case 'file':
+                      case 'document':
                         // Determine max documents (from API or default to 5)
-                        const maxDocs =
-                          question?.max_documents > 0
-                            ? question.max_documents
-                            : 5;
+                        const maxDocs = question?.max_documents > 0 ? question.max_documents : 5;
 
                         // Convert currentAnswer to FileItem array format
                         let currentFiles: Array<{
                           uri: string;
-                          type: "image" | "document";
+                          type: 'image' | 'document';
                           name: string;
                         }> = [];
                         if (currentAnswer) {
@@ -4736,30 +4713,19 @@ export default function AddFarmerScreen() {
                                 return file;
                               }
                               // If type is missing, detect it from filename
-                              const fileName =
-                                file.name ||
-                                file.uri?.split("/").pop() ||
-                                "file";
-                              const fileType = getFileTypeFromUrl(
-                                file.uri || "",
-                                fileName,
-                              );
+                              const fileName = file.name || file.uri?.split('/').pop() || 'file';
+                              const fileType = getFileTypeFromUrl(file.uri || '', fileName);
                               return {
                                 uri: file.uri || file,
                                 type: fileType,
                                 name: fileName,
                               };
                             });
-                          } else if (typeof currentAnswer === "string") {
+                          } else if (typeof currentAnswer === 'string') {
                             // Legacy format: single file URI string
                             const fileName =
-                              currentAnswer.split("/").pop() ||
-                              currentAnswer.split("\\").pop() ||
-                              "file";
-                            const fileType = getFileTypeFromUrl(
-                              currentAnswer,
-                              fileName,
-                            );
+                              currentAnswer.split('/').pop() || currentAnswer.split('\\').pop() || 'file';
+                            const fileType = getFileTypeFromUrl(currentAnswer, fileName);
                             currentFiles = [
                               {
                                 uri: currentAnswer,
@@ -4774,81 +4740,52 @@ export default function AddFarmerScreen() {
                           <FileUploadQuestion
                             key={questionKey}
                             question={
-                              (question.question_text || "") +
-                              (maxDocs > 0
-                                ? ` (maximum ${maxDocs} upload)`
-                                : "")
+                              (question.question_text || '') + (maxDocs > 0 ? ` (maximum ${maxDocs} upload)` : '')
                             }
                             onUpload={(
                               files: Array<{
                                 uri: string;
-                                type: "image" | "document";
+                                type: 'image' | 'document';
                                 name: string;
                               }>,
                             ) => {
                               handleAnswerChange(files);
                             }}
                             uploadedFiles={currentFiles}
-                            error={
-                              errors.selectedSubQuestion && index === 0
-                                ? errors.selectedSubQuestion
-                                : undefined
-                            }
+                            error={errors.selectedSubQuestion && index === 0 ? errors.selectedSubQuestion : undefined}
                             required={true}
                             maxDocuments={maxDocs}
-                            onError={(message) => showToastMessage(message)}
+                            onError={message => showToastMessage(message)}
                           />
                         );
 
-                      case "dropdown":
+                      case 'dropdown':
                         // Get options from question.answers (preferred), question.answer_options or question.options
                         const dropdownOptions =
                           question.answers?.map((opt: any) => ({
-                            label:
-                              opt.answer_text ||
-                              opt.option_text ||
-                              opt.text ||
-                              opt.value ||
-                              opt,
-                            value:
-                              opt.answer_text ||
-                              opt.option_text ||
-                              opt.text ||
-                              opt.value ||
-                              opt,
+                            label: opt.answer_text || opt.option_text || opt.text || opt.value || opt,
+                            value: opt.answer_text || opt.option_text || opt.text || opt.value || opt,
                           })) ||
                           question.answer_options?.map((opt: any) => ({
-                            label:
-                              opt.option_text || opt.text || opt.value || opt,
-                            value:
-                              opt.option_text || opt.text || opt.value || opt,
+                            label: opt.option_text || opt.text || opt.value || opt,
+                            value: opt.option_text || opt.text || opt.value || opt,
                           })) ||
                           question.options?.map((opt: any) => ({
-                            label:
-                              opt.option_text || opt.text || opt.value || opt,
-                            value:
-                              opt.option_text || opt.text || opt.value || opt,
+                            label: opt.option_text || opt.text || opt.value || opt,
+                            value: opt.option_text || opt.text || opt.value || opt,
                           })) ||
                           [];
 
                         return (
                           <DropdownQuestion
                             key={questionKey}
-                            question={question.question_text || ""}
+                            question={question.question_text || ''}
                             label="Select option"
-                            value={
-                              typeof currentAnswer === "string"
-                                ? currentAnswer
-                                : ""
-                            }
+                            value={typeof currentAnswer === 'string' ? currentAnswer : ''}
                             options={dropdownOptions}
                             onSelect={handleAnswerChange}
                             placeholder="Select option"
-                            error={
-                              errors.selectedSubQuestion && index === 0
-                                ? errors.selectedSubQuestion
-                                : undefined
-                            }
+                            error={errors.selectedSubQuestion && index === 0 ? errors.selectedSubQuestion : undefined}
                             required={true}
                           />
                         );
@@ -4857,19 +4794,11 @@ export default function AddFarmerScreen() {
                         return (
                           <TextInputQuestion
                             key={questionKey}
-                            question={question.question_text || ""}
-                            value={
-                              typeof currentAnswer === "string"
-                                ? currentAnswer
-                                : ""
-                            }
+                            question={question.question_text || ''}
+                            value={typeof currentAnswer === 'string' ? currentAnswer : ''}
                             onChangeText={handleAnswerChange}
                             placeholder="Your answer here"
-                            error={
-                              errors.selectedSubQuestion && index === 0
-                                ? errors.selectedSubQuestion
-                                : undefined
-                            }
+                            error={errors.selectedSubQuestion && index === 0 ? errors.selectedSubQuestion : undefined}
                             required={true}
                           />
                         );
@@ -4880,7 +4809,7 @@ export default function AddFarmerScreen() {
                   <View
                     style={{
                       marginVertical: moderateScale(20),
-                      alignItems: "center",
+                      alignItems: 'center',
                     }}
                   >
                     <Text
@@ -4899,36 +4828,36 @@ export default function AddFarmerScreen() {
 
           {/* Personal Info Fields */}
           <View style={styles.section}>
-            <View onLayout={registerFieldPosition("firstName")}>
+            <View onLayout={registerFieldPosition('firstName')}>
               <SimpleBoxInput
-                label={t("addFarmer.firstName")}
+                label={t('addFarmer.firstName')}
                 value={firstName}
-                onChangeText={(text) => {
+                onChangeText={text => {
                   setFirstName(text);
-                  setErrors({ ...errors, firstName: undefined });
+                  setErrors({...errors, firstName: undefined});
                 }}
-                placeholder={t("addFarmer.enterFirstName")}
+                placeholder={t('addFarmer.enterFirstName')}
                 error={errors.firstName}
                 numberOfLinesLabel={1}
                 required={true}
               />
             </View>
             <SimpleBoxInput
-              label={t("addFarmer.middleName")}
+              label={t('addFarmer.middleName')}
               value={middleName}
               onChangeText={setMiddleName}
-              placeholder={t("addFarmer.enterMiddleName")}
+              placeholder={t('addFarmer.enterMiddleName')}
               numberOfLinesLabel={1}
             />
-            <View onLayout={registerFieldPosition("lastName")}>
+            <View onLayout={registerFieldPosition('lastName')}>
               <SimpleBoxInput
-                label={t("addFarmer.lastName")}
+                label={t('addFarmer.lastName')}
                 value={lastName}
-                onChangeText={(text) => {
+                onChangeText={text => {
                   setLastName(text);
-                  setErrors({ ...errors, lastName: undefined });
+                  setErrors({...errors, lastName: undefined});
                 }}
-                placeholder={t("addFarmer.enterLastName")}
+                placeholder={t('addFarmer.enterLastName')}
                 error={errors.lastName}
                 numberOfLinesLabel={1}
                 required={true}
@@ -4936,16 +4865,13 @@ export default function AddFarmerScreen() {
             </View>
             {/* Phone Number with Country Code - Editable in add and edit mode so dealers can update mobile */}
             <View style={styles.phoneRow}>
-              <View
-                style={styles.phoneCodeInput}
-                onLayout={registerFieldPosition("countryCode")}
-              >
+              <View style={styles.phoneCodeInput} onLayout={registerFieldPosition('countryCode')}>
                 <SimpleBoxInput
-                  label={t("addFarmer.phoneCode")}
+                  label={t('addFarmer.phoneCode')}
                   value={countryCode}
-                  onChangeText={(text) => {
+                  onChangeText={text => {
                     setCountryCode(text);
-                    setErrors({ ...errors, countryCode: undefined });
+                    setErrors({...errors, countryCode: undefined});
                   }}
                   placeholder="+91"
                   keyboardType="phone-pad"
@@ -4955,18 +4881,15 @@ export default function AddFarmerScreen() {
                   editable={!isEditMode}
                 />
               </View>
-              <View
-                style={styles.phoneNumberInput}
-                onLayout={registerFieldPosition("phoneNumber")}
-              >
+              <View style={styles.phoneNumberInput} onLayout={registerFieldPosition('phoneNumber')}>
                 <SimpleBoxInput
-                  label={t("addFarmer.phoneNumber")}
+                  label={t('addFarmer.phoneNumber')}
                   value={phoneNumber}
-                  onChangeText={(text) => {
+                  onChangeText={text => {
                     setPhoneNumber(text);
-                    setErrors({ ...errors, phoneNumber: undefined });
+                    setErrors({...errors, phoneNumber: undefined});
                   }}
-                  placeholder={t("addFarmer.phonePlaceholder")}
+                  placeholder={t('addFarmer.phonePlaceholder')}
                   keyboardType="phone-pad"
                   error={errors.phoneNumber}
                   numberOfLinesLabel={1}
@@ -4976,61 +4899,61 @@ export default function AddFarmerScreen() {
                 />
               </View>
             </View>
-            <View onLayout={registerFieldPosition("dobDD")}>
+            <View onLayout={registerFieldPosition('dobDD')}>
               {renderDateInputs(
-                t("reviewProfile.date"),
-                t("reviewProfile.of"),
-                t("reviewProfile.birth"),
+                t('reviewProfile.date'),
+                t('reviewProfile.of'),
+                t('reviewProfile.birth'),
                 dobDD,
                 dobMM,
                 dobYYYY,
-                (text) => {
+                text => {
                   setDobDD(text);
-                  setErrors({ ...errors, dobDD: undefined });
+                  setErrors({...errors, dobDD: undefined});
                 },
-                (text) => {
+                text => {
                   setDobMM(text);
-                  setErrors({ ...errors, dobDD: undefined });
+                  setErrors({...errors, dobDD: undefined});
                 },
-                (text) => {
+                text => {
                   setDobYYYY(text);
-                  setErrors({ ...errors, dobDD: undefined });
+                  setErrors({...errors, dobDD: undefined});
                 },
                 errors.dobDD,
                 dobDDRef,
                 dobMMRef,
                 dobYYYYRef,
-                "dob",
+                'dob',
                 dobDateError,
                 setDobDateError,
                 true, // required
               )}
             </View>
-            <View onLayout={registerFieldPosition("domDD")}>
+            <View onLayout={registerFieldPosition('domDD')}>
               {renderDateInputs(
-                t("reviewProfile.date"),
-                t("reviewProfile.of"),
-                t("reviewProfile.marriage"),
+                t('reviewProfile.date'),
+                t('reviewProfile.of'),
+                t('reviewProfile.marriage'),
                 domDD,
                 domMM,
                 domYYYY,
-                (text) => {
+                text => {
                   setDomDD(text);
-                  setErrors({ ...errors, domDD: undefined });
+                  setErrors({...errors, domDD: undefined});
                 },
-                (text) => {
+                text => {
                   setDomMM(text);
-                  setErrors({ ...errors, domMM: undefined });
+                  setErrors({...errors, domMM: undefined});
                 },
-                (text) => {
+                text => {
                   setDomYYYY(text);
-                  setErrors({ ...errors, domYYYY: undefined });
+                  setErrors({...errors, domYYYY: undefined});
                 },
                 errors.domDD,
                 domDDRef,
                 domMMRef,
                 domYYYYRef,
-                "dom",
+                'dom',
                 domDateError,
                 setDomDateError,
                 false, // date of marriage is optional
@@ -5050,161 +4973,149 @@ export default function AddFarmerScreen() {
 
           {/* Address Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{t("addFarmer.address")}</Text>
+            <Text style={styles.sectionTitle}>{t('addFarmer.address')}</Text>
             <View
-              ref={(ref) => {
-                fieldViewRefs.current["houseNumber"] = ref;
+              ref={ref => {
+                fieldViewRefs.current['houseNumber'] = ref;
               }}
-              onLayout={registerFieldPosition("houseNumber")}
+              onLayout={registerFieldPosition('houseNumber')}
             >
               <SimpleBoxInput
                 ref={houseNumberRef}
-                label={t("addFarmer.houseNumber")}
+                label={t('addFarmer.houseNumber')}
                 value={houseNumber}
-                onChangeText={(text) => {
+                onChangeText={text => {
                   setHouseNumber(text);
-                  setErrors({ ...errors, houseNumber: undefined });
+                  setErrors({...errors, houseNumber: undefined});
                 }}
-                placeholder={t("addFarmer.enterHouseNumber")}
+                placeholder={t('addFarmer.enterHouseNumber')}
                 error={errors.houseNumber}
                 numberOfLinesLabel={1}
                 required={true}
               />
             </View>
             <View
-              ref={(ref) => {
-                fieldViewRefs.current["streetName"] = ref;
+              ref={ref => {
+                fieldViewRefs.current['streetName'] = ref;
               }}
-              onLayout={registerFieldPosition("streetName")}
+              onLayout={registerFieldPosition('streetName')}
             >
               <SimpleBoxInput
                 ref={streetNameRef}
-                label={t("addFarmer.streetName")}
+                label={t('addFarmer.streetName')}
                 value={streetName}
-                onChangeText={(text) => {
+                onChangeText={text => {
                   setStreetName(text);
-                  setErrors({ ...errors, streetName: undefined });
+                  setErrors({...errors, streetName: undefined});
                 }}
-                placeholder={t("addFarmer.enterStreetName")}
+                placeholder={t('addFarmer.enterStreetName')}
                 error={errors.streetName}
                 numberOfLinesLabel={1}
                 required={false}
               />
             </View>
             <SimpleBoxInput
-              label={t("addFarmer.landmark")}
+              label={t('addFarmer.landmark')}
               value={landmark}
               onChangeText={setLandmark}
-              placeholder={t("addFarmer.enterLandmark")}
+              placeholder={t('addFarmer.enterLandmark')}
               numberOfLinesLabel={1}
             />
             <View
-              ref={(ref) => {
-                fieldViewRefs.current["state"] = ref;
+              ref={ref => {
+                fieldViewRefs.current['state'] = ref;
               }}
-              onLayout={registerFieldPosition("state")}
+              onLayout={registerFieldPosition('state')}
             >
               <SearchableDropdown
-                label={t("addFarmer.state")}
+                label={t('addFarmer.state')}
                 value={stateId}
                 options={states}
-                onSelect={(value) => {
+                onSelect={value => {
                   setStateId(value);
-                  setErrors({ ...errors, state: undefined });
+                  setErrors({...errors, state: undefined});
                 }}
-                placeholder={t("addFarmer.selectState")}
+                placeholder={t('addFarmer.selectState')}
                 error={errors.state}
                 loading={statesLoading}
                 required={true}
               />
             </View>
             <View
-              ref={(ref) => {
-                fieldViewRefs.current["district"] = ref;
+              ref={ref => {
+                fieldViewRefs.current['district'] = ref;
               }}
-              onLayout={registerFieldPosition("district")}
+              onLayout={registerFieldPosition('district')}
             >
               <SearchableDropdown
-                label={t("addFarmer.district")}
+                label={t('addFarmer.district')}
                 value={districtId}
                 options={districts}
-                onSelect={(value) => {
+                onSelect={value => {
                   setDistrictId(value);
-                  setErrors({ ...errors, district: undefined });
+                  setErrors({...errors, district: undefined});
                 }}
-                placeholder={
-                  stateId
-                    ? t("addFarmer.selectDistrict")
-                    : t("addFarmer.selectStateFirst")
-                }
+                placeholder={stateId ? t('addFarmer.selectDistrict') : t('addFarmer.selectStateFirst')}
                 error={errors.district}
                 loading={districtsLoading}
                 required={true}
               />
             </View>
             <View
-              ref={(ref) => {
-                fieldViewRefs.current["taluka"] = ref;
+              ref={ref => {
+                fieldViewRefs.current['taluka'] = ref;
               }}
-              onLayout={registerFieldPosition("taluka")}
+              onLayout={registerFieldPosition('taluka')}
             >
               <SearchableDropdown
-                label={t("addFarmer.taluka")}
+                label={t('addFarmer.taluka')}
                 value={talukaId}
                 options={talukas}
-                onSelect={(value) => {
+                onSelect={value => {
                   setTalukaId(value);
-                  setErrors({ ...errors, taluka: undefined });
+                  setErrors({...errors, taluka: undefined});
                 }}
-                placeholder={
-                  districtId
-                    ? t("addFarmer.selectTaluka")
-                    : t("addFarmer.selectDistrictFirst")
-                }
+                placeholder={districtId ? t('addFarmer.selectTaluka') : t('addFarmer.selectDistrictFirst')}
                 error={errors.taluka}
                 loading={talukasLoading}
                 required={false}
               />
             </View>
             <View
-              ref={(ref) => {
-                fieldViewRefs.current["village"] = ref;
+              ref={ref => {
+                fieldViewRefs.current['village'] = ref;
               }}
-              onLayout={registerFieldPosition("village")}
+              onLayout={registerFieldPosition('village')}
             >
               <SearchableDropdown
-                label={t("addFarmer.village")}
+                label={t('addFarmer.village')}
                 value={villageId}
                 options={villages}
-                onSelect={(value) => {
+                onSelect={value => {
                   setVillageId(value);
-                  setErrors({ ...errors, village: undefined });
+                  setErrors({...errors, village: undefined});
                 }}
-                placeholder={
-                  talukaId
-                    ? t("addFarmer.selectVillage")
-                    : t("addFarmer.selectTalukaFirst")
-                }
+                placeholder={talukaId ? t('addFarmer.selectVillage') : t('addFarmer.selectTalukaFirst')}
                 error={errors.village}
                 loading={villagesLoading}
                 required={false}
               />
             </View>
             <View
-              ref={(ref) => {
-                fieldViewRefs.current["pincode"] = ref;
+              ref={ref => {
+                fieldViewRefs.current['pincode'] = ref;
               }}
-              onLayout={registerFieldPosition("pincode")}
+              onLayout={registerFieldPosition('pincode')}
             >
               <SimpleBoxInput
                 ref={pincodeRef}
-                label={t("addFarmer.pincode")}
+                label={t('addFarmer.pincode')}
                 value={pincode}
-                onChangeText={(text) => {
+                onChangeText={text => {
                   setPincode(text);
-                  setErrors({ ...errors, pincode: undefined });
+                  setErrors({...errors, pincode: undefined});
                 }}
-                placeholder={t("addFarmer.enterPincode")}
+                placeholder={t('addFarmer.enterPincode')}
                 keyboardType="numeric"
                 maxLength={6}
                 error={errors.pincode}
@@ -5220,7 +5131,7 @@ export default function AddFarmerScreen() {
               <View key={tractor.id} style={styles.section}>
                 <View style={styles.tractorHeader}>
                   <Text style={styles.tractorCountText}>
-                    {t("addFarmer.tractorCount")} {index + 1}
+                    {t('addFarmer.tractorCount')} {index + 1}
                   </Text>
                   {/* Remove tractor button - Only allow removing if not in rejected update mode */}
                   {/* In rejected update mode, we must keep all existing tractors (they have tractorId) */}
@@ -5230,35 +5141,27 @@ export default function AddFarmerScreen() {
                       onPress={() => removeTractor(tractor.id)}
                       activeOpacity={0.7}
                     >
-                      <Text style={styles.removeTractorText}>
-                        {t("addFarmer.remove")}
-                      </Text>
+                      <Text style={styles.removeTractorText}>{t('addFarmer.remove')}</Text>
                     </TouchableOpacity>
                   )}
                 </View>
 
                 {/* Tractor Images Section */}
                 <View
-                  ref={(ref) => {
-                    fieldViewRefs.current[
-                      `tractor_${tractor.id}_tractorImages`
-                    ] = ref;
+                  ref={ref => {
+                    fieldViewRefs.current[`tractor_${tractor.id}_tractorImages`] = ref;
                   }}
                   style={styles.tractorImagesContainer}
-                  onLayout={registerFieldPosition(
-                    `tractor_${tractor.id}_tractorImages`,
-                  )}
+                  onLayout={registerFieldPosition(`tractor_${tractor.id}_tractorImages`)}
                 >
                   {(() => {
                     const firstImage = (tractor.tractorImages || [])[0];
                     const secondImage = (tractor.tractorImages || [])[1];
-                    const hasFirstImage =
-                      firstImage && firstImage.trim() !== "";
-                    const hasSecondImage =
-                      secondImage && secondImage.trim() !== "";
-                    const uploadedImagesCount = (
-                      tractor.tractorImages || []
-                    ).filter((img) => img && img.trim() !== "").length;
+                    const hasFirstImage = firstImage && firstImage.trim() !== '';
+                    const hasSecondImage = secondImage && secondImage.trim() !== '';
+                    const uploadedImagesCount = (tractor.tractorImages || []).filter(
+                      img => img && img.trim() !== '',
+                    ).length;
                     const totalSlots = (tractor.tractorImages || []).length;
 
                     // If no images uploaded yet, show full width upload box
@@ -5266,18 +5169,16 @@ export default function AddFarmerScreen() {
                       return (
                         <View>
                           {renderImageUpload(
-                            t("addFarmer.uploadTractorImage") + " *",
+                            t('addFarmer.uploadTractorImage') + ' *',
                             undefined,
                             () => {
                               ensureFirstTractorImageSlot(tractor.id);
-                              handleImagePicker("tractor", tractor.id, 0);
+                              handleImagePicker('tractor', tractor.id, 0);
                             },
                             true, // fullWidth
                           )}
                           {tractor.errors.tractorImages && (
-                            <Text style={styles.errorText}>
-                              {tractor.errors.tractorImages}
-                            </Text>
+                            <Text style={styles.errorText}>{tractor.errors.tractorImages}</Text>
                           )}
                         </View>
                       );
@@ -5290,37 +5191,24 @@ export default function AddFarmerScreen() {
                           {/* First Uploaded Image */}
                           <View style={styles.tractorImageItem}>
                             {renderImageUpload(
-                              t("addFarmer.uploadTractorImage") + " *",
+                              t('addFarmer.uploadTractorImage') + ' *',
                               hasFirstImage ? firstImage : undefined,
                               () => {
                                 ensureFirstTractorImageSlot(tractor.id);
-                                handleImagePicker("tractor", tractor.id, 0);
+                                handleImagePicker('tractor', tractor.id, 0);
                               },
                               true,
                               hasFirstImage
-                                ? () =>
-                                    handleImagePreview(
-                                      tractor.id,
-                                      "tractor",
-                                      firstImage,
-                                      0,
-                                    )
+                                ? () => handleImagePreview(tractor.id, 'tractor', firstImage, 0)
                                 : undefined,
                             )}
                             {hasFirstImage && uploadedImagesCount > 1 && (
                               <TouchableOpacity
-                                style={[
-                                  styles.removeTractorButton,
-                                  { marginTop: moderateScale(4) },
-                                ]}
-                                onPress={() =>
-                                  removeTractorImage(tractor.id, 0)
-                                }
+                                style={[styles.removeTractorButton, {marginTop: moderateScale(4)}]}
+                                onPress={() => removeTractorImage(tractor.id, 0)}
                                 activeOpacity={0.7}
                               >
-                                <Text style={styles.removeTractorText}>
-                                  {t("addFarmer.remove")}
-                                </Text>
+                                <Text style={styles.removeTractorText}>{t('addFarmer.remove')}</Text>
                               </TouchableOpacity>
                             )}
                           </View>
@@ -5330,74 +5218,48 @@ export default function AddFarmerScreen() {
                             // Show second uploaded image
                             <View style={styles.tractorImageItem}>
                               {renderImageUpload(
-                                t("addFarmer.uploadTractorImage") + " *",
+                                t('addFarmer.uploadTractorImage') + ' *',
                                 hasSecondImage ? secondImage : undefined,
-                                () =>
-                                  handleImagePicker("tractor", tractor.id, 1),
+                                () => handleImagePicker('tractor', tractor.id, 1),
                                 true,
                                 hasSecondImage
-                                  ? () =>
-                                      handleImagePreview(
-                                        tractor.id,
-                                        "tractor",
-                                        secondImage,
-                                        1,
-                                      )
+                                  ? () => handleImagePreview(tractor.id, 'tractor', secondImage, 1)
                                   : undefined,
                               )}
                               {hasSecondImage && uploadedImagesCount > 1 && (
                                 <TouchableOpacity
-                                  style={[
-                                    styles.removeTractorButton,
-                                    { marginTop: moderateScale(4) },
-                                  ]}
-                                  onPress={() =>
-                                    removeTractorImage(tractor.id, 1)
-                                  }
+                                  style={[styles.removeTractorButton, {marginTop: moderateScale(4)}]}
+                                  onPress={() => removeTractorImage(tractor.id, 1)}
                                   activeOpacity={0.7}
                                 >
-                                  <Text style={styles.removeTractorText}>
-                                    {t("addFarmer.remove")}
-                                  </Text>
+                                  <Text style={styles.removeTractorText}>{t('addFarmer.remove')}</Text>
                                 </TouchableOpacity>
                               )}
                             </View>
                           ) : (
                             // Show second upload option (Add button)
                             <TouchableOpacity
-                              style={[
-                                styles.tractorImageItem,
-                                styles.imageUploadBox,
-                              ]}
+                              style={[styles.tractorImageItem, styles.imageUploadBox]}
                               onPress={() => {
                                 // Ensure second slot exists, then open picker
-                                const currentImages =
-                                  tractor.tractorImages || [];
+                                const currentImages = tractor.tractorImages || [];
                                 if (currentImages.length < 2) {
                                   // Add slot and open picker
                                   addTractorImage(tractor.id);
                                 } else {
                                   // If slot exists but empty, just open picker
-                                  handleImagePicker("tractor", tractor.id, 1);
+                                  handleImagePicker('tractor', tractor.id, 1);
                                 }
                               }}
                               activeOpacity={0.7}
                             >
-                              <Ionicons
-                                name="add"
-                                size={moderateScale(24)}
-                                color={colors.textTertiary}
-                              />
-                              <Text style={styles.uploadLabel}>
-                                {t("addFarmer.uploadSecondImage")}
-                              </Text>
+                              <Ionicons name="add" size={moderateScale(24)} color={colors.textTertiary} />
+                              <Text style={styles.uploadLabel}>{t('addFarmer.uploadSecondImage')}</Text>
                             </TouchableOpacity>
                           )}
                         </View>
                         {tractor.errors.tractorImages && (
-                          <Text style={styles.errorText}>
-                            {tractor.errors.tractorImages}
-                          </Text>
+                          <Text style={styles.errorText}>{tractor.errors.tractorImages}</Text>
                         )}
                       </View>
                     );
@@ -5416,174 +5278,136 @@ export default function AddFarmerScreen() {
 
                 {/* RC Front and Back Images */}
                 <View
-                  ref={(ref) => {
-                    fieldViewRefs.current[`tractor_${tractor.id}_rcFront`] =
-                      ref;
+                  ref={ref => {
+                    fieldViewRefs.current[`tractor_${tractor.id}_rcFront`] = ref;
                   }}
-                  onLayout={registerFieldPosition(
-                    `tractor_${tractor.id}_rcFront`,
-                  )}
+                  onLayout={registerFieldPosition(`tractor_${tractor.id}_rcFront`)}
                   style={styles.imageUploadContainer}
                 >
                   {/* RC Front Image with OCR Loading Overlay */}
-                  <View style={{ flex: 1, marginRight: moderateScale(8) }}>
+                  <View style={{flex: 1, marginRight: moderateScale(8)}}>
                     {renderImageUpload(
-                      t("addFarmer.uploadRcFront") + " *",
+                      t('addFarmer.uploadRcFront') + ' *',
                       tractor.rcFront,
-                      () => handleImagePicker("rcFront", tractor.id),
+                      () => handleImagePicker('rcFront', tractor.id),
                       true,
-                      tractor.rcFront
-                        ? () =>
-                            handleImagePreview(
-                              tractor.id,
-                              "rcFront",
-                              tractor.rcFront!,
-                            )
-                        : undefined,
+                      tractor.rcFront ? () => handleImagePreview(tractor.id, 'rcFront', tractor.rcFront!) : undefined,
                     )}
                     {/* OCR Loading Overlay */}
-                    {ocrProcessingTractorId === tractor.id &&
-                      tractor.rcFront && (
-                        <View
+                    {ocrProcessingTractorId === tractor.id && tractor.rcFront && (
+                      <View
+                        style={[
+                          styles.imageUploadBox,
+                          {
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                            zIndex: 10,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                          },
+                        ]}
+                      >
+                        <ActivityIndicator size="small" color={colors.textWhite} />
+                        <Text
                           style={[
-                            styles.imageUploadBox,
+                            Typography.regularSm,
                             {
-                              position: "absolute",
-                              top: 0,
-                              left: 0,
-                              right: 0,
-                              backgroundColor: "rgba(0, 0, 0, 0.7)",
-                              zIndex: 10,
-                              justifyContent: "center",
-                              alignItems: "center",
+                              color: colors.textWhite,
+                              marginTop: moderateScale(8),
+                              fontSize: moderateScale(12),
+                              textAlign: 'center',
                             },
                           ]}
                         >
-                          <ActivityIndicator
-                            size="small"
-                            color={colors.textWhite}
-                          />
-                          <Text
-                            style={[
-                              Typography.regularSm,
-                              {
-                                color: colors.textWhite,
-                                marginTop: moderateScale(8),
-                                fontSize: moderateScale(12),
-                                textAlign: "center",
-                              },
-                            ]}
-                          >
-                            Processing...
-                          </Text>
-                        </View>
-                      )}
+                          Processing...
+                        </Text>
+                      </View>
+                    )}
                   </View>
                   {/* RC Back Image with OCR Loading Overlay */}
-                  <View style={{ flex: 1, marginLeft: moderateScale(8) }}>
+                  <View style={{flex: 1, marginLeft: moderateScale(8)}}>
                     {renderImageUpload(
-                      t("addFarmer.uploadRcBack") + " *",
+                      t('addFarmer.uploadRcBack') + ' *',
                       tractor.rcBack,
-                      () => handleImagePicker("rcBack", tractor.id),
+                      () => handleImagePicker('rcBack', tractor.id),
                       true,
-                      tractor.rcBack
-                        ? () =>
-                            handleImagePreview(
-                              tractor.id,
-                              "rcBack",
-                              tractor.rcBack!,
-                            )
-                        : undefined,
+                      tractor.rcBack ? () => handleImagePreview(tractor.id, 'rcBack', tractor.rcBack!) : undefined,
                     )}
                     {/* OCR Loading Overlay */}
-                    {ocrProcessingTractorId === tractor.id &&
-                      tractor.rcBack && (
-                        <View
+                    {ocrProcessingTractorId === tractor.id && tractor.rcBack && (
+                      <View
+                        style={[
+                          styles.imageUploadBox,
+                          {
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                            zIndex: 10,
+                            justifyContent: 'center',
+                            alignItems: 'center',
+                          },
+                        ]}
+                      >
+                        <ActivityIndicator size="small" color={colors.textWhite} />
+                        <Text
                           style={[
-                            styles.imageUploadBox,
+                            Typography.regularSm,
                             {
-                              position: "absolute",
-                              top: 0,
-                              left: 0,
-                              right: 0,
-                              backgroundColor: "rgba(0, 0, 0, 0.7)",
-                              zIndex: 10,
-                              justifyContent: "center",
-                              alignItems: "center",
+                              color: colors.textWhite,
+                              marginTop: moderateScale(8),
+                              fontSize: moderateScale(12),
+                              textAlign: 'center',
                             },
                           ]}
                         >
-                          <ActivityIndicator
-                            size="small"
-                            color={colors.textWhite}
-                          />
-                          <Text
-                            style={[
-                              Typography.regularSm,
-                              {
-                                color: colors.textWhite,
-                                marginTop: moderateScale(8),
-                                fontSize: moderateScale(12),
-                                textAlign: "center",
-                              },
-                            ]}
-                          >
-                            Processing...
-                          </Text>
-                        </View>
-                      )}
+                          Processing...
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 </View>
                 {/* RC Image Error Messages */}
                 {(tractor.errors.rcFront || tractor.errors.rcBack) && (
                   <View
                     style={{
-                      flexDirection: "row",
+                      flexDirection: 'row',
                       marginTop: moderateScale(-8),
                       marginBottom: moderateScale(8),
                     }}
                   >
-                    <View style={{ flex: 1 }}>
-                      {tractor.errors.rcFront && (
-                        <Text style={styles.errorText}>
-                          {tractor.errors.rcFront}
-                        </Text>
-                      )}
+                    <View style={{flex: 1}}>
+                      {tractor.errors.rcFront && <Text style={styles.errorText}>{tractor.errors.rcFront}</Text>}
                     </View>
-                    <View style={{ flex: 1 }}>
-                      {tractor.errors.rcBack && (
-                        <Text style={styles.errorText}>
-                          {tractor.errors.rcBack}
-                        </Text>
-                      )}
+                    <View style={{flex: 1}}>
+                      {tractor.errors.rcBack && <Text style={styles.errorText}>{tractor.errors.rcBack}</Text>}
                     </View>
                   </View>
                 )}
                 {/* Extract from RC Button - Show when at least one RC image uploaded and not currently processing */}
-                {((tractor.rcFront && tractor.rcFront.trim()) ||
-                  (tractor.rcBack && tractor.rcBack.trim())) &&
+                {((tractor.rcFront && tractor.rcFront.trim()) || (tractor.rcBack && tractor.rcBack.trim())) &&
                   ocrProcessingTractorId !== tractor.id && (
                     <TouchableOpacity
                       style={[
                         styles.addNewButton,
                         {
-                          backgroundColor: colors.primary + "20",
+                          backgroundColor: colors.primary + '20',
                           paddingVertical: moderateScale(12),
                           paddingHorizontal: moderateScale(16),
                           borderRadius: moderateScale(8),
                           marginTop: moderateScale(8),
-                          alignSelf: "center",
+                          alignSelf: 'center',
                         },
                       ]}
                       onPress={() => processRCImagesForOCR(tractor.id)}
                       activeOpacity={0.7}
                       disabled={ocrProcessingTractorId !== null}
                     >
-                      <Ionicons
-                        name="scan-outline"
-                        size={moderateScale(20)}
-                        color={colors.primary}
-                      />
+                      <Ionicons name="scan-outline" size={moderateScale(20)} color={colors.primary} />
                       <Text
                         style={[
                           styles.addNewText,
@@ -5600,12 +5424,12 @@ export default function AddFarmerScreen() {
                 {ocrProcessingTractorId === tractor.id && (
                   <View
                     style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "center",
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                       marginTop: moderateScale(12),
                       paddingVertical: moderateScale(8),
-                      backgroundColor: colors.primary + "15",
+                      backgroundColor: colors.primary + '15',
                       borderRadius: moderateScale(8),
                     }}
                   >
@@ -5627,47 +5451,35 @@ export default function AddFarmerScreen() {
 
                 {/* Tractor Fields */}
                 <View
-                  ref={(ref) => {
-                    fieldViewRefs.current[`tractor_${tractor.id}_modelName`] =
-                      ref;
+                  ref={ref => {
+                    fieldViewRefs.current[`tractor_${tractor.id}_modelName`] = ref;
                   }}
-                  onLayout={registerFieldPosition(
-                    `tractor_${tractor.id}_modelName`,
-                  )}
+                  onLayout={registerFieldPosition(`tractor_${tractor.id}_modelName`)}
                 >
                   <SimpleBoxInput
-                    ref={(ref) => {
-                      tractorInputRefs.current[
-                        `tractor_${tractor.id}_modelName`
-                      ] = ref;
+                    ref={ref => {
+                      tractorInputRefs.current[`tractor_${tractor.id}_modelName`] = ref;
                     }}
-                    label={t("addFarmer.modelName")}
+                    label={t('addFarmer.modelName')}
                     value={tractor.modelName}
-                    onChangeText={(text) =>
-                      updateTractorField(tractor.id, "modelName", text)
-                    }
-                    placeholder={t("addFarmer.enterModelName")}
+                    onChangeText={text => updateTractorField(tractor.id, 'modelName', text)}
+                    placeholder={t('addFarmer.enterModelName')}
                     error={tractor.errors.modelName}
                     numberOfLinesLabel={1}
                     required={true}
                   />
                   {/* Auto-fill indicator */}
                   {ocrExtractedData[tractor.id]?.modelNumber &&
-                    tractor.modelName ===
-                      ocrExtractedData[tractor.id].modelNumber && (
+                    tractor.modelName === ocrExtractedData[tractor.id].modelNumber && (
                       <View
                         style={{
-                          flexDirection: "row",
-                          alignItems: "center",
+                          flexDirection: 'row',
+                          alignItems: 'center',
                           marginTop: moderateScale(-4),
                           marginBottom: moderateScale(4),
                         }}
                       >
-                        <Ionicons
-                          name="checkmark-circle"
-                          size={moderateScale(14)}
-                          color={colors.statusSuccess}
-                        />
+                        <Ionicons name="checkmark-circle" size={moderateScale(14)} color={colors.statusSuccess} />
                         <Text
                           style={[
                             Typography.regularSm,
@@ -5684,48 +5496,35 @@ export default function AddFarmerScreen() {
                     )}
                 </View>
                 <View
-                  ref={(ref) => {
-                    fieldViewRefs.current[
-                      `tractor_${tractor.id}_vehicleNumber`
-                    ] = ref;
+                  ref={ref => {
+                    fieldViewRefs.current[`tractor_${tractor.id}_vehicleNumber`] = ref;
                   }}
-                  onLayout={registerFieldPosition(
-                    `tractor_${tractor.id}_vehicleNumber`,
-                  )}
+                  onLayout={registerFieldPosition(`tractor_${tractor.id}_vehicleNumber`)}
                 >
                   <SimpleBoxInput
-                    ref={(ref) => {
-                      tractorInputRefs.current[
-                        `tractor_${tractor.id}_vehicleNumber`
-                      ] = ref;
+                    ref={ref => {
+                      tractorInputRefs.current[`tractor_${tractor.id}_vehicleNumber`] = ref;
                     }}
-                    label={t("addFarmer.vehicleNumber")}
+                    label={t('addFarmer.vehicleNumber')}
                     value={tractor.vehicleNumber}
-                    onChangeText={(text) =>
-                      updateTractorField(tractor.id, "vehicleNumber", text)
-                    }
-                    placeholder={t("addFarmer.enterVehicleNumber")}
+                    onChangeText={text => updateTractorField(tractor.id, 'vehicleNumber', text)}
+                    placeholder={t('addFarmer.enterVehicleNumber')}
                     error={tractor.errors.vehicleNumber}
                     numberOfLinesLabel={1}
                     required={true}
                   />
                   {/* Auto-fill indicator */}
                   {ocrExtractedData[tractor.id]?.vehicleNumber &&
-                    tractor.vehicleNumber ===
-                      ocrExtractedData[tractor.id].vehicleNumber && (
+                    tractor.vehicleNumber === ocrExtractedData[tractor.id].vehicleNumber && (
                       <View
                         style={{
-                          flexDirection: "row",
-                          alignItems: "center",
+                          flexDirection: 'row',
+                          alignItems: 'center',
                           marginTop: moderateScale(-4),
                           marginBottom: moderateScale(4),
                         }}
                       >
-                        <Ionicons
-                          name="checkmark-circle"
-                          size={moderateScale(14)}
-                          color={colors.statusSuccess}
-                        />
+                        <Ionicons name="checkmark-circle" size={moderateScale(14)} color={colors.statusSuccess} />
                         <Text
                           style={[
                             Typography.regularSm,
@@ -5742,47 +5541,35 @@ export default function AddFarmerScreen() {
                     )}
                 </View>
                 <View
-                  ref={(ref) => {
-                    fieldViewRefs.current[`tractor_${tractor.id}_ownerName`] =
-                      ref;
+                  ref={ref => {
+                    fieldViewRefs.current[`tractor_${tractor.id}_ownerName`] = ref;
                   }}
-                  onLayout={registerFieldPosition(
-                    `tractor_${tractor.id}_ownerName`,
-                  )}
+                  onLayout={registerFieldPosition(`tractor_${tractor.id}_ownerName`)}
                 >
                   <SimpleBoxInput
-                    ref={(ref) => {
-                      tractorInputRefs.current[
-                        `tractor_${tractor.id}_ownerName`
-                      ] = ref;
+                    ref={ref => {
+                      tractorInputRefs.current[`tractor_${tractor.id}_ownerName`] = ref;
                     }}
-                    label={t("addFarmer.ownerName")}
+                    label={t('addFarmer.ownerName')}
                     value={tractor.ownerName}
-                    onChangeText={(text) =>
-                      updateTractorField(tractor.id, "ownerName", text)
-                    }
-                    placeholder={t("addFarmer.enterOwnerName")}
+                    onChangeText={text => updateTractorField(tractor.id, 'ownerName', text)}
+                    placeholder={t('addFarmer.enterOwnerName')}
                     error={tractor.errors.ownerName}
                     numberOfLinesLabel={1}
                     required={true}
                   />
                   {/* Auto-fill indicator */}
                   {ocrExtractedData[tractor.id]?.ownerName &&
-                    tractor.ownerName ===
-                      ocrExtractedData[tractor.id].ownerName && (
+                    tractor.ownerName === ocrExtractedData[tractor.id].ownerName && (
                       <View
                         style={{
-                          flexDirection: "row",
-                          alignItems: "center",
+                          flexDirection: 'row',
+                          alignItems: 'center',
                           marginTop: moderateScale(-4),
                           marginBottom: moderateScale(4),
                         }}
                       >
-                        <Ionicons
-                          name="checkmark-circle"
-                          size={moderateScale(14)}
-                          color={colors.statusSuccess}
-                        />
+                        <Ionicons name="checkmark-circle" size={moderateScale(14)} color={colors.statusSuccess} />
                         <Text
                           style={[
                             Typography.regularSm,
@@ -5799,48 +5586,35 @@ export default function AddFarmerScreen() {
                     )}
                 </View>
                 <View
-                  ref={(ref) => {
-                    fieldViewRefs.current[
-                      `tractor_${tractor.id}_chassisNumber`
-                    ] = ref;
+                  ref={ref => {
+                    fieldViewRefs.current[`tractor_${tractor.id}_chassisNumber`] = ref;
                   }}
-                  onLayout={registerFieldPosition(
-                    `tractor_${tractor.id}_chassisNumber`,
-                  )}
+                  onLayout={registerFieldPosition(`tractor_${tractor.id}_chassisNumber`)}
                 >
                   <SimpleBoxInput
-                    ref={(ref) => {
-                      tractorInputRefs.current[
-                        `tractor_${tractor.id}_chassisNumber`
-                      ] = ref;
+                    ref={ref => {
+                      tractorInputRefs.current[`tractor_${tractor.id}_chassisNumber`] = ref;
                     }}
-                    label={t("addFarmer.chassisNumber")}
+                    label={t('addFarmer.chassisNumber')}
                     value={tractor.chassisNumber}
-                    onChangeText={(text) =>
-                      updateTractorField(tractor.id, "chassisNumber", text)
-                    }
-                    placeholder={t("addFarmer.enterChassisNumber")}
+                    onChangeText={text => updateTractorField(tractor.id, 'chassisNumber', text)}
+                    placeholder={t('addFarmer.enterChassisNumber')}
                     error={tractor.errors.chassisNumber}
                     numberOfLinesLabel={1}
                     required={true}
                   />
                   {/* Auto-fill indicator */}
                   {ocrExtractedData[tractor.id]?.chassisNumber &&
-                    tractor.chassisNumber ===
-                      ocrExtractedData[tractor.id].chassisNumber && (
+                    tractor.chassisNumber === ocrExtractedData[tractor.id].chassisNumber && (
                       <View
                         style={{
-                          flexDirection: "row",
-                          alignItems: "center",
+                          flexDirection: 'row',
+                          alignItems: 'center',
                           marginTop: moderateScale(-4),
                           marginBottom: moderateScale(4),
                         }}
                       >
-                        <Ionicons
-                          name="checkmark-circle"
-                          size={moderateScale(14)}
-                          color={colors.statusSuccess}
-                        />
+                        <Ionicons name="checkmark-circle" size={moderateScale(14)} color={colors.statusSuccess} />
                         <Text
                           style={[
                             Typography.regularSm,
@@ -5857,48 +5631,35 @@ export default function AddFarmerScreen() {
                     )}
                 </View>
                 <View
-                  ref={(ref) => {
-                    fieldViewRefs.current[
-                      `tractor_${tractor.id}_engineNumber`
-                    ] = ref;
+                  ref={ref => {
+                    fieldViewRefs.current[`tractor_${tractor.id}_engineNumber`] = ref;
                   }}
-                  onLayout={registerFieldPosition(
-                    `tractor_${tractor.id}_engineNumber`,
-                  )}
+                  onLayout={registerFieldPosition(`tractor_${tractor.id}_engineNumber`)}
                 >
                   <SimpleBoxInput
-                    ref={(ref) => {
-                      tractorInputRefs.current[
-                        `tractor_${tractor.id}_engineNumber`
-                      ] = ref;
+                    ref={ref => {
+                      tractorInputRefs.current[`tractor_${tractor.id}_engineNumber`] = ref;
                     }}
-                    label={t("addFarmer.engineNumber")}
+                    label={t('addFarmer.engineNumber')}
                     value={tractor.engineNumber}
-                    onChangeText={(text) =>
-                      updateTractorField(tractor.id, "engineNumber", text)
-                    }
-                    placeholder={t("addFarmer.enterEngineNumber")}
+                    onChangeText={text => updateTractorField(tractor.id, 'engineNumber', text)}
+                    placeholder={t('addFarmer.enterEngineNumber')}
                     error={tractor.errors.engineNumber}
                     numberOfLinesLabel={1}
                     required={true}
                   />
                   {/* Auto-fill indicator */}
                   {ocrExtractedData[tractor.id]?.engineNumber &&
-                    tractor.engineNumber ===
-                      ocrExtractedData[tractor.id].engineNumber && (
+                    tractor.engineNumber === ocrExtractedData[tractor.id].engineNumber && (
                       <View
                         style={{
-                          flexDirection: "row",
-                          alignItems: "center",
+                          flexDirection: 'row',
+                          alignItems: 'center',
                           marginTop: moderateScale(-4),
                           marginBottom: moderateScale(4),
                         }}
                       >
-                        <Ionicons
-                          name="checkmark-circle"
-                          size={moderateScale(14)}
-                          color={colors.statusSuccess}
-                        />
+                        <Ionicons name="checkmark-circle" size={moderateScale(14)} color={colors.statusSuccess} />
                         <Text
                           style={[
                             Typography.regularSm,
@@ -5915,50 +5676,39 @@ export default function AddFarmerScreen() {
                     )}
                 </View>
                 <View
-                  ref={(ref) => {
-                    fieldViewRefs.current[
-                      `tractor_${tractor.id}_purchaseDateDD`
-                    ] = ref;
+                  ref={ref => {
+                    fieldViewRefs.current[`tractor_${tractor.id}_purchaseDateDD`] = ref;
                   }}
-                  onLayout={registerFieldPosition(
-                    `tractor_${tractor.id}_purchaseDateDD`,
-                  )}
+                  onLayout={registerFieldPosition(`tractor_${tractor.id}_purchaseDateDD`)}
                 >
                   {(() => {
                     // Initialize refs for this tractor if not exists
                     if (!purchaseDateRefs.current[tractor.id]) {
                       purchaseDateRefs.current[tractor.id] = {
-                        dd: { current: null },
-                        mm: { current: null },
-                        yyyy: { current: null },
+                        dd: {current: null},
+                        mm: {current: null},
+                        yyyy: {current: null},
                       };
                     }
                     const refs = purchaseDateRefs.current[tractor.id];
 
                     return renderDateInputs(
-                      t("reviewProfile.date"),
-                      t("reviewProfile.of"),
-                      t("addFarmer.purchaseDate"),
+                      t('reviewProfile.date'),
+                      t('reviewProfile.of'),
+                      t('addFarmer.purchaseDate'),
                       tractor.purchaseDateDD,
                       tractor.purchaseDateMM,
                       tractor.purchaseDateYYYY,
-                      (text) =>
-                        updateTractorField(tractor.id, "purchaseDateDD", text),
-                      (text) =>
-                        updateTractorField(tractor.id, "purchaseDateMM", text),
-                      (text) =>
-                        updateTractorField(
-                          tractor.id,
-                          "purchaseDateYYYY",
-                          text,
-                        ),
+                      text => updateTractorField(tractor.id, 'purchaseDateDD', text),
+                      text => updateTractorField(tractor.id, 'purchaseDateMM', text),
+                      text => updateTractorField(tractor.id, 'purchaseDateYYYY', text),
                       tractor.errors.purchaseDateDD,
                       refs.dd,
                       refs.mm,
                       refs.yyyy,
-                      "purchase",
+                      'purchase',
                       tractor.errors.purchaseDateError,
-                      (error) => updateTractorDateError(tractor.id, error),
+                      error => updateTractorDateError(tractor.id, error),
                       true, // required
                     );
                   })()}
@@ -5969,14 +5719,11 @@ export default function AddFarmerScreen() {
                     tractor.purchaseDateYYYY &&
                     // Check if the current date matches the extracted date
                     (() => {
-                      const extractedDate =
-                        ocrExtractedData[tractor.id].registrationDate;
-                      const dateMatch = extractedDate.match(
-                        /(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/,
-                      );
+                      const extractedDate = ocrExtractedData[tractor.id].registrationDate;
+                      const dateMatch = extractedDate.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
                       if (dateMatch && dateMatch.length >= 4) {
-                        const day = dateMatch[1].padStart(2, "0");
-                        const month = dateMatch[2].padStart(2, "0");
+                        const day = dateMatch[1].padStart(2, '0');
+                        const month = dateMatch[2].padStart(2, '0');
                         const year = dateMatch[3];
                         const isMatching =
                           tractor.purchaseDateDD === day &&
@@ -5986,17 +5733,13 @@ export default function AddFarmerScreen() {
                           return (
                             <View
                               style={{
-                                flexDirection: "row",
-                                alignItems: "center",
+                                flexDirection: 'row',
+                                alignItems: 'center',
                                 marginTop: moderateScale(-4),
                                 marginBottom: moderateScale(4),
                               }}
                             >
-                              <Ionicons
-                                name="checkmark-circle"
-                                size={moderateScale(14)}
-                                color={colors.statusSuccess}
-                              />
+                              <Ionicons name="checkmark-circle" size={moderateScale(14)} color={colors.statusSuccess} />
                               <Text
                                 style={[
                                   Typography.regularSm,
@@ -6017,26 +5760,19 @@ export default function AddFarmerScreen() {
                     })()}
                 </View>
                 <View
-                  ref={(ref) => {
-                    fieldViewRefs.current[`tractor_${tractor.id}_whoFrom`] =
-                      ref;
+                  ref={ref => {
+                    fieldViewRefs.current[`tractor_${tractor.id}_whoFrom`] = ref;
                   }}
-                  onLayout={registerFieldPosition(
-                    `tractor_${tractor.id}_whoFrom`,
-                  )}
+                  onLayout={registerFieldPosition(`tractor_${tractor.id}_whoFrom`)}
                 >
                   <SimpleBoxInput
-                    ref={(ref) => {
-                      tractorInputRefs.current[
-                        `tractor_${tractor.id}_whoFrom`
-                      ] = ref;
+                    ref={ref => {
+                      tractorInputRefs.current[`tractor_${tractor.id}_whoFrom`] = ref;
                     }}
-                    label={t("addFarmer.whoDrives")}
+                    label={t('addFarmer.whoDrives')}
                     value={tractor.whoFrom}
-                    onChangeText={(text) =>
-                      updateTractorField(tractor.id, "whoFrom", text)
-                    }
-                    placeholder={t("addFarmer.whoDrivesPlaceholder")}
+                    onChangeText={text => updateTractorField(tractor.id, 'whoFrom', text)}
+                    placeholder={t('addFarmer.whoDrivesPlaceholder')}
                     error={tractor.errors.whoFrom}
                     numberOfLinesLabel={1}
                     required={true}
@@ -6045,41 +5781,25 @@ export default function AddFarmerScreen() {
                 {/* Add New Tractor Button - Only show on last tractor and NOT in rejected update mode */}
                 {/* In rejected update mode, only allow modifying existing tractors (with tractorId) */}
                 {index === tractors.length - 1 && !isRejectedUpdate && (
-                  <TouchableOpacity
-                    style={styles.addNewButton}
-                    onPress={addNewTractor}
-                    activeOpacity={0.7}
-                  >
-                    <Ionicons
-                      name="add-circle-outline"
-                      size={moderateScale(20)}
-                      color={colors.primary}
-                    />
-                    <Text style={styles.addNewText}>
-                      {t("addFarmer.addNewTractor")}
-                    </Text>
+                  <TouchableOpacity style={styles.addNewButton} onPress={addNewTractor} activeOpacity={0.7}>
+                    <Ionicons name="add-circle-outline" size={moderateScale(20)} color={colors.primary} />
+                    <Text style={styles.addNewText}>{t('addFarmer.addNewTractor')}</Text>
                   </TouchableOpacity>
                 )}
               </View>
             ))}
         </ScrollView>
         {/* Submit Button */}
-        <View style={{ padding: moderateScale(14) }}>
+        <View style={{padding: moderateScale(14)}}>
           <Button
             title={
               isRejectedUpdate
-                ? t("addFarmer.updateRejectedForm")
+                ? t('addFarmer.updateRejectedForm')
                 : isEditMode
-                ? t("addFarmer.updateForVerification")
-                : t("addFarmer.sendForVerification")
+                ? t('addFarmer.updateForVerification')
+                : t('addFarmer.sendForVerification')
             }
-            onPress={
-              isRejectedUpdate
-                ? handleRejectedUpdate
-                : isEditMode
-                ? handleUpdateFarmer
-                : handleSubmit
-            }
+            onPress={isRejectedUpdate ? handleRejectedUpdate : isEditMode ? handleUpdateFarmer : handleSubmit}
             loading={submitting}
             disabled={submitting}
           />
@@ -6105,7 +5825,7 @@ export default function AddFarmerScreen() {
                   ? `${previewImageInfo.tractorId}-${previewImageInfo.imageIndex}`
                   : previewImageInfo.tractorId,
               uri: previewImageInfo.imageUri,
-              placeholder: "Image preview",
+              placeholder: 'Image preview',
             },
           ]}
           initialIndex={0}
@@ -6115,13 +5835,7 @@ export default function AddFarmerScreen() {
       )}
 
       {/* Toast Notification */}
-      <Toast
-        visible={showToast}
-        message={toastMessage}
-        type={toastType}
-        duration={3000}
-        onClose={hideToast}
-      />
+      <Toast visible={showToast} message={toastMessage} type={toastType} duration={3000} onClose={hideToast} />
     </View>
   );
 }

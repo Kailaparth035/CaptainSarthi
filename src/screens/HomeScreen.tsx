@@ -707,6 +707,16 @@ export default function HomeScreen() {
           color: colors.textPrimary,
           fontSize: moderateScale(22),
           fontFamily: FontFamily.SemiBold,
+          flex: 1,
+          flexShrink: 1,
+          minWidth: 0,
+          marginRight: moderateScale(12),
+        },
+        headerActions: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: moderateScale(12),
+          flexShrink: 0,
         },
         bellIcon: {
           padding: moderateScale(4),
@@ -864,10 +874,10 @@ export default function HomeScreen() {
           { paddingHorizontal: moderateScale(16), paddingTop: insets.top + moderateScale(12) },
         ]}
       >
-        <Text style={dynamicStyles.greeting}>
+        <Text style={dynamicStyles.greeting} numberOfLines={2} ellipsizeMode="tail">
           {t("home.greeting")} {profileName || 'User'}
         </Text>
-        <View style={{flexDirection: 'row', alignItems: 'center', gap: moderateScale(12)}}>
+        <View style={dynamicStyles.headerActions}>
           <TouchableOpacity
             style={dynamicStyles.bellIcon}
             activeOpacity={0.7}
@@ -1222,6 +1232,3 @@ export default function HomeScreen() {
     </View>
   );
 }
-
-
-

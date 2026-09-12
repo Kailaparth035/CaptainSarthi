@@ -92,6 +92,118 @@ const InfoRow = ({
   );
 };
 
+const formatFullAddress = (farmerData: any): string => {
+  // The normal Add Farmer flow sends `Address`, while the update flow sends
+  // `address`. Prefer the complete nested address object over a short string
+  // so every field entered by the dealer is displayed.
+  const addressSources = [
+    farmerData?.Address,
+    farmerData?.address,
+    farmerData?.address_details,
+    farmerData?.addressDetails,
+  ];
+  const addressObject =
+    addressSources.find(
+      address =>
+        address && typeof address === 'object' && !Array.isArray(address),
+    ) || {};
+  const directAddress =
+    addressSources.find(address => typeof address === 'string')?.trim() || '';
+
+  if (directAddress && Object.keys(addressObject).length === 0) {
+    const pincode = String(
+      addressObject.pincode ||
+        addressObject.pin_code ||
+        farmerData?.pincode ||
+        farmerData?.pin_code ||
+        '',
+    ).trim();
+    return pincode && !directAddress.includes(pincode)
+      ? `${directAddress}, ${pincode}`
+      : directAddress;
+  }
+
+  const readableLocation = (value: unknown) => {
+    const text =
+      value && typeof value === 'object'
+        ? String(
+            (value as any).name ||
+              (value as any).label ||
+              (value as any).state_name ||
+              (value as any).district_name ||
+              (value as any).taluka_name ||
+              (value as any).village_name ||
+              '',
+          ).trim()
+        : typeof value === 'string'
+        ? value.trim()
+        : '';
+    return /^\d+$/.test(text) ? '' : text;
+  };
+  const locationDetails =
+    farmerData?.location_details || farmerData?.locationDetails || {};
+  const candidates = [
+    addressObject.address_line,
+    addressObject.addressLine,
+    farmerData?.address_line,
+    farmerData?.addressLine,
+    addressObject.house_number,
+    addressObject.houseNumber,
+    farmerData?.house_number,
+    farmerData?.houseNumber,
+    addressObject.street_name,
+    addressObject.streetName,
+    farmerData?.street_name,
+    farmerData?.streetName,
+    addressObject.landmark,
+    farmerData?.landmark,
+    readableLocation(addressObject.village_data),
+    readableLocation(farmerData?.village_data),
+    readableLocation(locationDetails?.village),
+    readableLocation(addressObject.village_name),
+    readableLocation(farmerData?.village_name),
+    readableLocation(addressObject.village),
+    readableLocation(farmerData?.village),
+    readableLocation(addressObject.taluka_data),
+    readableLocation(farmerData?.taluka_data),
+    readableLocation(locationDetails?.taluka),
+    readableLocation(addressObject.taluka_name),
+    readableLocation(farmerData?.taluka_name),
+    readableLocation(addressObject.taluka),
+    readableLocation(farmerData?.taluka),
+    readableLocation(addressObject.district_data),
+    readableLocation(farmerData?.district_data),
+    readableLocation(locationDetails?.district),
+    readableLocation(addressObject.district_name),
+    readableLocation(farmerData?.district_name),
+    readableLocation(addressObject.district),
+    readableLocation(farmerData?.district),
+    readableLocation(addressObject.city),
+    readableLocation(farmerData?.city),
+    readableLocation(addressObject.state_data),
+    readableLocation(farmerData?.state_data),
+    readableLocation(locationDetails?.state),
+    readableLocation(addressObject.state_name),
+    readableLocation(farmerData?.state_name),
+    readableLocation(addressObject.state),
+    readableLocation(farmerData?.state),
+    addressObject.pincode,
+    addressObject.pin_code,
+    farmerData?.pincode,
+    farmerData?.pin_code,
+  ]
+    .map(value => (value === undefined || value === null ? '' : String(value).trim()))
+    .filter(Boolean);
+
+  return candidates
+    .filter(
+      (value, index, values) =>
+        values.findIndex(item => item.toLowerCase() === value.toLowerCase()) ===
+        index,
+    )
+    .join(', ');
+};
+
 export default function FarmerDetailsScreen() {
   const insets = useSafeAreaInsets();
   const {moderateScale} = useDeviceMetrics();
@@ -106,6 +218,7 @@ export default function FarmerDetailsScreen() {
   const [farmerDetails, setFarmerDetails] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [dealershipName, setDealershipName] = useState<string>('');
+  const [dealerDetails, setDealerDetails] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   // Helper function to format date
@@ -129,15 +242,21 @@ export default function FarmerDetailsScreen() {
       const profileResponse = await getData(Apis.DEALER_PROFILE, {});
       if (profileResponse?.status === true && profileResponse?.data) {
         const profileData = profileResponse.data;
-        // Use name field as dealership name (username)
-        const dealerName = profileData.name || '';
+        const dealerName =
+          profileData.firm_name ||
+          profileData.name ||
+          profileData.dealer_name ||
+          profileData.dealerName ||
+          '';
         setDealershipName(dealerName);
+        setDealerDetails(profileData);
         console.log('[FarmerDetailsScreen] Dealer profile fetched, name:', dealerName);
       }
     } catch (error) {
       console.error('[FarmerDetailsScreen] Error fetching dealer profile:', error);
       // Keep empty string if fetch fails
       setDealershipName('');
+      setDealerDetails(null);
     }
   };
 
@@ -224,19 +343,19 @@ export default function FarmerDetailsScreen() {
           middleName: farmerData.middleName || "",
           lastName: farmerData.lastName || "",
           fullName: fullName,
+          raw: farmerData,
           verificationStatus:farmerData?.verificationStatus,
           mobile: `+91 ${farmerData.mobile}` || "",
           dateOfBirth: formatDate(farmerData.dateOfBirth) || "",
           dateOfMarriage: formatDate(farmerData.dateOfMarriage) || "",
           dealershipName: farmerData.dealershipName || "",
-          profileImage: getImageUrl(farmerData.profileImage),
+          profileImage: getImageUrl(
+            farmerData.profileImage ||
+              farmerData.profile_image ||
+              farmerData.profile_photo_url,
+          ),
           tractors: transformedTractors,
-          addressData:
-            farmerData?.house_number + " " +
-            farmerData?.street_name + " " +
-            farmerData?.landmark + " " +
-            farmerData?.landmark + " " +
-            farmerData?.pincode,
+          addressData: formatFullAddress(farmerData),
         });
       } else {
         // API didn't return expected structure
@@ -891,12 +1010,82 @@ export default function FarmerDetailsScreen() {
                         lineHeight: moderateScale(20),
                       },
                     ]}
-                    numberOfLines={0}
                   >
                     {farmerDetails?.addressData || "N/A"}
                   </Text>
                 </View>
               </View>
+
+              {/* Membership certificate is available only after Admin approval. */}
+              {farmerDetails?.verificationStatus == 1 && (
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => {
+                    navigation.navigate(
+                      SCREEN_NAMES.SaathiMembershipCertificate as never,
+                      {
+                        farmer: farmerDetails,
+                        dealer: dealerDetails,
+                      } as never,
+                    );
+                  }}
+                  style={{
+                    backgroundColor: '#FFF8E8',
+                    borderWidth: 1,
+                    borderColor: '#EAB547',
+                    borderRadius: moderateScale(12),
+                    paddingHorizontal: moderateScale(16),
+                    paddingVertical: moderateScale(14),
+                    marginBottom: moderateScale(16),
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                  }}>
+                  <View
+                    style={{
+                      width: moderateScale(44),
+                      height: moderateScale(44),
+                      borderRadius: moderateScale(22),
+                      backgroundColor: '#F6C866',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: moderateScale(12),
+                    }}>
+                    <Ionicons
+                      name="ribbon-outline"
+                      size={moderateScale(24)}
+                      color={colors.textPrimary}
+                    />
+                  </View>
+                  <View style={{flex: 1}}>
+                    <Text
+                      style={[
+                        Typography.semiBoldMd,
+                        {
+                          fontSize: moderateScale(15),
+                          color: colors.textPrimary,
+                          marginBottom: moderateScale(2),
+                        },
+                      ]}>
+                      Saathi Membership Certificate
+                    </Text>
+                    <Text
+                      style={[
+                        Typography.regularMd,
+                        {
+                          fontSize: moderateScale(12),
+                          color: colors.textTertiary,
+                        },
+                      ]}>
+                      View the official approved-member certificate
+                    </Text>
+                  </View>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={moderateScale(20)}
+                    color={colors.textTertiary}
+                  />
+                </TouchableOpacity>
+              )}
 
               {/* Tractor Details Card */}
               <View style={dynamicStyles.card}>
@@ -1261,4 +1450,3 @@ export default function FarmerDetailsScreen() {
     </View>
   );
 }
-

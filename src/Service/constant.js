@@ -1,14 +1,7 @@
 /* eslint-disable quotes */
-// Base URLs
-// const BASE_URL = 'http://165.232.184.177';
-const BASE_URL = 'http://139.59.32.197';
-const LIVE_URL = 'https://api.captainsathi.com'; // Update when production URL is available
-
-// Toggle
-const isTestEnvironment = true; // Change this to false for Live Environment
-
-// Pick correct base URL
-const API_BASE_URL =  BASE_URL;
+// Production application API host. This is intentionally the live host supplied
+// for Captain Saathi; do not substitute localhost in application builds.
+const API_BASE_URL = 'http://139.59.32.197';
 
 // API Endpoints - Based on Postman collection
 const Apis = {

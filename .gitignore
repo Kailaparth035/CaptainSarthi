@@ -1,68 +1,253 @@
-# React Native
-node_modules/
-npm-debug.log
-yarn-debug.log
-yarn-error.log
-package-lock.json
-*.log
+# ============================================================
+# React Native - Captain Saathi Farmer
+# ============================================================
 
-# Metro bundler
+
+# ------------------------------------------------------------
+# macOS
+# ------------------------------------------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+
+
+# ------------------------------------------------------------
+# Windows
+# ------------------------------------------------------------
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+
+# ------------------------------------------------------------
+# Node / JavaScript dependencies
+# ------------------------------------------------------------
+node_modules/
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Keep whichever lock file the project actually uses.
+# This project currently uses yarn.lock, so DO NOT ignore yarn.lock.
+package-lock.json
+pnpm-lock.yaml
+
+
+# ------------------------------------------------------------
+# Metro / React Native
+# ------------------------------------------------------------
+.metro-health-check*
+.metro-cache/
+.react-native/
+
+*.jsbundle
+
+
+# ------------------------------------------------------------
+# Expo (harmless even if this is bare React Native)
+# ------------------------------------------------------------
 .expo/
 .expo-shared/
-.metro/
-metro-cache/
-*.pack
-*.hbc
 
-# iOS
-ios/Pods/
+
+# ------------------------------------------------------------
+# Android - Gradle / IDE generated
+# ------------------------------------------------------------
+android/.gradle/
+android/.idea/
+android/local.properties
+
+android/build/
+android/app/build/
+
+android/.cxx/
+android/app/.cxx/
+
+android/app/debug/
+android/app/release/
+
+*.apk
+*.aab
+
+
+# ------------------------------------------------------------
+# Android signing secrets
+# ------------------------------------------------------------
+*.keystore
+*.jks
+
+# If you intentionally keep a debug keystore in Git,
+# add an exception here instead.
+
+
+# ------------------------------------------------------------
+# iOS / Xcode generated
+# ------------------------------------------------------------
 ios/build/
+DerivedData/
 ios/DerivedData/
+
 *.pbxuser
 !default.pbxuser
+
 *.mode1v3
 !default.mode1v3
+
 *.mode2v3
 !default.mode2v3
+
 *.perspectivev3
 !default.perspectivev3
+
 xcuserdata/
+*.xcuserstate
 *.xccheckout
 *.moved-aside
 *.hmap
+
 *.ipa
-*.dSYM.zip
 *.dSYM
+*.dSYM.zip
 
-# Android
-android/.gradle/
-android/app/build/
-android/build/
-android/local.properties
-android/.idea
-android/.cxx
-*.iml
 
-# Keystore / Keys
-*.keystore
-*.jks
-*.pem
+# ------------------------------------------------------------
+# CocoaPods
+# ------------------------------------------------------------
+ios/Pods/
+
+# IMPORTANT:
+# Keep ios/Podfile and ios/Podfile.lock in Git.
+# Do NOT ignore Podfile.lock for this project.
+
+
+# ------------------------------------------------------------
+# Ruby / Bundler
+# ------------------------------------------------------------
+vendor/bundle/
+.bundle/
+
+
+# ------------------------------------------------------------
+# Apple signing / certificates / private keys
+# ------------------------------------------------------------
+*.p8
 *.p12
+*.cer
+*.mobileprovision
+*.provisionprofile
+
+# Never commit private signing keys.
 *.key
+*.pem
 
-# Fastlane
-fastlane/report.xml
-fastlane/Preview.html
-fastlane/screenshots
-fastlane/test_output
 
-# VSCode
-.vscode/
-.history/
+# ------------------------------------------------------------
+# Firebase / Google configuration
+# ------------------------------------------------------------
+# These may contain project-specific configuration.
+# For CI, provide them securely if required.
+google-services.json
+GoogleService-Info.plist
 
-# Mac system files
-.DS_Store
+# Your current iOS file is under ios/, so cover that too.
+ios/GoogleService-Info.plist
+android/app/google-services.json
 
-# Environment files
+
+# ------------------------------------------------------------
+# Environment / secrets
+# ------------------------------------------------------------
 .env
 .env.*
+!.env.example
+
+*.env.local
+*.env.development.local
+*.env.test.local
+*.env.production.local
+
+
+# ------------------------------------------------------------
+# IDE / Editors
+# ------------------------------------------------------------
+.vscode/
+.idea/
+
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+
+# ------------------------------------------------------------
+# Logs
+# ------------------------------------------------------------
+logs/
+*.log
+
+
+# ------------------------------------------------------------
+# Temporary files
+# ------------------------------------------------------------
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.backup
+*.orig
+
+
+# ------------------------------------------------------------
+# Archives / temporary copies
+# ------------------------------------------------------------
+*.zip
+
+
+# ------------------------------------------------------------
+# Testing / Coverage
+# ------------------------------------------------------------
+coverage/
+jest-cache/
+.nyc_output/
+
+
+# ------------------------------------------------------------
+# Build / Distribution artifacts
+# ------------------------------------------------------------
+dist/
+
+
+# ------------------------------------------------------------
+# Fastlane generated files
+# ------------------------------------------------------------
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output/
+
+
+# ------------------------------------------------------------
+# Watchman
+# ------------------------------------------------------------
+.watchmanconfig
+
+
+# ------------------------------------------------------------
+# Local build validation
+# ------------------------------------------------------------
+build-validation-certificate-loading/
+
+
+# ------------------------------------------------------------
+# Misc caches
+# ------------------------------------------------------------
+.cache/
+.eslintcache
+.stylelintcache

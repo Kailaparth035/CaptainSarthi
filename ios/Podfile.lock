@@ -2136,6 +2136,8 @@ PODS:
     - Yoga
   - react-native-splash-screen (3.3.0):
     - React-Core
+  - react-native-version-check (3.5.0):
+    - React-Core
   - react-native-video (6.19.2):
     - boost
     - DoubleConversion
@@ -3007,7 +3009,7 @@ PODS:
     - GoogleMLKit/TextRecognitionJapanese (= 8.0.0)
     - GoogleMLKit/TextRecognitionKorean (= 8.0.0)
     - React
-  - RNPermissions (5.5.3):
+  - RNPermissions (5.6.0):
     - boost
     - DoubleConversion
     - fast_float
@@ -3035,7 +3037,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
-  - RNReanimated (3.19.5):
+  - RNReanimated (4.2.0):
     - boost
     - DoubleConversion
     - fast_float
@@ -3062,11 +3064,11 @@ PODS:
     - ReactCodegen
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
-    - RNReanimated/reanimated (= 3.19.5)
-    - RNReanimated/worklets (= 3.19.5)
+    - RNReanimated/reanimated (= 4.2.0)
+    - RNWorklets
     - SocketRocket
     - Yoga
-  - RNReanimated/reanimated (3.19.5):
+  - RNReanimated/reanimated (4.2.0):
     - boost
     - DoubleConversion
     - fast_float
@@ -3093,10 +3095,11 @@ PODS:
     - ReactCodegen
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
-    - RNReanimated/reanimated/apple (= 3.19.5)
+    - RNReanimated/reanimated/apple (= 4.2.0)
+    - RNWorklets
     - SocketRocket
     - Yoga
-  - RNReanimated/reanimated/apple (3.19.5):
+  - RNReanimated/reanimated/apple (4.2.0):
     - boost
     - DoubleConversion
     - fast_float
@@ -3123,65 +3126,7 @@ PODS:
     - ReactCodegen
     - ReactCommon/turbomodule/bridging
     - ReactCommon/turbomodule/core
-    - SocketRocket
-    - Yoga
-  - RNReanimated/worklets (3.19.5):
-    - boost
-    - DoubleConversion
-    - fast_float
-    - fmt
-    - glog
-    - hermes-engine
-    - RCT-Folly
-    - RCT-Folly/Fabric
-    - RCTRequired
-    - RCTTypeSafety
-    - React-Core
-    - React-debug
-    - React-Fabric
-    - React-featureflags
-    - React-graphics
-    - React-hermes
-    - React-ImageManager
-    - React-jsi
-    - React-NativeModulesApple
-    - React-RCTFabric
-    - React-renderercss
-    - React-rendererdebug
-    - React-utils
-    - ReactCodegen
-    - ReactCommon/turbomodule/bridging
-    - ReactCommon/turbomodule/core
-    - RNReanimated/worklets/apple (= 3.19.5)
-    - SocketRocket
-    - Yoga
-  - RNReanimated/worklets/apple (3.19.5):
-    - boost
-    - DoubleConversion
-    - fast_float
-    - fmt
-    - glog
-    - hermes-engine
-    - RCT-Folly
-    - RCT-Folly/Fabric
-    - RCTRequired
-    - RCTTypeSafety
-    - React-Core
-    - React-debug
-    - React-Fabric
-    - React-featureflags
-    - React-graphics
-    - React-hermes
-    - React-ImageManager
-    - React-jsi
-    - React-NativeModulesApple
-    - React-RCTFabric
-    - React-renderercss
-    - React-rendererdebug
-    - React-utils
-    - ReactCodegen
-    - ReactCommon/turbomodule/bridging
-    - ReactCommon/turbomodule/core
+    - RNWorklets
     - SocketRocket
     - Yoga
   - RNScreens (4.25.2):
@@ -3271,6 +3216,95 @@ PODS:
     - ReactCommon/turbomodule/core
     - SocketRocket
     - Yoga
+  - RNWorklets (0.7.2):
+    - boost
+    - DoubleConversion
+    - fast_float
+    - fmt
+    - glog
+    - hermes-engine
+    - RCT-Folly
+    - RCT-Folly/Fabric
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-hermes
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - RNWorklets/worklets (= 0.7.2)
+    - SocketRocket
+    - Yoga
+  - RNWorklets/worklets (0.7.2):
+    - boost
+    - DoubleConversion
+    - fast_float
+    - fmt
+    - glog
+    - hermes-engine
+    - RCT-Folly
+    - RCT-Folly/Fabric
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-hermes
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - RNWorklets/worklets/apple (= 0.7.2)
+    - SocketRocket
+    - Yoga
+  - RNWorklets/worklets/apple (0.7.2):
+    - boost
+    - DoubleConversion
+    - fast_float
+    - fmt
+    - glog
+    - hermes-engine
+    - RCT-Folly
+    - RCT-Folly/Fabric
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-hermes
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - SocketRocket
+    - Yoga
   - SDWebImage (5.11.1):
     - SDWebImage/Core (= 5.11.1)
   - SDWebImage/Core (5.11.1)
@@ -3340,6 +3374,7 @@ DEPENDENCIES:
   - react-native-safe-area-context (from `../node_modules/react-native-safe-area-context`)
   - "react-native-slider (from `../node_modules/@react-native-community/slider`)"
   - react-native-splash-screen (from `../node_modules/react-native-splash-screen`)
+  - react-native-version-check (from `../node_modules/react-native-version-check`)
   - react-native-video (from `../node_modules/react-native-video`)
   - react-native-webview (from `../node_modules/react-native-webview`)
   - React-NativeModulesApple (from `../node_modules/react-native/ReactCommon/react/nativemodule/core/platform/ios`)
@@ -3387,6 +3422,7 @@ DEPENDENCIES:
   - RNReanimated (from `../node_modules/react-native-reanimated`)
   - RNScreens (from `../node_modules/react-native-screens`)
   - RNVectorIcons (from `../node_modules/react-native-vector-icons`)
+  - RNWorklets (from `../node_modules/react-native-worklets`)
   - SocketRocket (~> 0.7.1)
   - TextToSpeech (from `../node_modules/react-native-tts`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
@@ -3517,6 +3553,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/@react-native-community/slider"
   react-native-splash-screen:
     :path: "../node_modules/react-native-splash-screen"
+  react-native-version-check:
+    :path: "../node_modules/react-native-version-check"
   react-native-video:
     :path: "../node_modules/react-native-video"
   react-native-webview:
@@ -3611,6 +3649,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-screens"
   RNVectorIcons:
     :path: "../node_modules/react-native-vector-icons"
+  RNWorklets:
+    :path: "../node_modules/react-native-worklets"
   TextToSpeech:
     :path: "../node_modules/react-native-tts"
   Yoga:
@@ -3687,6 +3727,7 @@ SPEC CHECKSUMS:
   react-native-safe-area-context: ebd2c2ece5e6e650a6963184039ec8cfd8960d86
   react-native-slider: 4faf1b2266c73f1afb7b30cc6ebb3df238a37c0b
   react-native-splash-screen: 95994222cc95c236bd3cdc59fe45ed5f27969594
+  react-native-version-check: 842a3b0e7221798cbe8c6abaf24aab3ed0b485ce
   react-native-video: f8e9788554c53a1852166cd119d6e7c324b16dfe
   react-native-webview: 8407aaaf6b539b1e38b72fabb55d6885de03beaf
   React-NativeModulesApple: 46690a0fe94ec28fc6fc686ec797b911d251ded0
@@ -3730,10 +3771,11 @@ SPEC CHECKSUMS:
   RNGestureHandler: 945a93585afdd4d5c4b8ebe0ff56bf21dd75e4a4
   RNImageCropPicker: 5fd4ceaead64d8c53c787e4e559004f97bc76df7
   RNMLKitTextRecognition: 2d7c3481b9dabc72f7e31c67025c28b2c8d653b0
-  RNPermissions: 9a47a649bd862575d89989b76d9d6b9ef84f073d
-  RNReanimated: 4cca349f1a3636b94d152796707c34237bfbd197
+  RNPermissions: ba2777828629a5af9ed5d33e8b9adc2d068e4f92
+  RNReanimated: f1868b36f4b2b52a0ed00062cfda69506f75eaee
   RNScreens: 9269ab4971b2bd24917be84295d2c2ae7d06e9be
   RNVectorIcons: 791f13226ec4a3fd13062eda9e892159f0981fae
+  RNWorklets: cb0d3cc3c613ac60a3b7620f394980d997a86d8d
   SDWebImage: a7f831e1a65eb5e285e3fb046a23fcfbf08e696d
   SDWebImageWebPCoder: 908b83b6adda48effe7667cd2b7f78c897e5111d
   SocketRocket: d4aabe649be1e368d1318fdf28a022d714d65748

@@ -12,6 +12,7 @@ import {
   Image,
   Animated,
   TouchableOpacity,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -51,6 +52,7 @@ import { saveAuthToken } from '../Service/Apicom';
 import FirebaseService from '../Service/FirebaseService';
 
 type LoginScreenProps = NativeStackScreenProps<RootStackParamList, 'Login'>;
+type LoginMode = 'otp' | 'password';
 
 /** Navigate to the correct screen immediately after login — no artificial delay. */
 async function navigateAfterLogin(
@@ -131,9 +133,14 @@ async function navigateAfterLogin(
 export default function LoginScreen({ navigation }: LoginScreenProps) {
   const insets = useSafeAreaInsets();
   const { moderateScale } = useDeviceMetrics();
+  const {height: screenHeight} = useWindowDimensions();
   const { t, currentLanguage } = useLanguage();
+  const isCompactLayout = screenHeight < 700;
   const [dealerId, setDealerId] = useState('');
   const [otp, setOtp] = useState('');
+  const [password, setPassword] = useState('');
+  const [loginMode, setLoginMode] = useState<LoginMode>('otp');
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [getOtpLoading, setGetOtpLoading] = useState(false);
   const [otpRequested, setOtpRequested] = useState(false);
@@ -143,10 +150,16 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
   const [toastType, setToastType] = useState<ToastType>('success');
   const [timer, setTimer] = useState(30);
   const [canResend, setCanResend] = useState(false);
-  const [errors, setErrors] = useState<{ dealerId?: string; otp?: string }>({});
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [errors, setErrors] = useState<{
+    dealerId?: string;
+    otp?: string;
+    password?: string;
+  }>({});
   const [memberId, setMemberId] = useState<string>('');
   const dealerIdInputRef = useRef<TextInput>(null);
   const otpInputRef = useRef<TextInput>(null);
+  const passwordInputRef = useRef<TextInput>(null);
   const timerIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Update StatusBar and bottom bar to match screen background color (white for login)
@@ -154,6 +167,22 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
     backgroundColor: Colors.background.white,
     bottomBarColor: Colors.background.white,
   });
+
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setIsKeyboardVisible(true),
+    );
+    const hideSubscription = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setIsKeyboardVisible(false),
+    );
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   // Timer effect for OTP resend
   useEffect(() => {
@@ -191,41 +220,42 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
         },
         scrollContent: {
           flexGrow: 1,
+          justifyContent: 'space-between',
         },
         logoContainer: {
           alignItems: 'center',
           justifyContent: 'center',
-          marginTop: moderateScale(40),
-          marginBottom: moderateScale(30),
+          marginTop: moderateScale(isCompactLayout ? 8 : 16),
+          marginBottom: moderateScale(isCompactLayout ? 12 : 16),
         },
         topLogo: {
-          height: moderateScale(100),
-          width: moderateScale(180),
+          height: moderateScale(isCompactLayout ? 78 : 90),
+          width: moderateScale(isCompactLayout ? 150 : 165),
         },
         formContainer: {
           backgroundColor: Colors.background.white,
           marginHorizontal: moderateScale(20),
-          paddingVertical: moderateScale(20),
-          marginBottom: moderateScale(20),
+          paddingVertical: moderateScale(isCompactLayout ? 4 : 8),
+          marginBottom: moderateScale(isCompactLayout ? 4 : 8),
         },
         title: {
           ...Typography.boldXxxl,
           textAlign: 'center',
-          marginBottom: moderateScale(8),
+          marginBottom: moderateScale(6),
           color: Colors.text.primary,
-          fontSize: moderateScale(24),
+          fontSize: moderateScale(isCompactLayout ? 22 : 24),
         },
         description: {
           textAlign: 'center',
           color: Colors.text.tertiary,
-          marginBottom: moderateScale(24),
+          marginBottom: moderateScale(isCompactLayout ? 14 : 18),
           fontSize: moderateScale(14),
           lineHeight: moderateScale(20),
         },
         otpDescription: {
           textAlign: 'center',
           color: colors.light_text,
-          marginBottom: moderateScale(16),
+          marginBottom: moderateScale(10),
           fontSize: moderateScale(14),
           marginTop: moderateScale(8),
         },
@@ -233,8 +263,8 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           flexDirection: 'row',
           justifyContent: 'center',
           alignItems: 'center',
-          marginTop: moderateScale(8),
-          marginBottom: moderateScale(16),
+          marginTop: moderateScale(4),
+          marginBottom: moderateScale(8),
         },
         resendText: {
           fontSize: moderateScale(14),
@@ -250,7 +280,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           fontSize: moderateScale(14),
         },
         loginButton: {
-          marginTop: moderateScale(24),
+          marginTop: moderateScale(isCompactLayout ? 14 : 18),
           width: '100%',
           backgroundColor: colors.primary,
           borderRadius: moderateScale(30),
@@ -266,14 +296,35 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           justifyContent: 'center',
           // marginTop: 'auto',
           // paddingTop: moderateScale(20),
-          paddingBottom: moderateScale(20),
+          paddingBottom: moderateScale(isCompactLayout ? 4 : 8),
         },
         footerLogo: {
-          height: moderateScale(84),
-          width: moderateScale(152),
+          height: moderateScale(isCompactLayout ? 62 : 70),
+          width: moderateScale(isCompactLayout ? 122 : 132),
+        },
+        passwordInputContainer: {
+          position: 'relative',
+        },
+        passwordVisibilityButton: {
+          position: 'absolute',
+          right: moderateScale(14),
+          top: moderateScale(28),
+          padding: moderateScale(4),
+          zIndex: 2,
+        },
+        switchModeButton: {
+          alignSelf: 'center',
+          marginTop: moderateScale(10),
+          paddingVertical: moderateScale(4),
+          paddingHorizontal: moderateScale(8),
+        },
+        switchModeText: {
+          color: colors.primary,
+          fontFamily: FontFamily.SemiBold,
+          fontSize: moderateScale(14),
         },
       }),
-    [moderateScale],
+    [moderateScale, isCompactLayout],
   );
 
   const isValidMobileNumber = () => {
@@ -287,8 +338,33 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
     return (trimmed.length === 4 || trimmed.length === 6) && /^\d+$/.test(trimmed);
   };
 
+  const switchLoginMode = (nextMode: LoginMode) => {
+    if (nextMode === loginMode) {
+      return;
+    }
+
+    setLoginMode(nextMode);
+    setOtp('');
+    setPassword('');
+    setOtpRequested(false);
+    setGeneratedOtp('');
+    setCanResend(false);
+    setTimer(30);
+    setErrors({});
+    setLoading(false);
+    setGetOtpLoading(false);
+
+    setTimeout(() => {
+      if (nextMode === 'password') {
+        passwordInputRef.current?.focus();
+      } else {
+        dealerIdInputRef.current?.focus();
+      }
+    }, 100);
+  };
+
   const validateForm = () => {
-    const newErrors: { dealerId?: string; otp?: string } = {};
+    const newErrors: {dealerId?: string; otp?: string; password?: string} = {};
 
     if (!dealerId.trim()) {
       newErrors.dealerId = t('login.pleaseEnterMobileNumber');
@@ -296,7 +372,11 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
       newErrors.dealerId = t('login.pleaseEnterValidMobileNumber');
     }
 
-    if (otpRequested) {
+    if (loginMode === 'password') {
+      if (!password) {
+        newErrors.password = t('login.pleaseEnterPassword');
+      }
+    } else if (otpRequested) {
       if (!otp.trim()) {
         newErrors.otp = t('login.pleaseEnterOtp');
       } else if (otp.trim().length !== 4 && otp.trim().length !== 6) {
@@ -458,10 +538,16 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
 
     try {
       // Prepare JSON body for login API
-      const bodyData = {
-        phone: mobileNumber,
-        otp: otp.trim(),
-      };
+      const bodyData =
+        loginMode === 'password'
+          ? {
+              phone: mobileNumber,
+              password,
+            }
+          : {
+              phone: mobileNumber,
+              otp: otp.trim(),
+            };
 
       // Use common login API for both dealer and farmer
       const response = await postData(Apis.LOGIN, bodyData);
@@ -513,15 +599,23 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
         setLoading(false);
       } else {
         setLoading(false);
-        const errorMsg = response?.message || t('login.invalidOtp');
-        setErrors({ ...errors, otp: errorMsg });
+        const errorMsg =
+          response?.message ||
+          (loginMode === 'password'
+            ? t('login.invalidPassword')
+            : t('login.invalidOtp'));
+        setErrors({...errors, [loginMode === 'password' ? 'password' : 'otp']: errorMsg});
         showToastMessage(errorMsg, 'error');
       }
     } catch (error: any) {
       console.error('Login error:', error);
       setLoading(false);
-      const errorMsg = error?.response?.data?.message || t('login.invalidOtp');
-      setErrors({ ...errors, otp: errorMsg });
+      const errorMsg =
+        error?.response?.data?.message ||
+        (loginMode === 'password'
+          ? t('login.invalidPassword')
+          : t('login.invalidOtp'));
+      setErrors({...errors, [loginMode === 'password' ? 'password' : 'otp']: errorMsg});
       showToastMessage(errorMsg, 'error');
     }
   };
@@ -537,12 +631,15 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
           contentContainerStyle={[
             styles.scrollContent,
             {
-              paddingTop: insets.top + moderateScale(12),
-              paddingBottom: insets.bottom + moderateScale(12),
+              paddingTop: insets.top + moderateScale(isCompactLayout ? 6 : 8),
+              paddingBottom: insets.bottom + moderateScale(isCompactLayout ? 6 : 8),
             },
           ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          scrollEnabled={isKeyboardVisible}
+          bounces={isKeyboardVisible}
+          overScrollMode="never"
         >
           {/* Logo Section */}
           <View style={styles.logoContainer}>
@@ -582,78 +679,142 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
               maxLength={10}
               numberOfLinesLabel={1}
             />
-            <SimpleBoxInput
-              label={t('login.otpPlaceholder')}
-              ref={otpInputRef}
-              placeholder={t('login.otpPlaceholder')}
-              value={otp}
-              onChangeText={text => {
-                // Only allow numeric characters
-                const numericText = text.replace(/[^0-9]/g, '');
-                setOtp(numericText);
-                if (errors.otp) {
-                  setErrors({ ...errors, otp: undefined });
-                }
-              }}
-              keyboardType="number-pad"
-              returnKeyType="done"
-              onSubmitEditing={handleLogin}
-              error={errors.otp}
-              maxLength={6}
-              editable={otpRequested}
-              numberOfLinesLabel={1}
-            />
-            <View style={styles.resendContainer}>
-              {otpRequested ? (
-                <>
-                  <Text
-                    style={[
-                      styles.otpDescription,
-                      { marginBottom: 0, marginTop: 0 },
-                    ]}
-                  >
-                    {t('login.didReciev')}
-                  </Text>
-                  {canResend ? (
-                    <TouchableOpacity
-                      onPress={handleResendOtp}
-                      disabled={getOtpLoading}
-                      activeOpacity={0.7}
-                      style={{ opacity: getOtpLoading ? 0.5 : 1 }}
-                    >
-                      <Text style={styles.resendTextActive}> {t('login.resend')} </Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <TouchableOpacity disabled={true} activeOpacity={1}>
-                      <Text style={styles.resendTextDisabled}>
-                        {' '}
-                        {t('login.resendAfter')} {formatTimer(timer)}
+            {loginMode === 'otp' ? (
+              <>
+                <SimpleBoxInput
+                  label={t('login.otpPlaceholder')}
+                  ref={otpInputRef}
+                  placeholder={t('login.otpPlaceholder')}
+                  value={otp}
+                  onChangeText={text => {
+                    const numericText = text.replace(/[^0-9]/g, '');
+                    setOtp(numericText);
+                    if (errors.otp) {
+                      setErrors({...errors, otp: undefined});
+                    }
+                  }}
+                  keyboardType="number-pad"
+                  returnKeyType="done"
+                  onSubmitEditing={handleLogin}
+                  error={errors.otp}
+                  maxLength={6}
+                  editable={otpRequested}
+                  numberOfLinesLabel={1}
+                />
+                <View style={styles.resendContainer}>
+                  {otpRequested ? (
+                    <>
+                      <Text
+                        style={[
+                          styles.otpDescription,
+                          {marginBottom: 0, marginTop: 0},
+                        ]}>
+                        {t('login.didReciev')}
                       </Text>
-                    </TouchableOpacity>
+                      {canResend ? (
+                        <TouchableOpacity
+                          onPress={handleResendOtp}
+                          disabled={getOtpLoading}
+                          activeOpacity={0.7}
+                          style={{opacity: getOtpLoading ? 0.5 : 1}}>
+                          <Text style={styles.resendTextActive}>
+                            {' '}
+                            {t('login.resend')}{' '}
+                          </Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <TouchableOpacity disabled={true} activeOpacity={1}>
+                          <Text style={styles.resendTextDisabled}>
+                            {' '}
+                            {t('login.resendAfter')} {formatTimer(timer)}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </>
+                  ) : (
+                    <Text style={styles.resendTextDisabled}>
+                      {t('login.didReciev')} {t('login.resend')}
+                    </Text>
                   )}
-                </>
-              ) : (
-                <Text style={styles.resendTextDisabled}>
-                  {t('login.didReciev')} {t('login.resend')}
-                </Text>
-              )}
-            </View>
+                </View>
+              </>
+            ) : (
+              <View style={styles.passwordInputContainer}>
+                <SimpleBoxInput
+                  ref={passwordInputRef}
+                  label={t('login.password')}
+                  placeholder={t('login.enterPassword')}
+                  value={password}
+                  onChangeText={text => {
+                    setPassword(text);
+                    if (errors.password) {
+                      setErrors({...errors, password: undefined});
+                    }
+                  }}
+                  secureTextEntry={!isPasswordVisible}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  returnKeyType="done"
+                  onSubmitEditing={handleLogin}
+                  error={errors.password}
+                  style={{paddingRight: moderateScale(42)}}
+                  numberOfLinesLabel={1}
+                />
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    isPasswordVisible
+                      ? t('login.hidePassword')
+                      : t('login.showPassword')
+                  }
+                  onPress={() => setIsPasswordVisible(current => !current)}
+                  style={styles.passwordVisibilityButton}>
+                  <Ionicons
+                    name={isPasswordVisible ? 'eye-off-outline' : 'eye-outline'}
+                    size={moderateScale(20)}
+                    color={colors.textTertiary}
+                  />
+                </TouchableOpacity>
+              </View>
+            )}
             <Button
               title={
-                otpRequested
+                loginMode === 'password'
+                  ? t('login.loginButton')
+                  : otpRequested
                   ? t('login.loginButton')
                   : t('login.getOtpButton')
               }
-              onPress={otpRequested ? handleLogin : handleGetOtp}
-              loading={otpRequested ? loading : getOtpLoading}
+              onPress={
+                loginMode === 'password'
+                  ? handleLogin
+                  : otpRequested
+                  ? handleLogin
+                  : handleGetOtp
+              }
+              loading={loginMode === 'password' || otpRequested ? loading : getOtpLoading}
               style={styles.loginButton}
               textStyle={styles.loginButtonText}
               disabled={
-                otpRequested
+                loginMode === 'password'
+                  ? !isValidMobileNumber() || !password || loading
+                  : otpRequested
                   ? !isValidOtp() || loading || getOtpLoading
                   : !isValidMobileNumber() || getOtpLoading
               }
             />
+            <TouchableOpacity
+              accessibilityRole="button"
+              onPress={() =>
+                switchLoginMode(loginMode === 'otp' ? 'password' : 'otp')
+              }
+              style={styles.switchModeButton}>
+              <Text style={styles.switchModeText}>
+                {loginMode === 'otp'
+                  ? t('login.loginWithPassword')
+                  : t('login.loginWithOtp')}
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* Footer Logo */}
@@ -678,4 +839,3 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
     </KeyboardAvoidingView>
   );
 }
-
